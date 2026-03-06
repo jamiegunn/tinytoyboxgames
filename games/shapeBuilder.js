@@ -635,21 +635,31 @@ function setupPuzzle() {
 
   const trayY = h * 0.84
   const shuffled = [...slots].sort(() => Math.random() - 0.5)
-  const spacing = w / (shuffled.length + 1)
 
-  pieces = shuffled.map((s, i) => ({
-    shape: s.shape,
-    x: spacing * (i + 1),
-    y: trayY + (Math.random() - 0.5) * 15,
-    homeX: spacing * (i + 1),
-    homeY: trayY,
-    size: s.size * 0.75,
-    slotIndex: -1,
-    bobPhase: Math.random() * Math.PI * 2,
-    bobSpeed: Math.random() * 0.6,
-    wobble: 0,
-    wobblePhase: Math.random() * Math.PI * 2
-  }))
+  // Calculate positions based on actual piece sizes so they don't overlap
+  const pieceSizes = shuffled.map(s => s.size * 0.75)
+  const gap = 10
+  const totalWidth = pieceSizes.reduce((sum, s) => sum + s * 2, 0) + gap * (pieceSizes.length - 1)
+  let startX = (w - totalWidth) / 2
+
+  pieces = shuffled.map((s, i) => {
+    const size = pieceSizes[i]
+    const px = startX + size
+    startX += size * 2 + gap
+    return {
+      shape: s.shape,
+      x: px,
+      y: trayY,
+      homeX: px,
+      homeY: trayY,
+      size,
+      slotIndex: -1,
+      bobPhase: Math.random() * Math.PI * 2,
+      bobSpeed: Math.random() * 0.6,
+      wobble: 0,
+      wobblePhase: Math.random() * Math.PI * 2
+    }
+  })
 
   // assign unique slot
   const claimed = new Set()

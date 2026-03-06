@@ -3,11 +3,19 @@
 <head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Tiny Toybox</title>
+<script>
+// Disable all persistent storage — nothing should be saved
+Storage.prototype.setItem = function(){};
+Storage.prototype.getItem = function(){ return null; };
+Storage.prototype.removeItem = function(){};
+Storage.prototype.clear = function(){};
+</script>
+<link rel="icon" type="image/svg+xml" href="/assets/favicon-4TcQ6MWZ.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/toybox-J_BN3u7o.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/toybox-CXIv-Voi.css">
+  <script type="module" crossorigin src="/assets/toybox-BnLWl0lj.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/toybox-CJzLSBlQ.css">
 </head>
 
 <body>
@@ -486,6 +494,6 @@
   document.addEventListener('touchstart', unlockAudio)
 })()
 </script>
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<script src="/js/libs/confetti.min.js"></script>
 </body>
 </html>

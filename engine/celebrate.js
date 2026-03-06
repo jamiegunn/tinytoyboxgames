@@ -1,4 +1,4 @@
-// Uses canvas-confetti loaded via CDN, rendered on a dedicated overlay canvas
+// Uses the static canvas-confetti bundle served from `/js/libs/confetti.min.js`.
 let myConfetti = null
 
 function getConfetti() {

@@ -16,6 +16,8 @@ Other commands:
 - `npm run preview` - preview the production build
 - `npm start` - serve `dist/` with the included Node static server
 
+Docker also serves the production build only. The container image runs `vite build` and copies `dist/` into nginx.
+
 ## Games
 
 | Game | Description | Status |
@@ -83,7 +85,7 @@ The repo also contains planning docs for a future template-based architecture. T
 - Vanilla JS, ES modules, canvas 2D
 - Vite for dev/build
 - Optional Node static server for built output
-- `canvas-confetti` loaded via CDN for celebrations
+- `canvas-confetti` served as a static asset for celebrations
 - Works on mobile (touch) and desktop (mouse)
 
 ## Docs

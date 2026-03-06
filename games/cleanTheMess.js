@@ -7,6 +7,7 @@ let shapes, score, time, allClean
 let sparkles, particles, scorePopups, bubbles
 let screenShake, brushTrail
 let bgPattern, cleanProgress
+let mudCanvas, mudCtx
 
 function playSqueak() {
   if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
@@ -43,9 +44,9 @@ const SHAPE_TYPES = [
   { name: "snail", draw: drawSnail, color: "#a55eea" },
 ]
 
-const DIRT_COLORS = [
-  "#8B7355", "#A0896C", "#96805A", "#7A6B50", "#B8A88A",
-  "#6e5d40", "#9e8a68", "#887550"
+const MUD_COLORS = [
+  "#6B4F3A", "#7A5C42", "#8B6914", "#5E432E", "#9E8A68",
+  "#4A3728", "#6e5d40", "#887550", "#7A6B50", "#5A4A30"
 ]
 
 export default {
@@ -92,8 +93,8 @@ export default {
   destroy() {
     input.offDragMove(dragHandler)
     input.offTap(tapHandler)
-    shapes.forEach(s => { s.dirtyCanvas = null; s.dirtyCtx = null })
     shapes = []; sparkles = []; particles = []; scorePopups = []; bubbles = []
+    mudCanvas = null; mudCtx = null
   },
 
   update(dt) {
@@ -101,11 +102,9 @@ export default {
     h = ctx.canvas.height
     time += dt
 
-    // screen shake
     if (screenShake > 0) screenShake *= Math.pow(0.04, dt)
     if (screenShake < 0.3) screenShake = 0
 
-    // sparkles
     sparkles.forEach(s => {
       s.life -= dt * 2
       s.x += s.vx * dt
@@ -115,7 +114,6 @@ export default {
     })
     sparkles = sparkles.filter(s => s.life > 0)
 
-    // particles
     particles.forEach(p => {
       p.x += p.vx * dt
       p.y += p.vy * dt
@@ -125,11 +123,9 @@ export default {
     })
     particles = particles.filter(p => p.life > 0)
 
-    // score popups
     scorePopups.forEach(p => { p.y -= 50 * dt; p.life -= dt })
     scorePopups = scorePopups.filter(p => p.life > 0)
 
-    // bubbles float up
     bubbles.forEach(b => {
       b.y -= b.speed * dt
       b.x += Math.sin(b.wobble + time * 2) * 0.5
@@ -138,11 +134,9 @@ export default {
     })
     bubbles = bubbles.filter(b => b.life > 0 && b.y > -20)
 
-    // brush trail decay
     brushTrail.forEach(t => { t.life -= dt * 3 })
     brushTrail = brushTrail.filter(t => t.life > 0)
 
-    // slot animations
     shapes.forEach(s => {
       s.revealScale = s.revealScale || 1
       if (s.revealed && s.revealScale < 1.15) {
@@ -153,7 +147,6 @@ export default {
       s.shimmer = (s.shimmer || 0) + dt * 3
     })
 
-    // overall progress
     const found = shapes.filter(s => s.revealed).length
     cleanProgress = found / shapes.length
   },
@@ -164,7 +157,7 @@ export default {
       ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake)
     }
 
-    // background — clean, airy gradient
+    // background
     const bg = ctx.createLinearGradient(0, 0, w, h)
     bg.addColorStop(0, "#e8f0ff")
     bg.addColorStop(0.5, "#dce8f5")
@@ -198,7 +191,7 @@ export default {
       ctx.restore()
     })
 
-    // progress bar at top
+    // progress bar
     const barW = w * 0.6
     const barH = 8
     const barX = (w - barW) / 2
@@ -212,7 +205,6 @@ export default {
     ctx.beginPath()
     ctx.roundRect(barX, barY, barW * cleanProgress, barH, 4)
     ctx.fill()
-    // sparkle on progress bar
     if (cleanProgress > 0 && cleanProgress < 1) {
       const sparkX = barX + barW * cleanProgress
       ctx.beginPath()
@@ -223,7 +215,7 @@ export default {
       ctx.globalAlpha = 1
     }
 
-    // brush trail (scrub marks)
+    // brush trail
     brushTrail.forEach(t => {
       ctx.globalAlpha = t.life * 0.15
       ctx.beginPath()
@@ -237,14 +229,12 @@ export default {
     shapes.forEach(s => {
       ctx.save()
 
-      // revealed shapes get a pop animation
       if (s.revealed) {
         ctx.translate(s.x, s.y)
         ctx.scale(s.revealScale, s.revealScale)
         ctx.translate(-s.x, -s.y)
       }
 
-      // glow behind revealed shape
       if (s.revealed) {
         const glow = ctx.createRadialGradient(s.x, s.y, s.size * 0.3, s.x, s.y, s.size * 1.3)
         glow.addColorStop(0, `rgba(255,255,255,0.2)`)
@@ -255,51 +245,20 @@ export default {
         ctx.fill()
       }
 
-      // the hidden picture
       s.type.draw(ctx, s.x, s.y, s.size)
-
-      // dirty overlay
-      if (s.dirtyCanvas && !s.revealed) {
-        ctx.drawImage(s.dirtyCanvas, s.dx, s.dy)
-      }
-
-      // outline — animated dash for unrevealed, solid glow for revealed
-      if (!s.revealed) {
-        ctx.setLineDash([7, 5])
-        ctx.lineDashOffset = time * 12
-        ctx.strokeStyle = "rgba(0,0,0,0.1)"
-        ctx.lineWidth = 2
-        ctx.beginPath()
-        ctx.arc(s.x, s.y, s.size + 10, 0, Math.PI * 2)
-        ctx.stroke()
-        ctx.setLineDash([])
-        ctx.lineDashOffset = 0
-
-        // progress ring
-        if (s.progress > 0.1 && !s.revealed) {
-          ctx.strokeStyle = "rgba(100,200,255,0.4)"
-          ctx.lineWidth = 3
-          ctx.beginPath()
-          ctx.arc(s.x, s.y, s.size + 10, -Math.PI / 2, -Math.PI / 2 + s.progress * Math.PI * 2)
-          ctx.stroke()
-        }
-      }
 
       // checkmark on revealed
       if (s.revealed) {
         const cx = s.x + s.size * 0.6
         const cy = s.y - s.size * 0.6
-        // badge shadow
         ctx.beginPath()
         ctx.arc(cx + 1, cy + 1, 16, 0, Math.PI * 2)
         ctx.fillStyle = "rgba(0,0,0,0.1)"
         ctx.fill()
-        // badge
         ctx.beginPath()
         ctx.arc(cx, cy, 16, 0, Math.PI * 2)
         ctx.fillStyle = "#26de81"
         ctx.fill()
-        // check
         ctx.strokeStyle = "#fff"
         ctx.lineWidth = 3.5
         ctx.lineCap = "round"
@@ -310,7 +269,6 @@ export default {
         ctx.lineTo(cx + 7, cy - 5)
         ctx.stroke()
 
-        // shimmer sparkles around revealed shape
         const shimmerAlpha = Math.max(0, 1 - (time - (s.revealTime || 0)) / 3)
         if (shimmerAlpha > 0) {
           ctx.globalAlpha = shimmerAlpha * 0.5
@@ -326,6 +284,11 @@ export default {
       ctx.restore()
     })
 
+    // draw the mud overlay on top of everything
+    if (mudCanvas) {
+      ctx.drawImage(mudCanvas, 0, 0)
+    }
+
     // bubbles
     bubbles.forEach(b => {
       ctx.globalAlpha = b.life * 0.4
@@ -334,7 +297,6 @@ export default {
       ctx.strokeStyle = "rgba(150,200,255,0.5)"
       ctx.lineWidth = 1.5
       ctx.stroke()
-      // bubble shine
       ctx.beginPath()
       ctx.arc(b.x - b.size * 0.2, b.y - b.size * 0.2, b.size * 0.25, 0, Math.PI * 2)
       ctx.fillStyle = "rgba(255,255,255,0.3)"
@@ -422,7 +384,7 @@ export default {
       ctx.font = "17px sans-serif"
       ctx.fillStyle = "rgba(80,100,140,0.4)"
       ctx.textAlign = "center"
-      ctx.fillText("Scrub the dirt to find hidden pictures!", w / 2, h - 45)
+      ctx.fillText("Scrub the mud to find hidden pictures!", w / 2, h - 45)
     }
 
     ctx.restore()
@@ -431,109 +393,130 @@ export default {
 
 let allCleanTime = 0
 
+function createMudOverlay() {
+  mudCanvas = document.createElement("canvas")
+  mudCanvas.width = w
+  mudCanvas.height = h
+  mudCtx = mudCanvas.getContext("2d", { willReadFrequently: true })
+
+  // base mud color
+  mudCtx.fillStyle = "#6B4F3A"
+  mudCtx.fillRect(0, 0, w, h)
+
+  // large splotchy layers for organic look
+  for (let j = 0; j < 40; j++) {
+    const sx = Math.random() * w
+    const sy = Math.random() * h
+    const sr = 40 + Math.random() * 120
+    mudCtx.beginPath()
+    mudCtx.arc(sx, sy, sr, 0, Math.PI * 2)
+    mudCtx.fillStyle = MUD_COLORS[Math.floor(Math.random() * MUD_COLORS.length)]
+    mudCtx.globalAlpha = 0.2 + Math.random() * 0.35
+    mudCtx.fill()
+  }
+
+  // smaller splotches for texture
+  for (let j = 0; j < 60; j++) {
+    const sx = Math.random() * w
+    const sy = Math.random() * h
+    const sr = 10 + Math.random() * 50
+    mudCtx.beginPath()
+    mudCtx.arc(sx, sy, sr, 0, Math.PI * 2)
+    mudCtx.fillStyle = MUD_COLORS[Math.floor(Math.random() * MUD_COLORS.length)]
+    mudCtx.globalAlpha = 0.15 + Math.random() * 0.3
+    mudCtx.fill()
+  }
+
+  // scratchy texture lines
+  mudCtx.globalAlpha = 0.06
+  mudCtx.strokeStyle = "#3a2810"
+  mudCtx.lineWidth = 1
+  for (let j = 0; j < 30; j++) {
+    mudCtx.beginPath()
+    mudCtx.moveTo(Math.random() * w, Math.random() * h)
+    mudCtx.lineTo(Math.random() * w, Math.random() * h)
+    mudCtx.stroke()
+  }
+
+  // small specks
+  mudCtx.globalAlpha = 0.12
+  mudCtx.fillStyle = "#3a2810"
+  for (let j = 0; j < 80; j++) {
+    mudCtx.beginPath()
+    mudCtx.arc(Math.random() * w, Math.random() * h, 1 + Math.random() * 4, 0, Math.PI * 2)
+    mudCtx.fill()
+  }
+
+  // lighter puddle highlights
+  mudCtx.globalAlpha = 0.08
+  mudCtx.fillStyle = "#C0A87A"
+  for (let j = 0; j < 15; j++) {
+    mudCtx.beginPath()
+    mudCtx.ellipse(Math.random() * w, Math.random() * h, 30 + Math.random() * 60, 15 + Math.random() * 30, Math.random() * Math.PI, 0, Math.PI * 2)
+    mudCtx.fill()
+  }
+
+  mudCtx.globalAlpha = 1
+}
+
 function setupRound() {
   allClean = false
   shapes = []
 
-  const count = 3 + Math.min(3, Math.floor(score / 2))
+  const count = Math.max(5, 5 + Math.min(3, Math.floor(score / 2)))
   const shuffled = [...SHAPE_TYPES].sort(() => Math.random() - 0.5)
   const picked = shuffled.slice(0, count)
 
-  const cols = Math.min(count, 3)
-  const rows = Math.ceil(count / cols)
-  const cellW = w / (cols + 1)
-  const cellH = (h - 140) / (rows + 1)
-  const shapeSize = Math.min(cellW, cellH) * 0.35
-  const dirtyPad = 22
+  const margin = 80
+  const shapeSize = Math.min(w, h) * 0.08
+  const minDist = shapeSize * 3
 
-  picked.forEach((type, i) => {
-    const col = i % cols
-    const row = Math.floor(i / cols)
-    const cx = cellW * (col + 1) + (Math.random() - 0.5) * cellW * 0.15
-    const cy = 90 + cellH * (row + 0.5) + (Math.random() - 0.5) * cellH * 0.15
-
-    const dirtSize = (shapeSize + dirtyPad) * 2
-    const dirtyCanvas = document.createElement("canvas")
-    dirtyCanvas.width = dirtSize
-    dirtyCanvas.height = dirtSize
-    const dirtyCtx = dirtyCanvas.getContext("2d")
-
-    // richer dirt texture
-    dirtyCtx.beginPath()
-    dirtyCtx.arc(dirtSize / 2, dirtSize / 2, dirtSize / 2, 0, Math.PI * 2)
-    dirtyCtx.fillStyle = "#8a7a5a"
-    dirtyCtx.fill()
-
-    // splotchy layers
-    for (let j = 0; j < 20; j++) {
-      const sx = Math.random() * dirtSize
-      const sy = Math.random() * dirtSize
-      const sr = 12 + Math.random() * 35
-      dirtyCtx.beginPath()
-      dirtyCtx.arc(sx, sy, sr, 0, Math.PI * 2)
-      dirtyCtx.fillStyle = DIRT_COLORS[Math.floor(Math.random() * DIRT_COLORS.length)]
-      dirtyCtx.globalAlpha = 0.25 + Math.random() * 0.4
-      dirtyCtx.fill()
-    }
-
-    // scratchy texture lines
-    dirtyCtx.globalAlpha = 0.08
-    dirtyCtx.strokeStyle = "#4a3a20"
-    dirtyCtx.lineWidth = 1
-    for (let j = 0; j < 15; j++) {
-      dirtyCtx.beginPath()
-      dirtyCtx.moveTo(Math.random() * dirtSize, Math.random() * dirtSize)
-      dirtyCtx.lineTo(Math.random() * dirtSize, Math.random() * dirtSize)
-      dirtyCtx.stroke()
-    }
-
-    // small specks
-    dirtyCtx.globalAlpha = 0.15
-    dirtyCtx.fillStyle = "#5a4a30"
-    for (let j = 0; j < 30; j++) {
-      dirtyCtx.beginPath()
-      dirtyCtx.arc(Math.random() * dirtSize, Math.random() * dirtSize, 1 + Math.random() * 3, 0, Math.PI * 2)
-      dirtyCtx.fill()
-    }
-    dirtyCtx.globalAlpha = 1
+  picked.forEach((type) => {
+    let cx, cy, overlaps
+    let attempts = 0
+    do {
+      cx = margin + Math.random() * (w - margin * 2)
+      cy = margin + Math.random() * (h - margin * 2)
+      overlaps = shapes.some(s => {
+        const dx = s.x - cx
+        const dy = s.y - cy
+        return Math.sqrt(dx * dx + dy * dy) < minDist
+      })
+      attempts++
+    } while (overlaps && attempts < 200)
 
     shapes.push({
       type, x: cx, y: cy, size: shapeSize,
-      dx: cx - dirtSize / 2, dy: cy - dirtSize / 2,
-      dirtyCanvas, dirtyCtx, dirtSize,
       revealed: false, halfCelebrated: false,
       progress: 0, revealScale: 1, revealTime: 0, shimmer: 0
     })
   })
+
+  createMudOverlay()
 }
 
 function handleDrag(x, y) {
   if (allClean) return
 
-  // brush trail
   brushTrail.push({ x, y, life: 1 })
 
-  shapes.forEach(s => {
-    if (s.revealed) return
-
-    const localX = x - s.dx
-    const localY = y - s.dy
-
-    if (localX < -BRUSH_RADIUS || localX > s.dirtSize + BRUSH_RADIUS) return
-    if (localY < -BRUSH_RADIUS || localY > s.dirtSize + BRUSH_RADIUS) return
-
-    // erase with soft edge
-    s.dirtyCtx.globalCompositeOperation = "destination-out"
-    const grad = s.dirtyCtx.createRadialGradient(localX, localY, BRUSH_RADIUS * 0.3, localX, localY, BRUSH_RADIUS)
+  // erase from the single mud overlay
+  if (mudCtx) {
+    mudCtx.globalCompositeOperation = "destination-out"
+    const grad = mudCtx.createRadialGradient(x, y, BRUSH_RADIUS * 0.3, x, y, BRUSH_RADIUS)
     grad.addColorStop(0, "rgba(0,0,0,1)")
     grad.addColorStop(0.7, "rgba(0,0,0,0.8)")
     grad.addColorStop(1, "rgba(0,0,0,0)")
-    s.dirtyCtx.fillStyle = grad
-    s.dirtyCtx.beginPath()
-    s.dirtyCtx.arc(localX, localY, BRUSH_RADIUS, 0, Math.PI * 2)
-    s.dirtyCtx.fill()
-    s.dirtyCtx.globalCompositeOperation = "source-over"
+    mudCtx.fillStyle = grad
+    mudCtx.beginPath()
+    mudCtx.arc(x, y, BRUSH_RADIUS, 0, Math.PI * 2)
+    mudCtx.fill()
+    mudCtx.globalCompositeOperation = "source-over"
+  }
 
+  // check each shape for reveal progress
+  shapes.forEach(s => {
+    if (s.revealed) return
     checkShapeProgress(s)
   })
 
@@ -570,15 +553,23 @@ function handleTap(x, y) {
     setupRound()
     return
   }
-  // also scrub on tap
   handleDrag(x, y)
 }
 
 function checkShapeProgress(s) {
-  const data = s.dirtyCtx.getImageData(0, 0, s.dirtSize, s.dirtSize).data
+  if (!mudCtx) return
+  // sample the mud overlay in the area around the shape
+  const r = s.size + 20
+  const sx = Math.max(0, Math.floor(s.x - r))
+  const sy = Math.max(0, Math.floor(s.y - r))
+  const sw = Math.min(Math.ceil(r * 2), w - sx)
+  const sh = Math.min(Math.ceil(r * 2), h - sy)
+  if (sw <= 0 || sh <= 0) return
+
+  const data = mudCtx.getImageData(sx, sy, sw, sh).data
   let cleared = 0
-  const step = 16
-  const total = data.length / 4
+  const step = 8
+  const total = (sw * sh)
   for (let i = 0; i < total; i += step) {
     if (data[i * 4 + 3] === 0) cleared++
   }
@@ -590,7 +581,6 @@ function checkShapeProgress(s) {
     celebrate()
     playSqueak()
 
-    // popup
     scorePopups.push({
       x: s.x, y: s.y - s.size - 10,
       text: "Almost!",
@@ -602,10 +592,19 @@ function checkShapeProgress(s) {
     s.revealed = true
     s.revealTime = time
     s.revealScale = 0.8
-    s.dirtyCtx.clearRect(0, 0, s.dirtSize, s.dirtSize)
+
+    // clear mud around this shape completely
+    if (mudCtx) {
+      mudCtx.globalCompositeOperation = "destination-out"
+      mudCtx.beginPath()
+      mudCtx.arc(s.x, s.y, s.size + 25, 0, Math.PI * 2)
+      mudCtx.fillStyle = "rgba(0,0,0,1)"
+      mudCtx.fill()
+      mudCtx.globalCompositeOperation = "source-over"
+    }
+
     screenShake = 4
 
-    // reveal burst
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2
       particles.push({
@@ -620,7 +619,6 @@ function checkShapeProgress(s) {
       })
     }
 
-    // sparkle burst
     for (let i = 0; i < 8; i++) {
       sparkles.push({
         x: s.x + (Math.random() - 0.5) * s.size,
@@ -647,8 +645,9 @@ function checkShapeProgress(s) {
       allClean = true
       allCleanTime = time
       screenShake = 10
+      mudCanvas = null
+      mudCtx = null
 
-      // big celebration particles
       for (let i = 0; i < 30; i++) {
         const a = (i / 30) * Math.PI * 2
         const speed = 80 + Math.random() * 120
@@ -695,10 +694,9 @@ function drawMiniStar(ctx, x, y, size) {
   ctx.fill()
 }
 
-// --- Shape drawings (all improved with detail) ---
+// --- Shape drawings ---
 
 function drawSun(ctx, x, y, size) {
-  // rays with gradient
   ctx.lineCap = "round"
   for (let i = 0; i < 12; i++) {
     const angle = (i / 12) * Math.PI * 2
@@ -711,7 +709,6 @@ function drawSun(ctx, x, y, size) {
     ctx.lineTo(x + Math.cos(angle) * outer, y + Math.sin(angle) * outer)
     ctx.stroke()
   }
-  // body
   const sg = ctx.createRadialGradient(x - size * 0.1, y - size * 0.1, size * 0.05, x, y, size * 0.45)
   sg.addColorStop(0, "#fff3b0")
   sg.addColorStop(1, "#feca57")
@@ -719,7 +716,6 @@ function drawSun(ctx, x, y, size) {
   ctx.arc(x, y, size * 0.42, 0, Math.PI * 2)
   ctx.fillStyle = sg
   ctx.fill()
-  // face
   ctx.fillStyle = "#222"
   ctx.beginPath()
   ctx.arc(x - size * 0.12, y - size * 0.08, size * 0.045, 0, Math.PI * 2)
@@ -730,7 +726,6 @@ function drawSun(ctx, x, y, size) {
   ctx.strokeStyle = "#c08a20"
   ctx.lineWidth = size * 0.03
   ctx.stroke()
-  // cheeks
   ctx.beginPath()
   ctx.arc(x - size * 0.22, y + size * 0.04, size * 0.06, 0, Math.PI * 2)
   ctx.arc(x + size * 0.22, y + size * 0.04, size * 0.06, 0, Math.PI * 2)
@@ -757,7 +752,6 @@ function drawStar(ctx, x, y, size) {
   }
   ctx.closePath()
   ctx.fill()
-  // face
   ctx.fillStyle = "#222"
   ctx.beginPath()
   ctx.arc(x - size * 0.12, y - size * 0.06, size * 0.04, 0, Math.PI * 2)
@@ -772,7 +766,6 @@ function drawStar(ctx, x, y, size) {
 }
 
 function drawFish(ctx, x, y, size) {
-  // tail
   ctx.beginPath()
   ctx.moveTo(x + size * 0.5, y)
   ctx.lineTo(x + size * 0.88, y - size * 0.28)
@@ -780,7 +773,6 @@ function drawFish(ctx, x, y, size) {
   ctx.closePath()
   ctx.fillStyle = "#48dbfb"
   ctx.fill()
-  // body
   const fg = ctx.createRadialGradient(x - size * 0.1, y - size * 0.05, size * 0.05, x, y, size * 0.6)
   fg.addColorStop(0, "#7ec8ff")
   fg.addColorStop(1, "#3d8ae6")
@@ -788,13 +780,11 @@ function drawFish(ctx, x, y, size) {
   ctx.ellipse(x, y, size * 0.6, size * 0.38, 0, 0, Math.PI * 2)
   ctx.fillStyle = fg
   ctx.fill()
-  // fin
   ctx.beginPath()
   ctx.moveTo(x, y - size * 0.3)
   ctx.quadraticCurveTo(x + size * 0.1, y - size * 0.6, x + size * 0.25, y - size * 0.35)
   ctx.fillStyle = "#48dbfb"
   ctx.fill()
-  // scales
   ctx.globalAlpha = 0.06
   for (let sx = -0.3; sx < 0.3; sx += 0.15) {
     for (let sy = -0.15; sy < 0.15; sy += 0.15) {
@@ -806,7 +796,6 @@ function drawFish(ctx, x, y, size) {
     }
   }
   ctx.globalAlpha = 1
-  // eye
   ctx.fillStyle = "#fff"
   ctx.beginPath()
   ctx.arc(x - size * 0.25, y - size * 0.06, size * 0.11, 0, Math.PI * 2)
@@ -819,7 +808,6 @@ function drawFish(ctx, x, y, size) {
   ctx.beginPath()
   ctx.arc(x - size * 0.21, y - size * 0.08, size * 0.025, 0, Math.PI * 2)
   ctx.fill()
-  // lips
   ctx.beginPath()
   ctx.arc(x - size * 0.45, y + size * 0.05, size * 0.06, 0.3, Math.PI * 0.7)
   ctx.strokeStyle = "#2d7dd2"
@@ -828,7 +816,6 @@ function drawFish(ctx, x, y, size) {
 }
 
 function drawFlower(ctx, x, y, size) {
-  // stem
   ctx.strokeStyle = "#3a9a3a"
   ctx.lineWidth = size * 0.06
   ctx.lineCap = "round"
@@ -836,12 +823,10 @@ function drawFlower(ctx, x, y, size) {
   ctx.moveTo(x, y + size * 0.2)
   ctx.lineTo(x, y + size * 0.8)
   ctx.stroke()
-  // leaf
   ctx.fillStyle = "#26de81"
   ctx.beginPath()
   ctx.ellipse(x + size * 0.15, y + size * 0.55, size * 0.12, size * 0.06, 0.4, 0, Math.PI * 2)
   ctx.fill()
-  // petals
   const petalColors = ["#ff6b6b", "#ff9ff3", "#ff6b6b", "#ff9ff3", "#ff6b6b", "#ff8080"]
   for (let i = 0; i < 6; i++) {
     const angle = (i / 6) * Math.PI * 2 - Math.PI / 2
@@ -852,7 +837,6 @@ function drawFlower(ctx, x, y, size) {
     ctx.fillStyle = petalColors[i]
     ctx.fill()
   }
-  // center
   const cg = ctx.createRadialGradient(x, y, size * 0.02, x, y, size * 0.2)
   cg.addColorStop(0, "#fff3a0")
   cg.addColorStop(1, "#feca57")
@@ -860,7 +844,6 @@ function drawFlower(ctx, x, y, size) {
   ctx.arc(x, y, size * 0.2, 0, Math.PI * 2)
   ctx.fillStyle = cg
   ctx.fill()
-  // center dots
   ctx.fillStyle = "rgba(200,150,50,0.15)"
   for (let i = 0; i < 5; i++) {
     const a = i * 1.2 + 0.5
@@ -883,7 +866,6 @@ function drawHeart(ctx, x, y, size) {
   ctx.bezierCurveTo(x, y + s * 0.5, x + s * 0.6, y + s * 0.15, x + s * 0.6, y - s * 0.1)
   ctx.bezierCurveTo(x + s * 0.6, y - s * 0.4, x, y - s * 0.1, x, y + s * 0.3)
   ctx.fill()
-  // shine
   ctx.beginPath()
   ctx.ellipse(x - s * 0.2, y - s * 0.05, s * 0.12, s * 0.08, -0.4, 0, Math.PI * 2)
   ctx.fillStyle = "rgba(255,255,255,0.3)"
@@ -898,7 +880,6 @@ function drawMoon(ctx, x, y, size) {
   ctx.arc(x, y, size * 0.5, 0, Math.PI * 2)
   ctx.fillStyle = mg
   ctx.fill()
-  // craters
   ctx.globalAlpha = 0.08
   ctx.fillStyle = "#c0a060"
   ctx.beginPath()
@@ -908,12 +889,10 @@ function drawMoon(ctx, x, y, size) {
   ctx.arc(x + size * 0.15, y - size * 0.15, size * 0.06, 0, Math.PI * 2)
   ctx.fill()
   ctx.globalAlpha = 1
-  // crescent cutout
   ctx.beginPath()
   ctx.arc(x + size * 0.22, y - size * 0.12, size * 0.4, 0, Math.PI * 2)
-  ctx.fillStyle = "#e0ecf5" // match bg
+  ctx.fillStyle = "#e0ecf5"
   ctx.fill()
-  // sleepy face
   ctx.strokeStyle = "rgba(0,0,0,0.15)"
   ctx.lineWidth = 1.5
   ctx.lineCap = "round"
@@ -940,7 +919,6 @@ function drawCloud(ctx, x, y, size) {
   ctx.arc(x + size * 0.15, y - size * 0.18, size * 0.24, 0, Math.PI * 2)
   ctx.arc(x - size * 0.15, y - size * 0.12, size * 0.2, 0, Math.PI * 2)
   ctx.fill()
-  // face
   ctx.fillStyle = "rgba(0,0,0,0.12)"
   ctx.beginPath()
   ctx.arc(x - size * 0.1, y - size * 0.03, size * 0.03, 0, Math.PI * 2)
@@ -958,7 +936,6 @@ function drawTree(ctx, x, y, size) {
   ctx.beginPath()
   ctx.roundRect(x - size * 0.08, y + size * 0.1, size * 0.16, size * 0.55, 3)
   ctx.fill()
-  // foliage layers
   ctx.fillStyle = "#26de81"
   ctx.beginPath()
   ctx.moveTo(x, y - size * 0.65)
@@ -973,14 +950,12 @@ function drawTree(ctx, x, y, size) {
   ctx.lineTo(x + size * 0.33, y - size * 0.22)
   ctx.closePath()
   ctx.fill()
-  // snow/highlights
   ctx.fillStyle = "rgba(255,255,255,0.12)"
   ctx.beginPath()
   ctx.moveTo(x, y - size * 0.92)
   ctx.lineTo(x - size * 0.15, y - size * 0.5)
   ctx.lineTo(x + size * 0.15, y - size * 0.5)
   ctx.fill()
-  // tiny fruit
   ctx.fillStyle = "#ff6b6b"
   ctx.beginPath()
   ctx.arc(x - size * 0.15, y - size * 0.1, 3, 0, Math.PI * 2)
@@ -989,7 +964,6 @@ function drawTree(ctx, x, y, size) {
 }
 
 function drawButterfly(ctx, x, y, size) {
-  // wings
   ctx.fillStyle = "#ff9ff3"
   ctx.beginPath()
   ctx.ellipse(x - size * 0.3, y - size * 0.05, size * 0.35, size * 0.5, -0.15, 0, Math.PI * 2)
@@ -1006,7 +980,6 @@ function drawButterfly(ctx, x, y, size) {
   ctx.beginPath()
   ctx.ellipse(x + size * 0.25, y - size * 0.05, size * 0.2, size * 0.3, 0.15, 0, Math.PI * 2)
   ctx.fill()
-  // lower wings
   ctx.fillStyle = "#e080d8"
   ctx.beginPath()
   ctx.ellipse(x - size * 0.2, y + size * 0.2, size * 0.22, size * 0.28, -0.3, 0, Math.PI * 2)
@@ -1014,22 +987,18 @@ function drawButterfly(ctx, x, y, size) {
   ctx.beginPath()
   ctx.ellipse(x + size * 0.2, y + size * 0.2, size * 0.22, size * 0.28, 0.3, 0, Math.PI * 2)
   ctx.fill()
-  // wing dots
   ctx.fillStyle = "rgba(255,255,255,0.3)"
   ctx.beginPath()
   ctx.arc(x - size * 0.3, y - size * 0.1, size * 0.06, 0, Math.PI * 2)
   ctx.arc(x + size * 0.3, y - size * 0.1, size * 0.06, 0, Math.PI * 2)
   ctx.fill()
-  // body
   ctx.fillStyle = "#333"
   ctx.beginPath()
   ctx.ellipse(x, y, size * 0.06, size * 0.3, 0, 0, Math.PI * 2)
   ctx.fill()
-  // head
   ctx.beginPath()
   ctx.arc(x, y - size * 0.32, size * 0.07, 0, Math.PI * 2)
   ctx.fill()
-  // antennae
   ctx.strokeStyle = "#333"
   ctx.lineWidth = 1.5
   ctx.lineCap = "round"
@@ -1051,7 +1020,6 @@ function drawRainbow(ctx, x, y, size) {
     ctx.lineWidth = bandW
     ctx.stroke()
   })
-  // clouds at ends
   ctx.fillStyle = "#d8ecf4"
   ctx.beginPath()
   ctx.arc(x - size * 0.75, y + size * 0.2, size * 0.18, 0, Math.PI * 2)
@@ -1064,12 +1032,10 @@ function drawRainbow(ctx, x, y, size) {
 }
 
 function drawMushroom(ctx, x, y, size) {
-  // stem
   ctx.fillStyle = "#f5e6c8"
   ctx.beginPath()
   ctx.roundRect(x - size * 0.15, y, size * 0.3, size * 0.5, 5)
   ctx.fill()
-  // cap
   const mg = ctx.createRadialGradient(x - size * 0.1, y - size * 0.15, size * 0.05, x, y, size * 0.5)
   mg.addColorStop(0, "#ff8080")
   mg.addColorStop(1, "#d63031")
@@ -1077,14 +1043,12 @@ function drawMushroom(ctx, x, y, size) {
   ctx.ellipse(x, y, size * 0.5, size * 0.35, 0, Math.PI, 0)
   ctx.fillStyle = mg
   ctx.fill()
-  // spots
   ctx.fillStyle = "#fff"
   ctx.beginPath()
   ctx.arc(x - size * 0.2, y - size * 0.15, size * 0.07, 0, Math.PI * 2)
   ctx.arc(x + size * 0.15, y - size * 0.2, size * 0.06, 0, Math.PI * 2)
   ctx.arc(x + size * 0.05, y - size * 0.08, size * 0.05, 0, Math.PI * 2)
   ctx.fill()
-  // face
   ctx.fillStyle = "#222"
   ctx.beginPath()
   ctx.arc(x - size * 0.06, y + size * 0.18, size * 0.03, 0, Math.PI * 2)
@@ -1099,12 +1063,10 @@ function drawMushroom(ctx, x, y, size) {
 }
 
 function drawSnail(ctx, x, y, size) {
-  // body
   ctx.fillStyle = "#c490f0"
   ctx.beginPath()
   ctx.ellipse(x, y + size * 0.15, size * 0.6, size * 0.2, 0, 0, Math.PI * 2)
   ctx.fill()
-  // shell
   const sg = ctx.createRadialGradient(x + size * 0.05, y - size * 0.1, size * 0.05, x + size * 0.05, y - size * 0.05, size * 0.4)
   sg.addColorStop(0, "#d4b5f7")
   sg.addColorStop(1, "#8854d0")
@@ -1112,7 +1074,6 @@ function drawSnail(ctx, x, y, size) {
   ctx.arc(x + size * 0.05, y - size * 0.05, size * 0.35, 0, Math.PI * 2)
   ctx.fillStyle = sg
   ctx.fill()
-  // shell spiral
   ctx.strokeStyle = "rgba(255,255,255,0.2)"
   ctx.lineWidth = 1.5
   ctx.beginPath()
@@ -1121,12 +1082,10 @@ function drawSnail(ctx, x, y, size) {
   ctx.beginPath()
   ctx.arc(x + size * 0.05, y - size * 0.05, size * 0.1, Math.PI, Math.PI * 2.5)
   ctx.stroke()
-  // head
   ctx.fillStyle = "#c490f0"
   ctx.beginPath()
   ctx.arc(x - size * 0.45, y + size * 0.05, size * 0.15, 0, Math.PI * 2)
   ctx.fill()
-  // eye stalks
   ctx.strokeStyle = "#c490f0"
   ctx.lineWidth = 2.5
   ctx.lineCap = "round"
@@ -1136,13 +1095,11 @@ function drawSnail(ctx, x, y, size) {
   ctx.moveTo(x - size * 0.4, y - size * 0.02)
   ctx.lineTo(x - size * 0.38, y - size * 0.2)
   ctx.stroke()
-  // eyes
   ctx.fillStyle = "#222"
   ctx.beginPath()
   ctx.arc(x - size * 0.55, y - size * 0.22, size * 0.04, 0, Math.PI * 2)
   ctx.arc(x - size * 0.38, y - size * 0.22, size * 0.04, 0, Math.PI * 2)
   ctx.fill()
-  // mouth
   ctx.beginPath()
   ctx.arc(x - size * 0.45, y + size * 0.12, size * 0.05, 0.2, Math.PI - 0.2)
   ctx.strokeStyle = "#8a50c0"
