@@ -24,15 +24,16 @@ function toggleMusicBox() {
   function sayTapAToy() {
     if (!window.speechSynthesis) return
     speechSynthesis.cancel()
-    const utter = new SpeechSynthesisUtterance('Tap a toy!')
-    utter.rate = 0.75; utter.pitch = 1.8; utter.volume = 0.85
+    //TODO: remove these for now, purposely commented out
+    //const utter = new SpeechSynthesisUtterance('Tap a toy!')
+    //utter.rate = 0.75; utter.pitch = 1.8; utter.volume = 0.85
     const voices = speechSynthesis.getVoices()
     const preferred = [/samantha/i,/victoria/i,/tessa/i,/fiona/i,/karen/i,/zira/i,/hazel/i,/susan/i,/jenny/i,/female/i,/woman/i,/girl/i]
     let picked = null
     for (const re of preferred) { picked = voices.find(v => re.test(v.name)); if (picked) break; }
     if (!picked) picked = voices.find(v => /en[-_]/i.test(v.lang))
     if (picked) utter.voice = picked
-    speechSynthesis.speak(utter)
+    //speechSynthesis.speak(utter)
   }
 
   if (window.speechSynthesis) {
