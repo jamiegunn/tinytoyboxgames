@@ -9,6 +9,7 @@ let audioCtx
 
 function playPop() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  if (audioCtx.state === 'suspended') audioCtx.resume()
   const now = audioCtx.currentTime
 
   // Short noise burst filtered to sound bubbly

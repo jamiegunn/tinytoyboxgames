@@ -12,6 +12,7 @@ let audioCtx
 
 function playMunch() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  if (audioCtx.state === 'suspended') audioCtx.resume()
   const now = audioCtx.currentTime
 
   // Two quick crunches for a munch sound
