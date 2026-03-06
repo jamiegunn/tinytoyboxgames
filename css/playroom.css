@@ -1,0 +1,881 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+#game { background: #1e1e2e; }
+#confetti-canvas {
+  background: transparent;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 15;
+}
+
+body {
+  overflow: hidden;
+  font-family: 'Baloo 2', cursive;
+  background: #b89060;
+}
+canvas { display: block; }
+
+/* ============================================
+   PLAYROOM ENVIRONMENT
+   ============================================ */
+
+/* ---- Room base ---- */
+#menu {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Wall - soft pastel with subtle pattern */
+#menu::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  /* Warm creamy yellow wall */
+  background: #f5edd4;
+  background-image:
+    /* Tiny polka dot wallpaper pattern */
+    radial-gradient(circle, rgba(210,180,140,0.18) 1.5px, transparent 1.5px),
+    radial-gradient(circle, rgba(210,180,140,0.12) 1.5px, transparent 1.5px);
+  background-size: 28px 28px, 28px 28px;
+  background-position: 0 0, 14px 14px;
+  z-index: -2;
+}
+
+/* ---- Wooden floor ---- */
+.playroom-floor {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 22%;
+  z-index: -1;
+  /* Rich wood floor */
+  background:
+    linear-gradient(180deg, #c49555 0%, #b8863a 4%, #c49a4e 8%,
+      #b08535 12%, #c49a4e 16%, #a87e30 20%, #c09045 24%,
+      #b8863a 28%, #c49a4e 32%, #a87e30 36%, #c09045 40%,
+      #b8863a 44%, #c49a4e 48%, #b08535 52%, #c09045 56%,
+      #a87e30 60%, #c49a4e 64%, #b8863a 68%, #c09045 72%,
+      #b08535 76%, #c49a4e 80%, #a87e30 84%, #b8863a 88%,
+      #c09045 92%, #b08535 96%, #c49a4e 100%);
+  background-image:
+    /* Plank lines */
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 80px,
+      rgba(0,0,0,0.06) 80px,
+      rgba(0,0,0,0.06) 82px
+    ),
+    /* Wood grain */
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 6px,
+      rgba(0,0,0,0.015) 6px,
+      rgba(0,0,0,0.015) 7px
+    ),
+    linear-gradient(180deg, #c49a4e, #b8863a);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* Floor ambient shadow */
+.playroom-floor::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.1), transparent);
+}
+
+/* ---- White wainscoting / chair rail ---- */
+.wainscoting {
+  position: fixed;
+  bottom: 22%;
+  left: 0;
+  right: 0;
+  height: 28%;
+  z-index: -1;
+  background: #f0ece4;
+  border-top: 4px solid #e0d8c8;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,0.6);
+}
+
+/* Wainscot panel detail */
+.wainscoting::before {
+  content: '';
+  position: absolute;
+  inset: 12px 20px;
+  border: 2px solid rgba(0,0,0,0.04);
+  border-radius: 2px;
+  /* Repeating panels */
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 78px,
+      rgba(0,0,0,0.03) 78px,
+      rgba(0,0,0,0.03) 80px,
+      transparent 80px,
+      transparent 82px,
+      rgba(0,0,0,0.03) 82px,
+      rgba(0,0,0,0.03) 84px
+    );
+}
+
+/* Chair rail (the trim strip) */
+.chair-rail {
+  position: fixed;
+  bottom: calc(22% + 28%);
+  left: 0;
+  right: 0;
+  height: 10px;
+  z-index: -1;
+  background: linear-gradient(180deg, #e8e0d0, #f0ece4, #ddd5c5);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+/* Baseboard */
+.baseboard {
+  position: fixed;
+  bottom: 22%;
+  left: 0;
+  right: 0;
+  height: 14px;
+  z-index: 0;
+  background: linear-gradient(180deg, #e8e0d0, #f0ece4, #ddd5c5);
+  box-shadow: 0 2px 3px rgba(0,0,0,0.08);
+  transform: translateY(100%);
+}
+
+/* ---- Window ---- */
+.window {
+  position: fixed;
+  top: 6%;
+  right: 8%;
+  width: 130px;
+  height: 140px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Window frame */
+.window-frame {
+  position: absolute;
+  inset: 0;
+  border: 8px solid #f0ece4;
+  border-radius: 6px 6px 4px 4px;
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.1),
+    inset 0 0 0 2px rgba(0,0,0,0.05);
+  z-index: 2;
+}
+
+/* Window cross */
+.window-cross-h {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: #f0ece4;
+  transform: translateY(-50%);
+  z-index: 3;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.window-cross-v {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: #f0ece4;
+  transform: translateX(-50%);
+  z-index: 3;
+  box-shadow: 1px 0 2px rgba(0,0,0,0.05);
+}
+
+/* Window sill */
+.window-sill {
+  position: absolute;
+  bottom: -8px;
+  left: -12px;
+  right: -12px;
+  height: 10px;
+  background: linear-gradient(180deg, #f5f0e8, #e8e0d0);
+  border-radius: 2px;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+  z-index: 4;
+}
+
+/* Sky through window */
+.window-sky {
+  position: absolute;
+  inset: 8px;
+  background: linear-gradient(180deg, #7ec8e3, #a8ddf0, #c0eaf5);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+/* Clouds in window */
+.window-cloud {
+  position: absolute;
+  background: rgba(255,255,255,0.8);
+  border-radius: 50%;
+  animation: windowCloudDrift 20s linear infinite;
+}
+
+@keyframes windowCloudDrift {
+  0% { transform: translateX(-60px); }
+  100% { transform: translateX(160px); }
+}
+
+/* Tree branch through window */
+.window-branch {
+  position: absolute;
+  bottom: 10px;
+  right: -5px;
+  width: 50px;
+  height: 40px;
+}
+
+.window-branch-stem {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 4px;
+  height: 35px;
+  background: #6a4a2a;
+  transform: rotate(-20deg);
+  transform-origin: bottom right;
+  border-radius: 2px;
+}
+
+.window-leaf {
+  position: absolute;
+  width: 12px;
+  height: 8px;
+  background: #4aaa55;
+  border-radius: 50%;
+  animation: leafSway 3s ease-in-out infinite;
+}
+
+@keyframes leafSway {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(5deg); }
+}
+
+/* Curtains */
+.curtain {
+  position: absolute;
+  top: -6px;
+  width: 28px;
+  height: 150px;
+  z-index: 5;
+  border-radius: 0 0 8px 8px;
+}
+.curtain.left {
+  left: -20px;
+  background: linear-gradient(90deg, #e8a0a0, #f0b0b0, #e8a0a0);
+  transform: perspective(100px) rotateY(5deg);
+  box-shadow: 2px 2px 6px rgba(0,0,0,0.08);
+}
+.curtain.right {
+  right: -20px;
+  background: linear-gradient(90deg, #e8a0a0, #f0b0b0, #e8a0a0);
+  transform: perspective(100px) rotateY(-5deg);
+  box-shadow: -2px 2px 6px rgba(0,0,0,0.08);
+}
+
+/* Curtain rod */
+.curtain-rod {
+  position: absolute;
+  top: -10px;
+  left: -26px;
+  right: -26px;
+  height: 4px;
+  background: linear-gradient(180deg, #d4a050, #b8863a);
+  border-radius: 2px;
+  z-index: 6;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.curtain-rod::before, .curtain-rod::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  background: radial-gradient(circle, #d4a050, #b8863a);
+  border-radius: 50%;
+}
+.curtain-rod::before { left: -3px; }
+.curtain-rod::after { right: -3px; }
+
+/* ---- Picture frames on wall ---- */
+.picture-frame {
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.frame-border {
+  position: absolute;
+  inset: 0;
+  border: 6px solid #c49a4e;
+  border-radius: 3px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.12), inset 0 0 0 2px rgba(255,255,255,0.2);
+}
+
+.frame-art {
+  position: absolute;
+  inset: 6px;
+  overflow: hidden;
+  border-radius: 1px;
+}
+
+/* ---- Wall clock ---- */
+.wall-clock {
+  position: fixed;
+  top: 8%;
+  left: 10%;
+  width: 60px;
+  height: 60px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.clock-face {
+  width: 60px;
+  height: 60px;
+  background: #fff;
+  border-radius: 50%;
+  border: 4px solid #e67e22;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+  position: relative;
+}
+
+/* Clock numbers */
+.clock-num {
+  position: absolute;
+  font-size: 8px;
+  font-weight: 800;
+  color: #e67e22;
+  width: 12px;
+  text-align: center;
+}
+
+.clock-hand {
+  position: absolute;
+  bottom: 50%;
+  left: 50%;
+  transform-origin: bottom center;
+  border-radius: 2px;
+}
+
+.clock-hand.hour {
+  width: 3px;
+  height: 16px;
+  background: #333;
+  transform: translateX(-50%) rotate(60deg);
+}
+
+.clock-hand.minute {
+  width: 2px;
+  height: 22px;
+  background: #555;
+  transform: translateX(-50%) rotate(200deg);
+  animation: clockTick 60s linear infinite;
+}
+
+@keyframes clockTick {
+  0% { transform: translateX(-50%) rotate(200deg); }
+  100% { transform: translateX(-50%) rotate(560deg); }
+}
+
+.clock-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 5px;
+  height: 5px;
+  background: #e67e22;
+  border-radius: 50%;
+}
+
+/* ---- Fairy / string lights ---- */
+.fairy-lights {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
+  z-index: 1;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.fairy-wire {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  height: 40px;
+  border: none;
+}
+
+.fairy-bulb {
+  position: absolute;
+  width: 10px;
+  height: 14px;
+  border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+  animation: bulbGlow 2s ease-in-out infinite;
+}
+
+@keyframes bulbGlow {
+  0%, 100% { opacity: 0.6; filter: brightness(0.9); }
+  50% { opacity: 1; filter: brightness(1.3); }
+}
+
+/* ---- Area rug on floor ---- */
+.area-rug {
+  position: fixed;
+  bottom: 4%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(280px, 70vw);
+  height: 50px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse, #d44040 15%, #c03838 16%, #c03838 30%, #e85050 31%, #e85050 33%,
+      #c03838 34%, #c03838 48%, #2255aa 49%, #2255aa 52%, #c03838 53%, #c03838 65%,
+      #feca57 66%, #feca57 70%, transparent 71%);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  opacity: 0.6;
+}
+
+/* Rug fringe */
+.area-rug::before, .area-rug::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 8px;
+  background:
+    repeating-linear-gradient(180deg,
+      transparent 0px,
+      transparent 3px,
+      #c03838 3px,
+      #c03838 5px);
+  opacity: 0.5;
+}
+.area-rug::before { left: -6px; border-radius: 2px 0 0 2px; }
+.area-rug::after { right: -6px; border-radius: 0 2px 2px 0; }
+
+/* ---- Music box on side table ---- */
+.side-table {
+  position: fixed;
+  bottom: 22%;
+  left: 5%;
+  z-index: 1;
+  pointer-events: none;
+  width: 60px;
+}
+
+.side-table-top {
+  width: 60px;
+  height: 8px;
+  background: linear-gradient(180deg, #e8d5b0, #c4a882);
+  border-radius: 3px 3px 0 0;
+  box-shadow: 0 -1px 3px rgba(0,0,0,0.1);
+  position: relative;
+}
+
+.side-table-legs {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 6px;
+}
+
+.side-table-leg {
+  width: 6px;
+  height: 40px;
+  background: linear-gradient(90deg, #c4a882, #e8d5b0, #c4a882);
+  border-radius: 0 0 2px 2px;
+}
+
+/* The music box itself */
+.music-box {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 44px;
+  height: 32px;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.2s;
+  z-index: 2;
+}
+
+.music-box:hover { transform: translateX(-50%) scale(1.08); }
+.music-box:active { transform: translateX(-50%) scale(0.95); }
+
+/* Box body */
+.music-box-body {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 44px;
+  height: 24px;
+  background: linear-gradient(180deg, #c0392b, #a83228, #8a2218);
+  border-radius: 3px;
+  box-shadow:
+    0 2px 6px rgba(0,0,0,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.15),
+    inset 0 -1px 0 rgba(0,0,0,0.2);
+}
+
+/* Gold trim on body */
+.music-box-body::before {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  left: 4px;
+  right: 4px;
+  height: 1px;
+  background: rgba(255,215,0,0.4);
+}
+
+.music-box-body::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  right: 4px;
+  height: 1px;
+  background: rgba(255,215,0,0.4);
+}
+
+/* Gold clasp */
+.music-box-clasp {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 4px;
+  background: radial-gradient(circle, #ffd700, #daa520);
+  border-radius: 1px;
+  box-shadow: 0 0 2px rgba(255,215,0,0.4);
+}
+
+/* Lid (opens when playing) */
+.music-box-lid {
+  position: absolute;
+  bottom: 22px;
+  left: 0;
+  width: 44px;
+  height: 6px;
+  background: linear-gradient(180deg, #d64040, #c0392b);
+  border-radius: 3px 3px 0 0;
+  transform-origin: bottom left;
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 -1px 3px rgba(0,0,0,0.1);
+  z-index: 3;
+}
+
+.music-box.open .music-box-lid {
+  transform: rotate(-55deg);
+}
+
+/* Lid inside (visible when open) */
+.music-box-lid-inner {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  bottom: 0;
+  background: linear-gradient(180deg, #f5e0b8, #e8d0a0);
+  border-radius: 2px 2px 0 0;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.music-box.open .music-box-lid-inner {
+  opacity: 1;
+}
+
+/* Interior when open */
+.music-box-interior {
+  position: absolute;
+  bottom: 24px;
+  left: 2px;
+  right: 2px;
+  height: 12px;
+  background: linear-gradient(180deg, #f5e0b8, #e8d0a0, #dfc49a);
+  border-radius: 2px 2px 0 0;
+  opacity: 0;
+  transition: opacity 0.4s;
+  overflow: hidden;
+}
+
+.music-box.open .music-box-interior {
+  opacity: 1;
+}
+
+/* Spinning star/dancer inside */
+.music-box-star {
+  position: absolute;
+  top: 1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  background: #ffd700;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+
+.music-box.open .music-box-star {
+  opacity: 1;
+  animation: musicBoxSpin 3s linear infinite;
+}
+
+@keyframes musicBoxSpin {
+  0% { transform: translateX(-50%) rotate(0deg); }
+  100% { transform: translateX(-50%) rotate(360deg); }
+}
+
+/* Musical notes floating out */
+.music-box-notes {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  width: 30px;
+  height: 40px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+
+.music-box.open .music-box-notes {
+  opacity: 1;
+}
+
+.music-note {
+  position: absolute;
+  font-size: 14px;
+  color: #c0392b;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.music-box.open .music-note {
+  animation: noteFloat 3s ease-out infinite;
+}
+
+.music-note:nth-child(1) { left: -8px; animation-delay: 0s; }
+.music-note:nth-child(2) { left: 4px; animation-delay: 1s; }
+.music-note:nth-child(3) { left: -4px; animation-delay: 2s; }
+
+@keyframes noteFloat {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  15% { opacity: 0.7; }
+  100% { transform: translateY(-40px) rotate(20deg) translateX(10px); opacity: 0; }
+}
+
+/* Tap hint - subtle pulse ring */
+.music-box-hint {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 52px;
+  height: 32px;
+  border: 2px solid rgba(255,215,0,0.3);
+  border-radius: 6px;
+  animation: musicBoxPulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.music-box.open .music-box-hint {
+  display: none;
+}
+
+@keyframes musicBoxPulse {
+  0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.5; }
+  50% { transform: translateX(-50%) scale(1.15); opacity: 0; }
+}
+
+/* ---- Floor toys (scattered) ---- */
+.floor-toy {
+  position: fixed;
+  z-index: 11;
+  pointer-events: none;
+}
+
+/* Alphabet block */
+.alpha-block {
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15), inset 0 -2px 0 rgba(0,0,0,0.1), inset 0 2px 0 rgba(255,255,255,0.2);
+}
+
+/* Crayon */
+.floor-crayon {
+  width: 44px;
+  height: 10px;
+  border-radius: 1px 3px 3px 1px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.floor-crayon::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 1px;
+  width: 6px;
+  height: 5px;
+  background: inherit;
+  clip-path: polygon(100% 0, 100% 100%, 0 50%);
+}
+.floor-crayon::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  background: rgba(0,0,0,0.08);
+  border-radius: 0 3px 3px 0;
+}
+
+/* Floor truck */
+.floor-truck {
+  width: 52px; height: 30px;
+  background: linear-gradient(180deg, #ff7675, #d63031);
+  border-radius: 4px 4px 2px 2px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+.floor-truck::before {
+  content: '';
+  position: absolute; top: -8px; left: 2px;
+  width: 22px; height: 10px;
+  background: linear-gradient(180deg, #74b9ff, #0984e3);
+  border-radius: 3px 3px 0 0;
+}
+.floor-truck::after {
+  content: '';
+  position: absolute; bottom: -4px;
+  left: 6px;
+  width: 10px; height: 10px;
+  background: #333;
+  border-radius: 50%;
+  box-shadow: 26px 0 0 #333;
+}
+
+/* Rubber ball */
+.floor-ball {
+  width: 28px;
+  height: 28px;
+  background: radial-gradient(circle at 40% 35%, #ff9090, #e74c3c);
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+.floor-ball::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 50%;
+  top: 4px;
+  left: 4px;
+}
+
+/* ---- Wall stickers ---- */
+.wall-sticker {
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* Star sticker */
+.sticker-star {
+  width: 20px;
+  height: 20px;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
+/* Heart sticker */
+.sticker-heart {
+  width: 18px;
+  height: 16px;
+  position: relative;
+}
+.sticker-heart::before, .sticker-heart::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 16px;
+  background: inherit;
+  border-radius: 10px 10px 0 0;
+}
+.sticker-heart::before { left: 0; transform: rotate(-45deg); transform-origin: bottom right; }
+.sticker-heart::after { right: 0; transform: rotate(45deg); transform-origin: bottom left; }
+
+/* ---- Floating dust motes ---- */
+.dust-mote {
+  position: fixed;
+  width: 4px;
+  height: 4px;
+  background: rgba(255,248,220,0.45);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+  animation: dustFloat linear infinite;
+}
+
+@keyframes dustFloat {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  10% { opacity: 0.5; }
+  90% { opacity: 0.3; }
+  100% { transform: translateY(-100vh) translateX(30px); opacity: 0; }
+}
+
+/* ---- Sunlight beam from window ---- */
+.sunbeam {
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.06;
+  background: linear-gradient(180deg, rgba(255,240,180,0.5), transparent);
+  animation: sunBeamPulse 6s ease-in-out infinite;
+}
+
+@keyframes sunBeamPulse {
+  0%, 100% { opacity: 0.04; }
+  50% { opacity: 0.08; }
+}

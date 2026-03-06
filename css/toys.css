@@ -1,0 +1,865 @@
+/* ============================================
+   TITLE PLATE
+   ============================================ */
+
+.title-plate {
+  margin-top: 20px;
+  margin-bottom: 8px;
+  background: linear-gradient(180deg, #d64040, #c0392b, #a83228);
+  padding: 10px 40px;
+  border-radius: 14px;
+  box-shadow:
+    0 5px 0 #8a2218,
+    0 6px 12px rgba(0,0,0,0.2),
+    inset 0 2px 0 rgba(255,255,255,0.2),
+    inset 0 -2px 0 rgba(0,0,0,0.1);
+  position: relative;
+  z-index: 2;
+  animation: titleDrop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes titleDrop {
+  0% { transform: translateY(-60px) scale(0.8); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Screws */
+.title-plate::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 12px;
+  transform: translateY(-50%);
+  width: 8px; height: 8px;
+  background: radial-gradient(circle, #ddd 30%, #999 70%);
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+.title-plate::after {
+  content: '';
+  position: absolute;
+  top: 50%; right: 12px;
+  transform: translateY(-50%);
+  width: 8px; height: 8px;
+  background: radial-gradient(circle, #ddd 30%, #999 70%);
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.title-plate h1 {
+  font-size: 34px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 2px;
+  text-shadow: 2px 3px 0 rgba(0,0,0,0.25), 0 0 20px rgba(255,200,100,0.3);
+  animation: titleShine 3s ease-in-out infinite;
+}
+
+@keyframes titleShine {
+  0%, 100% { text-shadow: 2px 3px 0 rgba(0,0,0,0.25), 0 0 20px rgba(255,200,100,0.2); }
+  50% { text-shadow: 2px 3px 0 rgba(0,0,0,0.25), 0 0 30px rgba(255,200,100,0.5); }
+}
+
+/* ============================================
+   SHELF
+   ============================================ */
+
+.shelf {
+  width: 92%;
+  max-width: 460px;
+  margin: 12px auto 0;
+  position: relative;
+}
+
+.shelf-row {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px 12px 0;
+  margin-bottom: 0;
+}
+
+/* Staggered entrance */
+.shelf-row { animation: shelfSlideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.shelf-row:nth-child(2) { animation-delay: 0.15s; }
+.shelf-row:nth-child(3) { animation-delay: 0.3s; }
+.shelf-row:nth-child(4) { animation-delay: 0.45s; }
+.shelf-row:nth-child(5) { animation-delay: 0.6s; }
+
+@keyframes shelfSlideIn {
+  0% { transform: translateX(-40px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+/* Wooden plank */
+.shelf-row::after {
+  content: '';
+  display: block;
+  position: absolute;
+  bottom: -14px;
+  left: -12px;
+  right: -12px;
+  height: 20px;
+  background:
+    linear-gradient(180deg, #c49a4e 0%, #b8863a 20%, #9e7432 50%, #c49a4e 70%, #a67d38 100%);
+  border-radius: 4px;
+  box-shadow:
+    0 4px 10px rgba(0,0,0,0.25),
+    0 6px 20px rgba(0,0,0,0.08),
+    inset 0 2px 0 rgba(255,255,255,0.15),
+    inset 0 -1px 0 rgba(0,0,0,0.1);
+  z-index: 1;
+  background-image:
+    repeating-linear-gradient(
+      90deg, transparent, transparent 30px,
+      rgba(0,0,0,0.04) 30px, rgba(0,0,0,0.04) 31px
+    );
+}
+
+/* Side brackets */
+.shelf-row::before {
+  content: '';
+  position: absolute;
+  bottom: -14px;
+  left: -20px;
+  right: -20px;
+  height: 20px;
+  border-left: 8px solid #8b6914;
+  border-right: 8px solid #8b6914;
+  border-radius: 2px;
+  z-index: 2;
+  box-shadow: inset 2px 0 0 rgba(255,255,255,0.1), inset -2px 0 0 rgba(255,255,255,0.1);
+}
+
+/* ============================================
+   TOY BUTTONS
+   ============================================ */
+
+.toy {
+  width: 130px;
+  height: 130px;
+  border: none;
+  border-radius: 18px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 10px;
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  z-index: 3;
+  background: transparent;
+}
+
+/* Shadow on shelf */
+.toy::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 15%; right: 15%;
+  height: 8px;
+  background: radial-gradient(ellipse, rgba(0,0,0,0.15), transparent);
+  border-radius: 50%;
+  z-index: -1;
+  transition: transform 0.2s, opacity 0.2s;
+}
+.toy:hover::after { transform: scale(1.3) translateY(4px); opacity: 0.6; }
+.toy:hover { transform: scale(1.12) rotate(-3deg) translateY(-6px); }
+.toy:active { transform: scale(0.95) rotate(1deg); }
+
+/* Idle wobble */
+.toy { animation: toyIdle 3s ease-in-out infinite; }
+.toy:nth-child(1) { animation-delay: 0s; }
+.toy:nth-child(2) { animation-delay: 0.6s; }
+.toy:nth-child(3) { animation-delay: 1.2s; }
+.toy:nth-child(4) { animation-delay: 0.3s; }
+
+@keyframes toyIdle {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  30% { transform: rotate(-1deg) translateY(-1px); }
+  70% { transform: rotate(1deg) translateY(-0.5px); }
+}
+.toy:hover { animation: none; transform: scale(1.06) rotate(-1.5deg) translateY(-3px); }
+.toy:active { animation: none; }
+
+/* Sparkle on hover */
+.toy .toy-sparkle {
+  position: absolute;
+  width: 6px; height: 6px;
+  background: #fff;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 10;
+}
+.toy:hover .toy-sparkle { animation: sparkleFlash 0.6s ease-out forwards; }
+.toy:hover .toy-sparkle:nth-child(1) { top: 10%; left: 15%; animation-delay: 0s; }
+.toy:hover .toy-sparkle:nth-child(2) { top: 20%; right: 10%; animation-delay: 0.15s; }
+.toy:hover .toy-sparkle:nth-child(3) { bottom: 25%; left: 20%; animation-delay: 0.3s; }
+
+@keyframes sparkleFlash {
+  0% { transform: scale(0); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.8; }
+  100% { transform: scale(0); opacity: 0; }
+}
+
+.toy-icon {
+  width: 90px;
+  height: 90px;
+  position: relative;
+  margin-bottom: 4px;
+}
+
+/* ============================================
+   TOY ICONS (all individual toy CSS)
+   ============================================ */
+
+/* ---- Bubble wand ---- */
+.toy-bubble .toy-icon { display: flex; align-items: center; justify-content: center; }
+.toy-bubble .wand-stick {
+  position: absolute; width: 8px; height: 52px;
+  background: linear-gradient(180deg, #e8a030, #c98420);
+  border-radius: 4px; bottom: 0; left: 50%;
+  transform: translateX(-50%) rotate(-15deg); transform-origin: bottom center;
+  box-shadow: 1px 2px 3px rgba(0,0,0,0.2);
+}
+.toy-bubble .wand-ring {
+  position: absolute; width: 48px; height: 48px;
+  border: 7px solid #54a0ff; border-radius: 50%;
+  top: 2px; left: 50%; transform: translateX(-40%);
+  box-shadow: 0 2px 6px rgba(84,160,255,0.4), inset 0 0 8px rgba(84,160,255,0.2);
+}
+.toy-bubble .wand-ring::after {
+  content: ''; position: absolute; width: 100%; height: 100%; border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.5), rgba(84,160,255,0.15));
+}
+.toy-bubble .mini-bubble {
+  position: absolute; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.7), rgba(84,160,255,0.3));
+  border: 2px solid rgba(84,160,255,0.4);
+  animation: bubbleFloat 3s ease-in-out infinite;
+}
+.toy-bubble .mini-bubble.b1 { width: 18px; height: 18px; top: 0; right: 4px; }
+.toy-bubble .mini-bubble.b2 { width: 12px; height: 12px; top: -4px; right: 22px; animation-delay: 0.5s; }
+.toy-bubble .mini-bubble.b3 { width: 9px; height: 9px; top: -8px; right: 0; animation-delay: 1s; }
+@keyframes bubbleFloat {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.8; }
+  50% { transform: translateY(-6px) scale(1.1); opacity: 1; }
+}
+
+/* ---- Frog ---- */
+.toy-frog .toy-icon { display: flex; align-items: center; justify-content: center; }
+.toy-frog .frog-body {
+  width: 72px; height: 64px;
+  background: linear-gradient(180deg, #2eec8e, #26de81, #1fbb6d);
+  border-radius: 50% 50% 45% 45%; position: relative;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15), inset 0 -4px 8px rgba(0,0,0,0.05);
+}
+.toy-frog .frog-body::before {
+  content: ''; position: absolute; width: 56px; height: 30px;
+  background: linear-gradient(180deg, #b8f5d8, #a8f0c8); border-radius: 50%;
+  bottom: 6px; left: 50%; transform: translateX(-50%);
+}
+.toy-frog .frog-eye {
+  position: absolute; width: 26px; height: 26px; background: #fff;
+  border-radius: 50%; top: -10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+  animation: frogBlink 4s ease-in-out infinite;
+}
+.toy-frog .frog-eye.left { left: 6px; }
+.toy-frog .frog-eye.right { right: 6px; animation-delay: 0.2s; }
+@keyframes frogBlink { 0%, 90%, 100% { transform: scaleY(1); } 93%, 97% { transform: scaleY(0.1); } }
+.toy-frog .frog-pupil {
+  position: absolute; width: 12px; height: 14px; background: #222;
+  border-radius: 50%; top: 6px; left: 50%; transform: translateX(-50%);
+}
+.toy-frog .frog-pupil::after {
+  content: ''; position: absolute; width: 5px; height: 5px;
+  background: #fff; border-radius: 50%; top: 2px; right: 1px;
+}
+.toy-frog .frog-mouth {
+  position: absolute; width: 28px; height: 10px;
+  border-bottom: 3px solid #1a9960; border-radius: 0 0 50% 50%;
+  bottom: 14px; left: 50%; transform: translateX(-50%);
+}
+.toy-frog .frog-cheek {
+  position: absolute; width: 12px; height: 7px;
+  background: rgba(255,150,150,0.3); border-radius: 50%; bottom: 18px;
+}
+.toy-frog .frog-cheek.left { left: 8px; }
+.toy-frog .frog-cheek.right { right: 8px; }
+
+/* ---- Paint palette ---- */
+.toy-paint .toy-icon { display: flex; align-items: center; justify-content: center; }
+.toy-paint .palette {
+  width: 78px; height: 62px;
+  background: linear-gradient(135deg, #fae8c8, #f5e0b8, #e8d0a0);
+  border-radius: 50% 50% 50% 30% / 60% 60% 40% 40%;
+  position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.4);
+  border: 3px solid #dfc49a; transform: rotate(-8deg);
+}
+.toy-paint .palette-hole {
+  position: absolute; width: 14px; height: 14px;
+  background: var(--bg, #f5edd4); border-radius: 50%;
+  left: 10px; top: 50%; transform: translateY(-50%); border: 2px solid #dfc49a;
+}
+.toy-paint .paint-dot {
+  position: absolute; width: 16px; height: 16px; border-radius: 50%;
+  box-shadow: inset 0 -2px 3px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.08);
+}
+.toy-paint .paint-dot.d1 { background: radial-gradient(circle at 40% 35%, #ff9090, #ff6b6b); top: 6px; left: 28px; }
+.toy-paint .paint-dot.d2 { background: radial-gradient(circle at 40% 35%, #80bdff, #54a0ff); top: 4px; right: 16px; }
+.toy-paint .paint-dot.d3 { background: radial-gradient(circle at 40% 35%, #ffdc80, #feca57); bottom: 10px; left: 30px; }
+.toy-paint .paint-dot.d4 { background: radial-gradient(circle at 40% 35%, #60f0a0, #26de81); bottom: 8px; right: 12px; }
+.toy-paint .paint-dot.d5 { background: radial-gradient(circle at 40% 35%, #c090ff, #a55eea); top: 20px; right: 4px; width: 13px; height: 13px; }
+.toy-paint .paint-brush {
+  position: absolute; top: -10px; right: -8px; width: 6px; height: 36px;
+  background: linear-gradient(180deg, #8b6914, #a07828); border-radius: 3px; transform: rotate(30deg);
+}
+.toy-paint .paint-brush::after {
+  content: ''; position: absolute; bottom: -6px; left: -2px;
+  width: 10px; height: 10px; background: #ff6b6b; border-radius: 0 0 50% 50%;
+}
+
+/* ---- Jar ---- */
+.toy-jar .toy-icon { display: flex; align-items: flex-end; justify-content: center; }
+.toy-jar .jar { width: 52px; height: 68px; position: relative; margin-bottom: 4px; }
+.toy-jar .jar-body {
+  position: absolute; bottom: 0; left: 4px; right: 4px; height: 54px;
+  border: 3px solid rgba(180,220,240,0.5); border-radius: 4px 4px 10px 10px;
+  background: rgba(20,25,56,0.6); overflow: hidden;
+}
+.toy-jar .jar-lid {
+  position: absolute; top: 8px; left: 2px; right: 2px; height: 10px;
+  background: linear-gradient(180deg, #b89070, #a08060, #907050);
+  border-radius: 3px; box-shadow: 0 2px 3px rgba(0,0,0,0.2);
+}
+.toy-jar .jar-shine {
+  position: absolute; left: 8px; top: 22px; width: 3px; height: 28px;
+  background: rgba(255,255,255,0.15); border-radius: 2px;
+}
+.toy-jar .jar-fly {
+  position: absolute; width: 8px; height: 8px; border-radius: 50%;
+  background: #fff0a0; box-shadow: 0 0 8px 3px rgba(255,240,120,0.5);
+}
+.toy-jar .jar-fly.f1 { bottom: 28px; left: 12px; animation: jarGlow 2s ease-in-out infinite; }
+.toy-jar .jar-fly.f2 { bottom: 16px; right: 10px; animation: jarGlow 2s ease-in-out infinite 0.7s; }
+.toy-jar .jar-fly.f3 { bottom: 36px; right: 16px; animation: jarGlow 2s ease-in-out infinite 1.3s; }
+@keyframes jarGlow {
+  0%, 100% { opacity: 0.4; box-shadow: 0 0 4px 1px rgba(255,240,120,0.3); transform: translate(0,0); }
+  25% { transform: translate(2px,-2px); }
+  50% { opacity: 1; box-shadow: 0 0 10px 4px rgba(255,240,120,0.6); transform: translate(-1px,1px); }
+  75% { transform: translate(1px,2px); }
+}
+.toy-jar .jar-glow {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 60px;
+  background: radial-gradient(ellipse at center bottom, rgba(255,240,120,0.15), transparent 70%);
+  pointer-events: none;
+}
+
+/* ---- Tree (hide & seek) ---- */
+.toy-tree .toy-icon { display: flex; align-items: flex-end; justify-content: center; }
+.toy-tree .tree { position: relative; width: 70px; height: 80px; }
+.toy-tree .tree-trunk {
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 14px; height: 30px;
+  background: linear-gradient(90deg, #7a5a10, #8b6914, #7a5a10); border-radius: 3px;
+}
+.toy-tree .tree-top {
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 32px solid transparent; border-right: 32px solid transparent;
+  border-bottom: 50px solid #2d8a4e;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+}
+.toy-tree .tree-top-2 {
+  position: absolute; bottom: 38px; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 24px solid transparent; border-right: 24px solid transparent;
+  border-bottom: 38px solid #34a853;
+}
+.toy-tree .peek-eyes {
+  position: absolute; bottom: 22px; right: 0; display: flex; gap: 5px;
+  animation: peekABoo 4s ease-in-out infinite;
+}
+@keyframes peekABoo { 0%, 70%, 100% { transform: translateX(0); } 75% { transform: translateX(-3px); } 85% { transform: translateX(2px); } }
+.toy-tree .peek-eye {
+  width: 10px; height: 10px; background: #fff; border-radius: 50%;
+  position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+.toy-tree .peek-eye::after {
+  content: ''; position: absolute; width: 5px; height: 5px;
+  background: #222; border-radius: 50%; top: 3px; left: 3px;
+}
+
+/* ---- Sponge ---- */
+.toy-sponge .toy-icon { display: flex; align-items: center; justify-content: center; }
+.toy-sponge .sponge {
+  width: 64px; height: 46px;
+  background: linear-gradient(180deg, #ffe066, #feca57, #f0b429);
+  border-radius: 8px; position: relative;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.12), inset 0 2px 0 rgba(255,255,255,0.3);
+}
+.toy-sponge .sponge-hole { position: absolute; border-radius: 50%; background: rgba(0,0,0,0.1); }
+.toy-sponge .sponge-hole.h1 { width: 8px; height: 8px; top: 8px; left: 10px; }
+.toy-sponge .sponge-hole.h2 { width: 6px; height: 6px; top: 18px; left: 28px; }
+.toy-sponge .sponge-hole.h3 { width: 7px; height: 7px; top: 10px; right: 12px; }
+.toy-sponge .sponge-hole.h4 { width: 5px; height: 5px; bottom: 8px; left: 16px; }
+.toy-sponge .sponge-hole.h5 { width: 6px; height: 6px; bottom: 10px; right: 18px; }
+.toy-sponge .sponge-bubble {
+  position: absolute; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.8), rgba(180,220,240,0.3));
+  border: 1.5px solid rgba(180,220,240,0.6);
+  animation: soapFloat 3s ease-in-out infinite;
+}
+.toy-sponge .sponge-bubble.sb1 { width: 14px; height: 14px; top: -10px; right: 4px; }
+.toy-sponge .sponge-bubble.sb2 { width: 10px; height: 10px; top: -14px; right: 18px; animation-delay: 0.6s; }
+.toy-sponge .sponge-bubble.sb3 { width: 8px; height: 8px; top: -6px; left: 6px; animation-delay: 1.2s; }
+@keyframes soapFloat { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-5px) scale(1.08); } }
+
+/* ---- Balloon ---- */
+.toy-balloon .toy-icon { display: flex; align-items: center; justify-content: center; }
+.toy-balloon .balloon-group { position: relative; width: 80px; height: 90px; }
+.toy-balloon .balloon-body {
+  width: 36px; height: 46px;
+  border-radius: 50% 50% 50% 50% / 55% 55% 45% 45%;
+  position: absolute; box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+  animation: balloonSway 3s ease-in-out infinite;
+}
+.toy-balloon .balloon-body::before {
+  content: ''; position: absolute; width: 12px; height: 8px;
+  background: rgba(255,255,255,0.35); border-radius: 50%;
+  top: 8px; left: 6px; transform: rotate(-25deg);
+}
+.toy-balloon .balloon-body.b1 { background: linear-gradient(135deg, #ff9090, #ff6b6b); left: 22px; top: 0; }
+.toy-balloon .balloon-body.b2 { background: linear-gradient(135deg, #80c8ff, #54a0ff); left: 4px; top: 10px; animation-delay: 0.5s; width: 30px; height: 40px; }
+.toy-balloon .balloon-body.b3 { background: linear-gradient(135deg, #80f0b0, #26de81); left: 42px; top: 12px; animation-delay: 1s; width: 28px; height: 36px; }
+.toy-balloon .balloon-strings {
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 2px; height: 24px; background: rgba(0,0,0,0.12);
+}
+@keyframes balloonSway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+
+/* ---- Shape blocks ---- */
+.toy-shapes .toy-icon { display: flex; align-items: center; justify-content: center; gap: 0; position: relative; }
+.toy-shapes .shape-circle {
+  width: 30px; height: 30px;
+  background: radial-gradient(circle at 40% 35%, #ff9090, #ff6b6b);
+  border-radius: 50%; position: absolute; top: 8px; left: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.12), inset 0 -2px 3px rgba(0,0,0,0.08);
+}
+.toy-shapes .shape-square {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, #80bdff, #54a0ff);
+  border-radius: 4px; position: absolute; bottom: 12px; right: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.12), inset 0 -2px 3px rgba(0,0,0,0.08);
+}
+.toy-shapes .shape-triangle {
+  position: absolute; top: 14px; right: 16px;
+  width: 0; height: 0;
+  border-left: 18px solid transparent; border-right: 18px solid transparent;
+  border-bottom: 32px solid #26de81;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.12));
+}
+.toy-shapes .shape-star {
+  position: absolute; bottom: 16px; left: 18px; width: 22px; height: 22px;
+  background: linear-gradient(135deg, #ffe080, #feca57);
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
+/* ---- Baby shark ---- */
+.toy-shark .toy-icon { display: flex; align-items: center; justify-content: center; }
+.toy-shark .shark { width: 76px; height: 50px; position: relative; animation: sharkSwim 3s ease-in-out infinite; }
+@keyframes sharkSwim { 0%, 100% { transform: translateX(0) rotate(0); } 25% { transform: translateX(2px) rotate(1deg); } 75% { transform: translateX(-2px) rotate(-1deg); } }
+.toy-shark .shark-body {
+  position: absolute; width: 60px; height: 36px;
+  background: linear-gradient(180deg, #7cc4e4, #6cb4d9, #5a9abf);
+  border-radius: 60% 50% 50% 60%; top: 8px; left: 8px;
+}
+.toy-shark .shark-belly {
+  position: absolute; width: 40px; height: 16px;
+  background: linear-gradient(180deg, #e4f4fb, #d4eef7);
+  border-radius: 50%; bottom: 2px; left: 12px;
+}
+.toy-shark .shark-fin {
+  position: absolute; top: -2px; left: 26px;
+  width: 0; height: 0;
+  border-left: 8px solid transparent; border-right: 8px solid transparent;
+  border-bottom: 18px solid #5a9abf;
+}
+.toy-shark .shark-tail {
+  position: absolute; left: -6px; top: 6px;
+  width: 0; height: 0;
+  border-top: 10px solid transparent; border-bottom: 10px solid transparent;
+  border-right: 16px solid #5a9abf;
+}
+.toy-shark .shark-eye {
+  position: absolute; width: 10px; height: 10px; background: #fff;
+  border-radius: 50%; top: 10px; right: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.toy-shark .shark-eye::after {
+  content: ''; position: absolute; width: 5px; height: 5px; background: #222;
+  border-radius: 50%; top: 3px; right: 1px;
+}
+.toy-shark .shark-blush {
+  position: absolute; width: 10px; height: 6px;
+  background: rgba(255,150,150,0.45); border-radius: 50%; top: 20px; right: 10px;
+}
+.toy-shark .shark-mouth {
+  position: absolute; width: 12px; height: 5px;
+  border-bottom: 2px solid #4a8aaa; border-radius: 0 0 50% 50%; right: 4px; top: 24px;
+}
+.toy-shark .shark-fish {
+  position: absolute; width: 14px; height: 9px; background: #ff9f43;
+  border-radius: 50%; bottom: 2px; right: 2px;
+}
+.toy-shark .shark-fish::after {
+  content: ''; position: absolute; left: -5px; top: 1px;
+  width: 0; height: 0;
+  border-top: 4px solid transparent; border-bottom: 4px solid transparent;
+  border-right: 6px solid #e67e22;
+}
+
+/* ---- Puppy ---- */
+.toy-puppy .toy-icon { display: flex; align-items: flex-end; justify-content: center; }
+.toy-puppy .puppy { width: 72px; height: 70px; position: relative; }
+.toy-puppy .puppy-body {
+  position: absolute; width: 44px; height: 30px;
+  background: linear-gradient(180deg, #f0b840, #e8a838, #d49830);
+  border-radius: 50% 50% 40% 40%; bottom: 16px; left: 10px;
+}
+.toy-puppy .puppy-body::before {
+  content: ''; position: absolute; width: 28px; height: 16px;
+  background: #f5d99a; border-radius: 50%; bottom: 2px; left: 50%; transform: translateX(-50%);
+}
+.toy-puppy .puppy-head {
+  position: absolute; width: 32px; height: 28px;
+  background: linear-gradient(135deg, #f0b840, #e8a838);
+  border-radius: 50%; top: 0; right: 4px;
+}
+.toy-puppy .puppy-muzzle {
+  position: absolute; width: 18px; height: 14px; background: #f5d99a;
+  border-radius: 50%; bottom: 2px; right: 0;
+}
+.toy-puppy .puppy-ear {
+  position: absolute; width: 12px; height: 18px; background: #c4872e;
+  border-radius: 50% 50% 40% 40%; top: -4px;
+}
+.toy-puppy .puppy-ear.left { left: 0; transform: rotate(-15deg); }
+.toy-puppy .puppy-ear.right { right: 2px; transform: rotate(15deg); }
+.toy-puppy .puppy-eye {
+  position: absolute; width: 8px; height: 8px; background: #fff;
+  border-radius: 50%; top: 8px; right: 8px;
+}
+.toy-puppy .puppy-eye::after {
+  content: ''; position: absolute; width: 4px; height: 4px;
+  background: #3a2510; border-radius: 50%; top: 2px; right: 1px;
+}
+.toy-puppy .puppy-nose {
+  position: absolute; width: 7px; height: 5px; background: #3a2510;
+  border-radius: 50%; bottom: 7px; right: 2px;
+}
+.toy-puppy .puppy-tongue {
+  position: absolute; width: 6px; height: 9px; background: #ff7a8a;
+  border-radius: 0 0 50% 50%; bottom: -2px; right: 6px;
+  animation: puppyPant 0.8s ease-in-out infinite;
+}
+@keyframes puppyPant { 0%, 100% { height: 9px; } 50% { height: 12px; } }
+.toy-puppy .puppy-tail {
+  position: absolute; width: 6px; height: 22px; background: #d4963a;
+  border-radius: 3px; top: 10px; left: 4px;
+  transform: rotate(30deg); transform-origin: bottom center;
+  animation: puppyTailWag 0.4s ease-in-out infinite alternate;
+}
+@keyframes puppyTailWag { 0% { transform: rotate(15deg); } 100% { transform: rotate(45deg); } }
+.toy-puppy .puppy-leg {
+  position: absolute; width: 8px; height: 14px;
+  background: #d4963a; border-radius: 4px; bottom: 0;
+}
+.toy-puppy .puppy-leg.fl { left: 30px; }
+.toy-puppy .puppy-leg.fr { right: 8px; }
+.toy-puppy .puppy-leg.bl { left: 12px; }
+.toy-puppy .puppy-leg.br { left: 22px; }
+.toy-puppy .puppy-paw {
+  position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%);
+  width: 10px; height: 5px; background: #f5d99a; border-radius: 50%;
+}
+.toy-puppy .puppy-ball {
+  position: absolute; width: 16px; height: 16px;
+  background: radial-gradient(circle at 40% 35%, #f06050, #e74c3c);
+  border-radius: 50%; bottom: 4px; right: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+.toy-puppy .puppy-ball::after {
+  content: ''; position: absolute; width: 5px; height: 5px;
+  background: rgba(255,255,255,0.4); border-radius: 50%; top: 3px; left: 3px;
+}
+
+/* ---- Elephant ---- */
+.toy-elephant .toy-icon { display: flex; align-items: flex-end; justify-content: center; }
+.toy-elephant .elephant { width: 78px; height: 72px; position: relative; }
+.toy-elephant .ele-body {
+  position: absolute; width: 48px; height: 34px;
+  background: linear-gradient(180deg, #9a9aaa, #8a8a9a, #7a7a8a);
+  border-radius: 50% 50% 40% 40%; bottom: 16px; left: 12px;
+}
+.toy-elephant .ele-head {
+  position: absolute; width: 30px; height: 28px;
+  background: linear-gradient(135deg, #9a9aaa, #8a8a9a);
+  border-radius: 50%; top: 4px; right: 6px; overflow: visible; z-index: 2;
+}
+.toy-elephant .ele-ear {
+  position: absolute; width: 18px; height: 22px; background: #7a7a8a;
+  border-radius: 50%; top: 2px; left: -8px;
+  animation: earFlap 3s ease-in-out infinite;
+}
+@keyframes earFlap { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-5deg); } }
+.toy-elephant .ele-ear::after {
+  content: ''; position: absolute; width: 10px; height: 14px;
+  background: #c0889a; border-radius: 50%; top: 4px; left: 4px;
+}
+.toy-elephant .ele-eye {
+  position: absolute; width: 7px; height: 7px; background: #fff;
+  border-radius: 50%; top: 8px; right: 6px;
+}
+.toy-elephant .ele-eye::after {
+  content: ''; position: absolute; width: 4px; height: 4px;
+  background: #222; border-radius: 50%; top: 2px; right: 0;
+}
+.toy-elephant .ele-trunk {
+  position: absolute; width: 10px; height: 32px;
+  background: linear-gradient(90deg, #7a7a8a, #7e7e8e, #7a7a8a);
+  border-radius: 0 0 10px 10px; bottom: -18px; right: 2px;
+  transform: rotate(20deg); transform-origin: top center; z-index: 2;
+  animation: trunkSway 4s ease-in-out infinite;
+}
+@keyframes trunkSway { 0%, 100% { transform: rotate(20deg); } 50% { transform: rotate(30deg); } }
+.toy-elephant .ele-trunk::after {
+  content: ''; position: absolute; bottom: -3px; left: -3px;
+  width: 16px; height: 8px; background: #7e7e8e; border-radius: 0 0 50% 50%;
+}
+.toy-elephant .ele-legs {
+  position: absolute; bottom: 0; left: 14px; display: flex; gap: 4px;
+}
+.toy-elephant .ele-leg {
+  width: 10px; height: 16px; background: #7a7a8a; border-radius: 4px 4px 5px 5px;
+}
+.toy-elephant .ele-splash {
+  position: absolute; border-radius: 50%;
+  background: rgba(100,180,255,0.5); animation: eleSplash 1.5s ease-out infinite;
+}
+.toy-elephant .ele-splash.s1 { width: 8px; height: 8px; top: 0; right: 0; }
+.toy-elephant .ele-splash.s2 { width: 6px; height: 6px; top: 6px; right: 14px; animation-delay: 0.3s; }
+.toy-elephant .ele-splash.s3 { width: 5px; height: 5px; top: -2px; right: 10px; animation-delay: 0.7s; }
+@keyframes eleSplash {
+  0% { transform: translateY(0) scale(1); opacity: 0.7; }
+  100% { transform: translateY(-12px) scale(0.3); opacity: 0; }
+}
+
+/* ---- Monster truck ---- */
+.toy-truck .toy-icon { display: flex; align-items: flex-end; justify-content: center; }
+.toy-truck .mtruck { width: 76px; height: 58px; position: relative; animation: truckBounce 2s ease-in-out infinite; }
+@keyframes truckBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.toy-truck .mtruck-body {
+  position: absolute; width: 50px; height: 18px;
+  background: linear-gradient(180deg, #e04040, #d32f2f, #b82828);
+  border-radius: 3px; bottom: 24px; left: 6px;
+}
+.toy-truck .mtruck-cab {
+  position: absolute; width: 30px; height: 28px;
+  background: linear-gradient(180deg, #ef4444, #e53935, #d32f2f);
+  border-radius: 6px 6px 3px 3px; bottom: 24px; right: 6px;
+}
+.toy-truck .mtruck-window {
+  position: absolute; width: 16px; height: 10px;
+  background: linear-gradient(180deg, rgba(180,230,255,0.8), rgba(150,210,255,0.7));
+  border-radius: 4px 4px 0 0; bottom: 40px; right: 12px;
+}
+.toy-truck .mtruck-stripe {
+  position: absolute; width: 44px; height: 4px;
+  background: linear-gradient(90deg, #ff8a65, #ffab80, #ff8a65);
+  bottom: 30px; left: 10px;
+}
+.toy-truck .mtruck-axle {
+  position: absolute; width: 60px; height: 4px; background: #333;
+  bottom: 18px; left: 8px; border-radius: 2px;
+}
+.toy-truck .mtruck-wheel {
+  position: absolute; width: 22px; height: 22px; background: #222;
+  border-radius: 50%; bottom: 2px;
+  box-shadow: inset 0 0 0 4px #555, inset 0 0 0 7px #bbb;
+  animation: wheelSpin 2s linear infinite;
+}
+@keyframes wheelSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.toy-truck .mtruck-wheel.wl { left: 4px; }
+.toy-truck .mtruck-wheel.wr { right: 4px; animation-delay: 0.1s; }
+.toy-truck .mtruck-dirt {
+  position: absolute; bottom: 0; left: -4px; width: 8px; height: 8px;
+  background: #b8863a; border-radius: 50%; opacity: 0.4;
+  animation: dirtKick 1.5s ease-out infinite;
+}
+@keyframes dirtKick {
+  0% { transform: translate(0,0) scale(1); opacity: 0.5; }
+  100% { transform: translate(-12px,-8px) scale(0.3); opacity: 0; }
+}
+
+/* ============================================
+   BUDDY OWL
+   ============================================ */
+
+.buddy {
+  z-index: 12; width: 76px; height: 95px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  animation: buddyBounce 4s ease-in-out infinite;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25));
+  position: absolute; transition: opacity 0.3s;
+}
+.buddy.pop-in {
+  animation: buddyPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), buddyBounce 4s ease-in-out infinite 0.5s;
+}
+@keyframes buddyPopIn { 0% { transform: scale(0) rotate(-20deg); opacity: 0; } 100% { transform: scale(1) rotate(0deg); opacity: 1; } }
+
+.buddy-hint {
+  position: absolute; top: -80px; left: 50%; transform: translateX(-50%);
+  white-space: nowrap; font-size: 17px; font-weight: 700; color: #fff;
+  background: linear-gradient(180deg, #f09030, #e67e22);
+  padding: 5px 16px; border-radius: 20px;
+  box-shadow: 0 3px 0 #c0611a, 0 4px 10px rgba(0,0,0,0.15);
+  animation: hintBob 2.5s ease-in-out infinite; pointer-events: none; transition: opacity 0.3s;
+}
+.buddy-hint::after {
+  content: ''; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 8px solid transparent; border-right: 8px solid transparent;
+  border-top: 9px solid #e67e22;
+}
+@keyframes hintBob { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-5px); } }
+
+.buddy-tap-hand {
+  position: absolute; top: -48px; left: 50%; transform: translateX(-50%);
+  font-size: 30px; animation: tapHand 1.6s ease-in-out infinite;
+  pointer-events: none; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); line-height: 1;
+}
+@keyframes tapHand { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-10px); } }
+@keyframes buddyBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+.buddy-body {
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 60px; height: 66px;
+  background: linear-gradient(180deg, #b06630, #a0522d, #8a4525);
+  border-radius: 50% 50% 45% 45%;
+}
+.buddy-body::before {
+  content: ''; position: absolute; width: 44px; height: 36px;
+  background: linear-gradient(180deg, #e8cca0, #deb887);
+  border-radius: 50%; bottom: 6px; left: 50%; transform: translateX(-50%);
+}
+.buddy-body::after {
+  content: ''; position: absolute; width: 30px; height: 20px;
+  bottom: 14px; left: 50%; transform: translateX(-50%);
+  background:
+    radial-gradient(ellipse at 30% 50%, rgba(160,82,45,0.2) 30%, transparent 31%),
+    radial-gradient(ellipse at 70% 50%, rgba(160,82,45,0.2) 30%, transparent 31%),
+    radial-gradient(ellipse at 50% 80%, rgba(160,82,45,0.2) 30%, transparent 31%);
+  background-size: 14px 10px;
+}
+
+.buddy-ear {
+  position: absolute; width: 0; height: 0; top: 6px;
+  border-left: 8px solid transparent; border-right: 8px solid transparent;
+  border-bottom: 16px solid #a0522d;
+}
+.buddy-ear.left { left: 8px; transform: rotate(-10deg); }
+.buddy-ear.right { right: 8px; transform: rotate(10deg); }
+
+.buddy-eyes {
+  position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 5px;
+}
+.buddy-eye {
+  width: 18px; height: 18px; background: #fff; border-radius: 50%;
+  position: relative; border: 2px solid #8b6914;
+}
+.buddy-pupil {
+  position: absolute; width: 8px; height: 8px; background: #222;
+  border-radius: 50%; top: 5px; left: 50%; transform: translateX(-50%);
+  transition: transform 0.3s;
+}
+.buddy-pupil::after {
+  content: ''; position: absolute; width: 4px; height: 4px;
+  background: #fff; border-radius: 50%; top: 1px; right: 0;
+}
+.buddy-eye::after {
+  content: ''; position: absolute; inset: -2px;
+  background: #a0522d; border-radius: 50%; transform: scaleY(0);
+  animation: blink 4s ease-in-out infinite;
+}
+@keyframes blink { 0%, 92%, 100% { transform: scaleY(0); } 95%, 97% { transform: scaleY(1); } }
+
+.buddy-beak {
+  position: absolute; top: 34px; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-top: 8px solid #ff9f43;
+}
+.buddy-blush {
+  position: absolute; width: 10px; height: 6px;
+  background: rgba(255,150,150,0.3); border-radius: 50%; top: 38px;
+}
+.buddy-blush.left { left: 10px; }
+.buddy-blush.right { right: 10px; }
+
+.buddy-feet {
+  position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 16px;
+}
+.buddy-foot { width: 14px; height: 6px; background: #ff9f43; border-radius: 50% 50% 40% 40%; }
+
+.buddy-wing {
+  position: absolute; bottom: 14px; width: 16px; height: 26px;
+  background: linear-gradient(180deg, #9a6820, #8b6914);
+  border-radius: 50% 50% 50% 30%; transform-origin: top center;
+}
+.buddy-wing.left { left: -2px; animation: waveWing 3s ease-in-out infinite; }
+.buddy-wing.right { right: -2px; transform: scaleX(-1); }
+@keyframes waveWing {
+  0%, 70%, 100% { transform: rotate(0deg); }
+  78% { transform: rotate(-40deg); } 82% { transform: rotate(-10deg); }
+  86% { transform: rotate(-35deg); } 90% { transform: rotate(0deg); }
+}
+
+.buddy-thought {
+  position: absolute; top: -52px; left: 50%; transform: translateX(-50%);
+  width: 48px; height: 48px; background: #fff; border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none;
+}
+.buddy-thought::before {
+  content: ''; position: absolute; bottom: -8px; left: 12px;
+  width: 12px; height: 12px; background: #fff; border-radius: 50%;
+}
+.buddy-thought::after {
+  content: ''; position: absolute; bottom: -14px; left: 6px;
+  width: 7px; height: 7px; background: #fff; border-radius: 50%;
+}
+.buddy-thought .thought-icon { font-size: 22px; line-height: 1; }
+
+.buddy-point {
+  position: fixed; z-index: 11; pointer-events: none;
+  opacity: 0; width: 40px; height: 40px; transition: opacity 0.3s;
+}
+.buddy-point-dot {
+  width: 40px; height: 40px; border: 3px solid #ff9f43;
+  border-radius: 50%; animation: pointRing 1.5s ease-out infinite; position: absolute;
+}
+.buddy-point-dot::after {
+  content: ''; position: absolute; inset: 8px;
+  background: #ff9f43; border-radius: 50%; opacity: 0.5;
+}
+@keyframes pointRing { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(1.8); opacity: 0; } }
+
+.buddy:active .buddy-body { transform: translateX(-50%) scale(0.95); }
+.buddy.excited .buddy-wing.left { animation: waveExcited 0.3s ease-in-out 4; }
+@keyframes waveExcited { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-45deg); } }

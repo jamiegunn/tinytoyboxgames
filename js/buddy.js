@@ -1,0 +1,125 @@
+// Music box toggle
+function toggleMusicBox() {
+  if (window._toyboxMusic) window._toyboxMusic.toggle()
+}
+
+// Buddy owl behavior
+(function() {
+  const buddy = document.getElementById('buddy')
+  const thought = document.getElementById('buddy-thought')
+  const thoughtIcon = document.getElementById('thought-icon')
+  const hint = document.getElementById('buddy-hint')
+  const tapHand = buddy.querySelector('.buddy-tap-hand')
+  const point = document.getElementById('buddy-point')
+  const toys = document.querySelectorAll('.toy')
+  const rows = document.querySelectorAll('.shelf-row')
+  let hasPlayed = false
+  let currentRowIdx = -1
+
+  const SUGGEST_ICONS = ['🫧', '🐸', '🎨', '🪲', '🌳', '🧽', '🎈', '🔷', '🦈', '🐶', '🐘', '🚛']
+  let suggestTimer = null
+  let moveTimer = null
+  let currentSuggestion = null
+
+  function sayTapAToy() {
+    if (!window.speechSynthesis) return
+    speechSynthesis.cancel()
+    const utter = new SpeechSynthesisUtterance('Tap a toy!')
+    utter.rate = 0.75; utter.pitch = 1.8; utter.volume = 0.85
+    const voices = speechSynthesis.getVoices()
+    const preferred = [/samantha/i,/victoria/i,/tessa/i,/fiona/i,/karen/i,/zira/i,/hazel/i,/susan/i,/jenny/i,/female/i,/woman/i,/girl/i]
+    let picked = null
+    for (const re of preferred) { picked = voices.find(v => re.test(v.name)); if (picked) break; }
+    if (!picked) picked = voices.find(v => /en[-_]/i.test(v.lang))
+    if (picked) utter.voice = picked
+    speechSynthesis.speak(utter)
+  }
+
+  if (window.speechSynthesis) {
+    speechSynthesis.getVoices()
+    speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices()
+  }
+
+  function moveToRandomRow() {
+    let newIdx
+    do { newIdx = Math.floor(Math.random() * rows.length) } while (newIdx === currentRowIdx && rows.length > 1)
+    currentRowIdx = newIdx
+    const row = rows[currentRowIdx]
+    row.appendChild(buddy)
+    if (Math.random() < 0.5) { buddy.style.left = '-110px'; buddy.style.right = '' }
+    else { buddy.style.left = ''; buddy.style.right = '-110px' }
+    buddy.style.top = '0'
+    buddy.classList.remove('pop-in'); buddy.offsetHeight; buddy.classList.add('pop-in')
+    if (!hasPlayed) {
+      sayTapAToy(); hint.style.opacity = '1'; tapHand.style.opacity = '1'
+      setTimeout(() => { hint.style.opacity = '0.6' }, 3000)
+    }
+    scheduleMoveRow()
+  }
+
+  function scheduleMoveRow() {
+    clearTimeout(moveTimer)
+    moveTimer = setTimeout(moveToRandomRow, 10000 + Math.random() * 5000)
+  }
+
+  function suggest() {
+    if (buddy.style.display === 'none') return
+    const row = rows[currentRowIdx] || rows[0]
+    const rowToys = row.querySelectorAll('.toy')
+    if (rowToys.length === 0) return
+    const localIdx = Math.floor(Math.random() * rowToys.length)
+    const toy = rowToys[localIdx]
+    currentSuggestion = toy
+    const globalIdx = Array.from(toys).indexOf(toy)
+    thoughtIcon.textContent = SUGGEST_ICONS[globalIdx] || '⭐'
+    thought.style.opacity = '1'; thought.style.transform = 'translateX(-50%) scale(1)'
+    const rect = toy.getBoundingClientRect()
+    point.style.left = (rect.left + rect.width / 2 - 20) + 'px'
+    point.style.top = (rect.top + rect.height / 2 - 20) + 'px'
+    point.style.opacity = '1'
+    toy.style.animation = 'none'; toy.style.transform = 'scale(1.12) rotate(-3deg)'
+    setTimeout(() => { toy.style.transform = ''; toy.style.animation = '' }, 2000)
+    setTimeout(() => {
+      thought.style.opacity = '0'; thought.style.transform = 'translateX(-50%) scale(0.6)'
+      point.style.opacity = '0'; currentSuggestion = null
+    }, 3500)
+    scheduleSuggest()
+  }
+
+  function scheduleSuggest() {
+    clearTimeout(suggestTimer)
+    suggestTimer = setTimeout(suggest, 6000 + Math.random() * 4000)
+  }
+
+  window.buddyTapped = function() {
+    buddy.classList.add('excited')
+    setTimeout(() => buddy.classList.remove('excited'), 1200)
+    sayTapAToy()
+    if (currentSuggestion) { currentSuggestion.click(); return }
+    suggest()
+  }
+
+  const wrapInterval = setInterval(() => {
+    if (window.startGame && window.startGame !== wrapStartGame) {
+      const realStart = window.startGame
+      window.startGame = wrapStartGame
+      function wrapStartGame(id) {
+        buddy.style.display = 'none'; point.style.opacity = '0'; thought.style.opacity = '0'
+        clearTimeout(suggestTimer); clearTimeout(moveTimer)
+        if (window.speechSynthesis) speechSynthesis.cancel()
+        window._musicWasPlaying = window._toyboxMusic && window._toyboxMusic.isPlaying()
+        if (window._toyboxMusic) window._toyboxMusic.stop()
+        if (!hasPlayed) { hasPlayed = true; hint.style.display = 'none'; tapHand.style.display = 'none' }
+        realStart(id)
+      }
+      const realHome = window.goHome
+      window.goHome = function() {
+        realHome(); buddy.style.display = ''; moveToRandomRow(); scheduleSuggest()
+        if (window._musicWasPlaying && window._toyboxMusic) window._toyboxMusic.start()
+      }
+      clearInterval(wrapInterval)
+    }
+  }, 100)
+
+  setTimeout(() => { moveToRandomRow(); scheduleSuggest() }, 1500)
+})()
