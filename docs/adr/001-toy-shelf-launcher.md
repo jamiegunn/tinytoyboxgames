@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-The home screen needs to work for ages 3-5. Preschoolers cannot read. They recognize physical objects (a bubble, a frog, a paint splat) much faster than text labels or button lists.
+The home screen needs to work. Preschoolers cannot read. They recognize physical objects (a bubble, a frog, a paint splat) much faster than text labels or button lists.
 
 ## Decision
 Replace the text-button menu with a **Toy Shelf** launcher rendered on canvas.

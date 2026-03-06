@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-Target audience is ages 3-5. UX must account for limited motor control, no reading ability, and short attention spans.
+UX must account for limited motor control, no reading ability, and short attention spans.
 
 ## Decision
 All games and UI must follow these principles:

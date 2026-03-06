@@ -160,6 +160,7 @@ canvas { display: block; }
 .toy:nth-child(1) { animation-delay: 0s; }
 .toy:nth-child(2) { animation-delay: 0.6s; }
 .toy:nth-child(3) { animation-delay: 1.2s; }
+.toy:nth-child(4) { animation-delay: 0.3s; }
 
 @keyframes toyIdle {
   0%, 100% { transform: rotate(0deg); }
@@ -344,6 +345,1116 @@ canvas { display: block; }
 .toy-paint .paint-dot.d4 { background: #26de81; bottom: 8px; right: 12px; }
 .toy-paint .paint-dot.d5 { background: #a55eea; top: 20px; right: 4px; width: 13px; height: 13px; }
 
+/* ---- Jar toy ---- */
+.toy-jar .toy-icon {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.toy-jar .jar {
+  width: 52px;
+  height: 68px;
+  position: relative;
+  margin-bottom: 4px;
+}
+
+.toy-jar .jar-body {
+  position: absolute;
+  bottom: 0;
+  left: 4px;
+  right: 4px;
+  height: 54px;
+  border: 3px solid rgba(180,220,240,0.5);
+  border-radius: 4px 4px 10px 10px;
+  background: rgba(20,25,56,0.6);
+  overflow: hidden;
+}
+
+.toy-jar .jar-lid {
+  position: absolute;
+  top: 8px;
+  left: 2px;
+  right: 2px;
+  height: 10px;
+  background: #a08060;
+  border-radius: 3px;
+  box-shadow: 0 2px 3px rgba(0,0,0,0.2);
+}
+
+.toy-jar .jar-shine {
+  position: absolute;
+  left: 8px;
+  top: 22px;
+  width: 3px;
+  height: 28px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+}
+
+.toy-jar .jar-fly {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff0a0;
+  box-shadow: 0 0 8px 3px rgba(255,240,120,0.5);
+}
+
+.toy-jar .jar-fly.f1 { bottom: 28px; left: 12px; animation: jarGlow 2s ease-in-out infinite; }
+.toy-jar .jar-fly.f2 { bottom: 16px; right: 10px; animation: jarGlow 2s ease-in-out infinite 0.7s; }
+.toy-jar .jar-fly.f3 { bottom: 36px; right: 16px; animation: jarGlow 2s ease-in-out infinite 1.3s; }
+
+@keyframes jarGlow {
+  0%, 100% { opacity: 0.4; box-shadow: 0 0 4px 1px rgba(255,240,120,0.3); }
+  50% { opacity: 1; box-shadow: 0 0 10px 4px rgba(255,240,120,0.6); }
+}
+
+/* ---- Tree (hide & seek) toy ---- */
+.toy-tree .toy-icon {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.toy-tree .tree {
+  position: relative;
+  width: 70px;
+  height: 80px;
+}
+
+.toy-tree .tree-trunk {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 30px;
+  background: #8b6914;
+  border-radius: 3px;
+}
+
+.toy-tree .tree-top {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 32px solid transparent;
+  border-right: 32px solid transparent;
+  border-bottom: 50px solid #2d8a4e;
+}
+
+.toy-tree .tree-top-2 {
+  position: absolute;
+  bottom: 38px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 24px solid transparent;
+  border-right: 24px solid transparent;
+  border-bottom: 38px solid #34a853;
+}
+
+.toy-tree .peek-eyes {
+  position: absolute;
+  bottom: 22px;
+  right: 0;
+  display: flex;
+  gap: 5px;
+}
+
+.toy-tree .peek-eye {
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-radius: 50%;
+  position: relative;
+}
+
+.toy-tree .peek-eye::after {
+  content: '';
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background: #222;
+  border-radius: 50%;
+  top: 3px;
+  left: 3px;
+}
+
+/* ---- Sponge (clean) toy ---- */
+.toy-sponge .toy-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toy-sponge .sponge {
+  width: 64px;
+  height: 46px;
+  background: linear-gradient(180deg, #feca57, #f0b429);
+  border-radius: 8px;
+  position: relative;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+}
+
+.toy-sponge .sponge-hole {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.1);
+}
+
+.toy-sponge .sponge-hole.h1 { width: 8px; height: 8px; top: 8px; left: 10px; }
+.toy-sponge .sponge-hole.h2 { width: 6px; height: 6px; top: 18px; left: 28px; }
+.toy-sponge .sponge-hole.h3 { width: 7px; height: 7px; top: 10px; right: 12px; }
+.toy-sponge .sponge-hole.h4 { width: 5px; height: 5px; bottom: 8px; left: 16px; }
+.toy-sponge .sponge-hole.h5 { width: 6px; height: 6px; bottom: 10px; right: 18px; }
+
+.toy-sponge .sponge-bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.7);
+  border: 1.5px solid rgba(180,220,240,0.6);
+}
+
+.toy-sponge .sponge-bubble.sb1 { width: 14px; height: 14px; top: -10px; right: 4px; }
+.toy-sponge .sponge-bubble.sb2 { width: 10px; height: 10px; top: -14px; right: 18px; }
+.toy-sponge .sponge-bubble.sb3 { width: 8px; height: 8px; top: -6px; left: 6px; }
+
+/* ---- Balloon toy ---- */
+.toy-balloon .toy-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toy-balloon .balloon-body {
+  width: 44px;
+  height: 56px;
+  background: #ff6b6b;
+  border-radius: 50% 50% 50% 50% / 55% 55% 45% 45%;
+  position: relative;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+}
+
+.toy-balloon .balloon-body::before {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 10px;
+  background: rgba(255,255,255,0.3);
+  border-radius: 50%;
+  top: 10px;
+  left: 8px;
+  transform: rotate(-30deg);
+}
+
+.toy-balloon .balloon-knot {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 8px solid #ff6b6b;
+}
+
+.toy-balloon .balloon-string {
+  position: absolute;
+  bottom: -34px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 28px;
+  background: rgba(0,0,0,0.15);
+  border-radius: 1px;
+}
+
+/* ---- Shape blocks toy ---- */
+.toy-shapes .toy-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  position: relative;
+}
+
+.toy-shapes .shape-circle {
+  width: 30px;
+  height: 30px;
+  background: #ff6b6b;
+  border-radius: 50%;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.toy-shapes .shape-square {
+  width: 28px;
+  height: 28px;
+  background: #54a0ff;
+  border-radius: 4px;
+  position: absolute;
+  bottom: 12px;
+  right: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.toy-shapes .shape-triangle {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 0;
+  height: 0;
+  border-left: 18px solid transparent;
+  border-right: 18px solid transparent;
+  border-bottom: 32px solid #26de81;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
+}
+
+.toy-shapes .shape-star {
+  position: absolute;
+  bottom: 16px;
+  left: 18px;
+  width: 22px;
+  height: 22px;
+  background: #feca57;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* ---- Baby shark toy ---- */
+.toy-shark .toy-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toy-shark .shark {
+  width: 76px;
+  height: 50px;
+  position: relative;
+}
+
+.toy-shark .shark-body {
+  position: absolute;
+  width: 60px;
+  height: 36px;
+  background: #6cb4d9;
+  border-radius: 60% 50% 50% 60%;
+  top: 8px;
+  left: 8px;
+}
+
+.toy-shark .shark-belly {
+  position: absolute;
+  width: 40px;
+  height: 16px;
+  background: #d4eef7;
+  border-radius: 50%;
+  bottom: 2px;
+  left: 12px;
+}
+
+.toy-shark .shark-fin {
+  position: absolute;
+  top: -2px;
+  left: 26px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 18px solid #5a9abf;
+}
+
+.toy-shark .shark-tail {
+  position: absolute;
+  left: -6px;
+  top: 6px;
+  width: 0;
+  height: 0;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-right: 16px solid #5a9abf;
+}
+
+.toy-shark .shark-eye {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-radius: 50%;
+  top: 10px;
+  right: 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.toy-shark .shark-eye::after {
+  content: '';
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background: #222;
+  border-radius: 50%;
+  top: 3px;
+  right: 1px;
+}
+
+.toy-shark .shark-blush {
+  position: absolute;
+  width: 10px;
+  height: 6px;
+  background: rgba(255,150,150,0.4);
+  border-radius: 50%;
+  top: 20px;
+  right: 10px;
+}
+
+.toy-shark .shark-mouth {
+  position: absolute;
+  width: 12px;
+  height: 5px;
+  border-bottom: 2px solid #4a8aaa;
+  border-radius: 0 0 50% 50%;
+  right: 4px;
+  top: 24px;
+}
+
+.toy-shark .shark-fish {
+  position: absolute;
+  width: 14px;
+  height: 9px;
+  background: #ff9f43;
+  border-radius: 50%;
+  bottom: 2px;
+  right: 2px;
+}
+
+.toy-shark .shark-fish::after {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 1px;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-right: 6px solid #e67e22;
+}
+
+/* ---- Puppy toy ---- */
+.toy-puppy .toy-icon {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.toy-puppy .puppy {
+  width: 72px;
+  height: 70px;
+  position: relative;
+}
+
+.toy-puppy .puppy-body {
+  position: absolute;
+  width: 44px;
+  height: 30px;
+  background: #e8a838;
+  border-radius: 50% 50% 40% 40%;
+  bottom: 16px;
+  left: 10px;
+}
+
+.toy-puppy .puppy-body::before {
+  content: '';
+  position: absolute;
+  width: 28px;
+  height: 16px;
+  background: #f5d99a;
+  border-radius: 50%;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.toy-puppy .puppy-head {
+  position: absolute;
+  width: 32px;
+  height: 28px;
+  background: #e8a838;
+  border-radius: 50%;
+  top: 0;
+  right: 4px;
+}
+
+.toy-puppy .puppy-muzzle {
+  position: absolute;
+  width: 18px;
+  height: 14px;
+  background: #f5d99a;
+  border-radius: 50%;
+  bottom: 2px;
+  right: 0;
+}
+
+.toy-puppy .puppy-ear {
+  position: absolute;
+  width: 12px;
+  height: 18px;
+  background: #c4872e;
+  border-radius: 50% 50% 40% 40%;
+  top: -4px;
+}
+.toy-puppy .puppy-ear.left { left: 0; transform: rotate(-15deg); }
+.toy-puppy .puppy-ear.right { right: 2px; transform: rotate(15deg); }
+
+.toy-puppy .puppy-eye {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #fff;
+  border-radius: 50%;
+  top: 8px;
+  right: 8px;
+}
+.toy-puppy .puppy-eye::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #3a2510;
+  border-radius: 50%;
+  top: 2px;
+  right: 1px;
+}
+
+.toy-puppy .puppy-nose {
+  position: absolute;
+  width: 7px;
+  height: 5px;
+  background: #3a2510;
+  border-radius: 50%;
+  bottom: 7px;
+  right: 2px;
+}
+
+.toy-puppy .puppy-tongue {
+  position: absolute;
+  width: 6px;
+  height: 9px;
+  background: #ff7a8a;
+  border-radius: 0 0 50% 50%;
+  bottom: -2px;
+  right: 6px;
+}
+
+.toy-puppy .puppy-tail {
+  position: absolute;
+  width: 6px;
+  height: 22px;
+  background: #d4963a;
+  border-radius: 3px;
+  top: 10px;
+  left: 4px;
+  transform: rotate(30deg);
+  transform-origin: bottom center;
+  animation: puppyTailWag 0.4s ease-in-out infinite alternate;
+}
+
+@keyframes puppyTailWag {
+  0% { transform: rotate(15deg); }
+  100% { transform: rotate(45deg); }
+}
+
+.toy-puppy .puppy-leg {
+  position: absolute;
+  width: 8px;
+  height: 14px;
+  background: #d4963a;
+  border-radius: 4px;
+  bottom: 0;
+}
+.toy-puppy .puppy-leg.fl { left: 30px; }
+.toy-puppy .puppy-leg.fr { right: 8px; }
+.toy-puppy .puppy-leg.bl { left: 12px; }
+.toy-puppy .puppy-leg.br { left: 22px; }
+
+.toy-puppy .puppy-paw {
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 5px;
+  background: #f5d99a;
+  border-radius: 50%;
+}
+
+.toy-puppy .puppy-ball {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: #e74c3c;
+  border-radius: 50%;
+  bottom: 4px;
+  right: 0;
+  box-shadow: inset -2px -2px 0 rgba(0,0,0,0.1);
+}
+
+.toy-puppy .puppy-ball::after {
+  content: '';
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 50%;
+  top: 3px;
+  left: 3px;
+}
+
+/* ---- Elephant toy ---- */
+.toy-elephant .toy-icon {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.toy-elephant .elephant {
+  width: 78px;
+  height: 72px;
+  position: relative;
+}
+
+.toy-elephant .ele-body {
+  position: absolute;
+  width: 48px;
+  height: 34px;
+  background: #8a8a9a;
+  border-radius: 50% 50% 40% 40%;
+  bottom: 16px;
+  left: 12px;
+}
+
+.toy-elephant .ele-head {
+  position: absolute;
+  width: 30px;
+  height: 28px;
+  background: #8a8a9a;
+  border-radius: 50%;
+  top: 4px;
+  right: 6px;
+  overflow: visible;
+  z-index: 2;
+}
+
+.toy-elephant .ele-ear {
+  position: absolute;
+  width: 18px;
+  height: 22px;
+  background: #7a7a8a;
+  border-radius: 50%;
+  top: 2px;
+  left: -8px;
+}
+
+.toy-elephant .ele-ear::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 14px;
+  background: #c0889a;
+  border-radius: 50%;
+  top: 4px;
+  left: 4px;
+}
+
+.toy-elephant .ele-eye {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background: #fff;
+  border-radius: 50%;
+  top: 8px;
+  right: 6px;
+}
+
+.toy-elephant .ele-eye::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #222;
+  border-radius: 50%;
+  top: 2px;
+  right: 0;
+}
+
+.toy-elephant .ele-trunk {
+  position: absolute;
+  width: 10px;
+  height: 32px;
+  background: #7e7e8e;
+  border-radius: 0 0 10px 10px;
+  bottom: -18px;
+  right: 2px;
+  transform: rotate(20deg);
+  transform-origin: top center;
+  z-index: 2;
+}
+
+.toy-elephant .ele-trunk::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: -3px;
+  width: 16px;
+  height: 8px;
+  background: #7e7e8e;
+  border-radius: 0 0 50% 50%;
+}
+
+.toy-elephant .ele-legs {
+  position: absolute;
+  bottom: 0;
+  left: 14px;
+  display: flex;
+  gap: 4px;
+}
+
+.toy-elephant .ele-leg {
+  width: 10px;
+  height: 16px;
+  background: #7a7a8a;
+  border-radius: 4px 4px 5px 5px;
+}
+
+.toy-elephant .ele-splash {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(100,180,255,0.5);
+  animation: eleSplash 1.5s ease-out infinite;
+}
+
+.toy-elephant .ele-splash.s1 { width: 8px; height: 8px; top: 0; right: 0; animation-delay: 0s; }
+.toy-elephant .ele-splash.s2 { width: 6px; height: 6px; top: 6px; right: 14px; animation-delay: 0.3s; }
+.toy-elephant .ele-splash.s3 { width: 5px; height: 5px; top: -2px; right: 10px; animation-delay: 0.7s; }
+
+@keyframes eleSplash {
+  0% { transform: translateY(0) scale(1); opacity: 0.7; }
+  100% { transform: translateY(-12px) scale(0.3); opacity: 0; }
+}
+
+/* ---- Monster truck toy ---- */
+.toy-truck .toy-icon {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.toy-truck .mtruck {
+  width: 76px;
+  height: 58px;
+  position: relative;
+}
+
+.toy-truck .mtruck-body {
+  position: absolute;
+  width: 50px;
+  height: 18px;
+  background: #d32f2f;
+  border-radius: 3px;
+  bottom: 24px;
+  left: 6px;
+}
+
+.toy-truck .mtruck-cab {
+  position: absolute;
+  width: 30px;
+  height: 28px;
+  background: #e53935;
+  border-radius: 6px 6px 3px 3px;
+  bottom: 24px;
+  right: 6px;
+}
+
+.toy-truck .mtruck-window {
+  position: absolute;
+  width: 16px;
+  height: 10px;
+  background: rgba(150,210,255,0.7);
+  border-radius: 4px 4px 0 0;
+  bottom: 40px;
+  right: 12px;
+}
+
+.toy-truck .mtruck-stripe {
+  position: absolute;
+  width: 44px;
+  height: 4px;
+  background: #ff8a65;
+  bottom: 30px;
+  left: 10px;
+}
+
+.toy-truck .mtruck-axle {
+  position: absolute;
+  width: 60px;
+  height: 4px;
+  background: #333;
+  bottom: 18px;
+  left: 8px;
+  border-radius: 2px;
+}
+
+.toy-truck .mtruck-wheel {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  background: #222;
+  border-radius: 50%;
+  bottom: 2px;
+  box-shadow: inset 0 0 0 4px #555, inset 0 0 0 7px #bbb;
+}
+
+.toy-truck .mtruck-wheel.wl { left: 4px; }
+.toy-truck .mtruck-wheel.wr { right: 4px; }
+
+/* ---- Buddy avatar ---- */
+.buddy {
+  z-index: 12;
+  width: 76px;
+  height: 95px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  animation: buddyBounce 4s ease-in-out infinite;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+  position: absolute;
+  transition: opacity 0.3s;
+}
+
+/* pop-in when owl moves to a new row */
+.buddy.pop-in {
+  animation: buddyPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), buddyBounce 4s ease-in-out infinite 0.5s;
+}
+
+@keyframes buddyPopIn {
+  0% { transform: scale(0) rotate(-20deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* Tap-a-toy hint label */
+.buddy-hint {
+  position: absolute;
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  background: #e67e22;
+  padding: 5px 16px;
+  border-radius: 20px;
+  box-shadow: 0 3px 0 #c0611a, 0 4px 10px rgba(0,0,0,0.15);
+  animation: hintBob 2.5s ease-in-out infinite;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.buddy-hint::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 9px solid #e67e22;
+}
+
+@keyframes hintBob {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-5px); }
+}
+
+/* Tapping hand animation — points up at the toys */
+.buddy-tap-hand {
+  position: absolute;
+  top: -48px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 30px;
+  animation: tapHand 1.6s ease-in-out infinite;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+  line-height: 1;
+}
+
+@keyframes tapHand {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-10px); }
+}
+
+@keyframes buddyBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* owl body */
+.buddy-body {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 66px;
+  background: #a0522d;
+  border-radius: 50% 50% 45% 45%;
+}
+
+.buddy-body::before {
+  content: '';
+  position: absolute;
+  width: 44px;
+  height: 36px;
+  background: #deb887;
+  border-radius: 50%;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* ears/tufts */
+.buddy-ear {
+  position: absolute;
+  width: 0;
+  height: 0;
+  top: 6px;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 16px solid #a0522d;
+}
+.buddy-ear.left { left: 8px; transform: rotate(-10deg); }
+.buddy-ear.right { right: 8px; transform: rotate(10deg); }
+
+/* eyes */
+.buddy-eyes {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 5px;
+}
+
+.buddy-eye {
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  position: relative;
+  border: 2px solid #8b6914;
+}
+
+.buddy-pupil {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #222;
+  border-radius: 50%;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  transition: transform 0.3s;
+}
+
+.buddy-pupil::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #fff;
+  border-radius: 50%;
+  top: 1px;
+  right: 0;
+}
+
+/* blink */
+.buddy-eye::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: #a0522d;
+  border-radius: 50%;
+  transform: scaleY(0);
+  animation: blink 4s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 92%, 100% { transform: scaleY(0); }
+  95%, 97% { transform: scaleY(1); }
+}
+
+/* beak */
+.buddy-beak {
+  position: absolute;
+  top: 34px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid #ff9f43;
+}
+
+/* feet */
+.buddy-feet {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 16px;
+}
+
+.buddy-foot {
+  width: 14px;
+  height: 6px;
+  background: #ff9f43;
+  border-radius: 50% 50% 40% 40%;
+}
+
+/* wing (waves) */
+.buddy-wing {
+  position: absolute;
+  bottom: 14px;
+  width: 16px;
+  height: 26px;
+  background: #8b6914;
+  border-radius: 50% 50% 50% 30%;
+  transform-origin: top center;
+}
+
+.buddy-wing.left {
+  left: -2px;
+  animation: waveWing 3s ease-in-out infinite;
+}
+
+.buddy-wing.right {
+  right: -2px;
+  transform: scaleX(-1);
+}
+
+@keyframes waveWing {
+  0%, 70%, 100% { transform: rotate(0deg); }
+  78% { transform: rotate(-40deg); }
+  82% { transform: rotate(-10deg); }
+  86% { transform: rotate(-35deg); }
+  90% { transform: rotate(0deg); }
+}
+
+/* thought bubble */
+.buddy-thought {
+  position: absolute;
+  top: -52px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 48px;
+  height: 48px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+}
+
+.buddy-thought::before {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 12px;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.buddy-thought::after {
+  content: '';
+  position: absolute;
+  bottom: -14px;
+  left: 6px;
+  width: 7px;
+  height: 7px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.buddy-thought .thought-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* thoughtPop removed — JS controls visibility */
+
+/* point hand indicator */
+.buddy-point {
+  position: fixed;
+  z-index: 11;
+  pointer-events: none;
+  opacity: 0;
+  width: 40px;
+  height: 40px;
+  transition: opacity 0.3s;
+}
+
+.buddy-point-dot {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #ff9f43;
+  border-radius: 50%;
+  animation: pointRing 1.5s ease-out infinite;
+  position: absolute;
+}
+
+.buddy-point-dot::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  background: #ff9f43;
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+@keyframes pointRing {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* pointPulse removed — JS controls visibility */
+
+/* tap the buddy */
+.buddy:active .buddy-body { transform: translateX(-50%) scale(0.95); }
+.buddy.excited .buddy-wing.left { animation: waveExcited 0.3s ease-in-out 4; }
+
+@keyframes waveExcited {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-45deg); }
+}
+
 /* ---- Back button ---- */
 #back-btn {
   position: absolute;
@@ -478,6 +1589,175 @@ canvas { display: block; }
         </div>
       </button>
     </div>
+
+    <div class="shelf-row" style="margin-top: 28px;">
+      <button class="toy toy-jar" onclick="startGame('fireflies')">
+        <div class="toy-icon">
+          <div class="jar">
+            <div class="jar-lid"></div>
+            <div class="jar-body">
+              <div class="jar-fly f1"></div>
+              <div class="jar-fly f2"></div>
+              <div class="jar-fly f3"></div>
+            </div>
+            <div class="jar-shine"></div>
+          </div>
+        </div>
+      </button>
+
+      <button class="toy toy-tree" onclick="startGame('hideAndSeek')">
+        <div class="toy-icon">
+          <div class="tree">
+            <div class="tree-trunk"></div>
+            <div class="tree-top"></div>
+            <div class="tree-top-2"></div>
+            <div class="peek-eyes">
+              <div class="peek-eye"></div>
+              <div class="peek-eye"></div>
+            </div>
+          </div>
+        </div>
+      </button>
+
+      <button class="toy toy-sponge" onclick="startGame('cleanTheMess')">
+        <div class="toy-icon">
+          <div class="sponge">
+            <div class="sponge-hole h1"></div>
+            <div class="sponge-hole h2"></div>
+            <div class="sponge-hole h3"></div>
+            <div class="sponge-hole h4"></div>
+            <div class="sponge-hole h5"></div>
+            <div class="sponge-bubble sb1"></div>
+            <div class="sponge-bubble sb2"></div>
+            <div class="sponge-bubble sb3"></div>
+          </div>
+        </div>
+      </button>
+    </div>
+
+    <div class="shelf-row" style="margin-top: 28px;">
+      <button class="toy toy-balloon" onclick="startGame('balloonRace')">
+        <div class="toy-icon">
+          <div class="balloon-body">
+            <div class="balloon-knot"></div>
+            <div class="balloon-string"></div>
+          </div>
+        </div>
+      </button>
+
+      <button class="toy toy-shapes" onclick="startGame('shapeBuilder')">
+        <div class="toy-icon">
+          <div class="shape-circle"></div>
+          <div class="shape-triangle"></div>
+          <div class="shape-square"></div>
+          <div class="shape-star"></div>
+        </div>
+      </button>
+
+      <button class="toy toy-shark" onclick="startGame('babyShark')">
+        <div class="toy-icon">
+          <div class="shark">
+            <div class="shark-body">
+              <div class="shark-belly"></div>
+              <div class="shark-eye"></div>
+              <div class="shark-blush"></div>
+              <div class="shark-mouth"></div>
+            </div>
+            <div class="shark-fin"></div>
+            <div class="shark-tail"></div>
+            <div class="shark-fish"></div>
+          </div>
+        </div>
+      </button>
+    </div>
+
+    <div class="shelf-row" style="margin-top: 28px;">
+      <button class="toy toy-puppy" onclick="startGame('puppyFetch')">
+        <div class="toy-icon">
+          <div class="puppy">
+            <div class="puppy-tail"></div>
+            <div class="puppy-leg bl"><div class="puppy-paw"></div></div>
+            <div class="puppy-leg br"><div class="puppy-paw"></div></div>
+            <div class="puppy-body"></div>
+            <div class="puppy-leg fl"><div class="puppy-paw"></div></div>
+            <div class="puppy-leg fr"><div class="puppy-paw"></div></div>
+            <div class="puppy-head">
+              <div class="puppy-ear left"></div>
+              <div class="puppy-ear right"></div>
+              <div class="puppy-eye"></div>
+              <div class="puppy-muzzle">
+                <div class="puppy-nose"></div>
+                <div class="puppy-tongue"></div>
+              </div>
+            </div>
+            <div class="puppy-ball"></div>
+          </div>
+        </div>
+      </button>
+
+      <button class="toy toy-elephant" onclick="startGame('elephantSplash')">
+        <div class="toy-icon">
+          <div class="elephant">
+            <div class="ele-body"></div>
+            <div class="ele-head">
+              <div class="ele-ear"></div>
+              <div class="ele-eye"></div>
+              <div class="ele-trunk"></div>
+            </div>
+            <div class="ele-legs">
+              <div class="ele-leg"></div>
+              <div class="ele-leg"></div>
+              <div class="ele-leg"></div>
+              <div class="ele-leg"></div>
+            </div>
+            <div class="ele-splash s1"></div>
+            <div class="ele-splash s2"></div>
+            <div class="ele-splash s3"></div>
+          </div>
+        </div>
+      </button>
+
+      <button class="toy toy-truck" onclick="startGame('monsterTruck')">
+        <div class="toy-icon">
+          <div class="mtruck">
+            <div class="mtruck-body"></div>
+            <div class="mtruck-cab"></div>
+            <div class="mtruck-window"></div>
+            <div class="mtruck-stripe"></div>
+            <div class="mtruck-axle"></div>
+            <div class="mtruck-wheel wl"></div>
+            <div class="mtruck-wheel wr"></div>
+          </div>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Buddy owl avatar — JS moves this into shelf rows -->
+  <div class="buddy" id="buddy" onclick="buddyTapped()">
+    <div class="buddy-hint" id="buddy-hint">Tap a toy!</div>
+    <div class="buddy-tap-hand">&#x261D;&#xFE0F;</div>
+    <div class="buddy-thought" id="buddy-thought">
+      <span class="thought-icon" id="thought-icon"></span>
+    </div>
+    <div class="buddy-ear left"></div>
+    <div class="buddy-ear right"></div>
+    <div class="buddy-body">
+      <div class="buddy-eyes">
+        <div class="buddy-eye"><div class="buddy-pupil"></div></div>
+        <div class="buddy-eye"><div class="buddy-pupil"></div></div>
+      </div>
+      <div class="buddy-beak"></div>
+    </div>
+    <div class="buddy-wing left"></div>
+    <div class="buddy-wing right"></div>
+    <div class="buddy-feet">
+      <div class="buddy-foot"></div>
+      <div class="buddy-foot"></div>
+    </div>
+  </div>
+  <div class="buddy-point" id="buddy-point">
+    <div class="buddy-point-dot"></div>
   </div>
 </div>
 
@@ -486,6 +1766,206 @@ canvas { display: block; }
 <canvas id="confetti-canvas"></canvas>
 
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<script>
+// Buddy owl behavior
+(function() {
+  const buddy = document.getElementById('buddy')
+  const thought = document.getElementById('buddy-thought')
+  const thoughtIcon = document.getElementById('thought-icon')
+  const hint = document.getElementById('buddy-hint')
+  const tapHand = buddy.querySelector('.buddy-tap-hand')
+  const point = document.getElementById('buddy-point')
+  const toys = document.querySelectorAll('.toy')
+  const rows = document.querySelectorAll('.shelf-row')
+  let hasPlayed = false
+  let currentRowIdx = -1
+
+  const SUGGEST_ICONS = ['🫧', '🐸', '🎨', '🪲', '🌳', '🧽', '🎈', '🔷', '🦈', '🐶', '🐘', '🚛']
+  let suggestTimer = null
+  let moveTimer = null
+  let currentSuggestion = null
+
+  // --- Speech ---
+  function sayTapAToy() {
+    if (!window.speechSynthesis) return
+    // cancel any in-progress speech
+    speechSynthesis.cancel()
+    const utter = new SpeechSynthesisUtterance('Tap a toy!')
+    utter.rate = 0.75
+    utter.pitch = 1.8
+    utter.volume = 0.85
+    // pick the friendliest, most child-like voice available
+    const voices = speechSynthesis.getVoices()
+    const preferred = [
+      /samantha/i, /victoria/i, /tessa/i, /fiona/i, /karen/i,
+      /zira/i, /hazel/i, /susan/i, /jenny/i,
+      /female/i, /woman/i, /girl/i
+    ]
+    let picked = null
+    for (const re of preferred) {
+      picked = voices.find(v => re.test(v.name))
+      if (picked) break
+    }
+    // fallback: any English voice
+    if (!picked) picked = voices.find(v => /en[-_]/i.test(v.lang))
+    if (picked) utter.voice = picked
+    speechSynthesis.speak(utter)
+  }
+
+  // preload voices (some browsers load async)
+  if (window.speechSynthesis) {
+    speechSynthesis.getVoices()
+    speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices()
+  }
+
+  // --- Place owl next to a random shelf row ---
+  function moveToRandomRow() {
+    let newIdx
+    do {
+      newIdx = Math.floor(Math.random() * rows.length)
+    } while (newIdx === currentRowIdx && rows.length > 1)
+    currentRowIdx = newIdx
+
+    const row = rows[currentRowIdx]
+    row.appendChild(buddy)
+
+    // position 50px outside left or right edge
+    if (Math.random() < 0.5) {
+      buddy.style.left = '-110px'
+      buddy.style.right = ''
+    } else {
+      buddy.style.left = ''
+      buddy.style.right = '-110px'
+    }
+    buddy.style.top = '0'
+
+    // pop-in animation
+    buddy.classList.remove('pop-in')
+    buddy.offsetHeight // reflow
+    buddy.classList.add('pop-in')
+
+    // say and show hint (only before first play)
+    if (!hasPlayed) {
+      sayTapAToy()
+      hint.style.opacity = '1'
+      tapHand.style.opacity = '1'
+
+      // fade hint after a few seconds
+      setTimeout(() => {
+        hint.style.opacity = '0.6'
+      }, 3000)
+    }
+
+    scheduleMoveRow()
+  }
+
+  function scheduleMoveRow() {
+    clearTimeout(moveTimer)
+    moveTimer = setTimeout(moveToRandomRow, 10000 + Math.random() * 5000)
+  }
+
+  // --- Suggestions ---
+  function suggest() {
+    if (buddy.style.display === 'none') return
+
+    // pick a random toy from the CURRENT row the owl is in
+    const row = rows[currentRowIdx] || rows[0]
+    const rowToys = row.querySelectorAll('.toy')
+    if (rowToys.length === 0) return
+
+    const localIdx = Math.floor(Math.random() * rowToys.length)
+    const toy = rowToys[localIdx]
+    currentSuggestion = toy
+
+    // find global index for icon
+    const globalIdx = Array.from(toys).indexOf(toy)
+    thoughtIcon.textContent = SUGGEST_ICONS[globalIdx] || '⭐'
+    thought.style.opacity = '1'
+    thought.style.transform = 'translateX(-50%) scale(1)'
+
+    // position point indicator over the toy
+    const rect = toy.getBoundingClientRect()
+    point.style.left = (rect.left + rect.width / 2 - 20) + 'px'
+    point.style.top = (rect.top + rect.height / 2 - 20) + 'px'
+    point.style.opacity = '1'
+
+    // highlight the toy briefly
+    toy.style.animation = 'none'
+    toy.style.transform = 'scale(1.12) rotate(-3deg)'
+    setTimeout(() => {
+      toy.style.transform = ''
+      toy.style.animation = ''
+    }, 2000)
+
+    // hide after a few seconds
+    setTimeout(() => {
+      thought.style.opacity = '0'
+      thought.style.transform = 'translateX(-50%) scale(0.6)'
+      point.style.opacity = '0'
+      currentSuggestion = null
+    }, 3500)
+
+    scheduleSuggest()
+  }
+
+  function scheduleSuggest() {
+    clearTimeout(suggestTimer)
+    suggestTimer = setTimeout(suggest, 6000 + Math.random() * 4000)
+  }
+
+  window.buddyTapped = function() {
+    buddy.classList.add('excited')
+    setTimeout(() => buddy.classList.remove('excited'), 1200)
+
+    // say it on tap too
+    sayTapAToy()
+
+    if (currentSuggestion) {
+      currentSuggestion.click()
+      return
+    }
+    suggest()
+  }
+
+  // --- Hide/show on game start/return ---
+  const wrapInterval = setInterval(() => {
+    if (window.startGame && window.startGame !== wrapStartGame) {
+      const realStart = window.startGame
+      window.startGame = wrapStartGame
+      function wrapStartGame(id) {
+        buddy.style.display = 'none'
+        point.style.opacity = '0'
+        thought.style.opacity = '0'
+        clearTimeout(suggestTimer)
+        clearTimeout(moveTimer)
+        if (window.speechSynthesis) speechSynthesis.cancel()
+        if (!hasPlayed) {
+          hasPlayed = true
+          hint.style.display = 'none'
+          tapHand.style.display = 'none'
+        }
+        realStart(id)
+      }
+
+      const realHome = window.goHome
+      window.goHome = function() {
+        realHome()
+        buddy.style.display = ''
+        moveToRandomRow()
+        scheduleSuggest()
+      }
+
+      clearInterval(wrapInterval)
+    }
+  }, 100)
+
+  // --- Initial placement ---
+  setTimeout(() => {
+    moveToRandomRow()
+    scheduleSuggest()
+  }, 1500)
+})()
+</script>
 <script type="module" src="./app.js"></script>
 </body>
 </html>
