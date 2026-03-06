@@ -12,6 +12,7 @@ let shakeX = 0, shakeY = 0, shakeAmount = 0
 let roundNum = 0
 let correctScale = 0
 let wrongShakeIdx = -1, wrongShakeTime = 0
+let audioCtx
 
 const COMBO_WINDOW = 3.0
 
@@ -537,11 +538,13 @@ function handleTap(x, y) {
           })
         }
 
+        playCorrect()
         celebrate()
         if (combo >= 5 && combo % 5 === 0) celebrateBig()
         setTimeout(newRound, 350)
       } else {
         // wrong
+        playWrong()
         combo = 0
         comboTimer = 0
         feedback = "no"
@@ -553,6 +556,39 @@ function handleTap(x, y) {
       return
     }
   }
+}
+
+function playCorrect() {
+  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const now = audioCtx.currentTime
+  const osc = audioCtx.createOscillator()
+  const gain = audioCtx.createGain()
+  osc.type = 'sine'
+  osc.frequency.setValueAtTime(500, now)
+  osc.frequency.linearRampToValueAtTime(1200, now + 0.1)
+  gain.gain.setValueAtTime(0.3, now)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
+  osc.connect(gain)
+  gain.connect(audioCtx.destination)
+  osc.start(now)
+  osc.stop(now + 0.15)
+}
+
+function playWrong() {
+  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const now = audioCtx.currentTime
+  const osc = audioCtx.createOscillator()
+  const gain = audioCtx.createGain()
+  osc.type = 'square'
+  osc.frequency.setValueAtTime(150, now)
+  gain.gain.setValueAtTime(0.15, now)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2)
+  osc.connect(gain)
+  gain.connect(audioCtx.destination)
+  osc.start(now)
+  osc.stop(now + 0.2)
 }
 
 function roundRect(ctx, x, y, w, h, r) {

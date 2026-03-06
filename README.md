@@ -1,6 +1,6 @@
 # Tiny Toybox
 
-A collection of simple, colorful games for kids ages 3-5. Purely client-side, no build step, no dependencies to install.
+A collection of simple, colorful browser games for kids ages 3-5. The current implementation is browser-first and uses Vite for local development and production builds.
 
 ## Getting Started
 
@@ -9,75 +9,85 @@ npm install
 npm run dev
 ```
 
-Opens at http://localhost:5173 with hot reload — edit any file and the browser updates instantly.
+Open `http://localhost:5173` for the landing page and `http://localhost:5173/toybox.html` for the toy shelf directly.
 
-**Other commands:**
-- `npm run build` — production build to `dist/`
-- `npm run preview` — preview the production build
+Other commands:
+- `npm run build` - production build to `dist/`
+- `npm run preview` - preview the production build
+- `npm start` - serve `dist/` with the included Node static server
 
 ## Games
 
 | Game | Description | Status |
 |------|-------------|--------|
 | Bubble Pop | Tap floating bubbles to pop them | Done |
-| Feed Animal | Tap food to drop it into the animal's mouth | Done |
+| Feed Animal | Tap food to feed the animal | Done |
 | Color Match | Tap the swatch that matches the color name | Done |
-| Fireflies | Catch glowing fireflies in a jar | Planned |
-| Hide and Seek | Find animals peeking from hiding spots | Planned |
+| Fireflies | Catch glowing fireflies in a jar | Done |
+| Hide and Seek | Find animals peeking from hiding spots | Done |
+| Clean the Mess | Wipe away the mess to reveal the scene | Done |
+| Balloon Race | Swipe balloons upward to launch them | Done |
+| Shape Builder | Drag shapes into matching slots | Done |
+| Baby Shark | Guide a shark through an underwater play scene | Done |
+| Puppy Fetch | Play fetch with a puppy | Done |
+| Elephant Splash | Spray water at playful targets | Done |
+| Monster Truck | Tap to jump and crush obstacles | Done |
 | Animal Sounds | Match a sound to the right animal | Planned |
-| Shape Builder | Drag shapes into matching outlines | Planned |
-| Clean the Mess | Swipe to reveal a hidden picture | Planned |
-| Balloon Race | Swipe balloons into the sky | Planned |
 | Build a Monster | Drag parts onto a monster body | Planned |
 
 ## Project Structure
 
-```
+```text
 tinytoybox/
-├── index.html              Entry point
-├── app.js                  Boots engine, wires menu navigation
-├── engine/
-│   ├── gameManager.js      Lazy-loads games, manages lifecycle
-│   ├── loop.js             requestAnimationFrame loop with dt
-│   ├── input.js            Tap/click input with cleanup
-│   └── celebrate.js        Confetti via canvas-confetti CDN
-├── games/
-│   ├── bubblePop.js        Tap game
-│   ├── feedAnimal.js       Tap-to-drop game
-│   ├── colorMatch.js       Choice game
-│   └── requirements/       Game design specs (one per game)
-└── docs/
-    ├── adr/                Architecture Decision Records
-    └── plans/              Implementation plans
+|- index.html              Landing page
+|- toybox.html             Toy shelf and game shell
+|- app.js                  Boots the engine and handles navigation
+|- engine/
+|  |- gameManager.js       Lazy-loads games and manages lifecycle
+|  |- loop.js              requestAnimationFrame loop with dt
+|  |- input.js             Tap and drag input helpers
+|  |- celebrate.js         Confetti bridge
+|- games/
+|  |- *.js                 Individual game modules
+|  |- requirements/        Game design specs
+|- js/                     Toy shelf presentation scripts
+|- css/                    Toy shelf styles
+|- docs/
+|  |- adr/                 Architecture Decision Records
+|  |- plans/               Roadmaps and refactor plans
+|- server.js               Optional static server for built output
 ```
 
 ## Architecture
 
-Three layers:
+Current runtime layers:
 
-1. **Toy Shelf UI** — launcher, navigation (currently HTML buttons, canvas shelf planned)
-2. **Game Engine** — loop, input, rendering, celebration system
-3. **Game Templates + Configs** — 5 reusable templates (TapGame, DragGame, ChoiceGame, SwipeGame, BuilderGame) with games defined as configuration
+1. Landing and toy shelf UI: `index.html`, `toybox.html`, `css/`, and `js/`
+2. Game engine utilities: loop, input, lifecycle, celebration
+3. Game modules: each game currently owns its own rendering and gameplay logic
 
-Games lazy-load via dynamic `import()` — only the active game is in memory.
+Games lazy-load via dynamic `import()`, so only the active game module is loaded at runtime.
+
+The repo also contains planning docs for a future template-based architecture. Those plans are not implemented yet.
 
 ## Design Principles
 
-- Big tap targets (45px+ radius)
+- Big tap targets
 - Bright colors, no reading required
-- Celebrate every success (confetti)
-- No timers, no fail states, no penalties
+- Celebrate every success
+- No fail states or penalties
 - Recognition over reading
 
 ## Tech
 
 - Vanilla JS, ES modules, canvas 2D
-- No framework, no build step, no server
-- [canvas-confetti](https://www.npmjs.com/package/canvas-confetti) loaded via CDN for celebrations
+- Vite for dev/build
+- Optional Node static server for built output
+- `canvas-confetti` loaded via CDN for celebrations
 - Works on mobile (touch) and desktop (mouse)
 
 ## Docs
 
-- `docs/adr/` — Architecture Decision Records (toy shelf, templates, UX principles, etc.)
-- `docs/plans/` — Implementation plans with checklists
-- `games/requirements/` — Per-game design specs
+- `docs/adr/` - Architecture Decision Records and implementation notes
+- `docs/plans/` - Roadmaps and refactor plans
+- `games/requirements/` - Per-game design specs

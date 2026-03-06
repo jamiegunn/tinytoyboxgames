@@ -1,39 +1,29 @@
 # ADR-001: Toy Shelf Launcher
 
 ## Status
-Accepted
+Partially Implemented
 
 ## Context
-The home screen needs to work. Preschoolers cannot read. They recognize physical objects (a bubble, a frog, a paint splat) much faster than text labels or button lists.
+The home screen needs to work for preschoolers who recognize physical objects faster than text labels.
 
 ## Decision
-Replace the text-button menu with a **Toy Shelf** launcher rendered on canvas.
+Use a toy-shelf style launcher built around visual toy affordances instead of text-heavy navigation.
 
-- Each game is represented by a toy icon (visual only, no text required)
-- Layout is a 2-column grid of large tap targets (120x120 minimum)
-- No reading required to navigate
+- Each game is represented by a toy icon
+- Tap targets should remain large and easy to hit
+- Navigation should avoid reading wherever possible
 
-### Toy-to-Game Mapping
+## Current Implementation
+The current shelf lives in `toybox.html` and is built with DOM/CSS, not canvas.
 
-| Game           | Toy Visual     |
-|----------------|----------------|
-| Bubble Pop     | Bubble wand    |
-| Feed Animal    | Frog           |
-| Color Match    | Paint palette  |
-| Shape Builder  | Shape blocks   |
-| Animal Sounds  | Cow            |
-| Fireflies      | Jar            |
+- Toys are HTML buttons styled as shelf items
+- The shelf currently exposes 12 playable game entries
+- A richer animated canvas shelf remains a future enhancement, not the current implementation
 
-### Interaction Flow
-1. App opens with toy chest animation (chest opens, sparkles, toys appear)
-2. Toys sit on shelf with idle wiggle animation
-3. Kid taps a toy
-4. Toy wiggles, makes a sound, screen zooms in
-5. Game loads
-6. On game end: show "Toy Shelf" (home) and "Play Again" options
+## Future Canvas Direction
+If the shelf is later moved to canvas, it should preserve the same toy-first interaction model while keeping hit targets generous.
 
-### Rendering
-```
+```js
 function drawShelf() {
   toys.forEach((toy, i) => {
     const x = 120 + (i % 2) * 200
@@ -45,7 +35,6 @@ function drawShelf() {
 ```
 
 ## Consequences
-- All navigation is visual/tactile, no literacy required
-- Tap targets are large enough for small hands
-- Adding a new game = adding a new toy to the shelf
-- Toy unlocking becomes a natural progression mechanic (start with 6, unlock more)
+- Navigation stays visual and tactile
+- The current DOM shelf is a valid implementation of the decision
+- Canvas rendering is an enhancement path, not a description of the current code

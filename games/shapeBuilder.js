@@ -8,8 +8,45 @@ let particles, scorePopups, snapAnims, bgShapes
 let combo, comboTimer, lastSnapTime
 let screenShake, puzzleIndex
 let starsEarned, piecesPlaced, puzzleStartTime
+let audioCtx
 
 const SNAP_DIST = 65
+
+function playSnap() {
+  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const now = audioCtx.currentTime
+  const osc = audioCtx.createOscillator()
+  const gain = audioCtx.createGain()
+  osc.type = 'triangle'
+  osc.frequency.value = 1000
+  gain.gain.setValueAtTime(0.35, now)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06)
+  osc.connect(gain)
+  gain.connect(audioCtx.destination)
+  osc.start(now)
+  osc.stop(now + 0.06)
+}
+
+function playComplete() {
+  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const now = audioCtx.currentTime
+  const notes = [523, 659, 784]
+  notes.forEach((freq, i) => {
+    const osc = audioCtx.createOscillator()
+    const gain = audioCtx.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = freq
+    const t = now + i * 0.1
+    gain.gain.setValueAtTime(0.25, t)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15)
+    osc.connect(gain)
+    gain.connect(audioCtx.destination)
+    osc.start(t)
+    osc.stop(t + 0.15)
+  })
+}
 
 const SHAPE_DEFS = {
   circle:   { color: "#ff6b6b", accent: "#e05555", highlight: "#ff9a9a" },
@@ -733,6 +770,7 @@ function handleDragEnd() {
     }
 
     screenShake = Math.min(8, 2 + combo * 1.5)
+    playSnap()
     celebrate()
 
     // check complete
@@ -783,6 +821,7 @@ function handleDragEnd() {
         })
       }
 
+      playComplete()
       celebrateBig()
     }
   } else {

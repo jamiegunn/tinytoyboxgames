@@ -1,58 +1,50 @@
 # ADR-003: Three-Layer Architecture
 
 ## Status
-Accepted
+Partially Implemented
 
 ## Context
-The project needs a clean separation between UI, engine, and game content to scale without complexity growing out of control.
+The project benefits from clear separation between UI, shared engine code, and game-specific logic.
 
 ## Decision
-Build Tiny Toybox in 3 layers:
+Organize Tiny Toybox so that shelf UI, shared engine behavior, and game logic are distinct concerns.
 
-```
-Layer 1: Toy Shelf UI        (launcher, navigation, toy chest animation)
-Layer 2: Game Engine          (loop, input, rendering, sound, assets, celebration)
-Layer 3: Game Templates       (TapGame, DragGame, ChoiceGame, SwipeGame, BuilderGame)
-Layer 4: Game Configs         (individual game definitions, mostly data)
+## Current Layers
+
+```text
+Layer 1: Landing + Toy Shelf UI  (landing page, toy shelf, companion UI)
+Layer 2: Game Engine             (loop, input, lifecycle, celebration)
+Layer 3: Game Modules            (individual games and their rendering)
 ```
 
-### Directory Structure
-```
+## Current Directory Structure
+
+```text
 tinytoybox/
   index.html
+  toybox.html
   app.js
   engine/
-    gameManager.js          -- lifecycle, lazy loading
-    loop.js                 -- requestAnimationFrame
-    input.js                -- tap, drag, swipe detection
-    celebrate.js            -- confetti, sparkles (canvas-confetti CDN)
-    sound.js                -- (future) audio manager
-    assets.js               -- (future) image/sprite loader
-    animation.js            -- (future) tweens, easing
-  templates/
-    tapGame.js              -- tap interaction template
-    dragGame.js             -- drag-and-drop template
-    choiceGame.js           -- quiz/choice template
-    swipeGame.js            -- swipe/brush template
-    builderGame.js          -- assembly template
+    gameManager.js
+    loop.js
+    input.js
+    celebrate.js
   games/
-    bubblePop.js            -- config for TapGame
-    feedAnimal.js           -- config for DragGame
-    colorMatch.js           -- config for ChoiceGame
+    bubblePop.js
+    feedAnimal.js
+    colorMatch.js
     ...
+  js/
+    buddy.js
+    musicbox.js
+    playroom.js
 ```
 
-### Lazy Loading
-Games load only when opened via dynamic `import()`. Better for mobile performance.
-
-### Shared Engine Systems (current and planned)
-- `engine/celebrate.js` -- canvas-confetti (exists now)
-- `engine/sound.js` -- audio playback
-- `engine/assets.js` -- image/sprite loading
-- `engine/animation.js` -- tweens, easing helpers
+## Planned Extension
+A template/config layer may be added later, but it does not exist in the current repo.
 
 ## Consequences
-- Clear ownership: shelf UI doesn't know about game logic, games don't know about navigation
-- New games only touch `games/` and possibly `templates/`
-- Engine improvements benefit all games automatically
-- Purely client-side, no server needed
+- Shelf UI remains separate from game logic
+- Shared engine improvements can benefit every game
+- New games currently touch `games/` directly
+- Documentation must distinguish between current architecture and future refactor plans

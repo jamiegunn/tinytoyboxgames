@@ -1,5 +1,6 @@
 import { celebrate, celebrateBig } from "../engine/celebrate.js"
 
+let audioCtx
 let ctx, input, w, h
 let tapHandler, dragHandler, dragEndHandler
 let balloons, launched, score, time
@@ -720,8 +721,26 @@ function launchBalloon(id, power) {
     })
   }
 
+  playLaunch()
   celebrate()
   if (score % 10 === 0) celebrateBig()
+}
+
+function playLaunch() {
+  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const now = audioCtx.currentTime
+  const o = audioCtx.createOscillator()
+  const g = audioCtx.createGain()
+  o.type = 'sine'
+  o.frequency.setValueAtTime(200, now)
+  o.frequency.exponentialRampToValueAtTime(800, now + 0.2)
+  g.gain.setValueAtTime(0.3, now)
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.25)
+  o.connect(g)
+  g.connect(audioCtx.destination)
+  o.start(now)
+  o.stop(now + 0.25)
 }
 
 function drawBalloon(ctx, x, y, color, stretch, grabbed, pattern, shape, face, facePhase, blinkAmount, excited) {

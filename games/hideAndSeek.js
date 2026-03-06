@@ -9,6 +9,7 @@ let peekers = []
 let foundAnim = []
 let maxPeekers = 1
 let clouds = []
+let audioCtx
 
 const ANIMALS = [
   { name: "bunny", color: "#f0f0f0", earColor: "#ffb8c6", draw: drawBunny },
@@ -266,9 +267,30 @@ function handleTap(x, y) {
   })
 
   if (found) {
+    playFound()
     celebrate()
     if (score % 5 === 0) celebrateBig()
   }
+}
+
+// --- Sound effects ---
+
+function playFound() {
+  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const now = audioCtx.currentTime
+  const osc = audioCtx.createOscillator()
+  const gain = audioCtx.createGain()
+  osc.type = 'sine'
+  osc.frequency.setValueAtTime(400, now)
+  osc.frequency.linearRampToValueAtTime(900, now + 0.06)
+  osc.frequency.linearRampToValueAtTime(700, now + 0.12)
+  gain.gain.setValueAtTime(0.3, now)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
+  osc.connect(gain)
+  gain.connect(audioCtx.destination)
+  osc.start(now)
+  osc.stop(now + 0.15)
 }
 
 // --- Hiding spot drawings ---

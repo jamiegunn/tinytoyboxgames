@@ -1,50 +1,52 @@
 # Plan: Game List
 
 ## Current Games (implemented)
-1. **Bubble Pop** -- tap floating bubbles (TapGame)
-2. **Feed Animal** -- tap food to drop into animal's mouth (DragGame)
-3. **Color Match** -- tap the matching color swatch (ChoiceGame)
+1. **Bubble Pop** - tap floating bubbles
+2. **Feed Animal** - feed the animal
+3. **Color Match** - tap the matching color swatch
+4. **Fireflies** - catch glowing fireflies in a jar
+5. **Hide and Seek Animals** - find animals peeking from behind objects
+6. **Clean the Mess** - wipe away grime to reveal the scene
+7. **Balloon Race** - swipe balloons upward to launch them
+8. **Shape Builder** - drag shapes into matching slots
+9. **Baby Shark** - guide a shark through an underwater play scene
+10. **Puppy Fetch** - play fetch with a puppy
+11. **Elephant Splash** - spray water at playful targets
+12. **Monster Truck** - jump and crush obstacles
 
-## Next Games to Build
-
-### TapGame variants
-4. **Fireflies** -- tap glowing fireflies in a dark scene, they go into a jar
-5. **Hide and Seek Animals** -- animals peek from behind objects, tap to find them
+## Backlog
 
 ### ChoiceGame variants
-6. **Animal Sound Guess** -- hear a sound, tap the matching animal
-
-### DragGame variants
-7. **Shape Builder Puzzle** -- drag shapes into matching holes
-
-### SwipeGame variants
-8. **Clean the Mess** -- swipe to clean a dirty window/mirror, reveal picture underneath
-9. **Balloon Drag Race** -- swipe balloons upward to make them fly
+13. **Animal Sound Guess** - hear a sound, tap the matching animal
 
 ### BuilderGame variants
-10. **Build a Funny Monster** -- drag eyes, mouths, horns onto a body
+14. **Build a Funny Monster** - drag eyes, mouths, horns onto a body
 
-## Template Mapping
+## Template Mapping (target architecture)
 
-| Template    | Games                                    |
-|-------------|------------------------------------------|
-| TapGame     | Bubble Pop, Fireflies, Hide and Seek     |
-| ChoiceGame  | Color Match, Animal Sound Guess          |
-| DragGame    | Feed Animal, Shape Builder               |
-| SwipeGame   | Clean the Mess, Balloon Drag Race        |
-| BuilderGame | Build a Monster                          |
+| Template    | Games |
+|-------------|-------|
+| TapGame     | Bubble Pop, Fireflies, Hide and Seek |
+| ChoiceGame  | Color Match, Animal Sound Guess |
+| DragGame    | Feed Animal, Shape Builder |
+| SwipeGame   | Clean the Mess, Balloon Race |
+| BuilderGame | Build a Monster |
 
-## Toy Shelf Icons (canvas-drawn, no images)
+## Toy Shelf Icons
 
-| Game              | Toy Visual                           |
-|-------------------|--------------------------------------|
-| Bubble Pop        | Blue circle with shine highlight     |
-| Feed Animal       | Green frog face with big eyes        |
-| Color Match       | Paint palette with color dots        |
-| Fireflies         | Glass jar with yellow dots inside    |
-| Hide and Seek     | Tree with eyes peeking out           |
-| Animal Sounds     | Cow face                             |
-| Shape Builder     | Colored triangle + square + circle   |
-| Clean the Mess    | Sponge with bubbles                  |
-| Balloon Race      | Red balloon with string              |
-| Build a Monster   | Silly monster face                   |
+| Game | Toy Visual |
+|------|------------|
+| Bubble Pop | Bubble wand |
+| Feed Animal | Frog |
+| Color Match | Paint palette |
+| Fireflies | Jar |
+| Hide and Seek | Tree with peeking eyes |
+| Clean the Mess | Sponge |
+| Balloon Race | Balloon bundle |
+| Shape Builder | Mixed shapes |
+| Baby Shark | Smiling shark |
+| Puppy Fetch | Puppy with a ball |
+| Elephant Splash | Elephant spraying water |
+| Monster Truck | Chunky truck |
+| Animal Sounds | Cow face |
+| Build a Monster | Silly monster face |

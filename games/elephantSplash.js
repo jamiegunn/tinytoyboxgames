@@ -1,5 +1,35 @@
 import { celebrate, celebrateBig } from "../engine/celebrate.js"
 
+let audioCtx
+
+function playSplash() {
+  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const now = audioCtx.currentTime
+
+  const g1 = audioCtx.createGain()
+  g1.gain.setValueAtTime(0.2, now)
+  g1.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
+  g1.connect(audioCtx.destination)
+  const o1 = audioCtx.createOscillator()
+  o1.type = 'sine'
+  o1.frequency.setValueAtTime(200 + Math.random() * 100, now)
+  o1.connect(g1)
+  o1.start(now)
+  o1.stop(now + 0.15)
+
+  const g2 = audioCtx.createGain()
+  g2.gain.setValueAtTime(0.2, now)
+  g2.gain.exponentialRampToValueAtTime(0.001, now + 0.08)
+  g2.connect(audioCtx.destination)
+  const o2 = audioCtx.createOscillator()
+  o2.type = 'square'
+  o2.frequency.setValueAtTime(400 + Math.random() * 200, now)
+  o2.connect(g2)
+  o2.start(now)
+  o2.stop(now + 0.08)
+}
+
 let ctx, input, w, h
 let tapHandler, dragHandler, dragEndHandler
 let elephant, targets, sprayParticles, splashes, ripples, lilypads
@@ -246,6 +276,8 @@ export default {
               color: t.golden ? '#ffd700' : (combo > 2 ? '#ff6b6b' : '#fff'),
               scale: combo > 2 ? 1.4 : 1
             })
+
+            playSplash()
 
             // only celebrate on milestones, not every hit
             if (score % 10 === 0) celebrate()

@@ -10,6 +10,59 @@ let grassBlades, flowers, leaves
 let combo, comboTimer, lastFetchTime
 let screenShake, throwTrail
 let windPhase
+let audioCtx
+
+function playThrow() {
+  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const now = audioCtx.currentTime
+
+  const osc = audioCtx.createOscillator()
+  osc.type = 'sine'
+  osc.frequency.setValueAtTime(300, now)
+  osc.frequency.exponentialRampToValueAtTime(900, now + 0.15)
+
+  const gain = audioCtx.createGain()
+  gain.gain.setValueAtTime(0.2, now)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2)
+
+  osc.connect(gain)
+  gain.connect(audioCtx.destination)
+  osc.start(now)
+  osc.stop(now + 0.2)
+}
+
+function playFetch() {
+  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const now = audioCtx.currentTime
+
+  const osc1 = audioCtx.createOscillator()
+  osc1.type = 'sine'
+  osc1.frequency.setValueAtTime(600, now)
+
+  const gain1 = audioCtx.createGain()
+  gain1.gain.setValueAtTime(0.25, now)
+  gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.1)
+
+  osc1.connect(gain1)
+  gain1.connect(audioCtx.destination)
+  osc1.start(now)
+  osc1.stop(now + 0.1)
+
+  const osc2 = audioCtx.createOscillator()
+  osc2.type = 'sine'
+  osc2.frequency.setValueAtTime(800, now + 0.08)
+
+  const gain2 = audioCtx.createGain()
+  gain2.gain.setValueAtTime(0.25, now + 0.08)
+  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.18)
+
+  osc2.connect(gain2)
+  gain2.connect(audioCtx.destination)
+  osc2.start(now + 0.08)
+  osc2.stop(now + 0.18)
+}
 
 const GROUND_Y_RATIO = 0.82
 const PUPPY_HOME_X_RATIO = 0.5
@@ -353,6 +406,7 @@ export default {
           scale: combo >= 3 ? 1.4 : 1
         })
 
+        playFetch()
         celebrate()
         if (score % 5 === 0) celebrateBig()
 
@@ -759,6 +813,7 @@ function handleTap(x, y) {
   puppy.dir = x > puppy.x ? 1 : -1
   puppy.earBounce = 1
   throwTrail = []
+  playThrow()
 }
 
 function drawBall(ctx, x, y, r, spin) {

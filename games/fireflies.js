@@ -1,5 +1,6 @@
 import { celebrate, celebrateBig } from "../engine/celebrate.js"
 
+let audioCtx
 let ctx, input, w, h
 let tapHandler
 let flies = []
@@ -873,9 +874,35 @@ function handleTap(x, y) {
 
   if (didCatch) {
     shakeAmount = combo >= 3 ? 5 : 2
+    playCatch()
     celebrate()
     if (combo >= 5 && combo % 5 === 0) celebrateBig()
   }
+}
+
+function playCatch() {
+  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const now = audioCtx.currentTime
+  const freq = 800 + Math.random() * 200
+  const osc1 = audioCtx.createOscillator()
+  const gain1 = audioCtx.createGain()
+  osc1.type = 'sine'
+  osc1.frequency.value = freq
+  gain1.gain.setValueAtTime(0.25, now)
+  gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
+  osc1.connect(gain1).connect(audioCtx.destination)
+  osc1.start(now)
+  osc1.stop(now + 0.15)
+  const osc2 = audioCtx.createOscillator()
+  const gain2 = audioCtx.createGain()
+  osc2.type = 'sine'
+  osc2.frequency.value = freq * 2
+  gain2.gain.setValueAtTime(0.15, now)
+  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
+  osc2.connect(gain2).connect(audioCtx.destination)
+  osc2.start(now)
+  osc2.stop(now + 0.15)
 }
 
 function drawStar(ctx, cx, cy, points, outer, inner) {

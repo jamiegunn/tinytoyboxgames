@@ -1,11 +1,30 @@
 import { celebrate, celebrateBig } from "../engine/celebrate.js"
 
+let audioCtx
 let ctx, input, w, h
 let dragHandler, tapHandler
 let shapes, score, time, allClean
 let sparkles, particles, scorePopups, bubbles
 let screenShake, brushTrail
 let bgPattern, cleanProgress
+
+function playSqueak() {
+  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const now = audioCtx.currentTime
+  const osc = audioCtx.createOscillator()
+  const gain = audioCtx.createGain()
+  osc.type = 'sine'
+  osc.frequency.setValueAtTime(600, now)
+  osc.frequency.linearRampToValueAtTime(900, now + 0.05)
+  osc.frequency.linearRampToValueAtTime(600, now + 0.1)
+  gain.gain.setValueAtTime(0.2, now)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
+  osc.connect(gain)
+  gain.connect(audioCtx.destination)
+  osc.start(now)
+  osc.stop(now + 0.12)
+}
 
 const BRUSH_RADIUS = 55
 
@@ -569,6 +588,7 @@ function checkShapeProgress(s) {
   if (progress > 0.4 && !s.halfCelebrated) {
     s.halfCelebrated = true
     celebrate()
+    playSqueak()
 
     // popup
     scorePopups.push({
@@ -621,6 +641,7 @@ function checkShapeProgress(s) {
     })
 
     celebrate()
+    playSqueak()
 
     if (shapes.every(sh => sh.revealed)) {
       allClean = true

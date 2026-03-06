@@ -1,5 +1,6 @@
 import { celebrate, celebrateBig } from "../engine/celebrate.js"
 
+let audioCtx
 let ctx, input, w, h
 let dragHandler, tapHandler
 let shark, fish, bubbles, score, time
@@ -628,8 +629,26 @@ function eatFish(f) {
     }
   }
 
+  playBite()
   celebrate()
   if (score % 10 === 0) celebrateBig()
+}
+
+function playBite() {
+  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const now = audioCtx.currentTime
+  const osc = audioCtx.createOscillator()
+  const gain = audioCtx.createGain()
+  osc.type = 'square'
+  osc.frequency.setValueAtTime(300, now)
+  osc.frequency.linearRampToValueAtTime(100, now + 0.08)
+  gain.gain.setValueAtTime(0.3, now)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1)
+  osc.connect(gain)
+  gain.connect(audioCtx.destination)
+  osc.start(now)
+  osc.stop(now + 0.1)
 }
 
 function handleTap(x, y) {

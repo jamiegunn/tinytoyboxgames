@@ -1,5 +1,6 @@
 import { celebrate, celebrateBig } from "../engine/celebrate.js"
 
+let audioCtx
 let ctx, input, w, h
 let tapHandler
 let truck, crushables, stars, score, time
@@ -169,6 +170,7 @@ export default {
             text: `FLIP x${fullFlips}!`,
             life: 1.5, color: "#ff6b6b"
           })
+          playCrush()
           celebrateBig()
         }
         truck.flipAngle = 0
@@ -281,6 +283,7 @@ export default {
         screenShake = combo >= 3 ? 0.6 : 0.35
         if (!truck.grounded) slowMoTimer = 0.15
 
+        playCrush()
         celebrate()
         if (score % 10 === 0 || combo >= 4) celebrateBig()
 
@@ -631,9 +634,53 @@ export default {
   }
 }
 
+function playJump() {
+  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const now = audioCtx.currentTime
+  const osc = audioCtx.createOscillator()
+  const gain = audioCtx.createGain()
+  osc.type = 'sawtooth'
+  osc.frequency.setValueAtTime(80, now)
+  osc.frequency.linearRampToValueAtTime(200, now + 0.15)
+  gain.gain.setValueAtTime(0.2, now)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2)
+  osc.connect(gain)
+  gain.connect(audioCtx.destination)
+  osc.start(now)
+  osc.stop(now + 0.2)
+}
+
+function playCrush() {
+  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const now = audioCtx.currentTime
+  const osc1 = audioCtx.createOscillator()
+  const gain1 = audioCtx.createGain()
+  osc1.type = 'sine'
+  osc1.frequency.setValueAtTime(60, now)
+  gain1.gain.setValueAtTime(0.4, now)
+  gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
+  osc1.connect(gain1)
+  gain1.connect(audioCtx.destination)
+  osc1.start(now)
+  osc1.stop(now + 0.15)
+  const osc2 = audioCtx.createOscillator()
+  const gain2 = audioCtx.createGain()
+  osc2.type = 'square'
+  osc2.frequency.setValueAtTime(100, now)
+  gain2.gain.setValueAtTime(0.15, now)
+  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.1)
+  osc2.connect(gain2)
+  gain2.connect(audioCtx.destination)
+  osc2.start(now)
+  osc2.stop(now + 0.1)
+}
+
 function handleTap() {
   if (truck.grounded) {
     // ground jump
+    playJump()
     truck.vy = -600
     truck.grounded = false
     truck.jumpsLeft = MAX_JUMPS - 1
@@ -651,6 +698,7 @@ function handleTap() {
     }
   } else if (truck.jumpsLeft > 0) {
     // air boost — upward burst with flames
+    playJump()
     truck.jumpsLeft--
     truck.vy = -450
     truck.boostTimer = 0.3
