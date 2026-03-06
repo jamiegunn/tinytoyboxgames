@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- body -->
+  <ellipse cx="32" cy="36" rx="20" ry="22" fill="#8B6914"/>
+  <!-- belly -->
+  <ellipse cx="32" cy="40" rx="14" ry="16" fill="#f5e6c8"/>
+  <!-- ears -->
+  <polygon points="14,18 12,6 22,16" fill="#8B6914"/>
+  <polygon points="50,18 52,6 42,16" fill="#8B6914"/>
+  <polygon points="15,17 13,8 21,16" fill="#f5e6c8"/>
+  <polygon points="49,17 51,8 43,16" fill="#f5e6c8"/>
+  <!-- eyes -->
+  <circle cx="24" cy="28" r="7" fill="white"/>
+  <circle cx="40" cy="28" r="7" fill="white"/>
+  <circle cx="25" cy="28" r="4" fill="#2d1b69"/>
+  <circle cx="41" cy="28" r="4" fill="#2d1b69"/>
+  <circle cx="26" cy="27" r="1.5" fill="white"/>
+  <circle cx="42" cy="27" r="1.5" fill="white"/>
+  <!-- beak -->
+  <polygon points="32,33 28,38 36,38" fill="#ff9f43"/>
+  <!-- blush -->
+  <ellipse cx="18" cy="35" rx="4" ry="2.5" fill="#ffb3b3" opacity="0.5"/>
+  <ellipse cx="46" cy="35" rx="4" ry="2.5" fill="#ffb3b3" opacity="0.5"/>
+  <!-- feet -->
+  <ellipse cx="25" cy="57" rx="6" ry="3" fill="#ff9f43"/>
+  <ellipse cx="39" cy="57" rx="6" ry="3" fill="#ff9f43"/>
+</svg>

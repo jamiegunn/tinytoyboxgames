@@ -89,20 +89,22 @@ window.toggleMusicBox = function toggleMusicBox() {
     suggest()
   }
 
+  function wrapStartGame(id) {
+    buddy.style.display = 'none'; point.style.opacity = '0'; thought.style.opacity = '0'
+    clearTimeout(suggestTimer); clearTimeout(moveTimer)
+    if (window.speechSynthesis) speechSynthesis.cancel()
+    window._musicWasPlaying = window._toyboxMusic && window._toyboxMusic.isPlaying()
+    if (window._toyboxMusic) window._toyboxMusic.stop()
+    if (!hasPlayed) { hasPlayed = true; hint.style.display = 'none'; tapHand.style.display = 'none' }
+    realStart(id)
+  }
+
+  let realStart, realHome
   const wrapInterval = setInterval(() => {
     if (window.startGame && window.startGame !== wrapStartGame) {
-      const realStart = window.startGame
+      realStart = window.startGame
       window.startGame = wrapStartGame
-      function wrapStartGame(id) {
-        buddy.style.display = 'none'; point.style.opacity = '0'; thought.style.opacity = '0'
-        clearTimeout(suggestTimer); clearTimeout(moveTimer)
-        if (window.speechSynthesis) speechSynthesis.cancel()
-        window._musicWasPlaying = window._toyboxMusic && window._toyboxMusic.isPlaying()
-        if (window._toyboxMusic) window._toyboxMusic.stop()
-        if (!hasPlayed) { hasPlayed = true; hint.style.display = 'none'; tapHand.style.display = 'none' }
-        realStart(id)
-      }
-      const realHome = window.goHome
+      realHome = window.goHome
       window.goHome = function() {
         realHome(); buddy.style.display = ''; moveToRandomRow(); scheduleSuggest()
         if (window._musicWasPlaying && window._toyboxMusic) window._toyboxMusic.start()
