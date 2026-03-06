@@ -12,31 +12,20 @@ function playPop() {
   if (audioCtx.state === 'suspended') audioCtx.resume()
   const now = audioCtx.currentTime
 
-  // Short noise burst filtered to sound bubbly
-  const bufferSize = audioCtx.sampleRate * 0.08
-  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate)
-  const data = buffer.getChannelData(0)
-  for (let i = 0; i < bufferSize; i++) {
-    data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize)
-  }
-  const noise = audioCtx.createBufferSource()
-  noise.buffer = buffer
-
-  // Bandpass filter for a soft pop
-  const filter = audioCtx.createBiquadFilter()
-  filter.type = 'bandpass'
-  filter.frequency.value = 800 + Math.random() * 600
-  filter.Q.value = 1.5
+  // High sine that drops in pitch quickly — bubbly pop
+  const osc = audioCtx.createOscillator()
+  osc.type = 'sine'
+  osc.frequency.setValueAtTime(1200 + Math.random() * 400, now)
+  osc.frequency.exponentialRampToValueAtTime(300, now + 0.1)
 
   const gain = audioCtx.createGain()
-  gain.gain.setValueAtTime(0.35, now)
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08)
+  gain.gain.setValueAtTime(0.4, now)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
 
-  noise.connect(filter)
-  filter.connect(gain)
+  osc.connect(gain)
   gain.connect(audioCtx.destination)
-  noise.start(now)
-  noise.stop(now + 0.08)
+  osc.start(now)
+  osc.stop(now + 0.12)
 }
 
 const COLORS = ["#48dbfb", "#ff9ff3", "#feca57", "#54a0ff", "#5f27cd"]

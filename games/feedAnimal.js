@@ -15,31 +15,22 @@ function playMunch() {
   if (audioCtx.state === 'suspended') audioCtx.resume()
   const now = audioCtx.currentTime
 
-  // Two quick crunches for a munch sound
+  // Two quick chomps using oscillators
   for (let i = 0; i < 2; i++) {
-    const t = now + i * 0.08
-    const bufferSize = Math.floor(audioCtx.sampleRate * 0.06)
-    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate)
-    const data = buffer.getChannelData(0)
-    for (let j = 0; j < bufferSize; j++) {
-      data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / bufferSize, 2)
-    }
-    const src = audioCtx.createBufferSource()
-    src.buffer = buffer
-
-    const filter = audioCtx.createBiquadFilter()
-    filter.type = 'lowpass'
-    filter.frequency.value = 1200 + Math.random() * 400
+    const t = now + i * 0.1
+    const osc = audioCtx.createOscillator()
+    osc.type = 'square'
+    osc.frequency.setValueAtTime(250 + Math.random() * 100, t)
+    osc.frequency.exponentialRampToValueAtTime(80, t + 0.07)
 
     const gain = audioCtx.createGain()
-    gain.gain.setValueAtTime(0.3, t)
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06)
+    gain.gain.setValueAtTime(0.25, t)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07)
 
-    src.connect(filter)
-    filter.connect(gain)
+    osc.connect(gain)
     gain.connect(audioCtx.destination)
-    src.start(t)
-    src.stop(t + 0.06)
+    osc.start(t)
+    osc.stop(t + 0.07)
   }
 }
 
