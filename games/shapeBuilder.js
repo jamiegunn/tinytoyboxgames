@@ -79,11 +79,11 @@ const PUZZLES = [
     { shape: "circle",   x: 0.5,  y: 0.58, size: 18 },
   ]},
   { name: "Crown", slots: [
-    { shape: "square",   x: 0.5,  y: 0.52, size: 45 },
+    { shape: "square",   x: 0.5,  y: 0.55, size: 45 },
     { shape: "triangle", x: 0.28, y: 0.32, size: 30 },
     { shape: "triangle", x: 0.5,  y: 0.26, size: 32 },
     { shape: "triangle", x: 0.72, y: 0.32, size: 30 },
-    { shape: "star",     x: 0.5,  y: 0.52, size: 18 },
+    { shape: "star",     x: 0.5,  y: 0.42, size: 18 },
   ]},
   { name: "Flower", slots: [
     { shape: "circle",   x: 0.5,  y: 0.40, size: 25 },
@@ -350,7 +350,7 @@ export default {
 
       // proximity glow when dragging matching shape nearby
       let proximity = 0
-      if (dragging && dragging.shape === s.shape) {
+      if (dragging && dragging.shape === s.shape && !s.filled) {
         const dx = dragX - s.x
         const dy = dragY - s.y
         const dist = Math.sqrt(dx * dx + dy * dy)
@@ -700,12 +700,22 @@ function handleDragMove(x, y) {
 function handleDragEnd() {
   if (!dragging) return
 
-  const slot = slots[dragging.slotIndex]
-  const dx = dragX - slot.x
-  const dy = dragY - slot.y
-  const dist = Math.sqrt(dx * dx + dy * dy)
+  // Find the nearest unfilled slot of the same shape within snap distance
+  let slot = null
+  let bestDist = SNAP_DIST
+  for (let i = 0; i < slots.length; i++) {
+    const s = slots[i]
+    if (s.filled || s.shape !== dragging.shape) continue
+    const dx = dragX - s.x
+    const dy = dragY - s.y
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    if (dist < bestDist) {
+      bestDist = dist
+      slot = s
+    }
+  }
 
-  if (dist < SNAP_DIST) {
+  if (slot) {
     // snap!
     slot.filled = true
     slot.fillTime = time
