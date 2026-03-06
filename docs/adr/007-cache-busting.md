@@ -1,44 +1,43 @@
-# ADR-007: Cache Busting Strategy
+# ADR-007: No-Cache Delivery Policy
 
 ## Status
 Accepted
 
 ## Context
-After deploying code changes (particularly switching game sound effects from buffer-based noise to oscillator-based audio for iOS compatibility), users on iOS Safari were still loading stale cached versions of game JS files. The music box worked because its code was inline in `toybox.html`, but the game modules (`bubblePop.js`, `feedAnimal.js`, etc.) loaded via ES module dynamic imports were served from browser cache.
+After deploying code changes, users could continue running stale versions of local HTML, CSS, and JavaScript. This was especially visible for dynamically imported game modules, where the page shell could update while individual game scripts still came from browser cache.
 
-Client-side cache-busting approaches were evaluated:
-- `?v=Date.now()` via `document.write` — broke vite HMR and caused page rendering issues
-- `?v=N` on dynamic imports in `gameManager.js` — broke vite's module resolution
-- Inline version strings on `<script>` and `<link>` tags — fragile and error-prone to maintain
+Several client-side cache-busting approaches were considered and rejected:
+- `?v=Date.now()` on navigation links or injected markup was brittle and interfered with local development behavior
+- Version query strings on dynamic `import()` paths broke Vite module resolution
+- Manual version strings on every `<script>` and `<link>` tag were easy to miss and hard to maintain
+
+The product requirement is stricter than ordinary cache busting: when Tiny Toybox is requested, locally served scripts and other app assets should be fetched again instead of being reused from browser cache.
 
 ## Decision
-Use **server-side `Cache-Control` headers** via nginx configuration to prevent caching of JS, CSS, and HTML files:
+Disable caching for all locally served application responses across every supported serving path.
 
-```nginx
-location ~* \.(js|css|html)$ {
-    add_header Cache-Control "no-cache, no-store, must-revalidate";
-    add_header Pragma "no-cache";
-    add_header Expires 0;
-}
-```
+This policy is enforced server-side in both `nginx.conf` and `server.js` with these response headers:
+- `Cache-Control: no-store, no-cache, must-revalidate, max-age=0, s-maxage=0`
+- `Pragma: no-cache`
+- `Expires: 0`
+- `Surrogate-Control: no-store`
 
-This is configured in `nginx.conf` and deployed via the Dockerfile.
+The nginx container also disables `etag` and `if_modified_since` handling so local assets do not rely on conditional cache revalidation.
+
+Google-hosted font and stylesheet requests are explicitly out of scope for this ADR because they are served from Google infrastructure, not from Tiny Toybox.
 
 ## Consequences
 
 ### Positive
-- No client-side hacks needed — HTML stays clean with plain `<script>` and `<link>` tags
-- Works for all file types including dynamically imported ES modules
-- Compatible with vite dev server (which already doesn't cache)
-- Single place to manage caching policy
+- No client-side cache-busting hacks are needed in HTML or module import paths
+- The policy covers entry HTML, dynamically imported game modules, CSS, images, audio, SVGs, and other local assets
+- The no-cache behavior is consistent between the nginx container and the included Node static server
 
 ### Negative
-- Every page load re-fetches all JS/CSS files (no browser caching benefit)
-- Slightly higher bandwidth usage and slower loads on repeat visits
-
-### Future
-When the app stabilizes, consider switching to fingerprinted filenames (e.g. `app.a1b2c3.js`) with long cache lifetimes. This gives the best of both worlds: aggressive caching for unchanged files, instant cache invalidation for updated ones. A build step (vite build) would be needed for this.
+- Every visit re-fetches local app assets
+- Repeat visits use more bandwidth and can be slower than a fingerprinted-cache strategy
 
 ## Notes
-- iOS Safari is particularly aggressive about caching ES module imports
+- iOS Safari is particularly aggressive about caching ES module imports, which helped motivate this policy
+- Vite build output still uses fingerprinted filenames, but those filenames are not relied on for cache invalidation because the current product requirement is "never cache local assets"
 - The music box audio code is kept inline in `toybox.html` rather than as an external script because iOS Safari requires the `AudioContext` unlock listener to be registered from an inline script context for reliable behavior

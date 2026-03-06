@@ -18,6 +18,8 @@ Other commands:
 
 Docker also serves the production build only. The container image runs `vite build` and copies `dist/` into nginx.
 
+Local app responses are intentionally served with no-cache headers in both the nginx container and the included Node static server. Google-hosted font and stylesheet requests are the only exception because they are not served by this app.
+
 ## Games
 
 | Game | Description | Status |

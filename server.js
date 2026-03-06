@@ -20,6 +20,16 @@ const mime = {
   '.wav': 'audio/wav',
 }
 
+function buildHeaders(contentType) {
+  return {
+    'Content-Type': contentType,
+    'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0',
+    Pragma: 'no-cache',
+    Expires: '0',
+    'Surrogate-Control': 'no-store',
+  }
+}
+
 function resolvePathname(url) {
   let pathname = decodeURIComponent((url || '/').split('?')[0])
   if (pathname === '/') return '/index.html'
@@ -28,7 +38,7 @@ function resolvePathname(url) {
 }
 
 function sendNotFound(res) {
-  res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
+  res.writeHead(404, buildHeaders('text/plain; charset=utf-8'))
   res.end('Not found')
 }
 
@@ -38,7 +48,7 @@ http.createServer((req, res) => {
 
   // Prevent directory traversal outside dist.
   if (!filePath.startsWith(DIST + path.sep) && filePath !== path.join(DIST, 'index.html')) {
-    res.writeHead(403)
+    res.writeHead(403, buildHeaders('text/plain; charset=utf-8'))
     return res.end()
   }
 
@@ -48,11 +58,11 @@ http.createServer((req, res) => {
         return sendNotFound(res)
       }
 
-      res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' })
+      res.writeHead(500, buildHeaders('text/plain; charset=utf-8'))
       res.end('Server error')
     } else {
       const ext = path.extname(filePath)
-      res.writeHead(200, { 'Content-Type': mime[ext] || 'application/octet-stream' })
+      res.writeHead(200, buildHeaders(mime[ext] || 'application/octet-stream'))
       res.end(data)
     }
   })
