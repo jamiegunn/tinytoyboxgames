@@ -5,6 +5,38 @@ let bubbles = []
 let score = 0
 let spawnTimer = 0
 let tapHandler
+let audioCtx
+
+function playPop() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  const now = audioCtx.currentTime
+
+  // Short noise burst filtered to sound bubbly
+  const bufferSize = audioCtx.sampleRate * 0.08
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize)
+  }
+  const noise = audioCtx.createBufferSource()
+  noise.buffer = buffer
+
+  // Bandpass filter for a soft pop
+  const filter = audioCtx.createBiquadFilter()
+  filter.type = 'bandpass'
+  filter.frequency.value = 800 + Math.random() * 600
+  filter.Q.value = 1.5
+
+  const gain = audioCtx.createGain()
+  gain.gain.setValueAtTime(0.35, now)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08)
+
+  noise.connect(filter)
+  filter.connect(gain)
+  gain.connect(audioCtx.destination)
+  noise.start(now)
+  noise.stop(now + 0.08)
+}
 
 const COLORS = ["#48dbfb", "#ff9ff3", "#feca57", "#54a0ff", "#5f27cd"]
 const RADIUS = 45
@@ -108,6 +140,7 @@ function popBubble(x, y) {
   })
 
   if (popped) {
+    playPop()
     celebrate()
   }
 }

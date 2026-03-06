@@ -8,6 +8,39 @@ let combo, comboTimer, lastFeedTime
 let screenShake, currentAnimal
 let clouds, butterflies, bgFlowers, grassBlades
 let windPhase
+let audioCtx
+
+function playMunch() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  const now = audioCtx.currentTime
+
+  // Two quick crunches for a munch sound
+  for (let i = 0; i < 2; i++) {
+    const t = now + i * 0.08
+    const bufferSize = Math.floor(audioCtx.sampleRate * 0.06)
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate)
+    const data = buffer.getChannelData(0)
+    for (let j = 0; j < bufferSize; j++) {
+      data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / bufferSize, 2)
+    }
+    const src = audioCtx.createBufferSource()
+    src.buffer = buffer
+
+    const filter = audioCtx.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.value = 1200 + Math.random() * 400
+
+    const gain = audioCtx.createGain()
+    gain.gain.setValueAtTime(0.3, t)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06)
+
+    src.connect(filter)
+    filter.connect(gain)
+    gain.connect(audioCtx.destination)
+    src.start(t)
+    src.stop(t + 0.06)
+  }
+}
 
 const FOOD_ITEMS = [
   { id: "apple", draw: drawApple, color: "#ff6b6b" },
@@ -266,6 +299,7 @@ export default {
             })
           }
 
+          playMunch()
           celebrate()
           if (feedCount % 5 === 0) {
             celebrateBig()
