@@ -1,5 +1,5 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
-#game { background: #1e1e2e; }
+#game { background: #1e1e2e; position: relative; z-index: 1; }
 #confetti-canvas {
   background: transparent;
   position: fixed;

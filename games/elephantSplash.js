@@ -144,10 +144,6 @@ export default {
     w = ctx.canvas.width
     h = ctx.canvas.height
 
-    // slow mo decay
-    if (slowMo < 1) slowMo = Math.min(1, slowMo + dt * 2)
-    dt *= slowMo
-
     time += dt
     sunbeamPhase += dt * 0.3
     elephant.earPhase += dt * 2.5
@@ -177,8 +173,19 @@ export default {
     // spray particles — more volume, better physics
     if (elephant.spraying) {
       elephant.eyeSquint = Math.min(0.5, elephant.eyeSquint + dt * 3)
-      const trunkTipX = elephant.x + Math.cos(elephant.trunkAngle) * 95
-      const trunkTipY = elephant.y - 40 + elephant.bounceY + Math.sin(elephant.trunkAngle) * 95
+      const sz = elephant.size
+      const trunkBaseY = elephant.y + elephant.bounceY - sz * 0.58
+      const trunkLen = sz * 1.6
+      // walk the trunk segments to find the actual tip position (matching the curl in drawElephant)
+      let tipX = 0, tipY = 0
+      for (let i = 1; i <= 10; i++) {
+        const t = i / 10
+        const curl = Math.sin(t * Math.PI * 0.5) * 0.2 + (Math.sin(time * 8 + t * 4) * 0.03)
+        tipX = Math.cos(elephant.trunkAngle + curl) * trunkLen * t
+        tipY = Math.sin(elephant.trunkAngle + curl) * trunkLen * t
+      }
+      const trunkTipX = elephant.x + tipX
+      const trunkTipY = trunkBaseY + tipY
 
       const count = Math.floor(6 * elephant.sprayPower)
       for (let i = 0; i < count; i++) {
@@ -267,24 +274,22 @@ export default {
             const points = Math.max(1, combo) * (t.golden ? 5 : 1)
             score += points
 
-            // score popup
-            const label = t.golden ? `+${points} GOLDEN!` : (combo > 1 ? `+${points} x${combo}!` : `+${points}`)
-            scorePopups.push({
-              x: t.x, y: t.y,
-              text: label,
-              life: 1.5,
-              color: t.golden ? '#ffd700' : (combo > 2 ? '#ff6b6b' : '#fff'),
-              scale: combo > 2 ? 1.4 : 1
-            })
+            // score popup — only for golden targets
+            if (t.golden) {
+              scorePopups.push({
+                x: t.x, y: t.y,
+                text: `+${points} GOLDEN!`,
+                life: 1,
+                color: '#ffd700',
+                scale: 1.2
+              })
+            }
 
             playSplash()
 
-            // only celebrate on milestones, not every hit
             if (score % 10 === 0) celebrate()
-            if (score % 25 === 0) celebrateBig()
-            if (combo >= 3) {
-              slowMo = 0.3
-              screenShake = 8
+            if (combo >= 7) {
+              screenShake = 3
             }
 
             // elephant celebration
@@ -330,19 +335,26 @@ export default {
     })
     splashes = splashes.filter(s => s.life > 0)
 
-    // remove hit targets with delay for reaction animation, then respawn
+    // remove hit targets with delay for reaction animation
     targets = targets.filter(t => {
       if (!t.hit) return true
       return (time - t.hitTime) < 0.6
     })
-    const maxTargets = 3 + Math.min(Math.floor(score / 3), 5)
-    while (targets.filter(t => !t.hit).length < maxTargets) {
-      // rare golden butterfly chance
-      if (score > 5 && Math.random() < 0.06) {
-        spawnTarget(GOLDEN_BUTTERFLY)
-      } else {
-        spawnTarget()
+    // respawn targets with a delay after destruction
+    const maxTargets = 3 + Math.min(Math.floor(score / 3), 4)
+    const activeTargets = targets.filter(t => !t.hit)
+    if (activeTargets.length < maxTargets) {
+      if (!this._respawnTimer) this._respawnTimer = time + 1.2 + Math.random() * 0.8
+      if (time >= this._respawnTimer) {
+        if (score > 5 && Math.random() < 0.06) {
+          spawnTarget(GOLDEN_BUTTERFLY)
+        } else {
+          spawnTarget()
+        }
+        this._respawnTimer = time + 0.6 + Math.random() * 0.6
       }
+    } else {
+      this._respawnTimer = null
     }
 
     // water ripples
@@ -723,8 +735,11 @@ export default {
     // trumpet visual
     if (elephant.trumpeting > 0.1) {
       ctx.globalAlpha = elephant.trumpeting * 0.6
-      const tx = elephant.x + Math.cos(elephant.trunkAngle) * 110
-      const ty = elephant.y - 40 + elephant.bounceY + Math.sin(elephant.trunkAngle) * 110
+      const tsz = elephant.size
+      const tBaseY = elephant.y + elephant.bounceY - tsz * 0.58
+      const tLen = tsz * 1.6 + 6
+      const tx = elephant.x + Math.cos(elephant.trunkAngle) * tLen
+      const ty = tBaseY + Math.sin(elephant.trunkAngle) * tLen
       for (let i = 0; i < 3; i++) {
         const r = 10 + i * 12 + (1 - elephant.trumpeting) * 30
         ctx.beginPath()

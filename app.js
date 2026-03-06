@@ -1,6 +1,7 @@
 import { GameManager } from "./engine/gameManager.js"
 import { startLoop } from "./engine/loop.js"
 import { Input } from "./engine/input.js"
+import { startGameMusic, stopGameMusic } from "./engine/gameMusic.js"
 
 const canvas = document.getElementById("game")
 const ctx = canvas.getContext("2d")
@@ -49,10 +50,12 @@ window.startGame = (id) => {
   document.getElementById("back-btn").style.display = "flex"
   resize() // recalc in case orientation changed
   gameManager.load(id)
+  startGameMusic(id)
   history.pushState({ inGame: true }, '')
 }
 
 window.goHome = () => {
+  stopGameMusic()
   gameManager.unload()
   document.getElementById("menu").style.display = "flex"
   document.getElementById("back-btn").style.display = "none"
