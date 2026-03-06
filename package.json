@@ -1,0 +1,28 @@
+{
+  "name": "tinytoyboxgames",
+  "version": "1.0.0",
+  "description": "A collection of simple, colorful games for kids ages 3-5. Purely client-side, no build step, no dependencies to install.",
+  "main": "app.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jamiegunn/tinytoyboxgames.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jamiegunn/tinytoyboxgames/issues"
+  },
+  "homepage": "https://github.com/jamiegunn/tinytoyboxgames#readme",
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}

@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tiny Toybox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+#game { background: #1e1e2e; }
+#confetti-canvas {
+  background: transparent;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 15;
+}
+body {
+  background: #d2a86e;
+  overflow: hidden;
+  font-family: 'Baloo 2', cursive;
+  /* wood grain base */
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 40px,
+      rgba(0,0,0,0.03) 40px,
+      rgba(0,0,0,0.03) 42px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 80px,
+      rgba(0,0,0,0.02) 80px,
+      rgba(0,0,0,0.02) 82px
+    );
+}
+canvas { display: block; }
+
+/* ---- Toybox menu ---- */
+#menu {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Room wall behind shelf */
+#menu::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(180deg, #8ec5d6 0%, #b8dce6 40%, #d2a86e 40.5%);
+  z-index: -1;
+}
+
+/* ---- Title plate ---- */
+.title-plate {
+  margin-top: 24px;
+  margin-bottom: 8px;
+  background: #c0392b;
+  padding: 8px 36px;
+  border-radius: 12px;
+  box-shadow:
+    0 4px 0 #992d22,
+    inset 0 2px 0 rgba(255,255,255,0.15);
+  position: relative;
+}
+
+.title-plate h1 {
+  font-size: 32px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 1px;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+}
+
+/* ---- Wooden shelf ---- */
+.shelf {
+  width: 92%;
+  max-width: 460px;
+  margin: 16px auto 0;
+  position: relative;
+}
+
+/* The plank under each row */
+.shelf-row {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px 12px 0;
+  margin-bottom: 0;
+}
+
+/* Wooden plank */
+.shelf-row::after {
+  content: '';
+  display: block;
+  position: absolute;
+  bottom: -14px;
+  left: -12px;
+  right: -12px;
+  height: 18px;
+  background: linear-gradient(180deg, #b8863a 0%, #9e7432 40%, #c49a4e 60%, #a67d38 100%);
+  border-radius: 4px;
+  box-shadow:
+    0 4px 8px rgba(0,0,0,0.25),
+    inset 0 2px 0 rgba(255,255,255,0.1);
+  z-index: 1;
+}
+
+/* Side brackets */
+.shelf-row::before {
+  content: '';
+  position: absolute;
+  bottom: -14px;
+  left: -20px;
+  right: -20px;
+  height: 18px;
+  border-left: 8px solid #8b6914;
+  border-right: 8px solid #8b6914;
+  border-radius: 2px;
+  z-index: 2;
+}
+
+/* ---- Toy buttons ---- */
+.toy {
+  width: 130px;
+  height: 130px;
+  border: none;
+  border-radius: 18px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 10px;
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  -webkit-tap-highlight-color: transparent;
+  z-index: 3;
+  background: transparent;
+}
+
+.toy:hover { transform: scale(1.08) rotate(-2deg); }
+.toy:active { transform: scale(0.95) rotate(1deg); }
+
+/* Toy idle wobble */
+.toy { animation: toyIdle 3s ease-in-out infinite; }
+.toy:nth-child(1) { animation-delay: 0s; }
+.toy:nth-child(2) { animation-delay: 0.6s; }
+.toy:nth-child(3) { animation-delay: 1.2s; }
+
+@keyframes toyIdle {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(-2deg); }
+  70% { transform: rotate(2deg); }
+}
+
+.toy:hover { animation: none; transform: scale(1.1) rotate(-3deg); }
+.toy:active { animation: none; }
+
+/* Toy visual (the drawn icon) */
+.toy-icon {
+  width: 90px;
+  height: 90px;
+  position: relative;
+  margin-bottom: 4px;
+}
+
+/* ---- Bubble wand toy ---- */
+.toy-bubble .toy-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toy-bubble .wand-stick {
+  position: absolute;
+  width: 8px;
+  height: 52px;
+  background: linear-gradient(180deg, #e8a030, #c98420);
+  border-radius: 4px;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) rotate(-15deg);
+  transform-origin: bottom center;
+  box-shadow: 1px 2px 3px rgba(0,0,0,0.2);
+}
+
+.toy-bubble .wand-ring {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  border: 7px solid #54a0ff;
+  border-radius: 50%;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-40%);
+  box-shadow: 0 2px 6px rgba(84,160,255,0.4);
+}
+
+.toy-bubble .wand-ring::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.5), rgba(84,160,255,0.15));
+}
+
+.toy-bubble .mini-bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.7), rgba(84,160,255,0.3));
+  border: 2px solid rgba(84,160,255,0.4);
+}
+.toy-bubble .mini-bubble.b1 { width: 18px; height: 18px; top: 0; right: 4px; }
+.toy-bubble .mini-bubble.b2 { width: 12px; height: 12px; top: -4px; right: 22px; }
+
+/* ---- Frog toy ---- */
+.toy-frog .toy-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toy-frog .frog-body {
+  width: 72px;
+  height: 64px;
+  background: #26de81;
+  border-radius: 50% 50% 45% 45%;
+  position: relative;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.toy-frog .frog-body::before {
+  content: '';
+  position: absolute;
+  width: 56px;
+  height: 30px;
+  background: #a8f0c8;
+  border-radius: 50%;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.toy-frog .frog-eye {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  background: #fff;
+  border-radius: 50%;
+  top: -10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.toy-frog .frog-eye.left { left: 6px; }
+.toy-frog .frog-eye.right { right: 6px; }
+
+.toy-frog .frog-pupil {
+  position: absolute;
+  width: 12px;
+  height: 14px;
+  background: #222;
+  border-radius: 50%;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.toy-frog .frog-pupil::after {
+  content: '';
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background: #fff;
+  border-radius: 50%;
+  top: 2px;
+  right: 1px;
+}
+
+.toy-frog .frog-mouth {
+  position: absolute;
+  width: 28px;
+  height: 10px;
+  border-bottom: 3px solid #1a9960;
+  border-radius: 0 0 50% 50%;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* ---- Paint palette toy ---- */
+.toy-paint .toy-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toy-paint .palette {
+  width: 78px;
+  height: 62px;
+  background: #f5e0b8;
+  border-radius: 50% 50% 50% 30% / 60% 60% 40% 40%;
+  position: relative;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+  border: 3px solid #dfc49a;
+  transform: rotate(-8deg);
+}
+
+.toy-paint .palette-hole {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--bg, #d2a86e);
+  border-radius: 50%;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 2px solid #dfc49a;
+}
+
+.toy-paint .paint-dot {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: inset 0 -2px 3px rgba(0,0,0,0.15);
+}
+.toy-paint .paint-dot.d1 { background: #ff6b6b; top: 6px; left: 28px; }
+.toy-paint .paint-dot.d2 { background: #54a0ff; top: 4px; right: 16px; }
+.toy-paint .paint-dot.d3 { background: #feca57; bottom: 10px; left: 30px; }
+.toy-paint .paint-dot.d4 { background: #26de81; bottom: 8px; right: 12px; }
+.toy-paint .paint-dot.d5 { background: #a55eea; top: 20px; right: 4px; width: 13px; height: 13px; }
+
+/* ---- Back button ---- */
+#back-btn {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 20;
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(4px);
+  border: 2px solid rgba(255,255,255,0.3);
+  color: #fff;
+  font-size: 26px;
+  font-family: 'Baloo 2', cursive;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s;
+}
+#back-btn:hover { transform: scale(1.1); }
+#back-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.35); }
+
+/* ---- Stars on the wall ---- */
+.wall-stars {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.wall-star {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #fff;
+  border-radius: 50%;
+  opacity: 0.3;
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+.wall-star:nth-child(1) { top: 12%; left: 10%; animation-delay: 0s; }
+.wall-star:nth-child(2) { top: 8%; left: 45%; animation-delay: 1s; width: 6px; height: 6px; }
+.wall-star:nth-child(3) { top: 20%; right: 15%; animation-delay: 2s; }
+.wall-star:nth-child(4) { top: 5%; right: 30%; animation-delay: 0.5s; width: 5px; height: 5px; }
+.wall-star:nth-child(5) { top: 25%; left: 25%; animation-delay: 1.5s; width: 6px; height: 6px; }
+.wall-star:nth-child(6) { top: 15%; right: 45%; animation-delay: 2.5s; width: 7px; height: 7px; }
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.6; }
+}
+
+/* ---- Floor shadow ---- */
+#menu::after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30%;
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.08));
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 400px) {
+  .toy { width: 110px; height: 110px; }
+  .toy-icon { width: 74px; height: 74px; }
+  .shelf-row { gap: 10px; padding: 12px 8px 0; }
+  .title-plate h1 { font-size: 26px; }
+  .frog-body { width: 60px !important; height: 52px !important; }
+  .wand-ring { width: 40px !important; height: 40px !important; border-width: 6px !important; }
+}
+</style>
+</head>
+
+<body>
+
+<div id="menu">
+  <div class="wall-stars">
+    <div class="wall-star"></div>
+    <div class="wall-star"></div>
+    <div class="wall-star"></div>
+    <div class="wall-star"></div>
+    <div class="wall-star"></div>
+    <div class="wall-star"></div>
+  </div>
+
+  <div class="title-plate">
+    <h1>Tiny Toybox</h1>
+  </div>
+
+  <div class="shelf">
+    <div class="shelf-row">
+      <button class="toy toy-bubble" onclick="startGame('bubblePop')">
+        <div class="toy-icon">
+          <div class="wand-stick"></div>
+          <div class="wand-ring"></div>
+          <div class="mini-bubble b1"></div>
+          <div class="mini-bubble b2"></div>
+        </div>
+      </button>
+
+      <button class="toy toy-frog" onclick="startGame('feedAnimal')">
+        <div class="toy-icon">
+          <div class="frog-body">
+            <div class="frog-eye left"><div class="frog-pupil"></div></div>
+            <div class="frog-eye right"><div class="frog-pupil"></div></div>
+            <div class="frog-mouth"></div>
+          </div>
+        </div>
+      </button>
+
+      <button class="toy toy-paint" onclick="startGame('colorMatch')">
+        <div class="toy-icon">
+          <div class="palette">
+            <div class="palette-hole"></div>
+            <div class="paint-dot d1"></div>
+            <div class="paint-dot d2"></div>
+            <div class="paint-dot d3"></div>
+            <div class="paint-dot d4"></div>
+            <div class="paint-dot d5"></div>
+          </div>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<button id="back-btn" onclick="goHome()">&#x2190;</button>
+<canvas id="game"></canvas>
+<canvas id="confetti-canvas"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
