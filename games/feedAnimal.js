@@ -10,13 +10,9 @@ let clouds, butterflies, bgFlowers, grassBlades
 let windPhase
 let audioCtx
 
-function ensureAudio() {
+function playMunch() {
   if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
   if (audioCtx.state === 'suspended') audioCtx.resume()
-}
-
-function playMunch() {
-  ensureAudio()
   const now = audioCtx.currentTime
 
   // Two quick chomps using oscillators
@@ -68,11 +64,7 @@ export default {
     w = ctx.canvas.width
     h = ctx.canvas.height
 
-    // Unlock audio on first canvas touch (iOS requires gesture-triggered resume)
-    const canvas = ctx.canvas
-    const unlock = () => { ensureAudio(); canvas.removeEventListener('touchstart', unlock); canvas.removeEventListener('mousedown', unlock) }
-    canvas.addEventListener('touchstart', unlock)
-    canvas.addEventListener('mousedown', unlock)
+
     score = 0
     feedCount = 0
     time = 0

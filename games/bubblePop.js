@@ -7,13 +7,9 @@ let spawnTimer = 0
 let tapHandler
 let audioCtx
 
-function ensureAudio() {
+function playPop() {
   if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
   if (audioCtx.state === 'suspended') audioCtx.resume()
-}
-
-function playPop() {
-  ensureAudio()
   const now = audioCtx.currentTime
 
   // High sine that drops in pitch quickly — bubbly pop
@@ -45,12 +41,6 @@ export default {
     bubbles = []
     score = 0
     spawnTimer = 0
-
-    // Unlock audio on first canvas touch (iOS requires gesture-triggered resume)
-    const canvas = ctx.canvas
-    const unlock = () => { ensureAudio(); canvas.removeEventListener('touchstart', unlock); canvas.removeEventListener('mousedown', unlock) }
-    canvas.addEventListener('touchstart', unlock)
-    canvas.addEventListener('mousedown', unlock)
 
     for (let i = 0; i < 5; i++) spawn()
 
