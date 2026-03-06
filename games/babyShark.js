@@ -28,8 +28,8 @@ export default {
   start(engine) {
     ctx = engine.ctx
     input = engine.input
-    w = window.innerWidth
-    h = window.innerHeight
+    w = ctx.canvas.width
+    h = ctx.canvas.height
     score = 0
     time = 0
     combo = 0
@@ -124,8 +124,8 @@ export default {
   },
 
   update(dt) {
-    w = window.innerWidth
-    h = window.innerHeight
+    w = ctx.canvas.width
+    h = ctx.canvas.height
 
     // slow mo decay
     if (slowMo < 1) slowMo = Math.min(1, slowMo + dt * 2.5)

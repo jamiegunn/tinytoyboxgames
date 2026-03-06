@@ -19,8 +19,8 @@ export default {
   start(engine) {
     ctx = engine.ctx
     input = engine.input
-    w = window.innerWidth
-    h = window.innerHeight
+    w = ctx.canvas.width
+    h = ctx.canvas.height
     score = 0
     time = 0
     dust = []
@@ -82,8 +82,8 @@ export default {
   },
 
   update(dt) {
-    w = window.innerWidth
-    h = window.innerHeight
+    w = ctx.canvas.width
+    h = ctx.canvas.height
     time += dt
 
     // slow-mo effect

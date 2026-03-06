@@ -31,8 +31,8 @@ export default {
   start(engine) {
     ctx = engine.ctx
     input = engine.input
-    w = window.innerWidth
-    h = window.innerHeight
+    w = ctx.canvas.width
+    h = ctx.canvas.height
     score = 0
     time = 0
     combo = 0
@@ -111,8 +111,8 @@ export default {
   },
 
   update(dt) {
-    w = window.innerWidth
-    h = window.innerHeight
+    w = ctx.canvas.width
+    h = ctx.canvas.height
 
     // slow mo decay
     if (slowMo < 1) slowMo = Math.min(1, slowMo + dt * 2)
@@ -236,7 +236,6 @@ export default {
 
             const points = Math.max(1, combo) * (t.golden ? 5 : 1)
             score += points
-            celebrate()
 
             // score popup
             const label = t.golden ? `+${points} GOLDEN!` : (combo > 1 ? `+${points} x${combo}!` : `+${points}`)
@@ -248,7 +247,9 @@ export default {
               scale: combo > 2 ? 1.4 : 1
             })
 
-            if (score % 5 === 0) celebrateBig()
+            // only celebrate on milestones, not every hit
+            if (score % 10 === 0) celebrate()
+            if (score % 25 === 0) celebrateBig()
             if (combo >= 3) {
               slowMo = 0.3
               screenShake = 8

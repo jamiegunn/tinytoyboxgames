@@ -40,8 +40,8 @@ export default {
   start(engine) {
     ctx = engine.ctx
     input = engine.input
-    w = window.innerWidth
-    h = window.innerHeight
+    w = ctx.canvas.width
+    h = ctx.canvas.height
     flies = []
     caught = []
     score = 0
@@ -108,8 +108,8 @@ export default {
   },
 
   update(dt) {
-    w = window.innerWidth
-    h = window.innerHeight
+    w = ctx.canvas.width
+    h = ctx.canvas.height
     time += dt
 
     // combo timer
@@ -788,8 +788,8 @@ function spawnFly() {
   const colorIdx = isRare ? 0 : Math.floor(Math.random() * FLY_COLORS.length)
 
   flies.push({
-    x: 60 + Math.random() * (window.innerWidth - 120),
-    y: 60 + Math.random() * (window.innerHeight - 280),
+    x: 60 + Math.random() * (ctx.canvas.width - 120),
+    y: 60 + Math.random() * (ctx.canvas.height - 280),
     angle: Math.random() * Math.PI * 2,
     speed: 20 + Math.random() * 40,
     turnSpeed: (Math.random() - 0.5) * 2.5,

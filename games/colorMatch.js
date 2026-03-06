@@ -31,8 +31,8 @@ export default {
   start(engine) {
     ctx = engine.ctx
     input = engine.input
-    w = window.innerWidth
-    h = window.innerHeight
+    w = ctx.canvas.width
+    h = ctx.canvas.height
     score = 0
     combo = 0
     comboTimer = 0
@@ -74,8 +74,8 @@ export default {
   },
 
   update(dt) {
-    w = window.innerWidth
-    h = window.innerHeight
+    w = ctx.canvas.width
+    h = ctx.canvas.height
     time += dt
 
     if (feedbackTimer > 0) {

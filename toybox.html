@@ -506,7 +506,7 @@ canvas { display: block; }
 .side-table-top {
   width: 60px;
   height: 8px;
-  background: linear-gradient(180deg, #c49a4e, #a67d38);
+  background: linear-gradient(180deg, #e8d5b0, #c4a882);
   border-radius: 3px 3px 0 0;
   box-shadow: 0 -1px 3px rgba(0,0,0,0.1);
   position: relative;
@@ -521,7 +521,7 @@ canvas { display: block; }
 .side-table-leg {
   width: 6px;
   height: 40px;
-  background: linear-gradient(90deg, #a67d38, #c49a4e, #a67d38);
+  background: linear-gradient(90deg, #c4a882, #e8d5b0, #c4a882);
   border-radius: 0 0 2px 2px;
 }
 
@@ -734,7 +734,7 @@ canvas { display: block; }
 /* ---- Floor toys (scattered) ---- */
 .floor-toy {
   position: fixed;
-  z-index: 0;
+  z-index: 11;
   pointer-events: none;
 }
 
@@ -754,11 +754,10 @@ canvas { display: block; }
 
 /* Crayon */
 .floor-crayon {
-  width: 36px;
-  height: 7px;
+  width: 44px;
+  height: 10px;
   border-radius: 1px 3px 3px 1px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  position: relative;
 }
 .floor-crayon::before {
   content: '';
@@ -781,13 +780,37 @@ canvas { display: block; }
   border-radius: 0 3px 3px 0;
 }
 
+/* Floor truck */
+.floor-truck {
+  width: 52px; height: 30px;
+  background: linear-gradient(180deg, #ff7675, #d63031);
+  border-radius: 4px 4px 2px 2px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+.floor-truck::before {
+  content: '';
+  position: absolute; top: -8px; left: 2px;
+  width: 22px; height: 10px;
+  background: linear-gradient(180deg, #74b9ff, #0984e3);
+  border-radius: 3px 3px 0 0;
+}
+.floor-truck::after {
+  content: '';
+  position: absolute; bottom: -4px;
+  left: 6px;
+  width: 10px; height: 10px;
+  background: #333;
+  border-radius: 50%;
+  box-shadow: 26px 0 0 #333;
+}
+
 /* Rubber ball */
 .floor-ball {
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
+  background: radial-gradient(circle at 40% 35%, #ff9090, #e74c3c);
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-  position: relative;
 }
 .floor-ball::after {
   content: '';
@@ -1046,10 +1069,10 @@ canvas { display: block; }
 
 @keyframes toyIdle {
   0%, 100% { transform: rotate(0deg) translateY(0); }
-  30% { transform: rotate(-2deg) translateY(-2px); }
-  70% { transform: rotate(2deg) translateY(-1px); }
+  30% { transform: rotate(-1deg) translateY(-1px); }
+  70% { transform: rotate(1deg) translateY(-0.5px); }
 }
-.toy:hover { animation: none; transform: scale(1.12) rotate(-3deg) translateY(-6px); }
+.toy:hover { animation: none; transform: scale(1.06) rotate(-1.5deg) translateY(-3px); }
 .toy:active { animation: none; }
 
 /* Sparkle on hover */
@@ -1746,16 +1769,155 @@ canvas { display: block; }
 #back-btn:hover { transform: scale(1.1); background: rgba(255,255,255,0.3); }
 #back-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.35); }
 
-/* ---- Mobile ---- */
+/* ---- Responsive scaling ---- */
+
+/* Fluid toy sizing using clamp */
+@media (max-width: 600px) {
+  .toy {
+    width: clamp(80px, 26vw, 130px);
+    height: clamp(80px, 26vw, 130px);
+  }
+  .toy-icon {
+    width: clamp(56px, 18vw, 90px);
+    height: clamp(56px, 18vw, 90px);
+  }
+  .shelf-row { gap: clamp(6px, 2vw, 16px); padding: 10px 6px 0; }
+  .shelf { max-width: 98%; }
+  .title-plate { display: none; }
+  .side-table { bottom: 15%; }
+}
+
+/* Small phones */
 @media (max-width: 400px) {
-  .toy { width: 110px; height: 110px; }
-  .toy-icon { width: 74px; height: 74px; }
-  .shelf-row { gap: 10px; padding: 12px 8px 0; }
-  .title-plate h1 { font-size: 26px; }
-  .frog-body { width: 60px !important; height: 52px !important; }
-  .wand-ring { width: 40px !important; height: 40px !important; border-width: 6px !important; }
+  .toy {
+    width: clamp(70px, 28vw, 110px);
+    height: clamp(70px, 28vw, 110px);
+  }
+  .toy-icon {
+    width: clamp(50px, 20vw, 74px);
+    height: clamp(50px, 20vw, 74px);
+  }
+  .shelf-row { gap: 6px; padding: 8px 4px 0; margin-top: 20px !important; }
+  .shelf-row::after { height: 14px; bottom: -10px; left: -8px; right: -8px; }
+  .shelf-row::before { bottom: -10px; left: -14px; right: -14px; border-width: 6px; }
+  .title-plate { display: none; }
+
+  /* Scale down toy details */
+  .frog-body { width: 50px !important; height: 44px !important; }
+  .frog-eye { width: 20px !important; height: 20px !important; }
+  .wand-ring { width: 34px !important; height: 34px !important; border-width: 5px !important; }
+  .wand-stick { height: 40px !important; width: 6px !important; }
+  .shark { transform: scale(0.8); }
+  .puppy { transform: scale(0.85); }
+  .elephant { transform: scale(0.85); }
+  .mtruck { transform: scale(0.85); }
+  .palette { width: 60px !important; height: 48px !important; }
+  .sponge { width: 50px !important; height: 36px !important; }
+  .jar { width: 42px !important; height: 56px !important; }
+  .balloon-group { transform: scale(0.8); }
+
+  /* Hide heavy decorations on tiny screens */
   .window { display: none; }
   .fairy-lights { display: none; }
+  .picture-frame { display: none; }
+  .wall-clock { display: none; }
+  .sunbeam { display: none; }
+  .side-table { left: 2%; bottom: 15%; }
+  .side-table-top { width: 48px; }
+  .side-table-leg { height: 30px; }
+  .music-box { width: 36px; height: 26px; }
+  .music-box-body { width: 36px; height: 20px; }
+  .music-box-lid { width: 36px; height: 5px; }
+
+  .buddy { width: 60px; height: 75px; transform: scale(0.8); }
+}
+
+/* Very small screens (iPhone SE, etc) */
+@media (max-width: 340px) {
+  .toy {
+    width: 68px;
+    height: 68px;
+  }
+  .toy-icon {
+    width: 48px;
+    height: 48px;
+  }
+  .shelf-row { gap: 4px; }
+}
+
+/* Landscape mode (phone rotated) */
+@media (orientation: landscape) and (max-height: 500px) {
+  .title-plate { margin-top: 6px; margin-bottom: 2px; padding: 4px 28px; }
+  .title-plate h1 { font-size: clamp(18px, 4vh, 28px); }
+
+  .shelf { max-width: 95%; }
+  .shelf-row {
+    margin-top: 12px !important;
+    gap: clamp(6px, 2vw, 16px);
+    padding: 6px 6px 0;
+  }
+  .shelf-row::after { height: 14px; bottom: -10px; }
+  .shelf-row::before { bottom: -10px; }
+
+  .toy {
+    width: clamp(60px, 12vh, 110px);
+    height: clamp(60px, 12vh, 110px);
+  }
+  .toy-icon {
+    width: clamp(42px, 9vh, 74px);
+    height: clamp(42px, 9vh, 74px);
+  }
+
+  /* Scale down all toy internals */
+  .frog-body { width: 44px !important; height: 38px !important; }
+  .frog-eye { width: 18px !important; height: 18px !important; top: -7px !important; }
+  .wand-ring { width: 30px !important; height: 30px !important; border-width: 5px !important; }
+  .wand-stick { height: 36px !important; width: 5px !important; }
+  .shark, .puppy, .elephant, .mtruck { transform: scale(0.7); }
+  .palette { width: 52px !important; height: 42px !important; }
+  .sponge { width: 44px !important; height: 32px !important; }
+  .jar { width: 36px !important; height: 48px !important; }
+  .balloon-group { transform: scale(0.65); }
+  .tree { transform: scale(0.75); }
+
+  /* Room: compact decorations */
+  .wainscoting { height: 20%; }
+  .chair-rail { bottom: calc(22% + 20%); }
+  .window { width: 90px; height: 100px; top: 3%; right: 5%; }
+  .curtain { height: 106px; width: 20px; }
+  .wall-clock { width: 40px; height: 40px; }
+  .clock-face { width: 40px; height: 40px; }
+  .clock-num { font-size: 6px; }
+  .fairy-lights { display: none; }
+  .picture-frame { display: none; }
+  .side-table { bottom: 10%; left: 2%; }
+  .area-rug { height: 30px; width: min(200px, 50vw); }
+
+  .buddy { transform: scale(0.7); }
+}
+
+/* Very short landscape (e.g. phone with notch) */
+@media (orientation: landscape) and (max-height: 380px) {
+  .title-plate { display: none; }
+  .shelf-row { margin-top: 8px !important; padding: 4px 4px 0; }
+  .toy {
+    width: clamp(54px, 14vh, 80px);
+    height: clamp(54px, 14vh, 80px);
+  }
+  .toy-icon {
+    width: clamp(38px, 10vh, 56px);
+    height: clamp(38px, 10vh, 56px);
+  }
+  .window { display: none; }
+  .wall-clock { display: none; }
+  .wall-sticker { display: none; }
+}
+
+/* Tablet landscape */
+@media (min-width: 768px) and (max-height: 500px) {
+  .shelf { max-width: 90%; }
+  .shelf-row { gap: 20px; }
+  .title-plate { margin-top: 8px; margin-bottom: 4px; }
 }
 </style>
 </head>
@@ -1869,7 +2031,8 @@ canvas { display: block; }
   <div class="floor-toy floor-crayon" style="bottom: 4%; left: 35%; background: #ff6b6b; transform: rotate(-25deg);"></div>
   <div class="floor-toy floor-crayon" style="bottom: 6%; left: 40%; background: #54a0ff; transform: rotate(10deg);"></div>
   <div class="floor-toy floor-crayon" style="bottom: 3%; left: 43%; background: #feca57; transform: rotate(-40deg);"></div>
-  <div class="floor-toy floor-ball" style="bottom: 7%; right: 28%; background: radial-gradient(circle at 40% 35%, #ff9090, #e74c3c);"></div>
+  <div class="floor-toy floor-ball" style="bottom: 7%; right: 28%;"></div>
+  <div class="floor-toy floor-truck" style="bottom: 4%; right: 38%; transform: rotate(5deg);"></div>
 
   <!-- ============ TITLE + SHELF + TOYS ============ -->
 

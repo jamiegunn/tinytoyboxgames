@@ -16,8 +16,8 @@ export class GameManager {
     this.currentGame.start({
       ctx: this.ctx,
       input: this.input,
-      w: window.innerWidth,
-      h: window.innerHeight
+      w: this.ctx.canvas.width,
+      h: this.ctx.canvas.height
     })
   }
 
@@ -32,7 +32,7 @@ export class GameManager {
   }
 
   render() {
-    this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight)
+    this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height)
     this.currentGame?.render?.()
   }
 }

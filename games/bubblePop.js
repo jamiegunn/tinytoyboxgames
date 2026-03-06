@@ -14,8 +14,8 @@ export default {
   start(engine) {
     ctx = engine.ctx
     input = engine.input
-    w = window.innerWidth
-    h = window.innerHeight
+    w = ctx.canvas.width
+    h = ctx.canvas.height
     bubbles = []
     score = 0
     spawnTimer = 0
@@ -32,8 +32,8 @@ export default {
   },
 
   update(dt) {
-    w = window.innerWidth
-    h = window.innerHeight
+    w = ctx.canvas.width
+    h = ctx.canvas.height
 
     bubbles.forEach(b => {
       b.y -= b.speed * dt
@@ -83,8 +83,8 @@ export default {
 
 function spawn() {
   bubbles.push({
-    x: RADIUS + Math.random() * (window.innerWidth - RADIUS * 2),
-    y: window.innerHeight + RADIUS,
+    x: RADIUS + Math.random() * (ctx.canvas.width - RADIUS * 2),
+    y: ctx.canvas.height + RADIUS,
     speed: 40 + Math.random() * 60,
     color: COLORS[Math.floor(Math.random() * COLORS.length)],
     wobble: Math.random() * Math.PI * 2
