@@ -49,6 +49,7 @@ window.startGame = (id) => {
   document.getElementById("back-btn").style.display = "flex"
   resize() // recalc in case orientation changed
   gameManager.load(id)
+  history.pushState({ inGame: true }, '')
 }
 
 window.goHome = () => {
@@ -56,3 +57,9 @@ window.goHome = () => {
   document.getElementById("menu").style.display = "flex"
   document.getElementById("back-btn").style.display = "none"
 }
+
+window.addEventListener('popstate', (e) => {
+  if (gameManager.currentGame) {
+    goHome()
+  }
+})

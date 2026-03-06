@@ -7,7 +7,8 @@
       "Bash(docker:*)",
       "Bash(ipconfig:*)",
       "Bash(netstat:*)",
-      "WebFetch(domain:www.tinytoyboxgames.com)"
+      "WebFetch(domain:www.tinytoyboxgames.com)",
+      "Bash(node:*)"
     ]
   }
 }

@@ -20,30 +20,36 @@ const mime = {
   '.wav': 'audio/wav',
 }
 
+function resolvePathname(url) {
+  let pathname = decodeURIComponent((url || '/').split('?')[0])
+  if (pathname === '/') return '/index.html'
+  if (!path.extname(pathname)) return `${pathname}.html`
+  return pathname
+}
+
+function sendNotFound(res) {
+  res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
+  res.end('Not found')
+}
+
 http.createServer((req, res) => {
-  let url = req.url.split('?')[0]
-  if (url === '/') url = '/index.html'
+  const pathname = resolvePathname(req.url)
+  const filePath = path.resolve(DIST, `.${pathname}`)
 
-  const filePath = path.join(DIST, url)
-
-  // Prevent directory traversal
-  if (!filePath.startsWith(DIST)) {
+  // Prevent directory traversal outside dist.
+  if (!filePath.startsWith(DIST + path.sep) && filePath !== path.join(DIST, 'index.html')) {
     res.writeHead(403)
     return res.end()
   }
 
   fs.readFile(filePath, (err, data) => {
     if (err) {
-      // SPA fallback: serve index.html
-      fs.readFile(path.join(DIST, 'index.html'), (err2, fallback) => {
-        if (err2) {
-          res.writeHead(404)
-          res.end('Not found')
-        } else {
-          res.writeHead(200, { 'Content-Type': 'text/html' })
-          res.end(fallback)
-        }
-      })
+      if (err.code === 'ENOENT' || err.code === 'ENOTDIR') {
+        return sendNotFound(res)
+      }
+
+      res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' })
+      res.end('Server error')
     } else {
       const ext = path.extname(filePath)
       res.writeHead(200, { 'Content-Type': mime[ext] || 'application/octet-stream' })
