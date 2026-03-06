@@ -8,7 +8,7 @@ let tapHandler
 let audioCtx
 
 function playPop() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
   if (audioCtx.state === 'suspended') audioCtx.resume()
   const now = audioCtx.currentTime
 
