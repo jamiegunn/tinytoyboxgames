@@ -1,16 +1,40 @@
 /* ---- Back button ---- */
 #back-btn {
   position: absolute; top: 16px; left: 16px; z-index: 20;
-  background: rgba(255,255,255,0.2); backdrop-filter: blur(4px);
-  border: 2px solid rgba(255,255,255,0.3); color: #fff;
+  background: rgba(0,0,0,0.25); backdrop-filter: blur(4px);
+  border: 2px solid rgba(0,0,0,0.15); color: #fff;
   font-size: 26px; font-family: 'Baloo 2', cursive;
   width: 56px; height: 56px; border-radius: 50%; cursor: pointer;
   display: none; align-items: center; justify-content: center;
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.15s, background 0.15s;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
-#back-btn:hover { transform: scale(1.1); background: rgba(255,255,255,0.3); }
-#back-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.35); }
+#back-btn:hover { transform: scale(1.1); background: rgba(0,0,0,0.35); }
+#back-btn:active { transform: scale(0.92); background: rgba(0,0,0,0.4); }
+#back-btn.first-show { animation: backBtnPulse 1.5s ease-in-out 2; }
+
+@keyframes backBtnPulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  50% { box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 0 0 6px rgba(255,255,255,0.3); }
+}
+
+/* Buddy owl focus style */
+#buddy:focus-visible {
+  outline: 3px solid #FFD700;
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 /* ---- Responsive scaling ---- */
 

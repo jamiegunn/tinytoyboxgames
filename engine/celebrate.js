@@ -1,4 +1,6 @@
 // Uses the static canvas-confetti bundle served from `/js/libs/confetti.min.js`.
+import { shouldAnimate } from './motion.js'
+
 let myConfetti = null
 
 function getConfetti() {
@@ -10,6 +12,7 @@ function getConfetti() {
 }
 
 export function celebrate() {
+  if (!shouldAnimate()) return
   const fire = getConfetti()
   if (!fire) return
 
@@ -22,6 +25,7 @@ export function celebrate() {
 }
 
 export function celebrateBig() {
+  if (!shouldAnimate()) return
   const fire = getConfetti()
   if (!fire) return
 

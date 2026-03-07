@@ -66,6 +66,8 @@ const GAME_MELODIES = {
   },
 }
 
+import { getCtx } from './sound.js'
+
 let audioCtx = null
 let masterGain = null
 let playing = false
@@ -74,7 +76,7 @@ let currentMelody = null
 
 function initAudio() {
   if (audioCtx) return
-  audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+  audioCtx = getCtx()
   masterGain = audioCtx.createGain()
   masterGain.gain.value = 0
   masterGain.connect(audioCtx.destination)
@@ -102,6 +104,7 @@ function playNote(semitone, time, duration, volume, beatDur) {
   gain.connect(masterGain)
   osc.start(time)
   osc.stop(time + duration * beatDur + 0.1)
+  osc.onended = () => { gain.disconnect(); osc.disconnect() }
 }
 
 function scheduleLoop() {

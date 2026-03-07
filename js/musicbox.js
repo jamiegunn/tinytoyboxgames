@@ -1,5 +1,7 @@
+import { getCtx } from '../engine/sound.js'
+
 // Music-box lullaby (Web Audio API)
-(function() {
+;(function() {
   let audioCtx = null
   let masterGain = null
   let playing = false
@@ -36,7 +38,7 @@
 
   function initAudio() {
     if (audioCtx) return
-    audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
+    audioCtx = getCtx()
     masterGain = audioCtx.createGain()
     masterGain.gain.value = 0
     masterGain.connect(audioCtx.destination)

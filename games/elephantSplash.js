@@ -1,33 +1,9 @@
 import { celebrate, celebrateBig } from "../engine/celebrate.js"
-
-let audioCtx
+import { playTone } from "../engine/sound.js"
 
 function playSplash() {
-  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
-  if (audioCtx.state === 'suspended') audioCtx.resume()
-  const now = audioCtx.currentTime
-
-  const g1 = audioCtx.createGain()
-  g1.gain.setValueAtTime(0.2, now)
-  g1.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
-  g1.connect(audioCtx.destination)
-  const o1 = audioCtx.createOscillator()
-  o1.type = 'sine'
-  o1.frequency.setValueAtTime(200 + Math.random() * 100, now)
-  o1.connect(g1)
-  o1.start(now)
-  o1.stop(now + 0.15)
-
-  const g2 = audioCtx.createGain()
-  g2.gain.setValueAtTime(0.2, now)
-  g2.gain.exponentialRampToValueAtTime(0.001, now + 0.08)
-  g2.connect(audioCtx.destination)
-  const o2 = audioCtx.createOscillator()
-  o2.type = 'square'
-  o2.frequency.setValueAtTime(400 + Math.random() * 200, now)
-  o2.connect(g2)
-  o2.start(now)
-  o2.stop(now + 0.08)
+  playTone({ freq: 200 + Math.random() * 100, duration: 0.15, gain: 0.2 })
+  playTone({ type: 'square', freq: 400 + Math.random() * 200, duration: 0.08, gain: 0.2 })
 }
 
 let ctx, input, w, h
@@ -192,7 +168,7 @@ export default {
         const spread = (Math.random() - 0.5) * 0.35
         const speed = (650 + Math.random() * 450) * elephant.sprayPower
         const isDroplet = Math.random() < 0.3
-        sprayParticles.push({
+        if (sprayParticles.length < 200) sprayParticles.push({
           x: trunkTipX,
           y: trunkTipY,
           vx: Math.cos(elephant.trunkAngle + spread) * speed,
@@ -206,7 +182,7 @@ export default {
 
       // mist from trunk tip
       if (Math.random() < 0.3) {
-        mist.push({
+        if (mist.length < 100) mist.push({
           x: trunkTipX + (Math.random() - 0.5) * 20,
           y: trunkTipY + (Math.random() - 0.5) * 20,
           size: 8 + Math.random() * 15,
@@ -225,7 +201,7 @@ export default {
       p.life -= dt * 1.1
       // ground splash
       if (p.y > h * 0.55 && p.vy > 0 && p.isDroplet) {
-        puddles.push({ x: p.x, y: p.y, size: p.size * 0.5, life: 1 })
+        if (puddles.length < 100) puddles.push({ x: p.x, y: p.y, size: p.size * 0.5, life: 1 })
         // bounce
         p.vy *= -0.3
         p.vx *= 0.5
@@ -276,7 +252,7 @@ export default {
 
             // score popup — only for golden targets
             if (t.golden) {
-              scorePopups.push({
+              if (scorePopups.length < 20) scorePopups.push({
                 x: t.x, y: t.y,
                 text: `+${points} GOLDEN!`,
                 life: 1,
@@ -300,7 +276,7 @@ export default {
             // big splash ring
             for (let i = 0; i < 14; i++) {
               const a = (i / 14) * Math.PI * 2
-              splashes.push({
+              if (splashes.length < 100) splashes.push({
                 x: t.x, y: t.y,
                 vx: Math.cos(a) * (120 + Math.random() * 100),
                 vy: Math.sin(a) * (120 + Math.random() * 100) - 60,
@@ -312,7 +288,7 @@ export default {
             // water fountain burst on big combos
             if (combo >= 3) {
               for (let i = 0; i < 20; i++) {
-                splashes.push({
+                if (splashes.length < 100) splashes.push({
                   x: t.x, y: t.y,
                   vx: (Math.random() - 0.5) * 250,
                   vy: -200 - Math.random() * 300,
@@ -359,7 +335,7 @@ export default {
 
     // water ripples
     if (Math.random() < dt * 3) {
-      ripples.push({
+      if (ripples.length < 100) ripples.push({
         x: elephant.x + (Math.random() - 0.5) * 140,
         y: elephant.y + 15 + Math.random() * 35,
         r: 0, maxR: 15 + Math.random() * 25,

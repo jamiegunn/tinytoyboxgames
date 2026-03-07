@@ -1,4 +1,5 @@
 import { celebrate, celebrateBig } from "../engine/celebrate.js"
+import { playTone, playChord } from "../engine/sound.js"
 
 let ctx, input, w, h
 let tapHandler, dragHandler, dragEndHandler
@@ -8,44 +9,19 @@ let particles, scorePopups, snapAnims, bgShapes
 let combo, comboTimer, lastSnapTime
 let screenShake, puzzleIndex
 let starsEarned, piecesPlaced, puzzleStartTime
-let audioCtx
 
 const SNAP_DIST = 65
 
 function playSnap() {
-  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
-  if (audioCtx.state === 'suspended') audioCtx.resume()
-  const now = audioCtx.currentTime
-  const osc = audioCtx.createOscillator()
-  const gain = audioCtx.createGain()
-  osc.type = 'triangle'
-  osc.frequency.value = 1000
-  gain.gain.setValueAtTime(0.35, now)
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06)
-  osc.connect(gain)
-  gain.connect(audioCtx.destination)
-  osc.start(now)
-  osc.stop(now + 0.06)
+  playTone({ type: 'triangle', freq: 1000, duration: 0.06, gain: 0.35 })
 }
 
 function playComplete() {
-  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
-  if (audioCtx.state === 'suspended') audioCtx.resume()
-  const now = audioCtx.currentTime
-  const notes = [523, 659, 784]
-  notes.forEach((freq, i) => {
-    const osc = audioCtx.createOscillator()
-    const gain = audioCtx.createGain()
-    osc.type = 'sine'
-    osc.frequency.value = freq
-    const t = now + i * 0.1
-    gain.gain.setValueAtTime(0.25, t)
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15)
-    osc.connect(gain)
-    gain.connect(audioCtx.destination)
-    osc.start(t)
-    osc.stop(t + 0.15)
-  })
+  playChord([
+    { freq: 523, duration: 0.15, gain: 0.25 },
+    { freq: 659, duration: 0.15, gain: 0.25, delay: 0.1 },
+    { freq: 784, duration: 0.15, gain: 0.25, delay: 0.2 },
+  ])
 }
 
 const SHAPE_DEFS = {
@@ -634,10 +610,14 @@ function setupPuzzle() {
   }))
 
   const trayY = h * 0.84
-  const shuffled = [...slots].sort(() => Math.random() - 0.5)
+  const shuffled = [...slots]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
 
   // Calculate positions based on actual piece sizes so they don't overlap
-  const pieceSizes = shuffled.map(s => s.size * 0.75)
+  const pieceSizes = shuffled.map(s => Math.max(22, s.size * 0.75))
   const gap = 10
   const totalWidth = pieceSizes.reduce((sum, s) => sum + s * 2, 0) + gap * (pieceSizes.length - 1)
   let startX = (w - totalWidth) / 2

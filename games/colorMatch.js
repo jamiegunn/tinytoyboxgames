@@ -1,4 +1,5 @@
 import { celebrate, celebrateBig } from "../engine/celebrate.js"
+import { playTone } from "../engine/sound.js"
 
 let ctx, input, w, h
 let tapHandler
@@ -12,7 +13,8 @@ let shakeX = 0, shakeY = 0, shakeAmount = 0
 let roundNum = 0
 let correctScale = 0
 let wrongShakeIdx = -1, wrongShakeTime = 0
-let audioCtx
+let dotPattern = null
+let dotW = 0, dotH = 0
 
 const COMBO_WINDOW = 3.0
 
@@ -43,6 +45,7 @@ export default {
     roundNum = 0
     scorePopups = []
     particles = []
+    dotPattern = null
     correctScale = 0
     wrongShakeIdx = -1
     wrongShakeTime = 0
@@ -145,15 +148,23 @@ export default {
     ctx.fillStyle = bg
     ctx.fillRect(0, 0, w, h)
 
-    // subtle dot pattern
-    ctx.fillStyle = "rgba(0,0,0,0.018)"
-    for (let dx = 0; dx < w; dx += 24) {
-      for (let dy = 0; dy < h; dy += 24) {
-        ctx.beginPath()
-        ctx.arc(dx, dy, 1.2, 0, Math.PI * 2)
-        ctx.fill()
+    // subtle dot pattern (cached)
+    if (!dotPattern || dotW !== w || dotH !== h) {
+      dotW = w; dotH = h
+      const c = document.createElement('canvas')
+      c.width = w; c.height = h
+      const dctx = c.getContext('2d')
+      dctx.fillStyle = "rgba(0,0,0,0.018)"
+      for (let dx = 0; dx < w; dx += 24) {
+        for (let dy = 0; dy < h; dy += 24) {
+          dctx.beginPath()
+          dctx.arc(dx, dy, 1.2, 0, Math.PI * 2)
+          dctx.fill()
+        }
       }
+      dotPattern = c
     }
+    ctx.drawImage(dotPattern, 0, 0)
 
     // floating bg shapes
     bgShapes.forEach(s => {
@@ -424,11 +435,20 @@ export default {
   }
 }
 
+function shuffle(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 function newRound() {
   roundNum++
 
   // pick target
-  const shuffled = [...PALETTE].sort(() => Math.random() - 0.5)
+  const shuffled = shuffle(PALETTE)
   targetColor = shuffled[0]
 
   // difficulty: more choices as score grows
@@ -441,7 +461,7 @@ function newRound() {
   }
 
   // shuffle choices
-  choices = choices.sort(() => Math.random() - 0.5).map(c => ({
+  choices = shuffle(choices).map(c => ({
     ...c,
     bx: 0, by: 0, bw: 0, bh: 0
   }))
@@ -455,8 +475,8 @@ function layoutChoices() {
   const rows = Math.ceil(count / cols)
   const pad = 16
   const maxBtnW = 170
-  const btnW = Math.min(maxBtnW, (w - pad * (cols + 1)) / cols)
-  const btnH = Math.min(130, (h - 300) / rows - pad)
+  const btnW = Math.max(48, Math.min(maxBtnW, (w - pad * (cols + 1)) / cols))
+  const btnH = Math.max(48, Math.min(130, (h - 300) / rows - pad))
   const totalW = cols * btnW + (cols - 1) * pad
   const totalH = rows * btnH + (rows - 1) * pad
   const startX = (w - totalW) / 2
@@ -559,36 +579,11 @@ function handleTap(x, y) {
 }
 
 function playCorrect() {
-  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
-  if (audioCtx.state === 'suspended') audioCtx.resume()
-  const now = audioCtx.currentTime
-  const osc = audioCtx.createOscillator()
-  const gain = audioCtx.createGain()
-  osc.type = 'sine'
-  osc.frequency.setValueAtTime(500, now)
-  osc.frequency.linearRampToValueAtTime(1200, now + 0.1)
-  gain.gain.setValueAtTime(0.3, now)
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
-  osc.connect(gain)
-  gain.connect(audioCtx.destination)
-  osc.start(now)
-  osc.stop(now + 0.15)
+  playTone({ freq: 500, freqEnd: 1200, ramp: 'linear', duration: 0.15, gain: 0.3 })
 }
 
 function playWrong() {
-  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
-  if (audioCtx.state === 'suspended') audioCtx.resume()
-  const now = audioCtx.currentTime
-  const osc = audioCtx.createOscillator()
-  const gain = audioCtx.createGain()
-  osc.type = 'square'
-  osc.frequency.setValueAtTime(150, now)
-  gain.gain.setValueAtTime(0.15, now)
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2)
-  osc.connect(gain)
-  gain.connect(audioCtx.destination)
-  osc.start(now)
-  osc.stop(now + 0.2)
+  playTone({ type: 'square', freq: 150, duration: 0.2, gain: 0.15 })
 }
 
 function roundRect(ctx, x, y, w, h, r) {

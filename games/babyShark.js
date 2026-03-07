@@ -1,6 +1,6 @@
 import { celebrate, celebrateBig } from "../engine/celebrate.js"
+import { playTone } from "../engine/sound.js"
 
-let audioCtx
 let ctx, input, w, h
 let dragHandler, tapHandler
 let shark, fish, bubbles, score, time
@@ -62,54 +62,7 @@ export default {
     bubbles = []
     for (let i = 0; i < 6; i++) spawnFish()
 
-    // generate coral reef
-    corals = []
-    for (let cx = 20; cx < w; cx += 40 + Math.random() * 50) {
-      corals.push({
-        x: cx,
-        y: h - 15 - Math.sin(cx * 0.04) * 10,
-        type: CORAL_TYPES[Math.floor(Math.random() * CORAL_TYPES.length)],
-        color: ['#ff6b6b', '#ff9ff3', '#feca57', '#a55eea', '#ff9f43', '#00cec9', '#e17055'][Math.floor(Math.random() * 7)],
-        size: 12 + Math.random() * 18,
-        phase: Math.random() * Math.PI * 2
-      })
-    }
-
-    // jellyfish
-    jellyfish = []
-    for (let i = 0; i < 3; i++) {
-      jellyfish.push({
-        x: Math.random() * w,
-        y: h * 0.3 + Math.random() * h * 0.4,
-        size: 12 + Math.random() * 10,
-        phase: Math.random() * Math.PI * 2,
-        color: ['rgba(180,120,255,0.5)', 'rgba(100,200,255,0.4)', 'rgba(255,150,200,0.45)'][Math.floor(Math.random() * 3)],
-        pulsePhase: Math.random() * Math.PI * 2
-      })
-    }
-
-    // god rays
-    godRays = []
-    for (let i = 0; i < 6; i++) {
-      godRays.push({
-        x: Math.random() * w,
-        width: 30 + Math.random() * 50,
-        alpha: 0.02 + Math.random() * 0.03,
-        speed: 5 + Math.random() * 10,
-        drift: (Math.random() - 0.5) * 15
-      })
-    }
-
-    // treasure
-    treasures = []
-    for (let i = 0; i < 2; i++) {
-      treasures.push({
-        x: w * 0.2 + Math.random() * w * 0.6,
-        y: h - 25 - Math.sin(Math.random() * 5) * 10,
-        type: Math.random() < 0.5 ? "chest" : "shell",
-        size: 14 + Math.random() * 8
-      })
-    }
+    buildScene()
 
     tapHandler = handleTap
     dragHandler = handleDrag
@@ -125,8 +78,12 @@ export default {
   },
 
   update(dt) {
-    w = ctx.canvas.width
-    h = ctx.canvas.height
+    const newW = ctx.canvas.width
+    const newH = ctx.canvas.height
+    if (newW !== w || newH !== h) {
+      w = newW; h = newH
+      buildScene()
+    }
 
     // slow mo decay
     if (slowMo < 1) slowMo = Math.min(1, slowMo + dt * 2.5)
@@ -273,7 +230,7 @@ export default {
 
     // ambient bubbles
     if (Math.random() < dt * 3) {
-      bubbles.push({
+      if (bubbles.length < 100) bubbles.push({
         x: Math.random() * w,
         y: h + 10,
         speed: 25 + Math.random() * 50,
@@ -286,7 +243,7 @@ export default {
     if (Math.random() < dt * 4) {
       const bx = shark.x - Math.cos(shark.angle) * shark.size * 0.5
       const by = shark.y - Math.sin(shark.angle) * shark.size * 0.5
-      bubbles.push({
+      if (bubbles.length < 100) bubbles.push({
         x: bx + (Math.random() - 0.5) * 10,
         y: by + (Math.random() - 0.5) * 10,
         speed: 40 + Math.random() * 30,
@@ -313,7 +270,7 @@ export default {
 
     // floating sea particles (plankton)
     if (Math.random() < dt * 5) {
-      seaParticles.push({
+      if (seaParticles.length < 100) seaParticles.push({
         x: Math.random() * w,
         y: Math.random() * h,
         size: 1 + Math.random() * 2,
@@ -578,6 +535,53 @@ export default {
   }
 }
 
+function buildScene() {
+  corals = []
+  for (let cx = 20; cx < w; cx += 40 + Math.random() * 50) {
+    corals.push({
+      x: cx,
+      y: h - 15 - Math.sin(cx * 0.04) * 10,
+      type: CORAL_TYPES[Math.floor(Math.random() * CORAL_TYPES.length)],
+      color: ['#ff6b6b', '#ff9ff3', '#feca57', '#a55eea', '#ff9f43', '#00cec9', '#e17055'][Math.floor(Math.random() * 7)],
+      size: 12 + Math.random() * 18,
+      phase: Math.random() * Math.PI * 2
+    })
+  }
+
+  jellyfish = []
+  for (let i = 0; i < 3; i++) {
+    jellyfish.push({
+      x: Math.random() * w,
+      y: h * 0.3 + Math.random() * h * 0.4,
+      size: 12 + Math.random() * 10,
+      phase: Math.random() * Math.PI * 2,
+      color: ['rgba(180,120,255,0.5)', 'rgba(100,200,255,0.4)', 'rgba(255,150,200,0.45)'][Math.floor(Math.random() * 3)],
+      pulsePhase: Math.random() * Math.PI * 2
+    })
+  }
+
+  godRays = []
+  for (let i = 0; i < 6; i++) {
+    godRays.push({
+      x: Math.random() * w,
+      width: 30 + Math.random() * 50,
+      alpha: 0.02 + Math.random() * 0.03,
+      speed: 5 + Math.random() * 10,
+      drift: (Math.random() - 0.5) * 15
+    })
+  }
+
+  treasures = []
+  for (let i = 0; i < 2; i++) {
+    treasures.push({
+      x: w * 0.2 + Math.random() * w * 0.6,
+      y: h - 25 - Math.sin(Math.random() * 5) * 10,
+      type: Math.random() < 0.5 ? "chest" : "shell",
+      size: 14 + Math.random() * 8
+    })
+  }
+}
+
 function eatFish(f) {
   f.eaten = true
   shark.mouthOpen = 1
@@ -604,7 +608,7 @@ function eatFish(f) {
 
   // popup
   const label = combo > 1 ? `+${points} x${combo}` : `+${points}`
-  scorePopups.push({
+  if (scorePopups.length < 20) scorePopups.push({
     x: f.x, y: f.y - 10,
     text: label,
     life: 1.5,
@@ -613,12 +617,12 @@ function eatFish(f) {
   })
 
   // swirl anim
-  eatenAnim.push({ x: f.x, y: f.y, t: 0, color: f.colors.body })
+  if (eatenAnim.length < 50) eatenAnim.push({ x: f.x, y: f.y, t: 0, color: f.colors.body })
 
   // sand kick if near bottom
   if (f.y > h * 0.7) {
     for (let i = 0; i < 6; i++) {
-      sandParticles.push({
+      if (sandParticles.length < 100) sandParticles.push({
         x: f.x + (Math.random() - 0.5) * 20,
         y: f.y,
         vx: (Math.random() - 0.5) * 60,
@@ -635,20 +639,7 @@ function eatFish(f) {
 }
 
 function playBite() {
-  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
-  if (audioCtx.state === 'suspended') audioCtx.resume()
-  const now = audioCtx.currentTime
-  const osc = audioCtx.createOscillator()
-  const gain = audioCtx.createGain()
-  osc.type = 'square'
-  osc.frequency.setValueAtTime(300, now)
-  osc.frequency.linearRampToValueAtTime(100, now + 0.08)
-  gain.gain.setValueAtTime(0.3, now)
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1)
-  osc.connect(gain)
-  gain.connect(audioCtx.destination)
-  osc.start(now)
-  osc.stop(now + 0.1)
+  playTone({ type: 'square', freq: 300, freqEnd: 100, ramp: 'linear', duration: 0.1, gain: 0.3 })
 }
 
 function handleTap(x, y) {

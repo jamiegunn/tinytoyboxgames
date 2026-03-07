@@ -1,6 +1,6 @@
 # Tiny Toybox
 
-A collection of simple, colorful browser games for kids ages 3-5. The current implementation is browser-first and uses Vite for local development and production builds.
+A collection of simple, colorful browser games for kids ages 3-5. The current app ships a toybox launcher plus 12 playable games, and uses Vite for local development and production builds.
 
 ## Getting Started
 
@@ -16,26 +16,37 @@ Other commands:
 - `npm run preview` - preview the production build
 - `npm start` - serve `dist/` with the included Node static server
 
-Docker also serves the production build only. The container image runs `vite build` and copies `dist/` into nginx.
+### Docker
+
+```bash
+docker build -t tinytoyboxgames .
+docker run -p 8080:80 tinytoyboxgames
+```
+
+The container image runs `vite build` and copies `dist/` into nginx.
 
 Local app responses are intentionally served with no-cache headers in both the nginx container and the included Node static server. Google-hosted font and stylesheet requests are the only exception because they are not served by this app.
 
 ## Games
 
+The live toy shelf currently exposes 12 playable games:
+
+The launcher and shared shell are documented here: [Toybox And Launcher](./docs/features/toybox.md)
+
 | Game | Description | Status |
 |------|-------------|--------|
-| Bubble Pop | Tap floating bubbles to pop them | Done |
-| Feed Animal | Tap food to feed the animal | Done |
-| Color Match | Tap the swatch that matches the color name | Done |
-| Fireflies | Catch glowing fireflies in a jar | Done |
-| Hide and Seek | Find animals peeking from hiding spots | Done |
-| Clean the Mess | Wipe away the mess to reveal the scene | Done |
-| Balloon Race | Swipe balloons upward to launch them | Done |
-| Shape Builder | Drag shapes into matching slots | Done |
-| Baby Shark | Guide a shark through an underwater play scene | Done |
-| Puppy Fetch | Play fetch with a puppy | Done |
-| Elephant Splash | Spray water at playful targets | Done |
-| Monster Truck | Tap to jump and crush obstacles | Done |
+| [Bubble Pop](./docs/features/bubble-pop.md) | Tap floating bubbles to pop them | Done |
+| [Feed Animal](./docs/features/feed-animal.md) | Tap food to feed the animal | Done |
+| [Color Match](./docs/features/color-match.md) | Tap the swatch that matches the color name | Done |
+| [Fireflies](./docs/features/fireflies.md) | Catch glowing fireflies in a jar | Done |
+| [Hide and Seek](./docs/features/hide-and-seek.md) | Find animals peeking from hiding spots | Done |
+| [Clean the Mess](./docs/features/clean-the-mess.md) | Wipe away the mess to reveal the scene | Done |
+| [Balloon Race](./docs/features/balloon-race.md) | Swipe balloons upward to launch them | Done |
+| [Shape Builder](./docs/features/shape-builder.md) | Drag shapes into matching slots | Done |
+| [Baby Shark](./docs/features/baby-shark.md) | Guide a shark through an underwater play scene | Done |
+| [Puppy Fetch](./docs/features/puppy-fetch.md) | Play fetch with a puppy | Done |
+| [Elephant Splash](./docs/features/elephant-splash.md) | Spray water at playful targets | Done |
+| [Monster Truck](./docs/features/monster-truck.md) | Tap to jump and crush obstacles | Done |
 | Animal Sounds | Match a sound to the right animal | Planned |
 | Build a Monster | Drag parts onto a monster body | Planned |
 
@@ -57,6 +68,7 @@ tinytoybox/
 |- js/                     Toy shelf presentation scripts
 |- css/                    Toy shelf styles
 |- docs/
+|  |- features/            Current feature documentation
 |  |- adr/                 Architecture Decision Records
 |  |- plans/               Roadmaps and refactor plans
 |- server.js               Optional static server for built output
@@ -92,6 +104,7 @@ The repo also contains planning docs for a future template-based architecture. T
 
 ## Docs
 
+- [`docs/features/`](./docs/features/README.md) - Current feature and gameplay documentation for the toybox and shipped games
 - `docs/adr/` - Architecture Decision Records and implementation notes
 - `docs/plans/` - Roadmaps and refactor plans
 - `games/requirements/` - Per-game design specs

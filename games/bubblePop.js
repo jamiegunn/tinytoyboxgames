@@ -1,31 +1,14 @@
 import { celebrate } from "../engine/celebrate.js"
+import { playTone } from "../engine/sound.js"
 
 let ctx, input, w, h
 let bubbles = []
 let score = 0
 let spawnTimer = 0
 let tapHandler
-let audioCtx
 
 function playPop() {
-  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
-  if (audioCtx.state === 'suspended') audioCtx.resume()
-  const now = audioCtx.currentTime
-
-  // High sine that drops in pitch quickly — bubbly pop
-  const osc = audioCtx.createOscillator()
-  osc.type = 'sine'
-  osc.frequency.setValueAtTime(1200 + Math.random() * 400, now)
-  osc.frequency.exponentialRampToValueAtTime(300, now + 0.1)
-
-  const gain = audioCtx.createGain()
-  gain.gain.setValueAtTime(0.4, now)
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
-
-  osc.connect(gain)
-  gain.connect(audioCtx.destination)
-  osc.start(now)
-  osc.stop(now + 0.12)
+  playTone({ freq: 1200 + Math.random() * 400, freqEnd: 300, duration: 0.12, gain: 0.4 })
 }
 
 const COLORS = ["#48dbfb", "#ff9ff3", "#feca57", "#54a0ff", "#5f27cd"]

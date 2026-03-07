@@ -8,7 +8,12 @@
       "Bash(ipconfig:*)",
       "Bash(netstat:*)",
       "WebFetch(domain:www.tinytoyboxgames.com)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(for f in games/bubblePop.js games/cleanTheMess.js games/elephantSplash.js games/feedAnimal.js games/fireflies.js games/hideAndSeek.js games/balloonRace.js games/babyShark.js games/monsterTruck.js games/puppyFetch.js games/shapeBuilder.js games/colorMatch.js)",
+      "Bash(do echo \"=== $f ===\")",
+      "Read(//c/dev/tinytoyboxgames/**)",
+      "Bash(done)",
+      "Bash(npm run:*)"
     ]
   }
 }

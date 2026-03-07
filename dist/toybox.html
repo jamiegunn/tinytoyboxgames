@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Tiny Toybox</title>
 <script>
-// Disable all persistent storage — nothing should be saved
+// ADR-009: No persistent storage. This overrides Storage globally
+// to ensure no game, library, or extension can store data.
+// WARNING: This will break any code that expects localStorage to work.
 Storage.prototype.setItem = function(){};
 Storage.prototype.getItem = function(){ return null; };
 Storage.prototype.removeItem = function(){};
@@ -14,8 +16,8 @@ Storage.prototype.clear = function(){};
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/toybox-BXF_jCmt.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/toybox-CJzLSBlQ.css">
+  <script type="module" crossorigin src="/assets/toybox-BhHTZvH3.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/toybox-DVpXT49g.css">
 </head>
 
 <body>
@@ -327,7 +329,7 @@ Storage.prototype.clear = function(){};
   </div>
 
   <!-- Buddy owl avatar -->
-  <div class="buddy" id="buddy" onclick="buddyTapped()">
+  <div class="buddy" id="buddy" onclick="buddyTapped()" role="button" tabindex="0" aria-label="Buddy owl" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();buddyTapped()}">
     <div class="buddy-hint" id="buddy-hint">Tap a toy!</div>
     <div class="buddy-tap-hand">&#x261D;&#xFE0F;</div>
     <div class="buddy-thought" id="buddy-thought">
@@ -357,143 +359,24 @@ Storage.prototype.clear = function(){};
 </div>
 
 <button id="back-btn" onclick="goHome()">&#x2190;</button>
-<canvas id="game"></canvas>
+<canvas id="game" role="img" aria-label="Game canvas"></canvas>
 <canvas id="confetti-canvas"></canvas>
+<div id="game-status" role="status" aria-live="polite" class="sr-only"></div>
 
 <!-- ============ DYNAMIC PLAYROOM SETUP ============ -->
 <script>
-// Music-box lullaby (Web Audio API)
-(function() {
-  let audioCtx = null
-  let masterGain = null
-  let playing = false
-  let loopTimer = null
-  let noteTimers = []
-  let started = false
-  let fadingOut = false
-
-  const C=0, D=2, E=4, F=5, G=7, A=9, B=11
-  const melody = [
-    [C,1],[C,1],[G,1],[G,1],[A,1],[A,1],[G,2],
-    [F,1],[F,1],[E,1],[E,1],[D,1],[D,1],[C,2],
-    [G,1],[G,1],[F,1],[F,1],[E,1],[E,1],[D,2],
-    [G,1],[G,1],[F,1],[F,1],[E,1],[E,1],[D,2],
-    [C,1],[C,1],[G,1],[G,1],[A,1],[A,1],[G,2],
-    [F,1],[F,1],[E,1],[E,1],[D,1],[D,1],[C,2],
-    [-1,2],
-  ]
-
-  const bassPattern = [
-    [C-12,4],[F-12,4],[G-12,4],[C-12,4],
-    [F-12,4],[G-12,4],[C-12,4],[F-12,4],
-  ]
-
-  const BPM = 90
-  const beatDur = 60 / BPM
-
-  function initAudio() {
-    if (audioCtx) return
-    audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
-    masterGain = audioCtx.createGain()
-    masterGain.gain.value = 0
-    masterGain.connect(audioCtx.destination)
-  }
-
-  function noteFreq(semitone) {
-    return 261.63 * Math.pow(2, semitone / 12)
-  }
-
-  function playMusicBoxNote(semitone, time, duration, volume) {
-    if (!audioCtx || semitone < -24) return
-    const freq = noteFreq(semitone)
-    const osc1 = audioCtx.createOscillator()
-    const osc2 = audioCtx.createOscillator()
-    const osc3 = audioCtx.createOscillator()
-    const gain1 = audioCtx.createGain()
-    const gain2 = audioCtx.createGain()
-    const gain3 = audioCtx.createGain()
-    osc1.type = 'sine'; osc1.frequency.value = freq
-    osc2.type = 'sine'; osc2.frequency.value = freq * 2
-    osc3.type = 'sine'; osc3.frequency.value = freq * 3
-    const vol = volume || 0.25
-    const attack = 0.005
-    const decay = Math.min(duration * beatDur * 0.8, 1.2)
-    const sustain = vol * 0.15
-    gain1.gain.setValueAtTime(0, time)
-    gain1.gain.linearRampToValueAtTime(vol, time + attack)
-    gain1.gain.exponentialRampToValueAtTime(Math.max(sustain, 0.001), time + attack + decay)
-    gain1.gain.linearRampToValueAtTime(0.001, time + duration * beatDur)
-    gain2.gain.setValueAtTime(0, time)
-    gain2.gain.linearRampToValueAtTime(vol * 0.3, time + attack)
-    gain2.gain.exponentialRampToValueAtTime(0.001, time + attack + decay * 0.5)
-    gain3.gain.setValueAtTime(0, time)
-    gain3.gain.linearRampToValueAtTime(vol * 0.1, time + attack)
-    gain3.gain.exponentialRampToValueAtTime(0.001, time + attack + decay * 0.3)
-    osc1.connect(gain1); gain1.connect(masterGain)
-    osc2.connect(gain2); gain2.connect(masterGain)
-    osc3.connect(gain3); gain3.connect(masterGain)
-    osc1.start(time); osc2.start(time); osc3.start(time)
-    const stopTime = time + duration * beatDur + 0.1
-    osc1.stop(stopTime); osc2.stop(stopTime); osc3.stop(stopTime)
-  }
-
-  function scheduleLoop() {
-    if (!playing || !audioCtx) return
-    const now = audioCtx.currentTime + 0.05
-    let t = 0
-    melody.forEach(([note, dur]) => {
-      if (note >= -12) playMusicBoxNote(note, now + t, dur, 0.2)
-      t += dur * beatDur
-    })
-    let bt = 0
-    bassPattern.forEach(([note, dur]) => {
-      if (bt < t) playMusicBoxNote(note, now + bt, dur, 0.08)
-      bt += dur * beatDur
-    })
-    loopTimer = setTimeout(scheduleLoop, (t - 0.5) * 1000)
-  }
-
-  function startMusic() {
-    if (playing) return
-    initAudio()
-    if (audioCtx.state === 'suspended') audioCtx.resume()
-    playing = true; fadingOut = false
-    masterGain.gain.cancelScheduledValues(audioCtx.currentTime)
-    masterGain.gain.setValueAtTime(masterGain.gain.value, audioCtx.currentTime)
-    masterGain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 1.5)
-    scheduleLoop()
-  }
-
-  function stopMusic() {
-    if (!playing || !audioCtx) return
-    playing = false; fadingOut = true
-    masterGain.gain.cancelScheduledValues(audioCtx.currentTime)
-    masterGain.gain.setValueAtTime(masterGain.gain.value, audioCtx.currentTime)
-    masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.8)
-    clearTimeout(loopTimer)
-  }
-
-  window._toyboxMusic = {
-    start() { initAudio(); startMusic(); const b=document.getElementById('music-box'); if(b) b.classList.add('open') },
-    stop() { stopMusic(); const b=document.getElementById('music-box'); if(b) b.classList.remove('open') },
-    toggle() {
-      initAudio()
-      if (playing) { stopMusic(); const b=document.getElementById('music-box'); if(b) b.classList.remove('open') }
-      else { startMusic(); const b=document.getElementById('music-box'); if(b) b.classList.add('open') }
-    },
-    isPlaying() { return playing }
-  }
-
-  function unlockAudio() {
-    initAudio()
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume()
-    document.removeEventListener('click', unlockAudio)
-    document.removeEventListener('touchstart', unlockAudio)
-  }
-  document.addEventListener('click', unlockAudio)
-  document.addEventListener('touchstart', unlockAudio)
-})()
+// Early AudioContext unlock (music box loaded via module)
+document.addEventListener('click', function u() {
+  var c = window._sharedAudioCtx;
+  if (c && c.state === 'suspended') c.resume();
+  document.removeEventListener('click', u);
+});
+document.addEventListener('touchstart', function u() {
+  var c = window._sharedAudioCtx;
+  if (c && c.state === 'suspended') c.resume();
+  document.removeEventListener('touchstart', u);
+});
 </script>
-<script src="/js/libs/confetti.min.js"></script>
+<script src="./js/libs/confetti.min.js"></script>
 </body>
 </html>

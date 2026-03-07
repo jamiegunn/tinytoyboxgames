@@ -41,13 +41,24 @@ const input = new Input(canvas)
 const gameManager = new GameManager(ctx, input)
 
 startLoop((dt) => {
+  if (!gameManager.currentGame) return
   gameManager.update(dt)
   gameManager.render()
 })
 
+let firstGame = true
+const backBtn = document.getElementById("back-btn")
+const gameStatus = document.getElementById("game-status")
+
 window.startGame = (id) => {
+  window.dispatchEvent(new CustomEvent('game:start', { detail: { id } }))
   document.getElementById("menu").style.display = "none"
-  document.getElementById("back-btn").style.display = "flex"
+  backBtn.style.display = "flex"
+  if (firstGame) {
+    firstGame = false
+    backBtn.classList.add('first-show')
+    backBtn.addEventListener('animationend', () => backBtn.classList.remove('first-show'), { once: true })
+  }
   resize() // recalc in case orientation changed
   gameManager.load(id)
   startGameMusic(id)
@@ -55,10 +66,13 @@ window.startGame = (id) => {
 }
 
 window.goHome = () => {
+  window.dispatchEvent(new CustomEvent('game:home'))
   stopGameMusic()
   gameManager.unload()
   document.getElementById("menu").style.display = "flex"
-  document.getElementById("back-btn").style.display = "none"
+  backBtn.style.display = "none"
+  canvas.setAttribute('aria-label', 'Game canvas')
+  if (gameStatus) gameStatus.textContent = ''
 }
 
 window.addEventListener('popstate', (e) => {

@@ -1,4 +1,5 @@
 import { celebrate, celebrateBig } from "../engine/celebrate.js"
+import { getCtx } from "../engine/sound.js"
 
 let ctx, input, w, h
 let tapHandler
@@ -9,7 +10,6 @@ let peekers = []
 let foundAnim = []
 let maxPeekers = 1
 let clouds = []
-let audioCtx
 
 const ANIMALS = [
   { name: "bunny", color: "#f0f0f0", earColor: "#ffb8c6", draw: drawBunny },
@@ -45,8 +45,12 @@ export default {
   },
 
   update(dt) {
-    w = ctx.canvas.width
-    h = ctx.canvas.height
+    const newW = ctx.canvas.width
+    const newH = ctx.canvas.height
+    if (newW !== w || newH !== h) {
+      w = newW; h = newH
+      buildScene()
+    }
     time += dt
 
     // update peekers
@@ -178,6 +182,8 @@ export default {
       ctx.fillStyle = "rgba(255,255,255,0.7)"
       ctx.fillText("Find the hiding animals!", w / 2, 52)
     }
+
+    ctx.textBaseline = "alphabetic"
   }
 }
 
@@ -276,21 +282,21 @@ function handleTap(x, y) {
 // --- Sound effects ---
 
 function playFound() {
-  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
-  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const audioCtx = getCtx()
   const now = audioCtx.currentTime
   const osc = audioCtx.createOscillator()
-  const gain = audioCtx.createGain()
+  const g = audioCtx.createGain()
   osc.type = 'sine'
   osc.frequency.setValueAtTime(400, now)
   osc.frequency.linearRampToValueAtTime(900, now + 0.06)
   osc.frequency.linearRampToValueAtTime(700, now + 0.12)
-  gain.gain.setValueAtTime(0.3, now)
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
-  osc.connect(gain)
-  gain.connect(audioCtx.destination)
+  g.gain.setValueAtTime(0.3, now)
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
+  osc.connect(g)
+  g.connect(audioCtx.destination)
   osc.start(now)
   osc.stop(now + 0.15)
+  osc.onended = () => { g.disconnect(); osc.disconnect() }
 }
 
 // --- Hiding spot drawings ---

@@ -1,10 +1,10 @@
-import { celebrate, celebrateBig } from "../engine/celebrate.js"
+import { celebrate } from "../engine/celebrate.js"
+import { playTone } from "../engine/sound.js"
 
-let audioCtx
 let ctx, input, w, h
 let tapHandler
 let truck, crushables, stars, score, time
-let dust, screenShake, slowMo, slowMoTimer
+let dust, screenShake
 let combo, comboTimer, comboTexts
 let fireTrails, exhaustPuffs, speedLines, mudSplatters
 let bgOffset, crowdWave
@@ -26,8 +26,6 @@ export default {
     time = 0
     dust = []
     screenShake = 0
-    slowMo = 1
-    slowMoTimer = 0
     combo = 0
     comboTimer = 0
     comboTexts = []
@@ -87,10 +85,7 @@ export default {
     h = ctx.canvas.height
     time += dt
 
-    // slow-mo effect
-    slowMoTimer = Math.max(0, slowMoTimer - dt)
-    slowMo = slowMoTimer > 0 ? 0.35 : 1
-    const sdt = dt * slowMo
+    const sdt = dt
 
     const groundY = h * GROUND_BASE
     const speed = (BASE_SPEED + Math.min(score * 2, 150)) * (truck.boosting ? 1.5 : 1)
@@ -141,7 +136,7 @@ export default {
       if (truck.boosting) {
         truck.vy = Math.min(truck.vy, -200)
         for (let i = 0; i < 2; i++) {
-          fireTrails.push({
+          if (fireTrails.length < 100) fireTrails.push({
             x: truck.x - 25 + (Math.random() - 0.5) * 10,
             y: truck.y + 5,
             vx: -speed * 0.3 + (Math.random() - 0.5) * 40,
@@ -165,20 +160,20 @@ export default {
         const fullFlips = Math.floor(Math.abs(truck.flipAngle) / (Math.PI * 2 / 0.15))
         if (fullFlips > 0) {
           score += fullFlips * 3
-          comboTexts.push({
+          if (comboTexts.length < 20) comboTexts.push({
             x: truck.x, y: truck.y - 80,
             text: `FLIP x${fullFlips}!`,
             life: 1.5, color: "#ff6b6b"
           })
           playCrush()
-          celebrateBig()
+          celebrate()
         }
         truck.flipAngle = 0
         truck.rotation = 0
 
         // landing particles
         for (let i = 0; i < 12; i++) {
-          dust.push({
+          if (dust.length < 200) dust.push({
             x: truck.x - 20 + Math.random() * 40,
             y: terrainY,
             vx: (Math.random() - 0.5) * 160,
@@ -190,7 +185,7 @@ export default {
 
         // mud splatter on landing
         for (let i = 0; i < 5; i++) {
-          mudSplatters.push({
+          if (mudSplatters.length < 100) mudSplatters.push({
             x: truck.x + (Math.random() - 0.5) * 50,
             y: terrainY + Math.random() * 10,
             size: 6 + Math.random() * 10,
@@ -222,7 +217,7 @@ export default {
 
     // exhaust smoke
     if (Math.random() < sdt * 6) {
-      exhaustPuffs.push({
+      if (exhaustPuffs.length < 100) exhaustPuffs.push({
         x: truck.x - truck.size * 0.55,
         y: truck.y - truck.size * 0.7,
         vx: -40 - Math.random() * 30,
@@ -234,7 +229,7 @@ export default {
 
     // speed lines when fast
     if (speed > 300 && Math.random() < sdt * (speed - 300) * 0.02) {
-      speedLines.push({
+      if (speedLines.length < 100) speedLines.push({
         x: w + 10,
         y: Math.random() * h * 0.7,
         len: 40 + Math.random() * 60,
@@ -244,7 +239,7 @@ export default {
 
     // rolling dust
     if (truck.grounded && Math.random() < sdt * 10) {
-      dust.push({
+      if (dust.length < 200) dust.push({
         x: truck.x - 25 + Math.random() * 10,
         y: truck.y - 2,
         vx: -50 - Math.random() * 30,
@@ -272,7 +267,7 @@ export default {
         score += points
 
         if (combo >= 2) {
-          comboTexts.push({
+          if (comboTexts.length < 20) comboTexts.push({
             x: c.x, y: c.y - 40,
             text: combo >= 4 ? `MEGA x${combo}!` : `COMBO x${combo}!`,
             life: 1.2,
@@ -280,17 +275,15 @@ export default {
           })
         }
 
-        screenShake = combo >= 3 ? 0.6 : 0.35
-        if (!truck.grounded) slowMoTimer = 0.15
+        screenShake = combo >= 5 ? 0.4 : 0.2
 
         playCrush()
-        celebrate()
-        if (score % 10 === 0 || combo >= 4) celebrateBig()
+        if (score % 10 === 0) celebrate()
 
         // crush particles — more dramatic
         const particleCount = c.type === "bus" ? 18 : 12
         for (let i = 0; i < particleCount; i++) {
-          dust.push({
+          if (dust.length < 200) dust.push({
             x: c.x + (Math.random() - 0.5) * c.w,
             y: c.y + (Math.random() - 0.5) * c.h,
             vx: (Math.random() - 0.5) * 200,
@@ -303,7 +296,7 @@ export default {
 
         // fire trail at crush site
         for (let i = 0; i < 4; i++) {
-          fireTrails.push({
+          if (fireTrails.length < 100) fireTrails.push({
             x: c.x + (Math.random() - 0.5) * 20,
             y: c.y,
             vx: (Math.random() - 0.5) * 30,
@@ -337,10 +330,9 @@ export default {
       if (Math.sqrt(dx * dx + dy * dy) < truck.size * 0.7 + s.size) {
         s.collected = true
         score += 2
-        celebrate()
         // star collect sparkles
         for (let i = 0; i < 6; i++) {
-          dust.push({
+          if (dust.length < 200) dust.push({
             x: s.x + (Math.random() - 0.5) * 10,
             y: s.y + (Math.random() - 0.5) * 10,
             vx: (Math.random() - 0.5) * 80,
@@ -635,46 +627,12 @@ export default {
 }
 
 function playJump() {
-  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
-  if (audioCtx.state === 'suspended') audioCtx.resume()
-  const now = audioCtx.currentTime
-  const osc = audioCtx.createOscillator()
-  const gain = audioCtx.createGain()
-  osc.type = 'sawtooth'
-  osc.frequency.setValueAtTime(80, now)
-  osc.frequency.linearRampToValueAtTime(200, now + 0.15)
-  gain.gain.setValueAtTime(0.2, now)
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2)
-  osc.connect(gain)
-  gain.connect(audioCtx.destination)
-  osc.start(now)
-  osc.stop(now + 0.2)
+  playTone({ type: 'sawtooth', freq: 80, freqEnd: 200, ramp: 'linear', duration: 0.2, gain: 0.2 })
 }
 
 function playCrush() {
-  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
-  if (audioCtx.state === 'suspended') audioCtx.resume()
-  const now = audioCtx.currentTime
-  const osc1 = audioCtx.createOscillator()
-  const gain1 = audioCtx.createGain()
-  osc1.type = 'sine'
-  osc1.frequency.setValueAtTime(60, now)
-  gain1.gain.setValueAtTime(0.4, now)
-  gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
-  osc1.connect(gain1)
-  gain1.connect(audioCtx.destination)
-  osc1.start(now)
-  osc1.stop(now + 0.15)
-  const osc2 = audioCtx.createOscillator()
-  const gain2 = audioCtx.createGain()
-  osc2.type = 'square'
-  osc2.frequency.setValueAtTime(100, now)
-  gain2.gain.setValueAtTime(0.15, now)
-  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.1)
-  osc2.connect(gain2)
-  gain2.connect(audioCtx.destination)
-  osc2.start(now)
-  osc2.stop(now + 0.1)
+  playTone({ freq: 60, duration: 0.15, gain: 0.4 })
+  playTone({ type: 'square', freq: 100, duration: 0.1, gain: 0.15 })
 }
 
 function handleTap() {
@@ -687,7 +645,7 @@ function handleTap() {
     truck.flipAngle = 0
     // jump dust burst
     for (let i = 0; i < 8; i++) {
-      dust.push({
+      if (dust.length < 200) dust.push({
         x: truck.x - 15 + Math.random() * 30,
         y: truck.y,
         vx: (Math.random() - 0.5) * 100,
@@ -706,7 +664,7 @@ function handleTap() {
 
     // boost flames
     for (let i = 0; i < 6; i++) {
-      fireTrails.push({
+      if (fireTrails.length < 100) fireTrails.push({
         x: truck.x + (Math.random() - 0.5) * 20,
         y: truck.y + 10,
         vx: (Math.random() - 0.5) * 60,

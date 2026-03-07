@@ -1,6 +1,6 @@
 import { celebrate, celebrateBig } from "../engine/celebrate.js"
+import { getCtx } from "../engine/sound.js"
 
-let audioCtx
 let ctx, input, w, h
 let dragHandler, tapHandler
 let shapes, score, time, allClean
@@ -10,21 +10,21 @@ let bgPattern, cleanProgress
 let mudCanvas, mudCtx
 
 function playSqueak() {
-  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
-  if (audioCtx.state === 'suspended') audioCtx.resume()
+  const audioCtx = getCtx()
   const now = audioCtx.currentTime
   const osc = audioCtx.createOscillator()
-  const gain = audioCtx.createGain()
+  const g = audioCtx.createGain()
   osc.type = 'sine'
   osc.frequency.setValueAtTime(600, now)
   osc.frequency.linearRampToValueAtTime(900, now + 0.05)
   osc.frequency.linearRampToValueAtTime(600, now + 0.1)
-  gain.gain.setValueAtTime(0.2, now)
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
-  osc.connect(gain)
-  gain.connect(audioCtx.destination)
+  g.gain.setValueAtTime(0.2, now)
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
+  osc.connect(g)
+  g.connect(audioCtx.destination)
   osc.start(now)
   osc.stop(now + 0.12)
+  osc.onended = () => { g.disconnect(); osc.disconnect() }
 }
 
 const BRUSH_RADIUS = 55
@@ -522,7 +522,7 @@ function handleDrag(x, y) {
 
   // scrub sparkles
   for (let i = 0; i < 3; i++) {
-    sparkles.push({
+    if (sparkles.length < 100) sparkles.push({
       x: x + (Math.random() - 0.5) * BRUSH_RADIUS,
       y: y + (Math.random() - 0.5) * BRUSH_RADIUS,
       vx: (Math.random() - 0.5) * 70,
@@ -536,7 +536,7 @@ function handleDrag(x, y) {
 
   // soap bubbles
   if (Math.random() < 0.15) {
-    bubbles.push({
+    if (bubbles.length < 100) bubbles.push({
       x: x + (Math.random() - 0.5) * 30,
       y: y + (Math.random() - 0.5) * 30,
       size: 4 + Math.random() * 8,
@@ -581,7 +581,7 @@ function checkShapeProgress(s) {
     celebrate()
     playSqueak()
 
-    scorePopups.push({
+    if (scorePopups.length < 20) scorePopups.push({
       x: s.x, y: s.y - s.size - 10,
       text: "Almost!",
       life: 1, color: "#54a0ff", scale: 1
@@ -607,7 +607,7 @@ function checkShapeProgress(s) {
 
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2
-      particles.push({
+      if (particles.length < 200) particles.push({
         x: s.x, y: s.y,
         vx: Math.cos(a) * (50 + Math.random() * 70),
         vy: Math.sin(a) * (50 + Math.random() * 70),
@@ -620,7 +620,7 @@ function checkShapeProgress(s) {
     }
 
     for (let i = 0; i < 8; i++) {
-      sparkles.push({
+      if (sparkles.length < 100) sparkles.push({
         x: s.x + (Math.random() - 0.5) * s.size,
         y: s.y + (Math.random() - 0.5) * s.size,
         vx: (Math.random() - 0.5) * 80,
@@ -632,7 +632,7 @@ function checkShapeProgress(s) {
       })
     }
 
-    scorePopups.push({
+    if (scorePopups.length < 20) scorePopups.push({
       x: s.x, y: s.y - s.size - 10,
       text: `Found: ${s.type.name}!`,
       life: 1.5, color: s.type.color, scale: 1.2
@@ -651,7 +651,7 @@ function checkShapeProgress(s) {
       for (let i = 0; i < 30; i++) {
         const a = (i / 30) * Math.PI * 2
         const speed = 80 + Math.random() * 120
-        particles.push({
+        if (particles.length < 200) particles.push({
           x: w / 2, y: h / 2,
           vx: Math.cos(a) * speed,
           vy: Math.sin(a) * speed - 40,

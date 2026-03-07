@@ -89,29 +89,19 @@ window.toggleMusicBox = function toggleMusicBox() {
     suggest()
   }
 
-  function wrapStartGame(id) {
+  window.addEventListener('game:start', () => {
     buddy.style.display = 'none'; point.style.opacity = '0'; thought.style.opacity = '0'
     clearTimeout(suggestTimer); clearTimeout(moveTimer)
     if (window.speechSynthesis) speechSynthesis.cancel()
     window._musicWasPlaying = window._toyboxMusic && window._toyboxMusic.isPlaying()
     if (window._toyboxMusic) window._toyboxMusic.stop()
     if (!hasPlayed) { hasPlayed = true; hint.style.display = 'none'; tapHand.style.display = 'none' }
-    realStart(id)
-  }
+  })
 
-  let realStart, realHome
-  const wrapInterval = setInterval(() => {
-    if (window.startGame && window.startGame !== wrapStartGame) {
-      realStart = window.startGame
-      window.startGame = wrapStartGame
-      realHome = window.goHome
-      window.goHome = function() {
-        realHome(); buddy.style.display = ''; moveToRandomRow(); scheduleSuggest()
-        if (window._musicWasPlaying && window._toyboxMusic) window._toyboxMusic.start()
-      }
-      clearInterval(wrapInterval)
-    }
-  }, 100)
+  window.addEventListener('game:home', () => {
+    buddy.style.display = ''; moveToRandomRow(); scheduleSuggest()
+    if (window._musicWasPlaying && window._toyboxMusic) window._toyboxMusic.start()
+  })
 
   setTimeout(() => { moveToRandomRow(); scheduleSuggest() }, 1500)
 })()

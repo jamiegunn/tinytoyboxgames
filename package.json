@@ -1,16 +1,15 @@
 {
   "name": "tinytoyboxgames",
   "version": "1.0.0",
-  "description": "A collection of simple, colorful browser games built as a static Vite app.",
-  "main": "app.js",
+  "description": "A collection of HTML5 canvas games for preschoolers",
+  "main": "index.html",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
     "dev": "vite",
     "build": "node node_modules/vite/bin/vite.js build",
-    "preview": "vite preview",
-    "start": "node server.js"
+    "preview": "vite preview"
   },
   "repository": {
     "type": "git",
@@ -21,12 +20,12 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/jamiegunn/tinytoyboxgames/issues"
   },
   "homepage": "https://github.com/jamiegunn/tinytoyboxgames#readme",
-  "dependencies": {
+  "devDependencies": {
     "vite": "^7.3.1"
   }
 }

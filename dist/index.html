@@ -6,7 +6,9 @@
 <title>Tiny Toybox — Fun Games for Little Hands</title>
 <link rel="icon" type="image/svg+xml" href="/assets/favicon-4TcQ6MWZ.svg">
 <script>
-// Disable all persistent storage — nothing should be saved
+// ADR-009: No persistent storage. This overrides Storage globally
+// to ensure no game, library, or extension can store data.
+// WARNING: This will break any code that expects localStorage to work.
 Storage.prototype.setItem = function(){};
 Storage.prototype.getItem = function(){ return null; };
 Storage.prototype.removeItem = function(){};

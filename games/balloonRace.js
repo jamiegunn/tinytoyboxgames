@@ -1,6 +1,6 @@
 import { celebrate, celebrateBig } from "../engine/celebrate.js"
+import { playTone } from "../engine/sound.js"
 
-let audioCtx
 let ctx, input, w, h
 let tapHandler, dragHandler, dragEndHandler
 let balloons, launched, score, time
@@ -47,80 +47,7 @@ export default {
     scorePopups = []
     grabId = null
 
-    // far clouds (parallax)
-    farClouds = []
-    for (let i = 0; i < 3; i++) {
-      farClouds.push({
-        x: Math.random() * w,
-        y: 20 + Math.random() * 60,
-        r: 30 + Math.random() * 40,
-        speed: 3 + Math.random() * 5
-      })
-    }
-
-    // near clouds
-    clouds = []
-    for (let i = 0; i < 5; i++) {
-      clouds.push({
-        x: Math.random() * w,
-        y: 30 + Math.random() * 140,
-        r: 18 + Math.random() * 28,
-        speed: 6 + Math.random() * 12
-      })
-    }
-
-    // rolling hills
-    hills = [
-      { color: "#8dd48d", yBase: 0.88, amp: 25, freq: 0.005, offset: 0 },
-      { color: "#7cc47c", yBase: 0.9, amp: 18, freq: 0.008, offset: 2 },
-      { color: "#6bb86b", yBase: 0.92, amp: 12, freq: 0.012, offset: 4 }
-    ]
-
-    // birds
-    birds = []
-    for (let i = 0; i < 3; i++) {
-      birds.push({
-        x: Math.random() * w,
-        y: 30 + Math.random() * 80,
-        speed: 15 + Math.random() * 30,
-        dir: Math.random() < 0.5 ? 1 : -1,
-        wingPhase: Math.random() * Math.PI * 2,
-        size: 4 + Math.random() * 3
-      })
-    }
-
-    // bunting flags
-    bunting = []
-    const buntingColors = ["#ff6b6b", "#54a0ff", "#feca57", "#26de81", "#a55eea", "#ff9ff3"]
-    for (let bx = 30; bx < w; bx += 35) {
-      bunting.push({
-        x: bx,
-        color: buntingColors[Math.floor(Math.random() * buntingColors.length)],
-        phase: bx * 0.05
-      })
-    }
-
-    // ground flowers
-    flowers = []
-    for (let fx = 20; fx < w; fx += 50 + Math.random() * 60) {
-      flowers.push({
-        x: fx,
-        color: ['#ff6b9d', '#feca57', '#fff', '#ff9ff3', '#a55eea'][Math.floor(Math.random() * 5)],
-        size: 3 + Math.random() * 3,
-        petals: 4 + Math.floor(Math.random() * 3)
-      })
-    }
-
-    // grass blades
-    grassBlades = []
-    for (let gx = 3; gx < w; gx += 6 + Math.random() * 8) {
-      grassBlades.push({
-        x: gx,
-        height: 6 + Math.random() * 12,
-        phase: Math.random() * Math.PI * 2,
-        shade: Math.random()
-      })
-    }
+    buildScene()
 
     spawnRow()
 
@@ -140,8 +67,12 @@ export default {
   },
 
   update(dt) {
-    w = ctx.canvas.width
-    h = ctx.canvas.height
+    const newW = ctx.canvas.width
+    const newH = ctx.canvas.height
+    if (newW !== w || newH !== h) {
+      w = newW; h = newH
+      buildScene()
+    }
     time += dt
     windPhase += dt * 0.5
 
@@ -171,7 +102,7 @@ export default {
 
       // sparkle trail
       if (Math.random() < dt * 8) {
-        sparkles.push({
+        if (sparkles.length < 100) sparkles.push({
           x: b.x + (Math.random() - 0.5) * 20,
           y: b.y + BALLOON_H * 0.3 * b.scale,
           size: 2 + Math.random() * 3,
@@ -187,7 +118,7 @@ export default {
         b.burst = true
         for (let i = 0; i < 12; i++) {
           const a = (i / 12) * Math.PI * 2
-          particles.push({
+          if (particles.length < 200) particles.push({
             x: b.x, y: 10,
             vx: Math.cos(a) * (60 + Math.random() * 80),
             vy: Math.sin(a) * (60 + Math.random() * 80) + 30,
@@ -586,6 +517,76 @@ export default {
   }
 }
 
+function buildScene() {
+  farClouds = []
+  for (let i = 0; i < 3; i++) {
+    farClouds.push({
+      x: Math.random() * w,
+      y: 20 + Math.random() * 60,
+      r: 30 + Math.random() * 40,
+      speed: 3 + Math.random() * 5
+    })
+  }
+
+  clouds = []
+  for (let i = 0; i < 5; i++) {
+    clouds.push({
+      x: Math.random() * w,
+      y: 30 + Math.random() * 140,
+      r: 18 + Math.random() * 28,
+      speed: 6 + Math.random() * 12
+    })
+  }
+
+  hills = [
+    { color: "#8dd48d", yBase: 0.88, amp: 25, freq: 0.005, offset: 0 },
+    { color: "#7cc47c", yBase: 0.9, amp: 18, freq: 0.008, offset: 2 },
+    { color: "#6bb86b", yBase: 0.92, amp: 12, freq: 0.012, offset: 4 }
+  ]
+
+  birds = []
+  for (let i = 0; i < 3; i++) {
+    birds.push({
+      x: Math.random() * w,
+      y: 30 + Math.random() * 80,
+      speed: 15 + Math.random() * 30,
+      dir: Math.random() < 0.5 ? 1 : -1,
+      wingPhase: Math.random() * Math.PI * 2,
+      size: 4 + Math.random() * 3
+    })
+  }
+
+  bunting = []
+  const buntingColors = ["#ff6b6b", "#54a0ff", "#feca57", "#26de81", "#a55eea", "#ff9ff3"]
+  for (let bx = 30; bx < w; bx += 35) {
+    bunting.push({
+      x: bx,
+      color: buntingColors[Math.floor(Math.random() * buntingColors.length)],
+      phase: bx * 0.05
+    })
+  }
+
+  flowers = []
+  for (let fx = 20; fx < w; fx += 50 + Math.random() * 60) {
+    flowers.push({
+      x: fx,
+      color: ['#ff6b9d', '#feca57', '#fff', '#ff9ff3', '#a55eea'][Math.floor(Math.random() * 5)],
+      size: 3 + Math.random() * 3,
+      petals: 4 + Math.floor(Math.random() * 3)
+    })
+  }
+
+  grassBlades = []
+  for (let gx = 3; gx < w; gx += 6 + Math.random() * 8) {
+    grassBlades.push({
+      x: gx,
+      height: 6 + Math.random() * 12,
+      phase: Math.random() * Math.PI * 2,
+      shade: Math.random()
+    })
+  }
+}
+
 function spawnRow() {
   const count = 3 + Math.floor(Math.random() * 3)
   const spacing = w / (count + 1)
@@ -698,7 +699,7 @@ function launchBalloon(id, power) {
 
   // score popup
   const label = b.golden ? `+${points} GOLDEN!` : (combo > 1 ? `+${points} x${combo}!` : `+${points}`)
-  scorePopups.push({
+  if (scorePopups.length < 20) scorePopups.push({
     x: b.x, y: b.y - 30,
     text: label,
     life: 1.5,
@@ -709,7 +710,7 @@ function launchBalloon(id, power) {
   // launch burst particles
   for (let i = 0; i < 10; i++) {
     const a = (Math.random() - 0.5) * Math.PI
-    particles.push({
+    if (particles.length < 200) particles.push({
       x: b.x + (Math.random() - 0.5) * 20,
       y: b.y + 10,
       vx: Math.cos(a) * (40 + Math.random() * 80),
@@ -727,20 +728,7 @@ function launchBalloon(id, power) {
 }
 
 function playLaunch() {
-  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
-  if (audioCtx.state === 'suspended') audioCtx.resume()
-  const now = audioCtx.currentTime
-  const o = audioCtx.createOscillator()
-  const g = audioCtx.createGain()
-  o.type = 'sine'
-  o.frequency.setValueAtTime(200, now)
-  o.frequency.exponentialRampToValueAtTime(800, now + 0.2)
-  g.gain.setValueAtTime(0.3, now)
-  g.gain.exponentialRampToValueAtTime(0.001, now + 0.25)
-  o.connect(g)
-  g.connect(audioCtx.destination)
-  o.start(now)
-  o.stop(now + 0.25)
+  playTone({ freq: 200, freqEnd: 800, duration: 0.25, gain: 0.3 })
 }
 
 function drawBalloon(ctx, x, y, color, stretch, grabbed, pattern, shape, face, facePhase, blinkAmount, excited) {

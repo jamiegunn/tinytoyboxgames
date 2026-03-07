@@ -1,4 +1,5 @@
 import { celebrate, celebrateBig } from "../engine/celebrate.js"
+import { playTone } from "../engine/sound.js"
 
 let ctx, input, w, h
 let tapHandler
@@ -8,30 +9,10 @@ let combo, comboTimer, lastFeedTime
 let screenShake, currentAnimal
 let clouds, butterflies, bgFlowers, grassBlades
 let windPhase
-let audioCtx
 
 function playMunch() {
-  if (!audioCtx) audioCtx = window._sharedAudioCtx || (window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)())
-  if (audioCtx.state === 'suspended') audioCtx.resume()
-  const now = audioCtx.currentTime
-
-  // Two quick chomps using oscillators
-  for (let i = 0; i < 2; i++) {
-    const t = now + i * 0.1
-    const osc = audioCtx.createOscillator()
-    osc.type = 'square'
-    osc.frequency.setValueAtTime(250 + Math.random() * 100, t)
-    osc.frequency.exponentialRampToValueAtTime(80, t + 0.07)
-
-    const gain = audioCtx.createGain()
-    gain.gain.setValueAtTime(0.25, t)
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07)
-
-    osc.connect(gain)
-    gain.connect(audioCtx.destination)
-    osc.start(t)
-    osc.stop(t + 0.07)
-  }
+  playTone({ type: 'square', freq: 250 + Math.random() * 100, freqEnd: 80, duration: 0.07, gain: 0.25 })
+  playTone({ type: 'square', freq: 250 + Math.random() * 100, freqEnd: 80, duration: 0.07, gain: 0.25, delay: 0.1 })
 }
 
 const FOOD_ITEMS = [
@@ -96,52 +77,7 @@ export default {
       eyeSparkle: 0
     }
 
-    // clouds
-    clouds = []
-    for (let i = 0; i < 4; i++) {
-      clouds.push({
-        x: Math.random() * w,
-        y: 20 + Math.random() * 80,
-        r: 18 + Math.random() * 24,
-        speed: 5 + Math.random() * 10
-      })
-    }
-
-    // butterflies
-    butterflies = []
-    for (let i = 0; i < 3; i++) {
-      butterflies.push({
-        x: Math.random() * w,
-        y: h * 0.2 + Math.random() * h * 0.25,
-        vx: (Math.random() - 0.5) * 25,
-        vy: (Math.random() - 0.5) * 15,
-        wingPhase: Math.random() * Math.PI * 2,
-        color: ['#ff9ff3', '#feca57', '#54a0ff', '#ff6b6b'][Math.floor(Math.random() * 4)],
-        size: 4 + Math.random() * 3
-      })
-    }
-
-    // bg flowers
-    bgFlowers = []
-    for (let fx = 30; fx < w; fx += 60 + Math.random() * 70) {
-      bgFlowers.push({
-        x: fx,
-        color: ['#ff6b9d', '#feca57', '#fff', '#ff9ff3', '#a55eea'][Math.floor(Math.random() * 5)],
-        size: 3 + Math.random() * 3,
-        petals: 4 + Math.floor(Math.random() * 3)
-      })
-    }
-
-    // grass blades
-    grassBlades = []
-    for (let gx = 3; gx < w; gx += 7 + Math.random() * 10) {
-      grassBlades.push({
-        x: gx,
-        height: 6 + Math.random() * 12,
-        phase: Math.random() * Math.PI * 2,
-        shade: Math.random()
-      })
-    }
+    buildScene()
 
     spawnFoods()
 
@@ -155,8 +91,12 @@ export default {
   },
 
   update(dt) {
-    w = ctx.canvas.width
-    h = ctx.canvas.height
+    const newW = ctx.canvas.width
+    const newH = ctx.canvas.height
+    if (newW !== w || newH !== h) {
+      w = newW; h = newH
+      buildScene()
+    }
     time += dt
     windPhase += dt * 0.5
     animal.x = w / 2
@@ -212,7 +152,7 @@ export default {
 
         // trail sparkles
         if (Math.random() < dt * 6) {
-          particles.push({
+          if (particles.length < 200) particles.push({
             x: f.x + (Math.random() - 0.5) * 15,
             y: f.y + (Math.random() - 0.5) * 15,
             vx: (Math.random() - 0.5) * 30,
@@ -259,7 +199,7 @@ export default {
 
           // score popup
           const label = combo > 1 ? `+${points} x${combo}!` : `+${points}`
-          scorePopups.push({
+          if (scorePopups.length < 20) scorePopups.push({
             x: f.x, y: f.y - 20,
             text: label,
             life: 1.3,
@@ -269,7 +209,7 @@ export default {
 
           // hearts float up
           for (let i = 0; i < 2 + combo; i++) {
-            hearts.push({
+            if (hearts.length < 50) hearts.push({
               x: animal.x + (Math.random() - 0.5) * 60,
               y: animal.y - 30,
               vx: (Math.random() - 0.5) * 40,
@@ -282,7 +222,7 @@ export default {
 
           // crumbs fly out
           for (let i = 0; i < 6; i++) {
-            crumbs.push({
+            if (crumbs.length < 50) crumbs.push({
               x: animal.x + (Math.random() - 0.5) * 30,
               y: animal.y + 10,
               vx: (Math.random() - 0.5) * 120,
@@ -628,6 +568,51 @@ export default {
     }
 
     ctx.restore()
+  }
+}
+
+function buildScene() {
+  clouds = []
+  for (let i = 0; i < 4; i++) {
+    clouds.push({
+      x: Math.random() * w,
+      y: 20 + Math.random() * 80,
+      r: 18 + Math.random() * 24,
+      speed: 5 + Math.random() * 10
+    })
+  }
+
+  butterflies = []
+  for (let i = 0; i < 3; i++) {
+    butterflies.push({
+      x: Math.random() * w,
+      y: h * 0.2 + Math.random() * h * 0.25,
+      vx: (Math.random() - 0.5) * 25,
+      vy: (Math.random() - 0.5) * 15,
+      wingPhase: Math.random() * Math.PI * 2,
+      color: ['#ff9ff3', '#feca57', '#54a0ff', '#ff6b6b'][Math.floor(Math.random() * 4)],
+      size: 4 + Math.random() * 3
+    })
+  }
+
+  bgFlowers = []
+  for (let fx = 30; fx < w; fx += 60 + Math.random() * 70) {
+    bgFlowers.push({
+      x: fx,
+      color: ['#ff6b9d', '#feca57', '#fff', '#ff9ff3', '#a55eea'][Math.floor(Math.random() * 5)],
+      size: 3 + Math.random() * 3,
+      petals: 4 + Math.floor(Math.random() * 3)
+    })
+  }
+
+  grassBlades = []
+  for (let gx = 3; gx < w; gx += 7 + Math.random() * 10) {
+    grassBlades.push({
+      x: gx,
+      height: 6 + Math.random() * 12,
+      phase: Math.random() * Math.PI * 2,
+      shade: Math.random()
+    })
   }
 }
 
