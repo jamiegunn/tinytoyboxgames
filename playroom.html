@@ -1,0 +1,2501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Tiny Toybox - Playroom</title>
+<script>
+Storage.prototype.setItem = function(){};
+Storage.prototype.getItem = function(){ return null; };
+Storage.prototype.removeItem = function(){};
+Storage.prototype.clear = function(){};
+</script>
+<link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Sniglet:wght@400;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./css/toys.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+body{overflow:hidden;font-family:'Sniglet','Baloo 2',cursive;background:#4a90d9;touch-action:none}
+canvas{display:block}
+#game{background:#1e1e2e;position:relative;z-index:1}
+#confetti-canvas{background:transparent;position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:15}
+
+/* ======== ROOM CONTAINER ======== */
+#menu{
+  position:absolute;inset:0;z-index:10;overflow:hidden;
+  cursor:pointer;
+}
+
+/* ======== THE ROOM (top-down) — Andy's Toy Story bedroom ======== */
+.room{
+  position:absolute;
+  width:100%;height:100%;
+  /* Warm hardwood floor */
+  background:
+    repeating-linear-gradient(90deg,
+      transparent 0px, transparent 56px,
+      rgba(0,0,0,0.06) 56px, rgba(0,0,0,0.06) 58px
+    ),
+    repeating-linear-gradient(0deg,
+      transparent 0px, transparent 4px,
+      rgba(0,0,0,0.01) 4px, rgba(0,0,0,0.01) 5px
+    ),
+    linear-gradient(135deg, #d4a050 0%, #c89040 25%, #d49848 50%, #be8438 75%, #d4a050 100%);
+}
+
+/* Sky-blue walls with cloud wallpaper feel */
+.room::before{
+  content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+  box-shadow:
+    inset 0 0 0 8px #6aade8,
+    inset 0 0 0 11px #5899d4,
+    inset 0 0 50px rgba(0,0,0,0.08),
+    inset 0 0 100px rgba(74,144,217,0.15);
+}
+/* White cloud-patterned border */
+.room::after{
+  content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+  border:12px solid transparent;
+  border-image:linear-gradient(135deg,#7ab8f0,#5ca0e0,#8ec4f4,#5ca0e0,#7ab8f0) 1;
+}
+
+/* Floating cloud wisps on the walls */
+.room-cloud{
+  position:absolute;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse,rgba(255,255,255,0.12) 0%,transparent 70%);
+  border-radius:50%;
+}
+
+/* ======== AREA RUG (center, cozy braided rug) ======== */
+.rug{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:min(55vw,55vh,420px);height:min(40vw,40vh,320px);
+  border-radius:50%;pointer-events:none;z-index:1;
+  background:
+    radial-gradient(ellipse,
+      #c44040 0%, #c44040 18%,
+      #d4a040 19%, #d4a040 22%,
+      #c44040 23%, #c44040 35%,
+      #3868a0 36%, #3868a0 39%,
+      #c44040 40%, #c44040 52%,
+      #d4a040 53%, #d4a040 56%,
+      #c44040 57%, #c44040 68%,
+      #3868a0 69%, #3868a0 72%,
+      transparent 73%);
+  opacity:0.45;
+  box-shadow:0 0 20px rgba(0,0,0,0.1);
+}
+/* Fringe */
+.rug::before,.rug::after{
+  content:'';position:absolute;top:10%;bottom:10%;width:6px;
+  background:repeating-linear-gradient(180deg,transparent 0px,transparent 3px,#c44040 3px,#c44040 5px);
+  opacity:0.35;
+}
+.rug::before{left:-5px;border-radius:2px 0 0 2px}
+.rug::after{right:-5px;border-radius:0 2px 2px 0}
+
+/* ======== WINDOW (top edge, warm afternoon sunlight) ======== */
+.topdown-window{
+  position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:min(200px,35vw);height:12px;z-index:2;pointer-events:none;
+}
+.topdown-window-frame{
+  width:100%;height:100%;
+  background:linear-gradient(180deg,#f0ece4,#e8e0d0);
+  border-radius:0 0 4px 4px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.12);
+}
+.topdown-window-frame::before{
+  content:'';position:absolute;top:0;left:50%;width:4px;height:100%;
+  transform:translateX(-50%);background:#d8d0c0;
+}
+/* Golden sunshine cone */
+.window-light{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  width:0;height:0;
+  border-left:min(140px,22vw) solid transparent;
+  border-right:min(140px,22vw) solid transparent;
+  border-top:min(200px,30vh) solid rgba(255,245,200,0.1);
+  pointer-events:none;z-index:1;
+  animation:lightPulse 6s ease-in-out infinite;
+}
+@keyframes lightPulse{0%,100%{opacity:0.6}50%{opacity:1}}
+
+/* ======== BOOKSHELF (top wall, top-down, warm wood) ======== */
+.bookshelf{
+  position:absolute;top:10px;right:8%;
+  width:min(120px,20vw);height:24px;z-index:2;pointer-events:none;
+  background:linear-gradient(180deg,#a07830,#8b6914,#a07830);
+  border-radius:3px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.2);
+}
+/* Books on shelf */
+.bookshelf::before{
+  content:'';position:absolute;top:3px;left:4px;right:4px;height:18px;
+  background:
+    linear-gradient(90deg,
+      #e74c3c 0px, #e74c3c 8px,
+      #3498db 9px, #3498db 15px,
+      #f1c40f 16px, #f1c40f 22px,
+      #2ecc71 23px, #2ecc71 30px,
+      #9b59b6 31px, #9b59b6 36px,
+      #e67e22 37px, #e67e22 44px,
+      #1abc9c 45px, #1abc9c 50px,
+      #e74c3c 51px, #e74c3c 58px,
+      transparent 59px
+    );
+  border-radius:1px;
+}
+
+/* ======== CRAFT TABLE (top-down circle/oval) ======== */
+/* ======== EXTRA FLOOR TOYS ======== */
+/* Spinning top */
+.f-top{width:20px;height:20px;position:relative}
+.f-top-body{
+  width:18px;height:18px;border-radius:50%;
+  background:conic-gradient(#e74c3c,#feca57,#54a0ff,#26de81,#e74c3c);
+  position:absolute;top:1px;left:1px;
+  box-shadow:0 2px 4px rgba(0,0,0,0.15);
+}
+.f-top-body::after{
+  content:'';position:absolute;width:4px;height:4px;
+  background:#fff;border-radius:50%;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+}
+/* Toy train */
+.f-train{width:36px;height:16px;position:relative}
+.f-train-engine{
+  width:16px;height:12px;background:linear-gradient(135deg,#e74c3c,#c0392b);
+  border-radius:3px;position:absolute;top:2px;left:0;
+  box-shadow:0 1px 3px rgba(0,0,0,0.15);
+}
+.f-train-engine::before{
+  content:'';position:absolute;top:-3px;left:3px;
+  width:4px;height:4px;background:#555;border-radius:50%;
+}
+.f-train-engine::after{
+  content:'';position:absolute;bottom:0;left:2px;
+  width:5px;height:5px;background:#333;border-radius:50%;
+  box-shadow:8px 0 0 0 #333;
+}
+.f-train-car{
+  width:12px;height:10px;border-radius:2px;
+  position:absolute;top:4px;
+  box-shadow:0 1px 2px rgba(0,0,0,0.12);
+}
+.f-train-car::after{
+  content:'';position:absolute;bottom:0;left:1px;
+  width:4px;height:4px;background:#333;border-radius:50%;
+  box-shadow:6px 0 0 0 #333;
+}
+.f-train-car.c1{left:18px;background:#54a0ff}
+.f-train-car.c2{left:32px;background:#feca57}
+/* Puzzle piece */
+.f-puzzle{width:20px;height:18px;position:relative}
+.f-puzzle-body{
+  width:16px;height:14px;background:linear-gradient(135deg,#26de81,#1abc9c);
+  border-radius:3px;position:absolute;top:2px;left:2px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.12);
+}
+.f-puzzle-body::before{
+  content:'';position:absolute;top:-4px;left:4px;
+  width:6px;height:6px;background:#26de81;border-radius:50%;
+}
+.f-puzzle-body::after{
+  content:'';position:absolute;right:-4px;top:3px;
+  width:6px;height:6px;background:#26de81;border-radius:50%;
+}
+
+/* ======== FLOWER POTS (top-down, detailed flowers) ======== */
+.plant{
+  position:absolute;z-index:2;pointer-events:none;
+}
+.plant-pot{
+  width:100%;height:100%;
+  background:radial-gradient(circle at 45% 40%,#d4956a,#b87050,#a0604a);
+  border-radius:50%;
+  box-shadow:0 2px 6px rgba(0,0,0,0.2);
+  position:relative;
+}
+/* Pot rim highlight */
+.plant-pot::before{
+  content:'';position:absolute;top:2px;left:15%;right:15%;height:3px;
+  background:rgba(255,255,255,0.15);border-radius:50%;
+}
+/* Soil */
+.plant-pot::after{
+  content:'';position:absolute;inset:3px;
+  background:radial-gradient(circle,#5a3a20,#4a2a18);
+  border-radius:50%;
+}
+/* Green leaves radiating out */
+.plant-leaves{
+  position:absolute;inset:-30%;pointer-events:none;
+}
+.plant-leaf{
+  position:absolute;
+  width:10px;height:5px;
+  background:#3a9a50;
+  border-radius:0 70% 0 70%;
+  transform-origin:100% 100%;
+  box-shadow:inset 1px 0 0 rgba(255,255,255,0.15);
+}
+/* Flower petals */
+.plant-flower{
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+}
+.plant-petal{
+  position:absolute;width:7px;height:7px;
+  border-radius:50%;
+  transform-origin:50% 100%;
+}
+.plant-center{
+  position:absolute;width:5px;height:5px;
+  background:radial-gradient(circle,#ffe040,#e8b020);
+  border-radius:50%;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  z-index:1;
+}
+
+/* ======== WALKING ANIMALS (Toy Story style, top-down like the owl) ======== */
+.walking-animal{
+  position:absolute;z-index:4;pointer-events:none;
+  animation:animalWalk var(--walk-dur,4s) linear forwards;
+}
+@keyframes animalWalk{
+  0%{transform:translateX(var(--start-x,0px))}
+  100%{transform:translateX(var(--end-x,400px))}
+}
+
+/* --- Golden Retriever chasing a ball --- */
+.critter-dog{width:52px;height:36px;position:relative}
+.critter-dog .dog-body{
+  width:28px;height:20px;
+  background:radial-gradient(ellipse at 50% 40%,#e8c870,#d4a840,#c49830);
+  border-radius:50%;position:absolute;top:8px;left:8px;
+  box-shadow:inset 0 -2px 3px rgba(0,0,0,0.1);
+}
+.critter-dog .dog-body::before{
+  content:'';position:absolute;width:16px;height:12px;
+  background:radial-gradient(ellipse,#f0d880,#e8cc68);
+  border-radius:50%;top:6px;left:50%;transform:translateX(-50%);
+}
+.critter-dog .dog-head{
+  width:16px;height:14px;
+  background:radial-gradient(ellipse at 50% 40%,#e8c870,#d4a840);
+  border-radius:50%;position:absolute;top:4px;left:0;
+  box-shadow:inset 0 -1px 2px rgba(0,0,0,0.1);
+}
+.critter-dog .dog-ear{
+  position:absolute;width:8px;height:10px;
+  background:radial-gradient(circle,#c89830,#b88828);
+  border-radius:50% 50% 50% 30%;
+}
+.critter-dog .dog-ear.l{top:2px;left:-2px;transform:rotate(-20deg)}
+.critter-dog .dog-ear.r{top:2px;left:12px;transform:rotate(20deg);border-radius:50% 50% 30% 50%}
+.critter-dog .dog-eye{
+  position:absolute;top:7px;left:4px;width:5px;height:5px;background:#fff;border-radius:50%;
+  border:1px solid #8b6914;
+}
+.critter-dog .dog-eye::after{
+  content:'';position:absolute;width:2.5px;height:2.5px;background:#3a2010;border-radius:50%;
+  top:1px;left:1px;
+}
+.critter-dog .dog-nose{
+  position:absolute;top:11px;left:1px;width:4px;height:3px;
+  background:#3a2010;border-radius:50%;
+}
+.critter-dog .dog-tongue{
+  position:absolute;top:13px;left:2px;width:3px;height:4px;
+  background:#ff7080;border-radius:0 0 50% 50%;
+  animation:dogPant 0.4s ease-in-out infinite alternate;
+}
+@keyframes dogPant{0%{height:4px}100%{height:6px}}
+.critter-dog .dog-tail{
+  position:absolute;top:4px;right:2px;width:4px;height:10px;
+  background:linear-gradient(180deg,#d4a840,#c89830);
+  border-radius:3px;transform-origin:bottom;
+  animation:dogWag 0.25s ease-in-out infinite alternate;
+}
+@keyframes dogWag{0%{transform:rotate(-20deg)}100%{transform:rotate(20deg)}}
+.critter-dog .dog-leg{
+  position:absolute;bottom:-2px;width:6px;height:6px;
+  background:#d4a840;border-radius:50% 50% 30% 30%;
+}
+.critter-dog .dog-leg.fl{left:6px}
+.critter-dog .dog-leg.fr{left:14px}
+.critter-dog .dog-leg.bl{left:22px}
+.critter-dog .dog-leg.br{left:28px}
+/* Bouncing ball the dog chases */
+.critter-dog .chase-ball{
+  position:absolute;top:2px;left:-14px;
+  width:10px;height:10px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#ff5050,#cc2020);
+  box-shadow:0 1px 3px rgba(0,0,0,0.2);
+  animation:ballBounce 0.5s ease-in-out infinite;
+}
+.critter-dog .chase-ball::before{
+  content:'';position:absolute;width:3px;height:3px;
+  background:rgba(255,255,255,0.4);border-radius:50%;top:2px;left:2px;
+}
+@keyframes ballBounce{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-10px)}
+}
+.critter-dog .dog-shadow{
+  position:absolute;bottom:-4px;left:8px;width:26px;height:6px;
+  background:rgba(0,0,0,0.08);border-radius:50%;
+}
+/* Dog walking bob */
+.critter-dog{animation:dogTrot 0.3s ease-in-out infinite alternate}
+@keyframes dogTrot{0%{transform:translateY(0) rotate(-1deg)}100%{transform:translateY(-2px) rotate(1deg)}}
+
+/* --- T-Rex (top-down, tiny arms, big head) --- */
+.critter-trex{width:48px;height:40px;position:relative}
+.critter-trex .trex-body{
+  width:24px;height:20px;
+  background:radial-gradient(ellipse at 50% 45%,#5a8a40,#488030,#3a6828);
+  border-radius:50%;position:absolute;top:10px;left:10px;
+  box-shadow:inset 0 -2px 3px rgba(0,0,0,0.15);
+}
+.critter-trex .trex-body::before{
+  content:'';position:absolute;width:14px;height:10px;
+  background:radial-gradient(ellipse,#80b858,#6aa048);
+  border-radius:50%;top:7px;left:50%;transform:translateX(-50%);
+}
+.critter-trex .trex-head{
+  width:18px;height:16px;
+  background:radial-gradient(ellipse at 50% 40%,#5a8a40,#488030);
+  border-radius:45% 55% 50% 50%;position:absolute;top:4px;left:0;
+}
+.critter-trex .trex-jaw{
+  position:absolute;top:12px;left:-2px;width:12px;height:6px;
+  background:linear-gradient(180deg,#488030,#3a6828);
+  border-radius:0 0 50% 50%;
+}
+.critter-trex .trex-teeth{
+  position:absolute;top:10px;left:-1px;width:10px;height:3px;
+  background:repeating-linear-gradient(90deg,#fff 0px,#fff 1.5px,transparent 1.5px,transparent 3px);
+}
+.critter-trex .trex-eye{
+  position:absolute;top:6px;left:4px;width:6px;height:6px;background:#fff;border-radius:50%;
+  border:1px solid #2a4818;
+}
+.critter-trex .trex-eye::after{
+  content:'';position:absolute;width:3px;height:4px;background:#880000;border-radius:50%;
+  top:1px;left:1.5px;
+}
+.critter-trex .trex-arm{
+  position:absolute;top:14px;width:4px;height:6px;
+  background:#488030;border-radius:2px;
+}
+.critter-trex .trex-arm.l{left:6px;transform:rotate(30deg)}
+.critter-trex .trex-arm.r{left:12px;transform:rotate(-10deg)}
+.critter-trex .trex-tail{
+  position:absolute;top:10px;right:0;width:14px;height:8px;
+  background:linear-gradient(90deg,#488030,#3a6828 60%,#2a5018);
+  border-radius:4px 50% 50% 4px;
+}
+.critter-trex .trex-leg{
+  position:absolute;bottom:-2px;width:8px;height:7px;
+  background:#488030;border-radius:50% 50% 30% 30%;
+}
+.critter-trex .trex-leg.l{left:12px}
+.critter-trex .trex-leg.r{left:22px}
+.critter-trex .trex-shadow{
+  position:absolute;bottom:-5px;left:6px;width:28px;height:6px;
+  background:rgba(0,0,0,0.08);border-radius:50%;
+}
+.critter-trex{animation:trexStomp 0.35s ease-in-out infinite alternate}
+@keyframes trexStomp{0%{transform:translateY(0) rotate(-2deg)}100%{transform:translateY(-2px) rotate(2deg)}}
+
+/* --- Kitty Cat (top-down, like the owl style) --- */
+.critter-kitty{width:38px;height:36px;position:relative}
+.critter-kitty .kitty-body{
+  width:24px;height:22px;
+  background:radial-gradient(ellipse at 50% 45%,#f0a858,#e09040,#cc7828);
+  border-radius:50%;position:absolute;top:8px;left:6px;
+  box-shadow:inset 0 -2px 3px rgba(0,0,0,0.1);
+}
+.critter-kitty .kitty-body::before{
+  content:'';position:absolute;width:14px;height:12px;
+  background:radial-gradient(ellipse,#f8d098,#f0c080);
+  border-radius:50%;top:7px;left:50%;transform:translateX(-50%);
+}
+/* Tabby stripes */
+.critter-kitty .kitty-body::after{
+  content:'';position:absolute;top:3px;left:4px;right:4px;height:14px;
+  background:repeating-linear-gradient(0deg,transparent 0px,transparent 3px,rgba(180,100,30,0.2) 3px,rgba(180,100,30,0.2) 4px);
+  border-radius:50%;
+}
+.critter-kitty .kitty-head{
+  width:16px;height:14px;
+  background:radial-gradient(ellipse at 50% 40%,#f0a858,#e09040);
+  border-radius:50%;position:absolute;top:2px;left:2px;
+}
+.critter-kitty .kitty-ear{
+  position:absolute;width:0;height:0;top:0;
+  border-left:5px solid transparent;border-right:5px solid transparent;
+  border-bottom:10px solid #e09040;
+}
+.critter-kitty .kitty-ear.l{left:1px;transform:rotate(-15deg)}
+.critter-kitty .kitty-ear.r{left:12px;transform:rotate(15deg)}
+.critter-kitty .kitty-ear::after{
+  content:'';position:absolute;
+  border-left:3px solid transparent;border-right:3px solid transparent;
+  border-bottom:6px solid #f0b8a0;
+  top:3px;left:-3px;
+}
+.critter-kitty .kitty-eyes{
+  position:absolute;top:5px;left:3px;display:flex;gap:2px;
+}
+.critter-kitty .kitty-eyeball{
+  width:5px;height:5px;background:#fff;border-radius:50%;
+  position:relative;border:1px solid #8b6914;
+}
+.critter-kitty .kitty-eyeball::after{
+  content:'';position:absolute;width:2px;height:3px;background:#228844;border-radius:50%;
+  top:1px;left:1.5px;
+}
+.critter-kitty .kitty-nose{
+  position:absolute;top:10px;left:5px;
+  width:0;height:0;
+  border-left:2px solid transparent;border-right:2px solid transparent;
+  border-top:3px solid #e87080;
+}
+.critter-kitty .kitty-whisker{
+  position:absolute;top:10px;width:8px;height:1px;background:rgba(0,0,0,0.15);
+}
+.critter-kitty .kitty-whisker.l{left:-4px;transform:rotate(-5deg)}
+.critter-kitty .kitty-whisker.r{left:14px;transform:rotate(5deg)}
+.critter-kitty .kitty-tail{
+  position:absolute;top:6px;right:-2px;width:4px;height:14px;
+  background:linear-gradient(180deg,#e09040,#cc7828);
+  border-radius:3px;transform-origin:top;
+  animation:kittyTailSwish 0.8s ease-in-out infinite alternate;
+}
+@keyframes kittyTailSwish{0%{transform:rotate(-15deg)}100%{transform:rotate(15deg)}}
+.critter-kitty .kitty-paw{
+  position:absolute;bottom:-2px;width:6px;height:5px;
+  background:#e09040;border-radius:50% 50% 30% 30%;
+}
+.critter-kitty .kitty-paw.fl{left:6px}
+.critter-kitty .kitty-paw.fr{left:14px}
+.critter-kitty .kitty-paw.bl{left:18px}
+.critter-kitty .kitty-paw.br{left:24px}
+.critter-kitty .kitty-shadow{
+  position:absolute;bottom:-4px;left:6px;width:22px;height:5px;
+  background:rgba(0,0,0,0.08);border-radius:50%;
+}
+.critter-kitty{animation:kittySlink 0.4s ease-in-out infinite alternate}
+@keyframes kittySlink{0%{transform:translateY(0)}100%{transform:translateY(-1px)}}
+
+/* --- Sharks (small shark fleeing big shark) --- */
+.critter-sharks{width:70px;height:28px;position:relative}
+/* Small shark (fleeing) */
+.critter-sharks .shark-sm{position:absolute;top:6px;left:0;width:28px;height:16px}
+.critter-sharks .shark-sm .sk-body{
+  width:20px;height:12px;
+  background:radial-gradient(ellipse at 50% 40%,#7090b0,#5878a0,#486890);
+  border-radius:50% 40% 40% 50%;position:absolute;top:2px;left:0;
+  box-shadow:inset 0 -2px 2px rgba(0,0,0,0.1);
+}
+.critter-sharks .shark-sm .sk-body::before{
+  content:'';position:absolute;width:12px;height:6px;
+  background:radial-gradient(ellipse,#c0d0e0,#a0b8d0);
+  border-radius:50%;top:5px;left:3px;
+}
+.critter-sharks .shark-sm .sk-fin{
+  position:absolute;top:-2px;left:8px;
+  width:0;height:0;
+  border-left:4px solid transparent;border-right:3px solid transparent;
+  border-bottom:8px solid #5878a0;
+}
+.critter-sharks .shark-sm .sk-tail{
+  position:absolute;top:3px;right:0;width:0;height:0;
+  border-top:4px solid transparent;border-bottom:4px solid transparent;
+  border-left:8px solid #5878a0;
+}
+.critter-sharks .shark-sm .sk-eye{
+  position:absolute;top:4px;left:3px;width:3px;height:3px;background:#fff;border-radius:50%;
+}
+.critter-sharks .shark-sm .sk-eye::after{
+  content:'';position:absolute;width:1.5px;height:1.5px;background:#111;border-radius:50%;top:0.5px;left:0.5px;
+}
+/* Big shark (chasing) */
+.critter-sharks .shark-lg{position:absolute;top:0;left:32px;width:38px;height:24px}
+.critter-sharks .shark-lg .sk-body{
+  width:28px;height:18px;
+  background:radial-gradient(ellipse at 50% 40%,#607898,#486888,#385878);
+  border-radius:50% 40% 40% 50%;position:absolute;top:3px;left:0;
+  box-shadow:inset 0 -3px 3px rgba(0,0,0,0.15);
+}
+.critter-sharks .shark-lg .sk-body::before{
+  content:'';position:absolute;width:16px;height:8px;
+  background:radial-gradient(ellipse,#b0c4d8,#90a8c0);
+  border-radius:50%;top:8px;left:4px;
+}
+.critter-sharks .shark-lg .sk-fin{
+  position:absolute;top:-4px;left:10px;
+  width:0;height:0;
+  border-left:5px solid transparent;border-right:4px solid transparent;
+  border-bottom:12px solid #486888;
+}
+.critter-sharks .shark-lg .sk-tail{
+  position:absolute;top:3px;right:0;width:0;height:0;
+  border-top:6px solid transparent;border-bottom:6px solid transparent;
+  border-left:10px solid #486888;
+}
+.critter-sharks .shark-lg .sk-eye{
+  position:absolute;top:6px;left:4px;width:5px;height:5px;background:#fff;border-radius:50%;
+  border:1px solid #2a4060;
+}
+.critter-sharks .shark-lg .sk-eye::after{
+  content:'';position:absolute;width:2.5px;height:3px;background:#111;border-radius:50%;
+  top:1px;left:1px;
+}
+.critter-sharks .shark-lg .sk-mouth{
+  position:absolute;top:14px;left:1px;width:8px;height:3px;
+  background:#222;border-radius:0 0 50% 50%;
+}
+.critter-sharks .shark-lg .sk-teeth{
+  position:absolute;top:13px;left:1px;width:8px;height:2px;
+  background:repeating-linear-gradient(90deg,#fff 0px,#fff 1px,transparent 1px,transparent 2.5px);
+}
+.critter-sharks{animation:sharksSwim 0.6s ease-in-out infinite alternate}
+@keyframes sharksSwim{0%{transform:translateY(-2px) rotate(-1deg)}100%{transform:translateY(2px) rotate(1deg)}}
+/* Panic bubbles from small shark */
+.critter-sharks .panic-bubbles{
+  position:absolute;top:2px;left:-4px;
+}
+.critter-sharks .panic-bubble{
+  position:absolute;width:3px;height:3px;background:rgba(120,180,255,0.4);
+  border-radius:50%;
+  animation:panicBub 1s ease-out infinite;
+}
+.critter-sharks .panic-bubble:nth-child(1){top:0;left:0;animation-delay:0s}
+.critter-sharks .panic-bubble:nth-child(2){top:-3px;left:3px;animation-delay:0.3s;width:2px;height:2px}
+.critter-sharks .panic-bubble:nth-child(3){top:2px;left:-2px;animation-delay:0.6s;width:2px;height:2px}
+@keyframes panicBub{
+  0%{opacity:0.6;transform:translateY(0) scale(1)}
+  100%{opacity:0;transform:translateY(-8px) scale(0.5)}
+}
+
+/* Room warm sunlight overlay */
+.room-ambience{
+  position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse at 50% 10%, rgba(255,245,200,0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(255,200,100,0.04) 0%, transparent 40%);
+}
+
+/* ======== DUST MOTES floating in sunlight ======== */
+.dust-mote{
+  position:absolute;border-radius:50%;pointer-events:none;z-index:1;
+  background:rgba(255,245,200,0.5);
+  animation:dustFloat var(--dust-dur,8s) ease-in-out infinite;
+}
+@keyframes dustFloat{
+  0%{transform:translate(0,0) scale(1);opacity:0.3}
+  25%{transform:translate(5px,-8px) scale(1.2);opacity:0.6}
+  50%{transform:translate(-3px,-15px) scale(0.8);opacity:0.4}
+  75%{transform:translate(7px,-5px) scale(1.1);opacity:0.5}
+  100%{transform:translate(0,0) scale(1);opacity:0.3}
+}
+
+/* ======== TOYBOXES (magical treasure chests, top-down) ======== */
+.toybox-spot{
+  position:absolute;z-index:3;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+/* Circular hitbox outline */
+.toybox-hitbox{
+  position:absolute;
+  width:140%;height:190%;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  border:2px dashed rgba(255,255,255,0.25);
+  border-radius:50%;
+  pointer-events:none;
+  animation:hitboxPulse 3s ease-in-out infinite;
+}
+@keyframes hitboxPulse{
+  0%,100%{opacity:0.3;transform:translate(-50%,-50%) scale(0.95)}
+  50%{opacity:0.6;transform:translate(-50%,-50%) scale(1.05)}
+}
+.toybox-spot:hover .toybox-hitbox{opacity:0.8;border-color:rgba(255,255,255,0.5)}
+
+/* Floating sparkle particles */
+.toybox-spot::before{
+  content:'';position:absolute;
+  width:5px;height:5px;border-radius:50%;
+  top:-6px;left:30%;z-index:4;pointer-events:none;
+  animation:chestSparkle 2.5s ease-in-out infinite;
+}
+.toybox-spot::after{
+  content:'';position:absolute;
+  width:4px;height:4px;border-radius:50%;
+  top:-4px;right:22%;z-index:4;pointer-events:none;
+  animation:chestSparkle 2.5s ease-in-out infinite 1.2s;
+}
+@keyframes chestSparkle{
+  0%,100%{opacity:0;transform:translateY(0) scale(0.4)}
+  50%{opacity:0.9;transform:translateY(-10px) scale(1.1)}
+}
+.toybox-red::before,.toybox-red::after{background:#ffd700;box-shadow:0 0 6px #ffd700}
+.toybox-blue::before,.toybox-blue::after{background:#a0d4ff;box-shadow:0 0 6px #a0d4ff}
+.toybox-green::before,.toybox-green::after{background:#80ffb0;box-shadow:0 0 6px #80ffb0}
+.toybox-purple::before,.toybox-purple::after{background:#d0a0ff;box-shadow:0 0 6px #d0a0ff}
+
+/* Chest lid */
+.toybox-top{
+  width:100%;height:100%;
+  border-radius:8px 8px 5px 5px;
+  position:relative;overflow:hidden;
+  transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1),filter 0.3s;
+  box-shadow:
+    0 2px 4px rgba(0,0,0,0.25),
+    0 6px 16px rgba(0,0,0,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.15),
+    inset 0 -2px 0 rgba(0,0,0,0.25);
+}
+.toybox-spot:not(.open):hover .toybox-top{transform:scale(1.08);filter:brightness(1.12)}
+
+/* Arched lid highlight */
+.toybox-top::before{
+  content:'';position:absolute;
+  top:0;left:12%;right:12%;height:100%;
+  background:linear-gradient(90deg,
+    transparent,rgba(255,255,255,0.08) 25%,
+    rgba(255,255,255,0.18) 50%,
+    rgba(255,255,255,0.08) 75%,transparent);
+  pointer-events:none;
+}
+/* Golden keyhole clasp */
+.toybox-top::after{
+  content:'';position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:12px;height:14px;
+  background:
+    radial-gradient(circle at 50% 65%,transparent 2px,#b8860b 2.5px,transparent 3px),
+    radial-gradient(ellipse at 50% 35%,#ffeaa7 0%,#ffd700 40%,#b8860b 100%);
+  border-radius:50% 50% 4px 4px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.5);
+  transition:opacity 0.3s;z-index:2;
+}
+.toybox-spot.open .toybox-top::after{opacity:0}
+
+/* Metal bands */
+.toybox-band{
+  position:absolute;left:0;right:0;height:3px;pointer-events:none;z-index:1;
+  background:linear-gradient(90deg,
+    rgba(160,140,80,0.25),
+    rgba(255,215,0,0.4) 15%,rgba(255,230,120,0.5) 50%,
+    rgba(255,215,0,0.4) 85%,rgba(160,140,80,0.25));
+}
+.toybox-band.top{top:4px}
+.toybox-band.bot{bottom:4px}
+
+/* Corner rivets */
+.toybox-rivet{
+  position:absolute;width:5px;height:5px;
+  background:radial-gradient(circle at 35% 30%,#ffeaa7,#daa520,#8b6914);
+  border-radius:50%;z-index:2;pointer-events:none;
+  box-shadow:0 1px 2px rgba(0,0,0,0.3),inset 0 -1px 0 rgba(0,0,0,0.2);
+}
+
+
+/* Treasure chest colors with wood-like depth */
+.toybox-red .toybox-top{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,0.06) 0%,transparent 40%,transparent 60%,rgba(0,0,0,0.1) 100%),
+    linear-gradient(135deg,#c83838,#a82020,#d04848,#901818);
+}
+.toybox-blue .toybox-top{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,0.06) 0%,transparent 40%,transparent 60%,rgba(0,0,0,0.1) 100%),
+    linear-gradient(135deg,#2860a8,#1a4880,#3878c0,#143868);
+}
+.toybox-green .toybox-top{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,0.06) 0%,transparent 40%,transparent 60%,rgba(0,0,0,0.1) 100%),
+    linear-gradient(135deg,#28884a,#1a6838,#389860,#126030);
+}
+.toybox-purple .toybox-top{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,0.06) 0%,transparent 40%,transparent 60%,rgba(0,0,0,0.1) 100%),
+    linear-gradient(135deg,#7038a8,#582090,#8048c0,#481870);
+}
+
+/* Open state: lid lifts */
+.toybox-spot.open .toybox-top{
+  transform:scale(0.85) translateY(-30%);
+  opacity:0.5;
+  box-shadow:0 2px 6px rgba(0,0,0,0.15);
+}
+
+/* Magical ambient glow (always visible, pulses gently) */
+.toybox-glow{
+  position:absolute;inset:-18px;border-radius:14px;
+  pointer-events:none;
+  animation:chestGlow 3s ease-in-out infinite;
+}
+@keyframes chestGlow{0%,100%{opacity:0.25}50%{opacity:0.5}}
+.toybox-spot.open .toybox-glow{opacity:1!important;animation:none}
+.toybox-red .toybox-glow{box-shadow:0 0 30px 10px rgba(255,90,60,0.25),0 0 60px 20px rgba(255,215,0,0.08)}
+.toybox-blue .toybox-glow{box-shadow:0 0 30px 10px rgba(60,130,255,0.25),0 0 60px 20px rgba(160,212,255,0.08)}
+.toybox-green .toybox-glow{box-shadow:0 0 30px 10px rgba(60,200,100,0.25),0 0 60px 20px rgba(128,255,176,0.08)}
+.toybox-purple .toybox-glow{box-shadow:0 0 30px 10px rgba(140,80,220,0.25),0 0 60px 20px rgba(208,160,255,0.08)}
+
+/* Contents panel (hidden in top-down) */
+.toybox-contents{display:none}
+
+/* Toybox label */
+.toybox-label{
+  position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);
+  font-size:clamp(9px,1.8vw,12px);font-weight:800;color:#fff;
+  white-space:nowrap;pointer-events:none;
+  text-shadow:0 1px 4px rgba(0,0,0,0.6);
+  opacity:0.7;transition:opacity 0.3s;
+}
+.toybox-spot:hover .toybox-label,.toybox-spot.open .toybox-label{opacity:1}
+
+/* ======== TOY BUTTONS (styles from toys.css via link) ======== */
+
+/* ======== OWL CHARACTER (top-down) ======== */
+.owl{
+  position:absolute;z-index:20;
+  width:44px;height:44px;
+  pointer-events:none;
+  transition:left 0.6s cubic-bezier(0.25,0.1,0.25,1),top 0.6s cubic-bezier(0.25,0.1,0.25,1);
+  filter:drop-shadow(0 3px 6px rgba(0,0,0,0.3));
+}
+.owl.walking{animation:owlWaddle 0.2s ease-in-out infinite alternate}
+@keyframes owlWaddle{0%{transform:rotate(-4deg)}100%{transform:rotate(4deg)}}
+/* Owl body from above: round brown body, two ear tufts, two eyes */
+.owl-body{
+  width:40px;height:38px;
+  background:radial-gradient(ellipse at 50% 45%,#c08040,#a0522d,#8a4525);
+  border-radius:50%;
+  position:absolute;top:4px;left:2px;
+  box-shadow:inset 0 -2px 4px rgba(0,0,0,0.15);
+}
+/* Belly */
+.owl-body::before{
+  content:'';position:absolute;
+  width:26px;height:22px;
+  background:radial-gradient(ellipse,#e8cca0,#deb887);
+  border-radius:50%;
+  top:10px;left:50%;transform:translateX(-50%);
+}
+/* Ear tufts */
+.owl-ear{
+  position:absolute;width:0;height:0;top:0;
+  border-left:6px solid transparent;border-right:6px solid transparent;
+  border-bottom:12px solid #a0522d;
+}
+.owl-ear.l{left:6px;transform:rotate(-12deg)}
+.owl-ear.r{right:6px;transform:rotate(12deg)}
+/* Eyes */
+.owl-eyes{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  display:flex;gap:4px;z-index:1;
+}
+.owl-eye{
+  width:12px;height:12px;background:#fff;border-radius:50%;
+  position:relative;border:1.5px solid #8b6914;
+}
+.owl-pupil{
+  position:absolute;width:6px;height:6px;background:#222;
+  border-radius:50%;top:3px;left:50%;transform:translateX(-50%);
+  transition:transform 0.2s;
+}
+.owl-pupil::after{
+  content:'';position:absolute;width:2px;height:2px;
+  background:#fff;border-radius:50%;top:1px;right:0;
+}
+.owl-eye::after{
+  content:'';position:absolute;inset:-1.5px;
+  background:#a0522d;border-radius:50%;transform:scaleY(0);
+  animation:owlBlink 4.5s ease-in-out infinite;
+}
+@keyframes owlBlink{0%,90%,100%{transform:scaleY(0)}93%,96%{transform:scaleY(1)}}
+/* Beak */
+.owl-beak{
+  position:absolute;top:22px;left:50%;transform:translateX(-50%);
+  width:0;height:0;
+  border-left:4px solid transparent;border-right:4px solid transparent;
+  border-top:6px solid #ff9f43;
+  z-index:1;
+}
+/* Wings (visible from above, tucked to sides) */
+.owl-wing{
+  position:absolute;top:10px;width:10px;height:20px;
+  background:linear-gradient(180deg,#9a6820,#8b6914);
+  border-radius:50%;
+}
+.owl-wing.l{left:-3px;transform:rotate(15deg)}
+.owl-wing.r{right:-3px;transform:rotate(-15deg)}
+/* Feet (behind body from above) */
+.owl-feet{
+  position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);
+  display:flex;gap:10px;
+}
+.owl-ft{
+  width:10px;height:6px;background:#ff9f43;
+  border-radius:50% 50% 30% 30%;
+}
+
+/* Footprints trail */
+.footprint{
+  position:absolute;width:6px;height:4px;
+  background:rgba(139,105,20,0.1);border-radius:50%;
+  pointer-events:none;z-index:1;
+  animation:footFade 2s ease-out forwards;
+}
+@keyframes footFade{0%{opacity:0.3}100%{opacity:0}}
+
+/* Sparkle burst */
+.sparkle-p{
+  position:absolute;border-radius:50%;pointer-events:none;z-index:25;
+  animation:sparkBurst 0.7s ease-out forwards;
+}
+@keyframes sparkBurst{
+  0%{transform:translate(0,0) scale(1);opacity:1}
+  100%{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0}
+}
+
+/* Target ring (where you clicked) */
+.click-ring{
+  position:absolute;width:30px;height:30px;border:2px solid rgba(255,215,0,0.5);
+  border-radius:50%;pointer-events:none;z-index:5;
+  transform:translate(-50%,-50%);
+  animation:ringPulse 0.6s ease-out forwards;
+}
+@keyframes ringPulse{0%{transform:translate(-50%,-50%) scale(0.3);opacity:1}100%{transform:translate(-50%,-50%) scale(1.5);opacity:0}}
+
+/* ======== MUSIC BOX (top-down) ======== */
+/* ======== RECORD PLAYER (top-down) ======== */
+.music-box-spot{
+  position:absolute;bottom:12%;left:50%;transform:translateX(-50%);
+  z-index:3;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.music-box-td{
+  width:56px;height:56px;
+  background:linear-gradient(145deg,#3a2a1a,#2a1c10);
+  border-radius:6px;position:relative;
+  box-shadow:0 3px 10px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.06);
+  transition:transform 0.2s;
+}
+.music-box-td:hover{transform:scale(1.1)}
+.music-box-td:active{transform:scale(0.95)}
+/* Vinyl record (circle on the platter) */
+.music-box-td::after{
+  content:'';position:absolute;
+  top:6px;left:6px;width:38px;height:38px;
+  background:
+    radial-gradient(circle,#222 0%,#222 12%,transparent 13%),
+    radial-gradient(circle,transparent 25%,rgba(40,40,40,0.3) 26%,transparent 27%),
+    radial-gradient(circle,transparent 38%,rgba(40,40,40,0.3) 39%,transparent 40%),
+    radial-gradient(circle,transparent 48%,rgba(60,60,60,0.2) 49%,transparent 50%),
+    radial-gradient(circle,#1a1a1a 60%,#111 100%);
+  border-radius:50%;
+  box-shadow:0 0 0 2px rgba(80,80,80,0.3);
+  transition:transform 0.3s;
+}
+/* Record label center */
+.record-label{
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:12px;height:12px;
+  background:radial-gradient(circle at 40% 35%,#e74c3c,#b83232);
+  border-radius:50%;z-index:2;pointer-events:none;
+  box-shadow:0 0 0 1.5px rgba(0,0,0,0.3);
+}
+.record-label::after{
+  content:'';position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:2px;height:2px;background:#333;border-radius:50%;
+}
+/* Tonearm */
+.tonearm{
+  position:absolute;top:4px;right:4px;
+  width:3px;height:24px;
+  background:linear-gradient(180deg,#c0c0c0,#808080);
+  border-radius:2px;
+  transform-origin:top center;
+  transform:rotate(-25deg);
+  z-index:3;pointer-events:none;
+  transition:transform 0.5s ease;
+}
+.tonearm::before{
+  content:'';position:absolute;top:-2px;left:50%;
+  transform:translateX(-50%);
+  width:5px;height:5px;background:#888;border-radius:50%;
+  box-shadow:0 0 0 1px rgba(0,0,0,0.2);
+}
+.tonearm::after{
+  content:'';position:absolute;bottom:-1px;left:50%;
+  transform:translateX(-50%) rotate(15deg);
+  width:4px;height:3px;background:#aaa;
+  border-radius:0 0 2px 2px;
+}
+/* Playing state: record spins, tonearm moves onto record */
+.music-box-td.open::after{
+  animation:recordSpin 2s linear infinite;
+}
+.music-box-td.open .tonearm{
+  transform:rotate(5deg);
+}
+@keyframes recordSpin{
+  0%{transform:rotate(0deg)}
+  100%{transform:rotate(360deg)}
+}
+/* Notes float up when playing */
+.music-box-notes{
+  position:absolute;bottom:100%;left:50%;
+  width:44px;height:40px;pointer-events:none;
+  opacity:0;transition:opacity 0.5s;
+}
+.music-box-td.open .music-box-notes{opacity:1}
+.music-note{
+  position:absolute;font-size:14px;color:#e74c3c;opacity:0;pointer-events:none;
+}
+.music-box-td.open .music-note{animation:noteUp 2.5s ease-out infinite}
+.music-note:nth-child(1){left:0;animation-delay:0s}
+.music-note:nth-child(2){left:14px;animation-delay:0.7s}
+.music-note:nth-child(3){left:28px;animation-delay:1.4s}
+@keyframes noteUp{0%{transform:translateY(0) scale(0.8);opacity:0}15%{opacity:0.7}100%{transform:translateY(-28px) scale(1.1) rotate(12deg);opacity:0}}
+/* Label */
+.music-box-label{
+  position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);
+  font-size:clamp(8px,1.5vw,10px);font-weight:800;color:#fff;
+  white-space:nowrap;pointer-events:none;
+  text-shadow:0 1px 3px rgba(0,0,0,0.4);
+  opacity:0.6;
+}
+.music-box-spot:hover .music-box-label{opacity:1}
+
+/* ======== TITLE (engraved into the floor, whimsical color) ======== */
+.room-title{
+  position:absolute;top:8%;left:50%;
+  transform:translateX(-50%);
+  z-index:1;pointer-events:none;
+  padding:0;background:none;border-radius:0;box-shadow:none;
+  animation:titleIn 1.2s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+@keyframes titleIn{0%{transform:translateX(-50%) scale(0.8);opacity:0}100%{transform:translateX(-50%) scale(1);opacity:1}}
+.room-title h1{
+  font-family:'Sniglet',cursive;font-size:clamp(22px,5vw,42px);
+  font-weight:800;letter-spacing:4px;text-transform:uppercase;
+  color:transparent;
+  /* Engraved inset shadows — chiseled into the wood */
+  text-shadow:
+    0 -1px 0 rgba(0,0,0,0.2),
+    0 1.5px 1px rgba(255,255,255,0.1),
+    0 2px 4px rgba(0,0,0,0.15);
+  -webkit-text-stroke:0.5px rgba(0,0,0,0.1);
+  /* Whimsical rainbow fill inside the carved letters */
+  background:linear-gradient(
+    135deg,
+    #e74c3c 0%, #f39c12 15%, #f1c40f 25%,
+    #2ecc71 35%, #1abc9c 45%, #3498db 55%,
+    #9b59b6 65%, #e91e63 75%, #ff6b6b 85%,
+    #f39c12 100%
+  );
+  background-size:200% 100%;
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+  filter:url(#engraved);
+  opacity:0.7;
+  animation:engravedShimmer 6s linear infinite;
+}
+@keyframes engravedShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* Hint text */
+.hint-text{
+  position:absolute;bottom:max(14px,2vh);left:50%;transform:translateX(-50%);
+  z-index:30;pointer-events:none;
+  font-size:clamp(12px,2.5vw,16px);font-weight:700;color:rgba(255,255,255,0.8);
+  text-shadow:0 1px 4px rgba(0,0,0,0.3);
+  animation:hintPulse 3s ease-in-out infinite;
+  white-space:nowrap;
+}
+@keyframes hintPulse{0%,100%{opacity:0.5}50%{opacity:0.9}}
+
+/* ======== SCATTERED FLOOR ITEMS ======== */
+.floor-item{position:absolute;pointer-events:none;z-index:1}
+
+/* Alphabet blocks - 3D cube look */
+.f-block{
+  width:22px;height:22px;border-radius:3px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;color:#fff;
+  text-shadow:0 1px 1px rgba(0,0,0,0.2);
+  box-shadow:
+    2px 2px 0 rgba(0,0,0,0.15),
+    0 2px 4px rgba(0,0,0,0.2);
+  position:relative;
+}
+/* 3D right face */
+.f-block::before{
+  content:'';position:absolute;right:-3px;top:2px;
+  width:3px;height:100%;
+  background:rgba(0,0,0,0.2);border-radius:0 2px 2px 0;
+}
+/* 3D bottom face */
+.f-block::after{
+  content:'';position:absolute;bottom:-3px;left:2px;
+  height:3px;width:100%;
+  background:rgba(0,0,0,0.15);border-radius:0 0 2px 2px;
+}
+
+/* Crayons - larger with wrapper detail */
+.f-crayon{
+  width:36px;height:8px;border-radius:2px 4px 4px 2px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.15);
+  position:relative;
+}
+/* Pointed tip */
+.f-crayon::before{
+  content:'';position:absolute;left:-5px;top:1px;
+  width:0;height:0;
+  border-top:3px solid transparent;
+  border-bottom:3px solid transparent;
+  border-right:5px solid;
+  border-right-color:inherit;
+  filter:brightness(0.8);
+}
+/* Paper wrapper/label */
+.f-crayon::after{
+  content:'';position:absolute;top:2px;left:12px;
+  width:14px;height:4px;
+  background:rgba(255,255,255,0.3);
+  border-radius:1px;
+}
+
+/* Ball with stripe */
+.f-ball{
+  width:22px;height:22px;border-radius:50%;
+  box-shadow:0 2px 4px rgba(0,0,0,0.2);
+  position:relative;overflow:hidden;
+}
+/* Highlight */
+.f-ball::before{
+  content:'';position:absolute;width:6px;height:6px;
+  background:rgba(255,255,255,0.4);border-radius:50%;
+  top:3px;left:4px;
+}
+/* Stripe */
+.f-ball::after{
+  content:'';position:absolute;
+  width:100%;height:6px;
+  background:rgba(255,255,255,0.25);
+  top:50%;transform:translateY(-50%) rotate(-20deg);
+}
+
+/* Teddy bear (top-down) */
+.f-bear{width:26px;height:24px;position:relative}
+.f-bear-body{
+  width:20px;height:18px;
+  background:radial-gradient(circle at 45% 40%,#d4a060,#b08040);
+  border-radius:50%;position:absolute;top:6px;left:3px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.18);
+}
+.f-bear-body::before{
+  content:'';position:absolute;
+  width:12px;height:10px;
+  background:radial-gradient(circle,#e8c898,#dab878);
+  border-radius:50%;top:5px;left:50%;transform:translateX(-50%);
+}
+.f-bear-ear{
+  position:absolute;width:10px;height:10px;
+  background:radial-gradient(circle at 40% 35%,#c89858,#a07830);
+  border-radius:50%;top:0;
+  box-shadow:0 1px 2px rgba(0,0,0,0.12);
+}
+.f-bear-ear::after{
+  content:'';position:absolute;width:5px;height:5px;
+  background:#d4a870;border-radius:50%;top:2.5px;left:2.5px;
+}
+.f-bear-ear.l{left:1px}
+.f-bear-ear.r{right:1px}
+.f-bear-eyes{
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  display:flex;gap:4px;z-index:1;
+}
+.f-bear-dot{width:3px;height:3px;background:#222;border-radius:50%}
+.f-bear-nose{
+  position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  width:4px;height:3px;background:#3a2010;border-radius:50%;z-index:1;
+}
+
+/* Rubber duck (top-down) */
+.f-duck{width:24px;height:20px;position:relative}
+.f-duck-body{
+  width:20px;height:18px;
+  background:radial-gradient(circle at 45% 40%,#ffe870,#feca57);
+  border-radius:50%;position:absolute;top:2px;left:0;
+  box-shadow:0 1px 3px rgba(0,0,0,0.12);
+}
+.f-duck-body::before{
+  content:'';position:absolute;
+  width:12px;height:8px;
+  background:radial-gradient(circle,rgba(255,255,255,0.35),transparent);
+  border-radius:50%;top:3px;left:3px;
+}
+.f-duck-head{
+  width:12px;height:12px;
+  background:radial-gradient(circle at 40% 35%,#ffe880,#feca57);
+  border-radius:50%;position:absolute;top:0;right:0;
+  box-shadow:0 1px 2px rgba(0,0,0,0.1);
+}
+.f-duck-beak{
+  position:absolute;top:4px;right:-3px;
+  width:0;height:0;
+  border-top:2.5px solid transparent;border-bottom:2.5px solid transparent;
+  border-left:5px solid #ff9f43;
+}
+.f-duck-eye{
+  position:absolute;width:2.5px;height:2.5px;background:#222;
+  border-radius:50%;top:3px;right:3px;
+}
+
+/* Toy car (top-down) */
+.f-car{width:28px;height:16px;position:relative}
+.f-car-body{
+  width:24px;height:12px;
+  border-radius:3px 5px 3px 3px;
+  position:absolute;top:2px;left:2px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.18);
+}
+/* Windshield */
+.f-car-body::before{
+  content:'';position:absolute;
+  width:8px;height:6px;
+  background:rgba(180,220,255,0.5);
+  border-radius:2px;top:2px;right:2px;
+}
+/* Wheels */
+.f-car-wheel{
+  position:absolute;width:6px;height:6px;
+  background:radial-gradient(circle,#444,#222);
+  border-radius:50%;
+  box-shadow:0 0 0 1px rgba(255,255,255,0.15);
+}
+
+/* Stacking rings (top-down) */
+.f-rings{width:24px;height:24px;position:relative}
+.f-ring{
+  position:absolute;border-radius:50%;
+  left:50%;top:50%;transform:translate(-50%,-50%);
+  border:3px solid;
+  box-shadow:0 1px 2px rgba(0,0,0,0.1);
+}
+.f-ring.r1{width:22px;height:22px;border-color:#e74c3c}
+.f-ring.r2{width:16px;height:16px;border-color:#feca57}
+.f-ring.r3{width:10px;height:10px;border-color:#54a0ff}
+.f-ring-post{
+  position:absolute;width:4px;height:4px;
+  background:#c49a4e;border-radius:50%;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+}
+
+/* ======== TOYBOX INTERIOR (full-screen zoom-in) ======== */
+.toybox-interior{
+  position:absolute;inset:0;z-index:40;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:clamp(16px,4vh,32px);
+  opacity:0;transition:opacity 0.4s;
+}
+.toybox-interior.visible{display:flex}
+.toybox-interior.show{opacity:1}
+
+/* Toybox interior — looking down into an open wooden toybox */
+.toybox-interior::before{
+  content:'';position:absolute;inset:0;z-index:-1;
+  transition:background 0.4s;
+}
+/* Wooden box interior with fabric lining — themed per toybox color */
+.toybox-interior[data-theme="red"]::before{
+  background:
+    linear-gradient(180deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
+    linear-gradient(90deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
+    radial-gradient(ellipse at 50% 50%,#f2d0d0 0%,#e8b0b0 100%);
+}
+.toybox-interior[data-theme="blue"]::before{
+  background:
+    linear-gradient(180deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
+    linear-gradient(90deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
+    radial-gradient(ellipse at 50% 50%,#c8ddf2 0%,#a8c4e0 100%);
+}
+.toybox-interior[data-theme="green"]::before{
+  background:
+    linear-gradient(180deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
+    linear-gradient(90deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
+    radial-gradient(ellipse at 50% 50%,#c8ecd0 0%,#a8d4b0 100%);
+}
+.toybox-interior[data-theme="purple"]::before{
+  background:
+    linear-gradient(180deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
+    linear-gradient(90deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
+    radial-gradient(ellipse at 50% 50%,#dcc8f0 0%,#c0a8d8 100%);
+}
+
+/* Wooden rim around the box edges */
+.toybox-interior::after{
+  content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+  box-shadow:
+    inset 0 0 0 clamp(14px,3.5vw,28px) #a07830,
+    inset 0 0 0 clamp(16px,4vw,32px) #8b6914,
+    inset 0 0 40px rgba(0,0,0,0.2);
+  background:
+    repeating-linear-gradient(90deg,
+      transparent 0px,transparent clamp(30px,8vw,60px),
+      rgba(0,0,0,0.04) clamp(30px,8vw,60px),rgba(0,0,0,0.04) calc(clamp(30px,8vw,60px) + 1px)
+    );
+  -webkit-mask:linear-gradient(#000,#000);
+  mask:linear-gradient(#000,#000);
+}
+
+/* Interior title banner */
+.interior-title{
+  font-family:'Sniglet',cursive;font-size:clamp(22px,5vw,36px);
+  font-weight:800;color:#fff;z-index:1;
+  padding:8px 32px;border-radius:14px;
+  box-shadow:0 4px 0 rgba(0,0,0,0.2),0 5px 12px rgba(0,0,0,0.15);
+  text-shadow:1px 2px 0 rgba(0,0,0,0.2);
+  animation:interiorTitleIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+  animation-delay:0.2s;
+}
+@keyframes interiorTitleIn{0%{transform:translateY(-30px) scale(0.8);opacity:0}100%{transform:translateY(0) scale(1);opacity:1}}
+.toybox-interior[data-theme="red"] .interior-title{background:linear-gradient(180deg,#e85050,#c03030)}
+.toybox-interior[data-theme="blue"] .interior-title{background:linear-gradient(180deg,#5088d0,#3060a0)}
+.toybox-interior[data-theme="green"] .interior-title{background:linear-gradient(180deg,#50b868,#308848)}
+.toybox-interior[data-theme="purple"] .interior-title{background:linear-gradient(180deg,#9060c0,#603890)}
+
+/* Interior toy area — toys scattered inside the box */
+.interior-shelf{
+  display:flex;gap:clamp(16px,5vw,36px);
+  padding:20px clamp(16px,5vw,36px);
+  position:relative;z-index:1;
+  animation:shelfSlideUp 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+  animation-delay:0.3s;
+}
+@keyframes shelfSlideUp{0%{transform:translateY(40px);opacity:0}100%{transform:translateY(0);opacity:1}}
+/* No shelf plank or brackets */
+.interior-shelf::after{display:none}
+.interior-shelf::before{display:none}
+
+/* Interior toy buttons — outline circle, no fill, no text */
+.interior-shelf .toy{
+  width:clamp(100px,22vw,140px);height:clamp(100px,22vw,140px);
+  border-radius:50%;
+  background:none;
+  border:3px dashed rgba(255,255,255,0.7);
+  box-shadow:0 0 0 2px rgba(0,0,0,0.08);
+  animation:intToyPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+  transition:transform 0.2s,border-color 0.2s,box-shadow 0.2s;
+  position:relative;
+}
+.interior-shelf .toy:hover{
+  transform:scale(1.12);
+  border-color:rgba(255,255,255,0.95);
+  box-shadow:0 0 16px rgba(255,255,255,0.3),0 0 0 2px rgba(0,0,0,0.1);
+}
+.interior-shelf .toy:active{transform:scale(0.93)}
+.interior-shelf .toy::after{display:none}
+.interior-shelf .toy:nth-child(2){animation-delay:0.1s}
+.interior-shelf .toy:nth-child(3){animation-delay:0.2s}
+@keyframes intToyPop{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
+.interior-shelf .toy-icon{
+  width:clamp(70px,18vw,100px);height:clamp(70px,18vw,100px);
+}
+/* Blinking tap-hint arrow */
+.tap-arrow{
+  position:absolute;bottom:-52px;left:50%;transform:translateX(-50%);
+  font-size:48px;line-height:1;color:#fff;
+  pointer-events:none;opacity:0;
+  text-shadow:0 3px 8px rgba(0,0,0,0.4);
+  filter:drop-shadow(0 0 8px rgba(255,255,255,0.5));
+}
+.tap-arrow.blink{animation:arrowBlink 0.5s ease-in-out 3}
+@keyframes arrowBlink{
+  0%,100%{opacity:0;transform:translateX(-50%) translateY(4px)}
+  50%{opacity:1;transform:translateX(-50%) translateY(0)}
+}
+
+/* Interior owl (sitting beside shelf) */
+.interior-owl{
+  position:absolute;bottom:clamp(40px,12vh,100px);right:clamp(20px,6vw,80px);
+  animation:interiorOwlIn 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
+  animation-delay:0.5s;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,0.25));
+}
+@keyframes interiorOwlIn{0%{transform:scale(0) rotate(-15deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
+
+/* Interior owl matches the top-down playroom owl (scaled up) */
+.interior-owl .int-owl{
+  width:66px;height:66px;position:relative;
+  filter:drop-shadow(0 3px 6px rgba(0,0,0,0.2));
+}
+.interior-owl .int-owl-body{
+  width:60px;height:57px;
+  background:radial-gradient(ellipse at 50% 45%,#c08040,#a0522d,#8a4525);
+  border-radius:50%;position:absolute;top:6px;left:3px;
+  box-shadow:inset 0 -2px 4px rgba(0,0,0,0.15);
+}
+.interior-owl .int-owl-body::before{
+  content:'';position:absolute;width:39px;height:33px;
+  background:radial-gradient(ellipse,#e8cca0,#deb887);
+  border-radius:50%;top:15px;left:50%;transform:translateX(-50%);
+}
+.interior-owl .int-owl-ear{
+  position:absolute;width:0;height:0;top:0;
+  border-left:9px solid transparent;border-right:9px solid transparent;
+  border-bottom:18px solid #a0522d;
+}
+.interior-owl .int-owl-ear.l{left:9px;transform:rotate(-12deg)}
+.interior-owl .int-owl-ear.r{right:9px;transform:rotate(12deg)}
+.interior-owl .int-owl-eyes{
+  position:absolute;top:18px;left:50%;transform:translateX(-50%);
+  display:flex;gap:6px;z-index:1;
+}
+.interior-owl .int-owl-eye{
+  width:18px;height:18px;background:#fff;border-radius:50%;
+  position:relative;border:2px solid #8b6914;
+}
+.interior-owl .int-owl-pupil{
+  position:absolute;width:9px;height:9px;background:#222;
+  border-radius:50%;top:4px;left:50%;transform:translateX(-50%);
+}
+.interior-owl .int-owl-pupil::after{
+  content:'';position:absolute;width:3px;height:3px;
+  background:#fff;border-radius:50%;top:1px;right:1px;
+}
+.interior-owl .int-owl-eye::after{
+  content:'';position:absolute;inset:-2px;
+  background:#a0522d;border-radius:50%;transform:scaleY(0);
+  animation:owlBlink 4.5s ease-in-out infinite;
+}
+.interior-owl .int-owl-beak{
+  position:absolute;top:33px;left:50%;transform:translateX(-50%);
+  width:0;height:0;
+  border-left:6px solid transparent;border-right:6px solid transparent;
+  border-top:9px solid #ff9f43;z-index:1;
+}
+.interior-owl .int-owl-wing{
+  position:absolute;top:15px;width:15px;height:30px;
+  background:linear-gradient(180deg,#9a6820,#8b6914);
+  border-radius:50%;
+}
+.interior-owl .int-owl-wing.l{left:-4px;transform:rotate(15deg)}
+.interior-owl .int-owl-wing.r{right:-4px;transform:rotate(-15deg)}
+.interior-owl .int-owl-feet{
+  position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);
+  display:flex;gap:15px;
+}
+.interior-owl .int-owl-ft{
+  width:15px;height:9px;background:#ff9f43;
+  border-radius:50% 50% 30% 30%;
+}
+
+/* Back-to-room button */
+.interior-back{
+  position:absolute;top:clamp(12px,2vh,20px);left:clamp(12px,2vw,20px);
+  width:48px;height:48px;border-radius:50%;border:none;
+  background:rgba(255,255,255,0.7);backdrop-filter:blur(4px);
+  color:#4a90d9;font-size:24px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform 0.15s,background 0.15s;
+  box-shadow:0 2px 8px rgba(0,0,0,0.12);
+  -webkit-tap-highlight-color:transparent;
+  font-family:'Baloo 2',cursive;
+  animation:interiorTitleIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+.interior-back:hover{transform:scale(1.1);background:rgba(0,0,0,0.25)}
+.interior-back:active{transform:scale(0.92)}
+
+/* Decorative sparkles in interior */
+.interior-sparkle{
+  position:absolute;pointer-events:none;
+  width:6px;height:6px;border-radius:50%;
+  animation:intSparkle 2.5s ease-in-out infinite;
+}
+@keyframes intSparkle{
+  0%,100%{opacity:0.2;transform:scale(0.6)}
+  50%{opacity:0.7;transform:scale(1.2)}
+}
+
+/* ======== BACK BUTTON ======== */
+#back-btn{
+  position:absolute;top:16px;left:16px;z-index:20;
+  background:rgba(0,0,0,0.25);backdrop-filter:blur(4px);
+  border:2px solid rgba(0,0,0,0.15);color:#fff;
+  font-size:26px;font-family:'Baloo 2',cursive;
+  width:56px;height:56px;border-radius:50%;cursor:pointer;
+  display:none;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform 0.15s,background 0.15s;
+  text-shadow:0 1px 3px rgba(0,0,0,0.3);
+  box-shadow:0 2px 8px rgba(0,0,0,0.15);
+}
+#back-btn:hover{transform:scale(1.1);background:rgba(0,0,0,0.35)}
+#back-btn:active{transform:scale(0.92);background:rgba(0,0,0,0.4)}
+#back-btn.first-show{animation:backBtnPulse 1.5s ease-in-out 2}
+@keyframes backBtnPulse{0%,100%{box-shadow:0 2px 8px rgba(0,0,0,0.15)}50%{box-shadow:0 2px 8px rgba(0,0,0,0.15),0 0 0 6px rgba(255,255,255,0.3)}}
+
+/* ======== REDUCED MOTION ======== */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:0.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:0.01ms!important;
+  }
+}
+
+/* ======== RESPONSIVE ======== */
+@media(max-width:400px){
+  .bookshelf{display:none}
+  .plant{display:none}
+  .toy{width:44px!important;height:44px!important}
+  .toy-emoji{font-size:18px!important}
+  .toy-name{display:none}
+}
+</style>
+</head>
+
+<body>
+
+<!-- SVG filter for engraved text effect -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <filter id="engraved">
+      <feOffset dx="0" dy="1" in="SourceAlpha" result="shadow"/>
+      <feGaussianBlur in="shadow" stdDeviation="0.5" result="blur"/>
+      <feFlood flood-color="#ffffff" flood-opacity="0.08" result="light"/>
+      <feComposite in="light" in2="blur" operator="in" result="lightCut"/>
+      <feMerge>
+        <feMergeNode in="SourceGraphic"/>
+        <feMergeNode in="lightCut"/>
+      </feMerge>
+    </filter>
+  </defs>
+</svg>
+
+<div id="menu">
+  <div class="room" id="room">
+
+    <!-- Window at top -->
+    <div class="topdown-window">
+      <div class="topdown-window-frame"></div>
+    </div>
+    <div class="window-light"></div>
+
+    <!-- Bookshelf -->
+    <div class="bookshelf"></div>
+
+    <!-- Area rug -->
+    <div class="rug"></div>
+
+    <!-- Extra floor toys -->
+    <div class="floor-item f-top" style="bottom:18%;left:14%;transform:rotate(20deg)">
+      <div class="f-top-body"></div>
+    </div>
+    <div class="floor-item f-train" style="bottom:12%;left:30%;transform:rotate(-12deg)">
+      <div class="f-train-engine"></div>
+      <div class="f-train-car c1"></div>
+    </div>
+    <div class="floor-item f-puzzle" style="bottom:20%;left:8%;transform:rotate(35deg)">
+      <div class="f-puzzle-body"></div>
+    </div>
+    <div class="floor-item f-crayon" style="bottom:16%;left:22%;background:linear-gradient(180deg,#26de81,#1abc9c);transform:rotate(60deg)"></div>
+    <div class="floor-item f-block" style="bottom:22%;left:18%;background:linear-gradient(135deg,#ff6b6b,#e74c3c);transform:rotate(22deg)">D</div>
+
+    <!-- Plants -->
+    <div class="plant" style="bottom:8%;right:6%;width:22px;height:22px">
+      <div class="plant-pot"></div>
+      <div class="plant-leaf" style="top:-8px;left:2px;transform:rotate(-40deg)"></div>
+      <div class="plant-leaf" style="top:-6px;right:2px;transform:rotate(30deg) scaleX(-1)"></div>
+      <div class="plant-leaf" style="top:-4px;left:6px;transform:rotate(-10deg)"></div>
+      <div class="plant-flower" style="top:-14px;left:4px">
+        <div class="plant-petal" style="background:#ff6b8a;top:-3px;left:0"></div>
+        <div class="plant-petal" style="background:#ff8fa8;top:0;left:-4px"></div>
+        <div class="plant-petal" style="background:#ff6b8a;top:0;left:4px"></div>
+        <div class="plant-petal" style="background:#ff8fa8;top:3px;left:0"></div>
+        <div class="plant-center"></div>
+      </div>
+      <div class="plant-flower" style="top:-10px;right:1px">
+        <div class="plant-petal" style="background:#a388ee;top:-3px;left:0"></div>
+        <div class="plant-petal" style="background:#b8a0f0;top:0;left:-4px"></div>
+        <div class="plant-petal" style="background:#a388ee;top:0;left:4px"></div>
+        <div class="plant-petal" style="background:#b8a0f0;top:3px;left:0"></div>
+        <div class="plant-center"></div>
+      </div>
+    </div>
+    <div class="plant" style="top:10%;left:5%;width:18px;height:18px">
+      <div class="plant-pot"></div>
+      <div class="plant-leaf" style="top:-6px;left:1px;transform:rotate(-35deg)"></div>
+      <div class="plant-leaf" style="top:-5px;right:1px;transform:rotate(25deg) scaleX(-1)"></div>
+      <div class="plant-flower" style="top:-12px;left:3px">
+        <div class="plant-petal" style="background:#ffb347;top:-3px;left:0"></div>
+        <div class="plant-petal" style="background:#ffc870;top:0;left:-4px"></div>
+        <div class="plant-petal" style="background:#ffb347;top:0;left:4px"></div>
+        <div class="plant-petal" style="background:#ffc870;top:3px;left:0"></div>
+        <div class="plant-center"></div>
+      </div>
+    </div>
+
+    <!-- Warm sunlight overlay -->
+    <div class="room-ambience"></div>
+
+    <!-- Cloud wisps on walls -->
+    <div class="room-cloud" style="width:60px;height:30px;top:4%;left:15%"></div>
+    <div class="room-cloud" style="width:50px;height:25px;top:6%;right:30%"></div>
+    <div class="room-cloud" style="width:40px;height:20px;top:3%;left:60%"></div>
+
+    <!-- Dust motes floating in sunlight -->
+    <div class="dust-mote" style="width:3px;height:3px;top:20%;left:40%;--dust-dur:7s"></div>
+    <div class="dust-mote" style="width:2px;height:2px;top:35%;left:55%;--dust-dur:9s;animation-delay:2s"></div>
+    <div class="dust-mote" style="width:2px;height:2px;top:25%;left:48%;--dust-dur:6s;animation-delay:1s"></div>
+    <div class="dust-mote" style="width:3px;height:3px;top:40%;left:42%;--dust-dur:8s;animation-delay:3s"></div>
+    <div class="dust-mote" style="width:2px;height:2px;top:15%;left:52%;--dust-dur:10s;animation-delay:4s"></div>
+    <div class="dust-mote" style="width:2px;height:2px;top:30%;left:60%;--dust-dur:7s;animation-delay:5s"></div>
+
+    <!-- Floor items -->
+    <div class="floor-item f-block" style="top:72%;left:22%;background:linear-gradient(135deg,#b84eea,#9040c8);transform:rotate(-15deg)">A</div>
+    <div class="floor-item f-block" style="top:75%;left:28%;background:linear-gradient(135deg,#6ab0ff,#4090e8);transform:rotate(8deg)">B</div>
+    <div class="floor-item f-block" style="top:30%;right:18%;background:linear-gradient(135deg,#40e890,#26c870);transform:rotate(-5deg)">C</div>
+    <div class="floor-item f-crayon" style="top:65%;right:25%;background:linear-gradient(180deg,#ff8080,#e74c3c);transform:rotate(-30deg)"></div>
+    <div class="floor-item f-crayon" style="top:68%;right:20%;background:linear-gradient(180deg,#ffe070,#f0b429);transform:rotate(15deg)"></div>
+    <div class="floor-item f-crayon" style="bottom:20%;left:38%;background:linear-gradient(180deg,#b080e0,#8050c0);transform:rotate(-45deg)"></div>
+    <div class="floor-item f-ball" style="top:35%;left:18%;background:radial-gradient(circle at 40% 35%,#ff9090,#e74c3c)"></div>
+    <div class="floor-item f-ball" style="bottom:25%;right:35%;background:radial-gradient(circle at 40% 35%,#90c0ff,#4090e8)"></div>
+
+    <!-- Teddy bear -->
+    <div class="floor-item f-bear" style="top:58%;left:14%;transform:rotate(12deg)">
+      <div class="f-bear-ear l"></div><div class="f-bear-ear r"></div>
+      <div class="f-bear-body"></div>
+      <div class="f-bear-eyes"><div class="f-bear-dot"></div><div class="f-bear-dot"></div></div>
+      <div class="f-bear-nose"></div>
+    </div>
+
+    <!-- Rubber duck -->
+    <div class="floor-item f-duck" style="bottom:15%;left:55%;transform:rotate(-8deg)">
+      <div class="f-duck-body"></div>
+      <div class="f-duck-head"></div>
+      <div class="f-duck-beak"></div>
+      <div class="f-duck-eye"></div>
+    </div>
+
+    <!-- Toy car -->
+    <div class="floor-item f-car" style="top:40%;right:12%;transform:rotate(25deg)">
+      <div class="f-car-body" style="background:linear-gradient(135deg,#4090e8,#2870c8)"></div>
+      <div class="f-car-wheel" style="bottom:0;left:2px"></div>
+      <div class="f-car-wheel" style="bottom:0;right:2px"></div>
+    </div>
+
+    <!-- Stacking rings -->
+    <div class="floor-item f-rings" style="bottom:32%;left:18%;transform:rotate(5deg)">
+      <div class="f-ring r1"></div><div class="f-ring r2"></div><div class="f-ring r3"></div>
+      <div class="f-ring-post"></div>
+    </div>
+
+    <!-- ===== TOYBOXES ===== -->
+
+    <!-- Adventure Box (red) - top-left area -->
+    <div class="toybox-spot toybox-red" id="box-adventure"
+         style="top:18%;left:18%;width:min(110px,24vw);height:min(74px,16vw)">
+      <div class="toybox-hitbox"></div>
+      <div class="toybox-glow"></div>
+      <div class="toybox-top">
+        <div class="toybox-band top"></div>
+        <div class="toybox-band bot"></div>
+        <div class="toybox-rivet" style="top:2px;left:2px"></div>
+        <div class="toybox-rivet" style="top:2px;right:2px"></div>
+        <div class="toybox-rivet" style="bottom:2px;left:2px"></div>
+        <div class="toybox-rivet" style="bottom:2px;right:2px"></div>
+      </div>
+      <div class="toybox-label">Adventure</div>
+      <div class="toybox-contents">
+        <button class="toy" onclick="event.stopPropagation();startGame('bubblePop')" aria-label="Bubble Pop">
+          <span class="toy-emoji">&#x1F9FC;</span><span class="toy-name">Bubbles</span>
+        </button>
+        <button class="toy" onclick="event.stopPropagation();startGame('balloonRace')" aria-label="Balloon Race">
+          <span class="toy-emoji">&#x1F388;</span><span class="toy-name">Balloons</span>
+        </button>
+        <button class="toy" onclick="event.stopPropagation();startGame('monsterTruck')" aria-label="Monster Truck">
+          <span class="toy-emoji">&#x1F69B;</span><span class="toy-name">Truck</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Animal Friends (blue) - top-right area -->
+    <div class="toybox-spot toybox-blue" id="box-animals"
+         style="top:22%;right:15%;width:min(110px,24vw);height:min(74px,16vw)">
+      <div class="toybox-hitbox"></div>
+      <div class="toybox-glow"></div>
+      <div class="toybox-top">
+        <div class="toybox-band top"></div>
+        <div class="toybox-band bot"></div>
+        <div class="toybox-rivet" style="top:2px;left:2px"></div>
+        <div class="toybox-rivet" style="top:2px;right:2px"></div>
+        <div class="toybox-rivet" style="bottom:2px;left:2px"></div>
+        <div class="toybox-rivet" style="bottom:2px;right:2px"></div>
+      </div>
+      <div class="toybox-label">Animals</div>
+      <div class="toybox-contents">
+        <button class="toy" onclick="event.stopPropagation();startGame('feedAnimal')" aria-label="Feed the Animal">
+          <span class="toy-emoji">&#x1F438;</span><span class="toy-name">Feed</span>
+        </button>
+        <button class="toy" onclick="event.stopPropagation();startGame('puppyFetch')" aria-label="Puppy Fetch">
+          <span class="toy-emoji">&#x1F436;</span><span class="toy-name">Puppy</span>
+        </button>
+        <button class="toy" onclick="event.stopPropagation();startGame('babyShark')" aria-label="Baby Shark">
+          <span class="toy-emoji">&#x1F988;</span><span class="toy-name">Shark</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Creative Corner (green) - bottom-left area -->
+    <div class="toybox-spot toybox-green" id="box-creative"
+         style="bottom:28%;left:25%;width:min(110px,24vw);height:min(74px,16vw)">
+      <div class="toybox-hitbox"></div>
+      <div class="toybox-glow"></div>
+      <div class="toybox-top">
+        <div class="toybox-band top"></div>
+        <div class="toybox-band bot"></div>
+        <div class="toybox-rivet" style="top:2px;left:2px"></div>
+        <div class="toybox-rivet" style="top:2px;right:2px"></div>
+        <div class="toybox-rivet" style="bottom:2px;left:2px"></div>
+        <div class="toybox-rivet" style="bottom:2px;right:2px"></div>
+      </div>
+      <div class="toybox-label">Creative</div>
+      <div class="toybox-contents">
+        <button class="toy" onclick="event.stopPropagation();startGame('colorMatch')" aria-label="Color Match">
+          <span class="toy-emoji">&#x1F3A8;</span><span class="toy-name">Colors</span>
+        </button>
+        <button class="toy" onclick="event.stopPropagation();startGame('shapeBuilder')" aria-label="Shape Builder">
+          <span class="toy-emoji">&#x1F533;</span><span class="toy-name">Shapes</span>
+        </button>
+        <button class="toy" onclick="event.stopPropagation();startGame('cleanTheMess')" aria-label="Clean the Mess">
+          <span class="toy-emoji">&#x1F9F9;</span><span class="toy-name">Clean</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Nature Nook (purple) - bottom-right area -->
+    <div class="toybox-spot toybox-purple" id="box-nature"
+         style="bottom:22%;right:18%;width:min(110px,24vw);height:min(74px,16vw)">
+      <div class="toybox-hitbox"></div>
+      <div class="toybox-glow"></div>
+      <div class="toybox-top">
+        <div class="toybox-band top"></div>
+        <div class="toybox-band bot"></div>
+        <div class="toybox-rivet" style="top:2px;left:2px"></div>
+        <div class="toybox-rivet" style="top:2px;right:2px"></div>
+        <div class="toybox-rivet" style="bottom:2px;left:2px"></div>
+        <div class="toybox-rivet" style="bottom:2px;right:2px"></div>
+      </div>
+      <div class="toybox-label">Nature</div>
+      <div class="toybox-contents">
+        <button class="toy" onclick="event.stopPropagation();startGame('fireflies')" aria-label="Fireflies">
+          <span class="toy-emoji">&#x2728;</span><span class="toy-name">Fireflies</span>
+        </button>
+        <button class="toy" onclick="event.stopPropagation();startGame('hideAndSeek')" aria-label="Hide and Seek">
+          <span class="toy-emoji">&#x1F333;</span><span class="toy-name">Hide</span>
+        </button>
+        <button class="toy" onclick="event.stopPropagation();startGame('elephantSplash')" aria-label="Elephant Splash">
+          <span class="toy-emoji">&#x1F418;</span><span class="toy-name">Elephant</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Music box -->
+    <div class="music-box-spot" onclick="event.stopPropagation();toggleMusicBox()">
+      <div class="music-box-td" id="music-box">
+        <div class="record-label"></div>
+        <div class="tonearm"></div>
+        <div class="music-box-notes">
+          <span class="music-note">&#9835;</span>
+          <span class="music-note">&#9833;</span>
+          <span class="music-note">&#9834;</span>
+        </div>
+      </div>
+      <div class="music-box-label">Music</div>
+    </div>
+
+    <!-- ===== THE OWL ===== -->
+    <div class="owl" id="owl">
+      <div class="owl-ear l"></div>
+      <div class="owl-ear r"></div>
+      <div class="owl-wing l"></div>
+      <div class="owl-wing r"></div>
+      <div class="owl-body"></div>
+      <div class="owl-eyes">
+        <div class="owl-eye"><div class="owl-pupil" id="pupil-l"></div></div>
+        <div class="owl-eye"><div class="owl-pupil" id="pupil-r"></div></div>
+      </div>
+      <div class="owl-beak"></div>
+      <div class="owl-feet">
+        <div class="owl-ft"></div>
+        <div class="owl-ft"></div>
+      </div>
+    </div>
+
+  </div><!-- .room -->
+
+  <!-- Toybox interior (zoom-in view) -->
+  <div class="toybox-interior" id="toybox-interior">
+    <button class="interior-back" id="interior-back" aria-label="Back to room">&#x2190;</button>
+    <div class="interior-title" id="interior-title">Adventure</div>
+    <div class="interior-shelf" id="interior-shelf"></div>
+    <div class="interior-owl">
+      <div class="int-owl">
+        <div class="int-owl-ear l"></div>
+        <div class="int-owl-ear r"></div>
+        <div class="int-owl-wing l"></div>
+        <div class="int-owl-wing r"></div>
+        <div class="int-owl-body"></div>
+        <div class="int-owl-eyes">
+          <div class="int-owl-eye"><div class="int-owl-pupil"></div></div>
+          <div class="int-owl-eye"><div class="int-owl-pupil"></div></div>
+        </div>
+        <div class="int-owl-beak"></div>
+        <div class="int-owl-feet">
+          <div class="int-owl-ft"></div>
+          <div class="int-owl-ft"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Title overlay -->
+  <div class="room-title" id="room-title"><h1>Tiny Toybox</h1></div>
+  <div class="hint-text" id="hint-text">Tap anywhere to waddle!</div>
+</div>
+
+<button id="back-btn" onclick="goHome()">&#x2190;</button>
+<canvas id="game" role="img" aria-label="Game canvas"></canvas>
+<canvas id="confetti-canvas"></canvas>
+<div id="game-status" role="status" aria-live="polite" class="sr-only"></div>
+
+<script>
+;(function(){
+  const room = document.getElementById('room')
+  const owl = document.getElementById('owl')
+  const hintText = document.getElementById('hint-text')
+  const roomTitle = document.getElementById('room-title')
+  const pupilL = document.getElementById('pupil-l')
+  const pupilR = document.getElementById('pupil-r')
+  const boxes = document.querySelectorAll('.toybox-spot')
+  const interior = document.getElementById('toybox-interior')
+  const interiorTitle = document.getElementById('interior-title')
+  const interiorShelf = document.getElementById('interior-shelf')
+  const interiorBack = document.getElementById('interior-back')
+  let owlX, owlY, moveTimer, footprintTimer
+  let hasInteracted = false
+  let inInterior = false
+
+  // Toybox data: maps box id → { theme, title, toys[] with CSS icon HTML }
+  const TOYBOX_DATA = {
+    'box-adventure': {
+      theme: 'red', title: 'Adventure Box',
+      toys: [
+        { id: 'bubblePop', label: 'Bubble Pop', cls: 'toy-bubble',
+          icon: '<div class="wand-stick"></div><div class="wand-ring"></div><div class="mini-bubble b1"></div><div class="mini-bubble b2"></div><div class="mini-bubble b3"></div>' },
+        { id: 'balloonRace', label: 'Balloon Race', cls: 'toy-balloon',
+          icon: '<div class="balloon-group"><div class="balloon-body b1"></div><div class="balloon-body b2"></div><div class="balloon-body b3"></div><div class="balloon-strings"></div></div>' },
+        { id: 'monsterTruck', label: 'Monster Truck', cls: 'toy-truck',
+          icon: '<div class="mtruck"><div class="mtruck-body"></div><div class="mtruck-cab"></div><div class="mtruck-window"></div><div class="mtruck-stripe"></div><div class="mtruck-axle"></div><div class="mtruck-wheel wl"></div><div class="mtruck-wheel wr"></div><div class="mtruck-dirt"></div></div>' },
+      ]
+    },
+    'box-animals': {
+      theme: 'blue', title: 'Animal Friends',
+      toys: [
+        { id: 'feedAnimal', label: 'Feed the Animal', cls: 'toy-frog',
+          icon: '<div class="frog-body"><div class="frog-eye left"><div class="frog-pupil"></div></div><div class="frog-eye right"><div class="frog-pupil"></div></div><div class="frog-mouth"></div><div class="frog-cheek left"></div><div class="frog-cheek right"></div></div>' },
+        { id: 'puppyFetch', label: 'Puppy Fetch', cls: 'toy-puppy',
+          icon: '<div class="puppy"><div class="puppy-tail"></div><div class="puppy-leg bl"><div class="puppy-paw"></div></div><div class="puppy-leg br"><div class="puppy-paw"></div></div><div class="puppy-body"></div><div class="puppy-leg fl"><div class="puppy-paw"></div></div><div class="puppy-leg fr"><div class="puppy-paw"></div></div><div class="puppy-head"><div class="puppy-ear left"></div><div class="puppy-ear right"></div><div class="puppy-eye"></div><div class="puppy-muzzle"><div class="puppy-nose"></div><div class="puppy-tongue"></div></div></div><div class="puppy-ball"></div></div>' },
+        { id: 'babyShark', label: 'Baby Shark', cls: 'toy-shark',
+          icon: '<div class="shark"><div class="shark-body"><div class="shark-belly"></div><div class="shark-eye"></div><div class="shark-blush"></div><div class="shark-mouth"></div></div><div class="shark-fin"></div><div class="shark-tail"></div><div class="shark-fish"></div></div>' },
+      ]
+    },
+    'box-creative': {
+      theme: 'green', title: 'Creative Corner',
+      toys: [
+        { id: 'colorMatch', label: 'Color Match', cls: 'toy-paint',
+          icon: '<div class="palette"><div class="palette-hole"></div><div class="paint-dot d1"></div><div class="paint-dot d2"></div><div class="paint-dot d3"></div><div class="paint-dot d4"></div><div class="paint-dot d5"></div></div><div class="paint-brush"></div>' },
+        { id: 'shapeBuilder', label: 'Shape Builder', cls: 'toy-shapes',
+          icon: '<div class="shape-circle"></div><div class="shape-triangle"></div><div class="shape-square"></div><div class="shape-star"></div>' },
+        { id: 'cleanTheMess', label: 'Clean the Mess', cls: 'toy-sponge',
+          icon: '<div class="sponge"><div class="sponge-hole h1"></div><div class="sponge-hole h2"></div><div class="sponge-hole h3"></div><div class="sponge-hole h4"></div><div class="sponge-hole h5"></div><div class="sponge-bubble sb1"></div><div class="sponge-bubble sb2"></div><div class="sponge-bubble sb3"></div></div>' },
+      ]
+    },
+    'box-nature': {
+      theme: 'purple', title: 'Nature Nook',
+      toys: [
+        { id: 'fireflies', label: 'Fireflies', cls: 'toy-jar',
+          icon: '<div class="jar"><div class="jar-lid"></div><div class="jar-body"><div class="jar-fly f1"></div><div class="jar-fly f2"></div><div class="jar-fly f3"></div></div><div class="jar-shine"></div><div class="jar-glow"></div></div>' },
+        { id: 'hideAndSeek', label: 'Hide and Seek', cls: 'toy-tree',
+          icon: '<div class="tree"><div class="tree-trunk"></div><div class="tree-top"></div><div class="tree-top-2"></div><div class="peek-eyes"><div class="peek-eye"></div><div class="peek-eye"></div></div></div>' },
+        { id: 'elephantSplash', label: 'Elephant Splash', cls: 'toy-elephant',
+          icon: '<div class="elephant"><div class="ele-body"></div><div class="ele-head"><div class="ele-ear"></div><div class="ele-eye"></div><div class="ele-trunk"></div></div><div class="ele-legs"><div class="ele-leg"></div><div class="ele-leg"></div><div class="ele-leg"></div><div class="ele-leg"></div></div><div class="ele-splash s1"></div><div class="ele-splash s2"></div><div class="ele-splash s3"></div></div>' },
+      ]
+    }
+  }
+
+  // ====== OWL INIT ======
+  function initOwl() {
+    owlX = room.offsetWidth / 2 - 22
+    owlY = room.offsetHeight / 2 - 22
+    owl.style.left = owlX + 'px'
+    owl.style.top = owlY + 'px'
+  }
+  initOwl()
+  window.addEventListener('resize', () => {
+    owlX = Math.min(owlX, room.offsetWidth - 44)
+    owlY = Math.min(owlY, room.offsetHeight - 44)
+    owl.style.left = owlX + 'px'
+    owl.style.top = owlY + 'px'
+  })
+
+  // Eye tracking
+  document.addEventListener('mousemove', function(e) {
+    const rect = owl.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    const dx = (e.clientX - cx) / window.innerWidth
+    const dy = (e.clientY - cy) / window.innerHeight
+    const px = Math.max(-2, Math.min(2, dx * 6)) + 'px'
+    const py = Math.max(-2, Math.min(2, dy * 4)) + 'px'
+    pupilL.style.transform = 'translateX(calc(-50% + ' + px + ')) translateY(' + py + ')'
+    pupilR.style.transform = 'translateX(calc(-50% + ' + px + ')) translateY(' + py + ')'
+  })
+
+  // ====== MOVE OWL ======
+  function moveOwl(tx, ty, quiet, onArrive) {
+    if (inInterior) return
+    tx = Math.max(10, Math.min(room.offsetWidth - 54, tx - 22))
+    ty = Math.max(10, Math.min(room.offsetHeight - 54, ty - 22))
+
+    const dx = tx - owlX, dy = ty - owlY
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    if (dist < 5) { if (onArrive) onArrive(); return }
+    const duration = Math.min(1.5, Math.max(0.3, dist / 350))
+
+    owl.style.transition = 'left ' + duration + 's cubic-bezier(0.25,0.1,0.25,1),' +
+      'top ' + duration + 's cubic-bezier(0.25,0.1,0.25,1)'
+    owl.style.left = tx + 'px'
+    owl.style.top = ty + 'px'
+    owl.classList.add('walking')
+
+    // Footprints
+    clearInterval(footprintTimer)
+    let steps = 0
+    const maxSteps = Math.floor(duration / 0.12)
+    footprintTimer = setInterval(() => {
+      if (steps >= maxSteps) { clearInterval(footprintTimer); return }
+      const progress = steps / maxSteps
+      const fpX = owlX + dx * progress + 22
+      const fpY = owlY + dy * progress + 40
+      const fp = document.createElement('div')
+      fp.className = 'footprint'
+      fp.style.left = fpX + (steps % 2 ? 3 : -3) + 'px'
+      fp.style.top = fpY + 'px'
+      room.appendChild(fp)
+      setTimeout(() => fp.remove(), 2000)
+      steps++
+    }, duration * 1000 / maxSteps)
+
+    playFootsteps(duration)
+
+    if (!quiet) {
+      const ring = document.createElement('div')
+      ring.className = 'click-ring'
+      ring.style.left = (tx + 22) + 'px'
+      ring.style.top = (ty + 22) + 'px'
+      room.appendChild(ring)
+      setTimeout(() => ring.remove(), 700)
+    }
+
+    clearTimeout(moveTimer)
+    moveTimer = setTimeout(() => {
+      owl.classList.remove('walking')
+      owlX = tx; owlY = ty
+      clearInterval(footprintTimer)
+      if (onArrive) onArrive()
+    }, duration * 1000)
+  }
+
+  // ====== SOUNDS ======
+  function playFootsteps(duration) {
+    try {
+      const ctx = window._sharedAudioCtx; if (!ctx) return
+      const now = ctx.currentTime
+      const count = Math.min(6, Math.max(2, Math.floor(duration / 0.15)))
+      for (let i = 0; i < count; i++) {
+        const t = now + i * (duration / count)
+        const osc = ctx.createOscillator(), g = ctx.createGain()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(200 + Math.random() * 60, t)
+        osc.frequency.exponentialRampToValueAtTime(120, t + 0.04)
+        g.gain.setValueAtTime(0.06, t)
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.06)
+        osc.connect(g); g.connect(ctx.destination)
+        osc.start(t); osc.stop(t + 0.08)
+      }
+    } catch(e) {}
+  }
+
+  function playOpenChime() {
+    try {
+      const ctx = window._sharedAudioCtx; if (!ctx) return
+      const now = ctx.currentTime
+      ;[523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+        const osc = ctx.createOscillator(), g = ctx.createGain()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(freq, now + i * 0.07)
+        g.gain.setValueAtTime(0, now + i * 0.07)
+        g.gain.linearRampToValueAtTime(0.1, now + i * 0.07 + 0.01)
+        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.35)
+        osc.connect(g); g.connect(ctx.destination)
+        osc.start(now + i * 0.07); osc.stop(now + i * 0.07 + 0.4)
+        const o2 = ctx.createOscillator(), g2 = ctx.createGain()
+        o2.type = 'sine'
+        o2.frequency.setValueAtTime(freq * 2, now + i * 0.07)
+        g2.gain.setValueAtTime(0, now + i * 0.07)
+        g2.gain.linearRampToValueAtTime(0.03, now + i * 0.07 + 0.01)
+        g2.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.2)
+        o2.connect(g2); g2.connect(ctx.destination)
+        o2.start(now + i * 0.07); o2.stop(now + i * 0.07 + 0.25)
+      })
+    } catch(e) {}
+  }
+
+  // ====== OWL VOCALIZATIONS ======
+  function playOwlHoot() {
+    try {
+      const ctx = window._sharedAudioCtx; if (!ctx) return
+      const now = ctx.currentTime
+      for (let i = 0; i < 2; i++) {
+        const t = now + i * 0.28
+        const osc = ctx.createOscillator(), g = ctx.createGain()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(390, t)
+        osc.frequency.exponentialRampToValueAtTime(310, t + 0.18)
+        g.gain.setValueAtTime(0, t)
+        g.gain.linearRampToValueAtTime(0.09, t + 0.02)
+        g.gain.setValueAtTime(0.07, t + 0.06)
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.22)
+        osc.connect(g); g.connect(ctx.destination)
+        osc.start(t); osc.stop(t + 0.25)
+        // Breathy overtone
+        const o2 = ctx.createOscillator(), g2 = ctx.createGain()
+        o2.type = 'triangle'
+        o2.frequency.setValueAtTime(780, t)
+        o2.frequency.exponentialRampToValueAtTime(620, t + 0.18)
+        g2.gain.setValueAtTime(0, t)
+        g2.gain.linearRampToValueAtTime(0.02, t + 0.02)
+        g2.gain.exponentialRampToValueAtTime(0.001, t + 0.15)
+        o2.connect(g2); g2.connect(ctx.destination)
+        o2.start(t); o2.stop(t + 0.2)
+      }
+    } catch(e) {}
+  }
+
+  function playOwlGiggle() {
+    try {
+      const ctx = window._sharedAudioCtx; if (!ctx) return
+      const now = ctx.currentTime
+      for (let i = 0; i < 4; i++) {
+        const t = now + i * 0.09
+        const osc = ctx.createOscillator(), g = ctx.createGain()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(620 + i * 40, t)
+        osc.frequency.exponentialRampToValueAtTime(480, t + 0.05)
+        g.gain.setValueAtTime(0, t)
+        g.gain.linearRampToValueAtTime(0.06, t + 0.01)
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.07)
+        osc.connect(g); g.connect(ctx.destination)
+        osc.start(t); osc.stop(t + 0.09)
+      }
+    } catch(e) {}
+  }
+
+  function playOwlChirp() {
+    try {
+      const ctx = window._sharedAudioCtx; if (!ctx) return
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator(), g = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(480, now)
+      osc.frequency.exponentialRampToValueAtTime(720, now + 0.06)
+      osc.frequency.exponentialRampToValueAtTime(500, now + 0.15)
+      g.gain.setValueAtTime(0, now)
+      g.gain.linearRampToValueAtTime(0.07, now + 0.02)
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.18)
+      osc.connect(g); g.connect(ctx.destination)
+      osc.start(now); osc.stop(now + 0.2)
+    } catch(e) {}
+  }
+
+  function playOwlExcited() {
+    try {
+      const ctx = window._sharedAudioCtx; if (!ctx) return
+      const now = ctx.currentTime
+      // Rising trill: quick ascending notes
+      ;[440, 520, 600, 720, 880].forEach((freq, i) => {
+        const t = now + i * 0.06
+        const osc = ctx.createOscillator(), g = ctx.createGain()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(freq, t)
+        g.gain.setValueAtTime(0, t)
+        g.gain.linearRampToValueAtTime(0.07, t + 0.01)
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.08)
+        osc.connect(g); g.connect(ctx.destination)
+        osc.start(t); osc.stop(t + 0.1)
+      })
+    } catch(e) {}
+  }
+
+  // ====== ANIMAL SOUNDS ======
+  function playWoof() {
+    try {
+      const ctx = window._sharedAudioCtx; if (!ctx) return
+      const now = ctx.currentTime
+      // Short punchy bark
+      const osc = ctx.createOscillator(), g = ctx.createGain()
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(350, now)
+      osc.frequency.exponentialRampToValueAtTime(180, now + 0.12)
+      g.gain.setValueAtTime(0.12, now)
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
+      osc.connect(g).connect(ctx.destination)
+      osc.start(now); osc.stop(now + 0.15)
+    } catch(e){}
+  }
+  function playMeow() {
+    try {
+      const ctx = window._sharedAudioCtx; if (!ctx) return
+      const now = ctx.currentTime
+      // High-pitched sliding mew
+      const osc = ctx.createOscillator(), g = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(700, now)
+      osc.frequency.exponentialRampToValueAtTime(500, now + 0.2)
+      osc.frequency.exponentialRampToValueAtTime(600, now + 0.3)
+      g.gain.setValueAtTime(0.08, now)
+      g.gain.linearRampToValueAtTime(0.06, now + 0.15)
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.35)
+      osc.connect(g).connect(ctx.destination)
+      osc.start(now); osc.stop(now + 0.35)
+    } catch(e){}
+  }
+  function playRoar() {
+    try {
+      const ctx = window._sharedAudioCtx; if (!ctx) return
+      const now = ctx.currentTime
+      // Low rumbling roar
+      const osc = ctx.createOscillator(), g = ctx.createGain()
+      const osc2 = ctx.createOscillator(), g2 = ctx.createGain()
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(120, now)
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.3)
+      g.gain.setValueAtTime(0.1, now)
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.35)
+      osc.connect(g).connect(ctx.destination)
+      osc.start(now); osc.stop(now + 0.35)
+      // Add gritty overtone
+      osc2.type = 'square'
+      osc2.frequency.setValueAtTime(95, now)
+      osc2.frequency.exponentialRampToValueAtTime(60, now + 0.3)
+      g2.gain.setValueAtTime(0.04, now)
+      g2.gain.exponentialRampToValueAtTime(0.001, now + 0.3)
+      osc2.connect(g2).connect(ctx.destination)
+      osc2.start(now); osc2.stop(now + 0.3)
+    } catch(e){}
+  }
+
+  function playRandomOwlSound() {
+    const r = Math.random()
+    if (r < 0.35) playOwlHoot()
+    else if (r < 0.65) playOwlGiggle()
+    else playOwlChirp()
+  }
+
+  // ====== SPARKLE BURST ======
+  function burstSparkles(el) {
+    const rect = el.getBoundingClientRect()
+    const rr = room.getBoundingClientRect()
+    const cx = rect.left - rr.left + rect.width / 2
+    const cy = rect.top - rr.top + rect.height / 2
+    const colors = ['#ffd700','#ff6b6b','#54a0ff','#26de81','#a55eea','#ff9f43','#fff']
+    for (let i = 0; i < 14; i++) {
+      const p = document.createElement('div')
+      p.className = 'sparkle-p'
+      const angle = (Math.PI * 2 * i) / 14 + (Math.random() - 0.5) * 0.5
+      const dist = 25 + Math.random() * 40
+      const size = 3 + Math.random() * 4
+      p.style.cssText =
+        'left:' + cx + 'px;top:' + cy + 'px;width:' + size + 'px;height:' + size + 'px;' +
+        'background:' + colors[i % colors.length] + ';' +
+        'box-shadow:0 0 4px ' + colors[i % colors.length] + ';' +
+        '--tx:' + (Math.cos(angle) * dist) + 'px;--ty:' + (Math.sin(angle) * dist) + 'px;'
+      room.appendChild(p)
+      setTimeout(() => p.remove(), 800)
+    }
+  }
+
+  // ====== INTERIOR VIEW ======
+  function openInterior(boxId) {
+    const data = TOYBOX_DATA[boxId]
+    if (!data) return
+    inInterior = true
+
+    // Set theme & title
+    interior.setAttribute('data-theme', data.theme)
+    interiorTitle.textContent = data.title
+
+    // Build toy buttons with full CSS icons (matching toybox.html)
+    interiorShelf.innerHTML = ''
+    data.toys.forEach((toy, i) => {
+      const btn = document.createElement('button')
+      btn.className = 'toy ' + toy.cls
+      btn.setAttribute('aria-label', toy.label)
+      btn.style.animationDelay = (i * 0.12) + 's'
+      btn.innerHTML =
+        '<div class="toy-sparkle"></div><div class="toy-sparkle"></div><div class="toy-sparkle"></div>' +
+        '<div class="toy-icon">' + toy.icon + '</div>'
+      btn.addEventListener('click', () => startGame(toy.id))
+      interiorShelf.appendChild(btn)
+    })
+
+    // Add decorative sparkles
+    interior.querySelectorAll('.interior-sparkle').forEach(s => s.remove())
+    const sparkColors = { red: '#ff6b6b', blue: '#54a0ff', green: '#26de81', purple: '#a55eea' }
+    for (let i = 0; i < 8; i++) {
+      const s = document.createElement('div')
+      s.className = 'interior-sparkle'
+      s.style.cssText =
+        'left:' + (5 + Math.random() * 90) + '%;top:' + (10 + Math.random() * 80) + '%;' +
+        'background:' + (sparkColors[data.theme] || '#ffd700') + ';' +
+        'animation-delay:' + (Math.random() * 2.5) + 's;' +
+        'width:' + (4 + Math.random() * 4) + 'px;height:' + (4 + Math.random() * 4) + 'px;'
+      interior.appendChild(s)
+    }
+
+    // Hide room, show interior
+    room.style.display = 'none'
+    roomTitle.style.display = 'none'
+    hintText.style.display = 'none'
+    interior.classList.add('visible')
+    // Trigger reflow then animate in
+    interior.offsetHeight
+    interior.classList.add('show')
+
+    // Blinking arrow hint — picks a random toy, blinks 3x, repeats every 5s
+    clearInterval(interior._arrowTimer)
+    function showArrowHint() {
+      if (!inInterior) return
+      const toys = interiorShelf.querySelectorAll('.toy')
+      if (!toys.length) return
+      // Remove any existing arrow
+      interiorShelf.querySelectorAll('.tap-arrow').forEach(a => a.remove())
+      // Pick random toy
+      const pick = toys[Math.floor(Math.random() * toys.length)]
+      const arrow = document.createElement('div')
+      arrow.className = 'tap-arrow'
+      arrow.textContent = '\u2191' // up arrow ↑
+      pick.appendChild(arrow)
+      // Trigger blink
+      requestAnimationFrame(() => {
+        arrow.classList.add('blink')
+        // Remove after blink finishes (3 × 0.5s = 1.5s)
+        setTimeout(() => arrow.remove(), 1600)
+      })
+    }
+    // First arrow after 1s, then every 5s
+    setTimeout(showArrowHint, 1000)
+    interior._arrowTimer = setInterval(showArrowHint, 5000)
+  }
+
+  function closeInterior() {
+    inInterior = false
+    clearInterval(interior._arrowTimer)
+    interior.classList.remove('show')
+    setTimeout(() => {
+      interior.classList.remove('visible')
+      room.style.display = ''
+      roomTitle.style.display = ''
+      hintText.style.display = ''
+      boxes.forEach(b => b.classList.remove('open'))
+    }, 350)
+  }
+
+  interiorBack.addEventListener('click', closeInterior)
+
+  // ====== ROOM CLICK/TAP ======
+  function handleRoomTap(x, y) {
+    if (inInterior) return
+    moveOwl(x, y)
+    if (!hasInteracted) {
+      hasInteracted = true
+      hintText.style.opacity = '0'
+      hintText.style.transition = 'opacity 0.5s'
+    }
+  }
+
+  room.addEventListener('click', function(e) {
+    if (e.target.closest('.toy') || e.target.closest('.music-box-spot') || e.target.closest('.toybox-spot')) return
+    const rect = room.getBoundingClientRect()
+    handleRoomTap(e.clientX - rect.left, e.clientY - rect.top)
+  })
+
+  room.addEventListener('touchstart', function(e) {
+    if (e.target.closest('.toy') || e.target.closest('.music-box-spot') || e.target.closest('.toybox-spot')) return
+    const rect = room.getBoundingClientRect()
+    const touch = e.touches[0]
+    handleRoomTap(touch.clientX - rect.left, touch.clientY - rect.top)
+  }, { passive: true })
+
+  // Click toybox → owl walks there, then opens
+  let pendingBoxOpen = null
+  boxes.forEach(box => {
+    box.addEventListener('click', function(e) {
+      if (e.target.closest('.toy') || inInterior || pendingBoxOpen) return
+      e.stopPropagation()
+      pendingBoxOpen = box.id
+      const rect = box.getBoundingClientRect()
+      const rr = room.getBoundingClientRect()
+      moveOwl(
+        rect.left - rr.left + rect.width / 2,
+        rect.top - rr.top + rect.height / 2,
+        false,
+        function() {
+          // Owl arrived — sparkle + chime + excited sound
+          box.classList.add('open')
+          burstSparkles(box)
+          playOpenChime()
+          playOwlExcited()
+          // 1 second pause to admire the open chest
+          setTimeout(() => {
+            openInterior(box.id)
+            pendingBoxOpen = null
+          }, 1200)
+        }
+      )
+    })
+  })
+
+  // ====== GAME START/HOME ======
+  window.addEventListener('game:start', () => {
+    // Hide both room and interior
+    owl.style.display = 'none'
+    interior.classList.remove('show', 'visible')
+    inInterior = false
+    boxes.forEach(b => b.classList.remove('open'))
+    clearTimeout(idleTimer)
+    window._musicWasPlaying = window._toyboxMusic && window._toyboxMusic.isPlaying()
+    if (window._toyboxMusic) window._toyboxMusic.stop()
+  })
+
+  window.addEventListener('game:home', () => {
+    // Always return to the room view
+    owl.style.display = ''
+    room.style.display = ''
+    roomTitle.style.display = ''
+    hintText.style.display = ''
+    inInterior = false
+    resetIdle()
+    if (window._musicWasPlaying && window._toyboxMusic) window._toyboxMusic.start()
+  })
+
+  // ====== AUTO-EXPLORE ======
+  let idleTimer = null
+  const wanderTargets = [
+    { sel: '#box-adventure' }, { sel: '#box-animals' },
+    { sel: '#box-creative' }, { sel: '#box-nature' },
+    { sel: '.bookshelf' },
+    { sel: '.music-box-spot' },
+    { sel: '.plant' }, { sel: '.rug' },
+  ]
+  function getWanderTarget() {
+    if (Math.random() < 0.25) {
+      return {
+        x: 60 + Math.random() * (room.offsetWidth - 120),
+        y: 60 + Math.random() * (room.offsetHeight - 120)
+      }
+    }
+    const pick = wanderTargets[Math.floor(Math.random() * wanderTargets.length)]
+    const els = room.querySelectorAll(pick.sel)
+    const el = els[Math.floor(Math.random() * els.length)]
+    if (!el) return { x: room.offsetWidth / 2, y: room.offsetHeight / 2 }
+    const rect = el.getBoundingClientRect()
+    const rr = room.getBoundingClientRect()
+    const ox = (Math.random() - 0.5) * 50
+    const oy = (Math.random() - 0.5) * 50
+    return {
+      x: rect.left - rr.left + rect.width / 2 + ox,
+      y: rect.top - rr.top + rect.height / 2 + oy
+    }
+  }
+  function resetIdle() {
+    clearTimeout(idleTimer)
+    idleTimer = setTimeout(autoWander, 3000 + Math.random() * 4000)
+  }
+  function autoWander() {
+    if (owl.style.display === 'none' || inInterior || pendingBoxOpen) { resetIdle(); return }
+    const t = getWanderTarget()
+    moveOwl(t.x, t.y, true)
+    // Random chance of a cute owl sound
+    if (Math.random() < 0.6) {
+      setTimeout(playRandomOwlSound, 200 + Math.random() * 400)
+    }
+    resetIdle()
+  }
+  room.addEventListener('click', resetIdle)
+  resetIdle()
+
+  // ====== WALKING ANIMALS (every ~5 seconds) ======
+  const CRITTERS = [
+    {
+      name: 'golden-retriever',
+      w: 52,
+      html: '<div class="critter-dog">' +
+        '<div class="dog-shadow"></div>' +
+        '<div class="chase-ball"></div>' +
+        '<div class="dog-ear l"></div><div class="dog-ear r"></div>' +
+        '<div class="dog-head"></div>' +
+        '<div class="dog-eye"></div><div class="dog-nose"></div><div class="dog-tongue"></div>' +
+        '<div class="dog-body"></div>' +
+        '<div class="dog-tail"></div>' +
+        '<div class="dog-leg fl"></div><div class="dog-leg fr"></div>' +
+        '<div class="dog-leg bl"></div><div class="dog-leg br"></div></div>'
+    },
+    {
+      name: 'trex',
+      w: 48,
+      html: '<div class="critter-trex">' +
+        '<div class="trex-shadow"></div>' +
+        '<div class="trex-tail"></div>' +
+        '<div class="trex-body"></div>' +
+        '<div class="trex-arm l"></div><div class="trex-arm r"></div>' +
+        '<div class="trex-head"></div>' +
+        '<div class="trex-jaw"></div><div class="trex-teeth"></div>' +
+        '<div class="trex-eye"></div>' +
+        '<div class="trex-leg l"></div><div class="trex-leg r"></div></div>'
+    },
+    {
+      name: 'kitty',
+      w: 38,
+      html: '<div class="critter-kitty">' +
+        '<div class="kitty-shadow"></div>' +
+        '<div class="kitty-tail"></div>' +
+        '<div class="kitty-ear l"></div><div class="kitty-ear r"></div>' +
+        '<div class="kitty-head"></div>' +
+        '<div class="kitty-eyes"><div class="kitty-eyeball"></div><div class="kitty-eyeball"></div></div>' +
+        '<div class="kitty-nose"></div>' +
+        '<div class="kitty-whisker l"></div><div class="kitty-whisker r"></div>' +
+        '<div class="kitty-body"></div>' +
+        '<div class="kitty-paw fl"></div><div class="kitty-paw fr"></div>' +
+        '<div class="kitty-paw bl"></div><div class="kitty-paw br"></div></div>'
+    },
+    {
+      name: 'sharks',
+      w: 70,
+      html: '<div class="critter-sharks">' +
+        '<div class="shark-sm">' +
+          '<div class="sk-body"></div><div class="sk-fin"></div><div class="sk-tail"></div><div class="sk-eye"></div>' +
+        '</div>' +
+        '<div class="panic-bubbles"><div class="panic-bubble"></div><div class="panic-bubble"></div><div class="panic-bubble"></div></div>' +
+        '<div class="shark-lg">' +
+          '<div class="sk-body"></div><div class="sk-fin"></div><div class="sk-tail"></div>' +
+          '<div class="sk-eye"></div><div class="sk-teeth"></div><div class="sk-mouth"></div>' +
+        '</div></div>'
+    }
+  ]
+
+  // Safe walk lanes (Y% from top) — clear horizontal bands between furniture/toys
+  // Avoids: bookshelf(2-10%), toyboxes(16-26%), floor items(28-42%), rug center(46-56%),
+  //         bear/crayons(56-70%), bottom toyboxes(70-80%), bottom toys/music(80-92%)
+  const WALK_LANES = [13, 14, 15, 44, 45, 55, 56]
+
+  function spawnAnimal() {
+    if (inInterior || owl.style.display === 'none') return
+    const critter = CRITTERS[Math.floor(Math.random() * CRITTERS.length)]
+    const el = document.createElement('div')
+    el.className = 'walking-animal'
+
+    // Pick a safe lane that doesn't overlap room items
+    const yPct = WALK_LANES[Math.floor(Math.random() * WALK_LANES.length)]
+    // Walk direction: left-to-right or right-to-left
+    const goRight = Math.random() > 0.5
+    const rw = room.offsetWidth
+    const dur = 3.5 + Math.random() * 3 // 3.5-6.5 seconds
+
+    el.style.cssText =
+      'top:' + yPct + '%;' +
+      (goRight ? 'left:-' + (critter.w + 10) + 'px;' : 'right:-' + (critter.w + 10) + 'px;') +
+      '--start-x:0px;--end-x:' + (goRight ? (rw + critter.w + 20) : -(rw + critter.w + 20)) + 'px;' +
+      '--walk-dur:' + dur + 's;'
+
+    // Animals face left by default (head on left side).
+    // Flip to face right when walking right.
+    if (goRight) el.style.setProperty('--flip','scaleX(-1)')
+    el.innerHTML = '<div style="transform:var(--flip,none)">' + critter.html + '</div>'
+    room.appendChild(el)
+
+    // Animal sounds — play 2-3 times during the walk
+    const soundFn = critter.name === 'golden-retriever' ? playWoof
+      : critter.name === 'kitty' ? playMeow
+      : critter.name === 'trex' ? playRoar : null
+    if (soundFn) {
+      const count = 2 + Math.floor(Math.random() * 2) // 2-3 sounds
+      for (let i = 0; i < count; i++) {
+        setTimeout(soundFn, (dur * 1000 * (i + 1)) / (count + 1))
+      }
+    }
+
+    // Remove after animation
+    setTimeout(() => el.remove(), dur * 1000 + 100)
+  }
+
+  let animalTimer = setInterval(spawnAnimal, 5000)
+  // Spawn one quickly on load
+  setTimeout(spawnAnimal, 1500)
+
+  // Pause animals during game
+  window.addEventListener('game:start', () => { clearInterval(animalTimer) })
+  window.addEventListener('game:home', () => {
+    animalTimer = setInterval(spawnAnimal, 5000)
+  })
+})();
+
+// Music box
+window.toggleMusicBox = function() {
+  if (window._toyboxMusic) window._toyboxMusic.toggle()
+  const el = document.getElementById('music-box')
+  if (el) el.classList.toggle('open')
+}
+</script>
+
+<!-- AudioContext unlock -->
+<script>
+document.addEventListener('click', function u() {
+  var c = window._sharedAudioCtx;
+  if (c && c.state === 'suspended') c.resume();
+  document.removeEventListener('click', u);
+});
+document.addEventListener('touchstart', function u() {
+  var c = window._sharedAudioCtx;
+  if (c && c.state === 'suspended') c.resume();
+  document.removeEventListener('touchstart', u);
+});
+</script>
+<script src="/js/libs/confetti.min.js"></script>
+<script type="module" src="./js/playroom-entry.js"></script>
+</body>
+</html>

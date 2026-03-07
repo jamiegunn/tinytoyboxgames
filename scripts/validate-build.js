@@ -4,7 +4,7 @@ import { readdirSync, existsSync } from 'fs'
 const errors = []
 
 // Required HTML entry points
-for (const file of ['dist/index.html', 'dist/toybox.html']) {
+for (const file of ['dist/index.html', 'dist/toybox.html', 'dist/playroom.html']) {
   if (!existsSync(file)) errors.push(`Missing: ${file}`)
 }
 

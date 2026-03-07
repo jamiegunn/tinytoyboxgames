@@ -7,6 +7,7 @@ export default defineConfig({
       input: {
         main: resolve(import.meta.dirname, 'index.html'),
         toybox: resolve(import.meta.dirname, 'toybox.html'),
+        playroom: resolve(import.meta.dirname, 'playroom.html'),
       },
     },
   },
