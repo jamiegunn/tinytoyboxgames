@@ -32,33 +32,66 @@ canvas{display:block}
 .room{
   position:absolute;
   width:100%;height:100%;
-  /* Warm hardwood floor */
+  /* Warm hardwood floor with plank seams and subtle grain */
   background:
+    /* Plank seams */
     repeating-linear-gradient(90deg,
       transparent 0px, transparent 56px,
-      rgba(0,0,0,0.06) 56px, rgba(0,0,0,0.06) 58px
+      rgba(0,0,0,0.07) 56px, rgba(0,0,0,0.07) 58px
     ),
+    /* Fine wood grain */
     repeating-linear-gradient(0deg,
-      transparent 0px, transparent 4px,
-      rgba(0,0,0,0.01) 4px, rgba(0,0,0,0.01) 5px
+      transparent 0px, transparent 3px,
+      rgba(0,0,0,0.012) 3px, rgba(0,0,0,0.012) 4px
     ),
+    /* Knot/swirl details */
+    radial-gradient(ellipse at 25% 35%, rgba(160,100,30,0.08) 0%, transparent 12%),
+    radial-gradient(ellipse at 70% 65%, rgba(140,80,20,0.06) 0%, transparent 10%),
+    radial-gradient(ellipse at 55% 20%, rgba(150,90,25,0.05) 0%, transparent 8%),
+    /* Base wood color */
     linear-gradient(135deg, #d4a050 0%, #c89040 25%, #d49848 50%, #be8438 75%, #d4a050 100%);
 }
 
-/* Sky-blue walls with cloud wallpaper feel */
+/* Baseboard + wall edge — cream-white baseboard with sky-blue wall above */
 .room::before{
   content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
   box-shadow:
-    inset 0 0 0 8px #6aade8,
-    inset 0 0 0 11px #5899d4,
-    inset 0 0 50px rgba(0,0,0,0.08),
-    inset 0 0 100px rgba(74,144,217,0.15);
+    /* Baseboard (cream/white, thick) */
+    inset 0 0 0 6px #f0ece0,
+    inset 0 0 0 7px #e0d8c8,
+    /* Wall above baseboard (sky blue) */
+    inset 0 0 0 14px #6aade8,
+    inset 0 0 0 16px #5899d4,
+    /* Depth shadow */
+    inset 0 0 40px rgba(0,0,0,0.06),
+    inset 0 0 80px rgba(74,144,217,0.1);
 }
-/* White cloud-patterned border */
+/* Subtle warm vignette for coziness */
 .room::after{
   content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
-  border:12px solid transparent;
-  border-image:linear-gradient(135deg,#7ab8f0,#5ca0e0,#8ec4f4,#5ca0e0,#7ab8f0) 1;
+  background:radial-gradient(ellipse at 50% 40%, transparent 40%, rgba(0,0,0,0.06) 100%);
+}
+
+/* Floor scuffs, crayon marks and scratches */
+.floor-scuff{
+  position:absolute;pointer-events:none;z-index:0;border-radius:50%;opacity:0.04;
+}
+.floor-scratch{
+  position:absolute;pointer-events:none;z-index:0;height:1px;border-radius:1px;
+  background:rgba(0,0,0,0.06);
+}
+.floor-crayon-mark{
+  position:absolute;pointer-events:none;z-index:0;height:3px;border-radius:2px;opacity:0.08;
+}
+.floor-sticker{
+  position:absolute;pointer-events:none;z-index:1;
+  font-size:14px;opacity:0.35;
+  filter:saturate(0.7);
+  transform-origin:center;
+}
+.floor-chalk{
+  position:absolute;pointer-events:none;z-index:0;
+  border:2px solid;border-radius:50%;opacity:0.06;
 }
 
 /* Floating cloud wisps on the walls */
@@ -68,12 +101,18 @@ canvas{display:block}
   border-radius:50%;
 }
 
-/* ======== AREA RUG (center, cozy braided rug) ======== */
+/* ======== AREA RUG (center, cozy braided rug with fabric texture) ======== */
 .rug{
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   width:min(55vw,55vh,420px);height:min(40vw,40vh,320px);
   border-radius:50%;pointer-events:none;z-index:1;
   background:
+    /* Fabric weave texture overlay */
+    repeating-linear-gradient(0deg,
+      transparent 0px,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 3px),
+    repeating-linear-gradient(90deg,
+      transparent 0px,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 3px),
+    /* Colorful braided rings */
     radial-gradient(ellipse,
       #c44040 0%, #c44040 18%,
       #d4a040 19%, #d4a040 22%,
@@ -84,17 +123,21 @@ canvas{display:block}
       #c44040 57%, #c44040 68%,
       #3868a0 69%, #3868a0 72%,
       transparent 73%);
-  opacity:0.45;
-  box-shadow:0 0 20px rgba(0,0,0,0.1);
+  opacity:0.5;
+  box-shadow:0 2px 16px rgba(0,0,0,0.12),0 0 0 2px rgba(0,0,0,0.04);
 }
-/* Fringe */
+/* Fringe tassels on sides */
 .rug::before,.rug::after{
-  content:'';position:absolute;top:10%;bottom:10%;width:6px;
-  background:repeating-linear-gradient(180deg,transparent 0px,transparent 3px,#c44040 3px,#c44040 5px);
-  opacity:0.35;
+  content:'';position:absolute;top:8%;bottom:8%;width:8px;
+  background:repeating-linear-gradient(180deg,
+    transparent 0px,transparent 3px,
+    #c44040 3px,#c44040 4px,
+    transparent 4px,transparent 5px,
+    #d4a040 5px,#d4a040 6px);
+  opacity:0.4;
 }
-.rug::before{left:-5px;border-radius:2px 0 0 2px}
-.rug::after{right:-5px;border-radius:0 2px 2px 0}
+.rug::before{left:-7px;border-radius:3px 0 0 3px}
+.rug::after{right:-7px;border-radius:0 3px 3px 0}
 
 /* ======== WINDOW (top edge, warm afternoon sunlight) ======== */
 .topdown-window{
@@ -729,6 +772,38 @@ canvas{display:block}
     linear-gradient(135deg,#7038a8,#582090,#8048c0,#481870);
 }
 
+/* Themed toybox sticker decorations */
+.toybox-sticker{
+  position:absolute;pointer-events:none;z-index:3;font-size:12px;
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,0.15));
+  opacity:0.85;
+}
+/* Adventure: compass, treasure map, flag */
+.toybox-red .toybox-sticker:nth-child(1){top:-4px;right:-2px;font-size:10px}
+.toybox-red .toybox-sticker:nth-child(2){bottom:-2px;left:-3px;font-size:9px}
+/* Animals: paw, bone */
+.toybox-blue .toybox-sticker:nth-child(1){top:-3px;left:-2px;font-size:10px}
+.toybox-blue .toybox-sticker:nth-child(2){bottom:-3px;right:-1px;font-size:9px}
+/* Creative: palette, crayon */
+.toybox-green .toybox-sticker:nth-child(1){top:-4px;right:-3px;font-size:10px}
+.toybox-green .toybox-sticker:nth-child(2){bottom:-2px;left:-2px;font-size:9px}
+/* Nature: leaf, butterfly */
+.toybox-purple .toybox-sticker:nth-child(1){top:-3px;left:-3px;font-size:10px}
+.toybox-purple .toybox-sticker:nth-child(2){bottom:-4px;right:-2px;font-size:9px}
+
+/* Toybox handle (small arc on front edge) */
+.toybox-handle{
+  position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);
+  width:18px;height:6px;
+  border:2px solid;border-top:none;
+  border-radius:0 0 8px 8px;z-index:3;pointer-events:none;
+  opacity:0.7;
+}
+.toybox-red .toybox-handle{border-color:#ffd700}
+.toybox-blue .toybox-handle{border-color:#a0d4ff}
+.toybox-green .toybox-handle{border-color:#80ffb0}
+.toybox-purple .toybox-handle{border-color:#d0a0ff}
+
 /* Open state: lid lifts */
 .toybox-spot.open .toybox-top{
   transform:scale(0.85) translateY(-30%);
@@ -883,18 +958,33 @@ canvas{display:block}
   z-index:3;cursor:pointer;-webkit-tap-highlight-color:transparent;
 }
 .music-box-td{
-  width:56px;height:56px;
-  background:linear-gradient(145deg,#3a2a1a,#2a1c10);
-  border-radius:6px;position:relative;
-  box-shadow:0 3px 10px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.06);
+  width:60px;height:60px;
+  background:linear-gradient(145deg,#e85050,#c83838,#d04040);
+  border-radius:10px;position:relative;
+  box-shadow:
+    0 3px 10px rgba(0,0,0,0.3),
+    inset 0 2px 0 rgba(255,255,255,0.2),
+    inset 0 -2px 0 rgba(0,0,0,0.15),
+    0 0 0 3px #a82828;
   transition:transform 0.2s;
+}
+/* Chunky button on corner */
+.music-box-td .player-btn{
+  position:absolute;top:4px;left:4px;
+  width:8px;height:8px;border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,#50e870,#30c050);
+  box-shadow:0 1px 2px rgba(0,0,0,0.2),inset 0 1px 0 rgba(255,255,255,0.3);
+  z-index:3;pointer-events:none;
+}
+.music-box-td.open .player-btn{
+  background:radial-gradient(circle at 40% 35%,#ff5050,#cc3030);
 }
 .music-box-td:hover{transform:scale(1.1)}
 .music-box-td:active{transform:scale(0.95)}
 /* Vinyl record (circle on the platter) */
 .music-box-td::after{
   content:'';position:absolute;
-  top:6px;left:6px;width:38px;height:38px;
+  top:10px;left:8px;width:40px;height:40px;
   background:
     radial-gradient(circle,#222 0%,#222 12%,transparent 13%),
     radial-gradient(circle,transparent 25%,rgba(40,40,40,0.3) 26%,transparent 27%),
@@ -907,12 +997,12 @@ canvas{display:block}
 }
 /* Record label center */
 .record-label{
-  position:absolute;top:50%;left:50%;
+  position:absolute;top:calc(50% + 2px);left:calc(50% - 2px);
   transform:translate(-50%,-50%);
-  width:12px;height:12px;
-  background:radial-gradient(circle at 40% 35%,#e74c3c,#b83232);
+  width:14px;height:14px;
+  background:radial-gradient(circle at 40% 35%,#feca57,#f0b429);
   border-radius:50%;z-index:2;pointer-events:none;
-  box-shadow:0 0 0 1.5px rgba(0,0,0,0.3);
+  box-shadow:0 0 0 1.5px rgba(0,0,0,0.2);
 }
 .record-label::after{
   content:'';position:absolute;top:50%;left:50%;
@@ -921,8 +1011,8 @@ canvas{display:block}
 }
 /* Tonearm */
 .tonearm{
-  position:absolute;top:4px;right:4px;
-  width:3px;height:24px;
+  position:absolute;top:6px;right:5px;
+  width:3px;height:26px;
   background:linear-gradient(180deg,#c0c0c0,#808080);
   border-radius:2px;
   transform-origin:top center;
@@ -961,7 +1051,7 @@ canvas{display:block}
 }
 .music-box-td.open .music-box-notes{opacity:1}
 .music-note{
-  position:absolute;font-size:14px;color:#e74c3c;opacity:0;pointer-events:none;
+  position:absolute;font-size:14px;color:#ffd700;opacity:0;pointer-events:none;
 }
 .music-box-td.open .music-note{animation:noteUp 2.5s ease-out infinite}
 .music-note:nth-child(1){left:0;animation-delay:0s}
@@ -1203,107 +1293,151 @@ canvas{display:block}
   top:50%;left:50%;transform:translate(-50%,-50%);
 }
 
-/* ======== TOYBOX INTERIOR (full-screen zoom-in) ======== */
+/* ======== TOYBOX INTERIOR (full-screen zoom-in, top-down play area) ======== */
 .toybox-interior{
   position:absolute;inset:0;z-index:40;
-  display:none;flex-direction:column;align-items:center;justify-content:center;
-  gap:clamp(16px,4vh,32px);
+  display:none;flex-direction:column;align-items:center;
+  justify-content:flex-start;
+  padding-top:clamp(24px,5vh,50px);
+  gap:clamp(10px,2vh,20px);
   opacity:0;transition:opacity 0.4s;
+  overflow-y:auto;
 }
 .toybox-interior.visible{display:flex}
 .toybox-interior.show{opacity:1}
 
-/* Toybox interior — looking down into an open wooden toybox */
+/* Themed play-mat floor — foam puzzle texture with grid stitching */
 .toybox-interior::before{
   content:'';position:absolute;inset:0;z-index:-1;
   transition:background 0.4s;
 }
-/* Wooden box interior with fabric lining — themed per toybox color */
+/* Red: adventure mat — warm treasure-map parchment feel */
 .toybox-interior[data-theme="red"]::before{
   background:
-    linear-gradient(180deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
-    linear-gradient(90deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
-    radial-gradient(ellipse at 50% 50%,#f2d0d0 0%,#e8b0b0 100%);
+    repeating-linear-gradient(0deg,transparent 0px,transparent 40px,rgba(0,0,0,0.02) 40px,rgba(0,0,0,0.02) 41px),
+    repeating-linear-gradient(90deg,transparent 0px,transparent 40px,rgba(0,0,0,0.02) 40px,rgba(0,0,0,0.02) 41px),
+    radial-gradient(ellipse at 50% 45%,#f8e0d0 0%,#f0c8b0 40%,#e4b098 100%);
 }
+/* Blue: animal world — soft sky-blue meadow mat */
 .toybox-interior[data-theme="blue"]::before{
   background:
-    linear-gradient(180deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
-    linear-gradient(90deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
-    radial-gradient(ellipse at 50% 50%,#c8ddf2 0%,#a8c4e0 100%);
+    repeating-linear-gradient(0deg,transparent 0px,transparent 40px,rgba(0,0,0,0.02) 40px,rgba(0,0,0,0.02) 41px),
+    repeating-linear-gradient(90deg,transparent 0px,transparent 40px,rgba(0,0,0,0.02) 40px,rgba(0,0,0,0.02) 41px),
+    radial-gradient(ellipse at 50% 45%,#d0e8f8 0%,#b0d4f0 40%,#98c4e4 100%);
 }
+/* Green: creative craft — soft green play mat */
 .toybox-interior[data-theme="green"]::before{
   background:
-    linear-gradient(180deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
-    linear-gradient(90deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
-    radial-gradient(ellipse at 50% 50%,#c8ecd0 0%,#a8d4b0 100%);
+    repeating-linear-gradient(0deg,transparent 0px,transparent 40px,rgba(0,0,0,0.02) 40px,rgba(0,0,0,0.02) 41px),
+    repeating-linear-gradient(90deg,transparent 0px,transparent 40px,rgba(0,0,0,0.02) 40px,rgba(0,0,0,0.02) 41px),
+    radial-gradient(ellipse at 50% 45%,#d0f0d8 0%,#b0e0b8 40%,#98d4a0 100%);
 }
+/* Purple: nature nook — magical twilight mat */
 .toybox-interior[data-theme="purple"]::before{
   background:
-    linear-gradient(180deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
-    linear-gradient(90deg,rgba(0,0,0,0.15) 0%,transparent 8%,transparent 92%,rgba(0,0,0,0.15) 100%),
-    radial-gradient(ellipse at 50% 50%,#dcc8f0 0%,#c0a8d8 100%);
+    repeating-linear-gradient(0deg,transparent 0px,transparent 40px,rgba(0,0,0,0.02) 40px,rgba(0,0,0,0.02) 41px),
+    repeating-linear-gradient(90deg,transparent 0px,transparent 40px,rgba(0,0,0,0.02) 40px,rgba(0,0,0,0.02) 41px),
+    radial-gradient(ellipse at 50% 45%,#e8d8f4 0%,#d4c0e8 40%,#c0a8d8 100%);
 }
 
-/* Wooden rim around the box edges */
+/* Wooden toybox rim with rivets and sticker details */
 .toybox-interior::after{
-  content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+  content:'';position:absolute;inset:0;z-index:5;pointer-events:none;
   box-shadow:
-    inset 0 0 0 clamp(14px,3.5vw,28px) #a07830,
-    inset 0 0 0 clamp(16px,4vw,32px) #8b6914,
-    inset 0 0 40px rgba(0,0,0,0.2);
+    /* Inner lip highlight */
+    inset 0 0 0 3px rgba(255,255,255,0.06),
+    /* Main wood rim */
+    inset 0 0 0 clamp(12px,3vw,22px) #a07830,
+    /* Outer dark edge */
+    inset 0 0 0 clamp(14px,3.5vw,26px) #8b6914,
+    /* Colored plastic trim per theme (using themed glow) */
+    inset 0 0 0 clamp(16px,4vw,30px) rgba(0,0,0,0.15),
+    /* Depth shadow inside the box */
+    inset 0 0 50px rgba(0,0,0,0.15);
+  /* Wood grain on rim */
   background:
+    repeating-linear-gradient(0deg,
+      transparent 0px,transparent 18px,
+      rgba(255,255,255,0.03) 18px,rgba(255,255,255,0.03) 19px),
     repeating-linear-gradient(90deg,
-      transparent 0px,transparent clamp(30px,8vw,60px),
-      rgba(0,0,0,0.04) clamp(30px,8vw,60px),rgba(0,0,0,0.04) calc(clamp(30px,8vw,60px) + 1px)
-    );
-  -webkit-mask:linear-gradient(#000,#000);
-  mask:linear-gradient(#000,#000);
+      transparent 0px,transparent 18px,
+      rgba(255,255,255,0.03) 18px,rgba(255,255,255,0.03) 19px);
+}
+/* Rim rivets (4 corners) */
+.interior-rivet{
+  position:absolute;width:8px;height:8px;z-index:6;pointer-events:none;
+  background:radial-gradient(circle at 35% 30%,#ffeaa7,#daa520,#8b6914);
+  border-radius:50%;
+  box-shadow:0 1px 3px rgba(0,0,0,0.3),inset 0 -1px 0 rgba(0,0,0,0.2);
+}
+/* Rim sticker emojis */
+.interior-rim-sticker{
+  position:absolute;z-index:6;pointer-events:none;
+  font-size:16px;opacity:0.7;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,0.2));
 }
 
-/* Interior title banner */
+/* Interior title — craft label / painted sign feel */
 .interior-title{
-  font-family:'Sniglet',cursive;font-size:clamp(22px,5vw,36px);
-  font-weight:800;color:#fff;z-index:1;
-  padding:8px 32px;border-radius:14px;
-  box-shadow:0 4px 0 rgba(0,0,0,0.2),0 5px 12px rgba(0,0,0,0.15);
+  font-family:'Sniglet',cursive;font-size:clamp(20px,4.5vw,32px);
+  font-weight:800;color:#fff;z-index:2;
+  padding:8px 28px;border-radius:16px;
+  position:relative;
+  box-shadow:
+    0 4px 0 rgba(0,0,0,0.18),
+    0 6px 16px rgba(0,0,0,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.25);
   text-shadow:1px 2px 0 rgba(0,0,0,0.2);
   animation:interiorTitleIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
   animation-delay:0.2s;
 }
+/* Tape corners on label */
+.interior-title::before,.interior-title::after{
+  content:'';position:absolute;width:18px;height:8px;
+  background:rgba(255,255,255,0.25);
+  border-radius:1px;
+  transform:rotate(-8deg);
+}
+.interior-title::before{top:-3px;left:8px}
+.interior-title::after{bottom:-3px;right:8px;transform:rotate(5deg)}
+
 @keyframes interiorTitleIn{0%{transform:translateY(-30px) scale(0.8);opacity:0}100%{transform:translateY(0) scale(1);opacity:1}}
 .toybox-interior[data-theme="red"] .interior-title{background:linear-gradient(180deg,#e85050,#c03030)}
 .toybox-interior[data-theme="blue"] .interior-title{background:linear-gradient(180deg,#5088d0,#3060a0)}
 .toybox-interior[data-theme="green"] .interior-title{background:linear-gradient(180deg,#50b868,#308848)}
 .toybox-interior[data-theme="purple"] .interior-title{background:linear-gradient(180deg,#9060c0,#603890)}
 
-/* Interior toy area — toys scattered inside the box */
+/* Interior toy area — activity stations on the play mat */
 .interior-shelf{
-  display:flex;gap:clamp(16px,5vw,36px);
-  padding:20px clamp(16px,5vw,36px);
-  position:relative;z-index:1;
+  display:flex;flex-direction:column;align-items:center;gap:clamp(18px,4vh,32px);
+  padding:16px clamp(16px,5vw,36px);
+  position:relative;z-index:2;
   animation:shelfSlideUp 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
   animation-delay:0.3s;
 }
 @keyframes shelfSlideUp{0%{transform:translateY(40px);opacity:0}100%{transform:translateY(0);opacity:1}}
-/* No shelf plank or brackets */
 .interior-shelf::after{display:none}
 .interior-shelf::before{display:none}
 
-/* Interior toy buttons — outline circle, no fill, no text */
+/* Activity play zones — dotted circle with soft glow, large touch targets */
 .interior-shelf .toy{
-  width:clamp(100px,22vw,140px);height:clamp(100px,22vw,140px);
+  width:clamp(160px,40vw,240px);height:clamp(160px,40vw,240px);
   border-radius:50%;
-  background:none;
-  border:3px dashed rgba(255,255,255,0.7);
-  box-shadow:0 0 0 2px rgba(0,0,0,0.08);
+  background:radial-gradient(circle,rgba(255,255,255,0.12) 0%,rgba(255,255,255,0.04) 60%,transparent 75%);
+  border:3px dashed rgba(255,255,255,0.55);
+  box-shadow:0 0 20px rgba(255,255,255,0.06);
   animation:intToyPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
   transition:transform 0.2s,border-color 0.2s,box-shadow 0.2s;
   position:relative;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+  padding:0;
 }
 .interior-shelf .toy:hover{
-  transform:scale(1.12);
-  border-color:rgba(255,255,255,0.95);
-  box-shadow:0 0 16px rgba(255,255,255,0.3),0 0 0 2px rgba(0,0,0,0.1);
+  transform:scale(1.08);
+  border-color:rgba(255,255,255,0.9);
+  background:radial-gradient(circle,rgba(255,255,255,0.2) 0%,rgba(255,255,255,0.08) 60%,transparent 75%);
+  box-shadow:0 0 28px rgba(255,255,255,0.15),0 0 0 5px rgba(255,255,255,0.08);
 }
 .interior-shelf .toy:active{transform:scale(0.93)}
 .interior-shelf .toy::after{display:none}
@@ -1311,8 +1445,69 @@ canvas{display:block}
 .interior-shelf .toy:nth-child(3){animation-delay:0.2s}
 @keyframes intToyPop{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
 .interior-shelf .toy-icon{
-  width:clamp(70px,18vw,100px);height:clamp(70px,18vw,100px);
+  width:clamp(100px,26vw,150px);height:clamp(100px,26vw,150px);
+  flex-shrink:0;
+  margin:0;
 }
+
+/* ======== GAME LOADING SCREEN ======== */
+.game-loading{
+  position:absolute;inset:0;z-index:50;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:16px;
+  background:radial-gradient(ellipse at 50% 45%,#f8e8d0,#e8d0b0);
+  opacity:0;animation:loadFadeIn 0.3s ease-out forwards;
+}
+@keyframes loadFadeIn{0%{opacity:0}100%{opacity:1}}
+.game-loading .load-owl{
+  width:66px;height:66px;position:relative;
+  animation:loadOwlBounce 0.6s ease-in-out infinite alternate;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+}
+@keyframes loadOwlBounce{
+  0%{transform:translateY(0) rotate(-3deg)}
+  100%{transform:translateY(-8px) rotate(3deg)}
+}
+.game-loading .load-dots{
+  display:flex;gap:8px;
+}
+.game-loading .load-dot{
+  width:10px;height:10px;border-radius:50%;
+  animation:loadDotPulse 0.8s ease-in-out infinite;
+}
+.game-loading .load-dot:nth-child(1){background:#e74c3c;animation-delay:0s}
+.game-loading .load-dot:nth-child(2){background:#f1c40f;animation-delay:0.15s}
+.game-loading .load-dot:nth-child(3){background:#3498db;animation-delay:0.3s}
+@keyframes loadDotPulse{
+  0%,100%{transform:scale(0.7);opacity:0.4}
+  50%{transform:scale(1.2);opacity:1}
+}
+
+/* Ambient scattered objects on interior floor */
+.interior-scatter{
+  position:absolute;pointer-events:none;z-index:1;
+  opacity:0;animation:scatterIn 0.6s ease-out forwards;
+}
+@keyframes scatterIn{0%{opacity:0;transform:scale(0.5)}100%{opacity:1;transform:scale(1)}}
+.interior-scatter-emoji{font-size:clamp(24px,5vw,36px);filter:drop-shadow(0 2px 3px rgba(0,0,0,0.18))}
+
+/* Glitter sparkle particles */
+.interior-glitter{
+  position:absolute;pointer-events:none;z-index:1;
+  width:3px;height:3px;border-radius:50%;
+  animation:glitterTwinkle 2s ease-in-out infinite;
+}
+@keyframes glitterTwinkle{
+  0%,100%{opacity:0.15;transform:scale(0.6)}
+  50%{opacity:0.8;transform:scale(1.3)}
+}
+
+/* Crayon doodle lines on interior floor */
+.interior-doodle{
+  position:absolute;pointer-events:none;z-index:0;
+  border-radius:50%;border:2px solid;opacity:0.08;
+}
+
 /* Blinking tap-hint arrow */
 .tap-arrow{
   position:absolute;bottom:-52px;left:50%;transform:translateX(-50%);
@@ -1333,7 +1528,12 @@ canvas{display:block}
   animation:interiorOwlIn 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
   animation-delay:0.5s;
   filter:drop-shadow(0 4px 8px rgba(0,0,0,0.25));
+  z-index:35;
 }
+.interior-owl.walking{
+  animation:owlWaddle 0.25s ease-in-out infinite alternate;
+}
+@keyframes owlWaddle{0%{transform:rotate(-5deg) translateY(0)}100%{transform:rotate(5deg) translateY(-4px)}}
 @keyframes interiorOwlIn{0%{transform:scale(0) rotate(-15deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
 
 /* Interior owl matches the top-down playroom owl (scaled up) */
@@ -1488,6 +1688,30 @@ canvas{display:block}
 <div id="menu">
   <div class="room" id="room">
 
+    <!-- Floor scuffs and scratches -->
+    <div class="floor-scratch" style="width:40px;top:45%;left:30%;transform:rotate(12deg)"></div>
+    <div class="floor-scratch" style="width:25px;top:62%;right:22%;transform:rotate(-8deg)"></div>
+    <div class="floor-scratch" style="width:55px;top:78%;left:45%;transform:rotate(3deg)"></div>
+    <div class="floor-scratch" style="width:30px;top:28%;left:65%;transform:rotate(-15deg)"></div>
+    <div class="floor-scuff" style="width:16px;height:12px;top:55%;left:42%;background:rgba(0,0,0,0.5)"></div>
+    <div class="floor-scuff" style="width:10px;height:8px;top:70%;right:40%;background:rgba(0,0,0,0.5)"></div>
+    <div class="floor-scuff" style="width:14px;height:10px;top:35%;left:58%;background:rgba(0,0,0,0.5)"></div>
+
+    <!-- Crayon marks on floor -->
+    <div class="floor-crayon-mark" style="width:35px;top:82%;left:20%;background:#e74c3c;transform:rotate(-20deg)"></div>
+    <div class="floor-crayon-mark" style="width:22px;top:84%;left:24%;background:#3498db;transform:rotate(10deg)"></div>
+    <div class="floor-crayon-mark" style="width:28px;top:38%;right:30%;background:#f1c40f;transform:rotate(-5deg)"></div>
+
+    <!-- Small stickers stuck to floor -->
+    <div class="floor-sticker" style="top:88%;left:70%;transform:rotate(15deg)">&#x2B50;</div>
+    <div class="floor-sticker" style="top:26%;left:42%;transform:rotate(-20deg)">&#x2764;&#xFE0F;</div>
+    <div class="floor-sticker" style="bottom:35%;right:8%;transform:rotate(8deg)">&#x1F31F;</div>
+
+    <!-- Faint chalk circles on floor -->
+    <div class="floor-chalk" style="width:30px;height:30px;top:75%;left:60%;border-color:#9b59b6"></div>
+    <div class="floor-chalk" style="width:20px;height:20px;top:32%;left:35%;border-color:#3498db"></div>
+    <div class="floor-chalk" style="width:24px;height:18px;bottom:10%;right:30%;border-color:#e74c3c;border-radius:40%"></div>
+
     <!-- Window at top -->
     <div class="topdown-window">
       <div class="topdown-window-frame"></div>
@@ -1556,13 +1780,17 @@ canvas{display:block}
     <div class="room-cloud" style="width:50px;height:25px;top:6%;right:30%"></div>
     <div class="room-cloud" style="width:40px;height:20px;top:3%;left:60%"></div>
 
-    <!-- Dust motes floating in sunlight -->
+    <!-- Dust motes & sparkles floating in sunlight -->
     <div class="dust-mote" style="width:3px;height:3px;top:20%;left:40%;--dust-dur:7s"></div>
     <div class="dust-mote" style="width:2px;height:2px;top:35%;left:55%;--dust-dur:9s;animation-delay:2s"></div>
     <div class="dust-mote" style="width:2px;height:2px;top:25%;left:48%;--dust-dur:6s;animation-delay:1s"></div>
     <div class="dust-mote" style="width:3px;height:3px;top:40%;left:42%;--dust-dur:8s;animation-delay:3s"></div>
     <div class="dust-mote" style="width:2px;height:2px;top:15%;left:52%;--dust-dur:10s;animation-delay:4s"></div>
     <div class="dust-mote" style="width:2px;height:2px;top:30%;left:60%;--dust-dur:7s;animation-delay:5s"></div>
+    <div class="dust-mote" style="width:2px;height:2px;top:18%;left:35%;--dust-dur:8s;animation-delay:1.5s"></div>
+    <div class="dust-mote" style="width:3px;height:3px;top:45%;left:58%;--dust-dur:11s;animation-delay:3.5s"></div>
+    <div class="dust-mote" style="width:2px;height:2px;top:50%;left:32%;--dust-dur:6s;animation-delay:6s"></div>
+    <div class="dust-mote" style="width:2px;height:2px;top:22%;left:68%;--dust-dur:9s;animation-delay:7s"></div>
 
     <!-- Floor items -->
     <div class="floor-item f-block" style="top:72%;left:22%;background:linear-gradient(135deg,#b84eea,#9040c8);transform:rotate(-15deg)">A</div>
@@ -1618,6 +1846,9 @@ canvas{display:block}
         <div class="toybox-rivet" style="bottom:2px;left:2px"></div>
         <div class="toybox-rivet" style="bottom:2px;right:2px"></div>
       </div>
+      <div class="toybox-sticker">&#x1F9ED;</div>
+      <div class="toybox-sticker">&#x1F3F4;&#x200D;&#x2620;&#xFE0F;</div>
+      <div class="toybox-handle"></div>
       <div class="toybox-label">Adventure</div>
       <div class="toybox-contents">
         <button class="toy" onclick="event.stopPropagation();startGame('bubblePop')" aria-label="Bubble Pop">
@@ -1645,6 +1876,9 @@ canvas{display:block}
         <div class="toybox-rivet" style="bottom:2px;left:2px"></div>
         <div class="toybox-rivet" style="bottom:2px;right:2px"></div>
       </div>
+      <div class="toybox-sticker">&#x1F43E;</div>
+      <div class="toybox-sticker">&#x1F9B4;</div>
+      <div class="toybox-handle"></div>
       <div class="toybox-label">Animals</div>
       <div class="toybox-contents">
         <button class="toy" onclick="event.stopPropagation();startGame('feedAnimal')" aria-label="Feed the Animal">
@@ -1672,6 +1906,9 @@ canvas{display:block}
         <div class="toybox-rivet" style="bottom:2px;left:2px"></div>
         <div class="toybox-rivet" style="bottom:2px;right:2px"></div>
       </div>
+      <div class="toybox-sticker">&#x1F3A8;</div>
+      <div class="toybox-sticker">&#x1F58D;</div>
+      <div class="toybox-handle"></div>
       <div class="toybox-label">Creative</div>
       <div class="toybox-contents">
         <button class="toy" onclick="event.stopPropagation();startGame('colorMatch')" aria-label="Color Match">
@@ -1699,6 +1936,9 @@ canvas{display:block}
         <div class="toybox-rivet" style="bottom:2px;left:2px"></div>
         <div class="toybox-rivet" style="bottom:2px;right:2px"></div>
       </div>
+      <div class="toybox-sticker">&#x1F343;</div>
+      <div class="toybox-sticker">&#x1F98B;</div>
+      <div class="toybox-handle"></div>
       <div class="toybox-label">Nature</div>
       <div class="toybox-contents">
         <button class="toy" onclick="event.stopPropagation();startGame('fireflies')" aria-label="Fireflies">
@@ -1716,6 +1956,7 @@ canvas{display:block}
     <!-- Music box -->
     <div class="music-box-spot" onclick="event.stopPropagation();toggleMusicBox()">
       <div class="music-box-td" id="music-box">
+        <div class="player-btn"></div>
         <div class="record-label"></div>
         <div class="tonearm"></div>
         <div class="music-box-notes">
@@ -2169,23 +2410,194 @@ canvas{display:block}
       btn.innerHTML =
         '<div class="toy-sparkle"></div><div class="toy-sparkle"></div><div class="toy-sparkle"></div>' +
         '<div class="toy-icon">' + toy.icon + '</div>'
-      btn.addEventListener('click', () => startGame(toy.id))
+      btn.addEventListener('click', () => {
+        // Play the same chime as opening a toybox
+        playOpenChime()
+
+        // Animate owl to the clicked toy (like playroom walking)
+        const intOwl = interior.querySelector('.interior-owl')
+        const btnRect = btn.getBoundingClientRect()
+        const intRect = interior.getBoundingClientRect()
+        const targetLeft = (btnRect.left - intRect.left) + (btnRect.width / 2) - 33
+        const targetTop = (btnRect.top - intRect.top) + btnRect.height + 4
+
+        if (intOwl) {
+          // Capture current position
+          const startLeft = intOwl.offsetLeft
+          const startTop = intOwl.offsetTop
+          const dx = targetLeft - startLeft
+          const dy = targetTop - startTop
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          const duration = Math.min(1.2, Math.max(0.3, dist / 300))
+
+          intOwl.style.position = 'absolute'
+          intOwl.style.bottom = 'auto'
+          intOwl.style.right = 'auto'
+          intOwl.style.left = startLeft + 'px'
+          intOwl.style.top = startTop + 'px'
+          intOwl.style.transition = 'left ' + duration + 's cubic-bezier(0.25,0.1,0.25,1),' +
+            'top ' + duration + 's cubic-bezier(0.25,0.1,0.25,1)'
+          intOwl.classList.add('walking')
+
+          // Footsteps sound
+          playFootsteps(duration)
+
+          // Footprints
+          let steps = 0
+          const maxSteps = Math.floor(duration / 0.12)
+          const fpTimer = setInterval(() => {
+            if (steps >= maxSteps) { clearInterval(fpTimer); return }
+            const progress = steps / maxSteps
+            const fpX = startLeft + dx * progress + 33
+            const fpY = startTop + dy * progress + 50
+            const fp = document.createElement('div')
+            fp.className = 'footprint'
+            fp.style.left = fpX + (steps % 2 ? 3 : -3) + 'px'
+            fp.style.top = fpY + 'px'
+            interior.appendChild(fp)
+            setTimeout(() => fp.remove(), 2000)
+            steps++
+          }, duration * 1000 / maxSteps)
+
+          // Force reflow then animate
+          void intOwl.offsetHeight
+          intOwl.style.left = targetLeft + 'px'
+          intOwl.style.top = targetTop + 'px'
+
+          setTimeout(() => {
+            intOwl.classList.remove('walking')
+            clearInterval(fpTimer)
+            playOwlExcited()
+            // Show loading screen
+            const loader = document.createElement('div')
+            loader.className = 'game-loading'
+            loader.innerHTML =
+              '<div class="load-owl">' +
+                '<div class="int-owl">' +
+                  '<div class="int-owl-ear l"></div><div class="int-owl-ear r"></div>' +
+                  '<div class="int-owl-wing l"></div><div class="int-owl-wing r"></div>' +
+                  '<div class="int-owl-body"></div>' +
+                  '<div class="int-owl-eyes">' +
+                    '<div class="int-owl-eye"><div class="int-owl-pupil"></div></div>' +
+                    '<div class="int-owl-eye"><div class="int-owl-pupil"></div></div>' +
+                  '</div>' +
+                  '<div class="int-owl-beak"></div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="load-dots"><div class="load-dot"></div><div class="load-dot"></div><div class="load-dot"></div></div>'
+            interior.appendChild(loader)
+            setTimeout(() => {
+              loader.remove()
+              startGame(toy.id)
+            }, 1000)
+          }, duration * 1000 + 100)
+        } else {
+          // Fallback if no owl found
+          const loader = document.createElement('div')
+          loader.className = 'game-loading'
+          loader.innerHTML =
+            '<div class="load-owl">' +
+              '<div class="int-owl">' +
+                '<div class="int-owl-ear l"></div><div class="int-owl-ear r"></div>' +
+                '<div class="int-owl-wing l"></div><div class="int-owl-wing r"></div>' +
+                '<div class="int-owl-body"></div>' +
+                '<div class="int-owl-eyes">' +
+                  '<div class="int-owl-eye"><div class="int-owl-pupil"></div></div>' +
+                  '<div class="int-owl-eye"><div class="int-owl-pupil"></div></div>' +
+                '</div>' +
+                '<div class="int-owl-beak"></div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="load-dots"><div class="load-dot"></div><div class="load-dot"></div><div class="load-dot"></div></div>'
+          interior.appendChild(loader)
+          setTimeout(() => {
+            loader.remove()
+            startGame(toy.id)
+          }, 1000)
+        }
+      })
       interiorShelf.appendChild(btn)
     })
 
-    // Add decorative sparkles
-    interior.querySelectorAll('.interior-sparkle').forEach(s => s.remove())
-    const sparkColors = { red: '#ff6b6b', blue: '#54a0ff', green: '#26de81', purple: '#a55eea' }
-    for (let i = 0; i < 8; i++) {
-      const s = document.createElement('div')
-      s.className = 'interior-sparkle'
-      s.style.cssText =
-        'left:' + (5 + Math.random() * 90) + '%;top:' + (10 + Math.random() * 80) + '%;' +
-        'background:' + (sparkColors[data.theme] || '#ffd700') + ';' +
-        'animation-delay:' + (Math.random() * 2.5) + 's;' +
-        'width:' + (4 + Math.random() * 4) + 'px;height:' + (4 + Math.random() * 4) + 'px;'
-      interior.appendChild(s)
+    // Clean up previous decorations
+    interior.querySelectorAll('.interior-sparkle,.interior-scatter,.interior-glitter,.interior-doodle,.interior-rivet,.interior-rim-sticker').forEach(s => s.remove())
+
+    // Themed ambient scatter objects around edges
+    const SCATTER = {
+      red: ['&#x1F5FA;','&#x1F9ED;','&#x1F52D;','&#x1FA99;','&#x1F3F4;','&#x2693;'],
+      blue: ['&#x1F43E;','&#x1F9B4;','&#x1FAB6;','&#x1F41F;','&#x1F95A;','&#x1F420;'],
+      green: ['&#x1F58D;','&#x270F;','&#x2702;','&#x1F4CE;','&#x1F3A8;','&#x1F9F7;'],
+      purple: ['&#x1F343;','&#x1F33F;','&#x1FAB7;','&#x1F98B;','&#x1F33B;','&#x1FAA8;']
     }
+    const scatterItems = SCATTER[data.theme] || SCATTER.green
+    const scatterPositions = [
+      {x:'18%',y:'72%'},{x:'78%',y:'22%'},{x:'20%',y:'28%'},{x:'80%',y:'68%'},
+      {x:'16%',y:'48%'},{x:'82%',y:'45%'}
+    ]
+    scatterItems.forEach((emoji, i) => {
+      const el = document.createElement('div')
+      el.className = 'interior-scatter interior-scatter-emoji'
+      el.innerHTML = emoji
+      const pos = scatterPositions[i]
+      el.style.cssText = 'left:' + pos.x + ';top:' + pos.y + ';' +
+        'transform:rotate(' + (Math.random() * 60 - 30) + 'deg);' +
+        'animation-delay:' + (0.4 + i * 0.08) + 's;'
+      interior.appendChild(el)
+    })
+
+    // Glitter sparkles
+    const glitterColors = { red:'#ffd700', blue:'#a0d4ff', green:'#80ffb0', purple:'#d0a0ff' }
+    const gc = glitterColors[data.theme] || '#ffd700'
+    for (let i = 0; i < 12; i++) {
+      const g = document.createElement('div')
+      g.className = 'interior-glitter'
+      g.style.cssText =
+        'left:' + (8 + Math.random() * 84) + '%;top:' + (12 + Math.random() * 76) + '%;' +
+        'background:' + gc + ';box-shadow:0 0 4px ' + gc + ';' +
+        'animation-delay:' + (Math.random() * 2.5) + 's;' +
+        'width:' + (2 + Math.random() * 3) + 'px;height:' + (2 + Math.random() * 3) + 'px;'
+      interior.appendChild(g)
+    }
+
+    // Faint crayon doodles on the play mat
+    const doodleColors = { red:'#e74c3c', blue:'#3498db', green:'#27ae60', purple:'#8e44ad' }
+    const dc = doodleColors[data.theme] || '#333'
+    for (let i = 0; i < 3; i++) {
+      const d = document.createElement('div')
+      d.className = 'interior-doodle'
+      const sz = 20 + Math.random() * 30
+      d.style.cssText =
+        'width:' + sz + 'px;height:' + (sz * (0.6 + Math.random() * 0.4)) + 'px;' +
+        'left:' + (15 + Math.random() * 70) + '%;top:' + (20 + Math.random() * 60) + '%;' +
+        'border-color:' + dc + ';'
+      interior.appendChild(d)
+    }
+
+    // Wooden rim rivets (4 corners)
+    const rivetPos = [{t:'6px',l:'6px'},{t:'6px',r:'6px'},{b:'6px',l:'6px'},{b:'6px',r:'6px'}]
+    rivetPos.forEach(p => {
+      const rv = document.createElement('div')
+      rv.className = 'interior-rivet'
+      rv.style.cssText = (p.t?'top:'+p.t+';':'') + (p.b?'bottom:'+p.b+';':'') +
+        (p.l?'left:'+p.l+';':'') + (p.r?'right:'+p.r+';':'')
+      interior.appendChild(rv)
+    })
+
+    // Rim sticker emojis (2 per theme, on the rim)
+    const rimStickers = {
+      red: [{e:'&#x2694;',t:'50%',l:'4px'},{e:'&#x1F3F4;',b:'8px',r:'50%'}],
+      blue: [{e:'&#x1F43E;',t:'50%',r:'4px'},{e:'&#x1F41F;',b:'8px',l:'50%'}],
+      green: [{e:'&#x2702;',t:'8px',l:'50%'},{e:'&#x1F3A8;',t:'50%',r:'4px'}],
+      purple: [{e:'&#x1F98B;',t:'50%',l:'4px'},{e:'&#x1F33F;',b:'8px',r:'50%'}]
+    }
+    ;(rimStickers[data.theme] || []).forEach(rs => {
+      const s = document.createElement('div')
+      s.className = 'interior-rim-sticker'
+      s.innerHTML = rs.e
+      s.style.cssText = (rs.t?'top:'+rs.t+';':'')+(rs.b?'bottom:'+rs.b+';':'')+
+        (rs.l?'left:'+rs.l+';':'')+(rs.r?'right:'+rs.r+';':'')
+      interior.appendChild(s)
+    })
 
     // Hide room, show interior
     room.style.display = 'none'
