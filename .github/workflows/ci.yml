@@ -12,8 +12,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - name: Validate build output
-        run: test -f dist/index.html && test -f dist/toybox.html
+        # postbuild script validates game chunks, HTML, CSS, and static assets
 
   docker:
     runs-on: ubuntu-latest

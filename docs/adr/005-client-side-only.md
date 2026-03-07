@@ -13,9 +13,9 @@ Tiny Toybox remains a client-side experience. There is no backend, no accounts, 
 - ES modules with dynamic `import()` are used for lazy loading
 - External libraries may be loaded via CDN
 - Vite is used for local development and production builds
-- A small optional Node server can serve the built output
+- Production is served via Docker + nginx
 
 ## Consequences
 - Privacy and operational complexity stay low
 - The runtime is still client-side even though build tooling now exists
-- Docs should describe Vite and `server.js` as tooling, not as an application backend
+- Vite is a dev/build tool, not an application backend

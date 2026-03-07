@@ -10,6 +10,8 @@ Code quality and maintainability concerns identified during comprehensive code r
 **Affected files:** All 12 game files  
 **Symptom:** Every game has 8–20 lines of near-identical sound effect boilerplate.
 
+**Status: Fixed** (engine/sound.js created, all 12 games refactored)
+
 **Root cause:** Each game independently initializes `audioCtx`, creates oscillators, sets up gain envelopes, connects nodes, and schedules stop times. The pattern is copy-pasted across all games with minor variations (frequency, waveform type, duration).
 
 **Fix:**
@@ -147,6 +149,8 @@ Games would then use `const particles = new ParticleSystem(200)` and call `parti
 **Affected files:** `engine/gameMusic.js`, `js/musicbox.js`, `toybox.html` (inline), all game files  
 **Symptom:** Multiple locations independently check/create `window._sharedAudioCtx`. If initialization order changes or the global is renamed, things break silently.
 
+**Status: Fixed** (centralized in engine/sound.js, gameMusic.js and musicbox.js updated)
+
 **Root cause:** No single module owns AudioContext creation. It's done ad-hoc in ~15 places via `window._sharedAudioCtx || (window._sharedAudioCtx = new ...)`.
 
 **Fix:**
@@ -167,6 +171,8 @@ The music box inline script and `gameMusic.js` would import or call this instead
 **Severity:** Low  
 **Affected file:** `vite.config.js`  
 **Symptom:** Inconsistency with the rest of the codebase which uses ES modules.
+
+**Status: Fixed** (vite.config.js converted to ESM)
 
 **Root cause:** Config was written with `require()` and `module.exports`.
 
@@ -199,6 +205,8 @@ Note: `import.meta.dirname` is available in Node 22+ (which the project requires
 **Affected file:** `games/colorMatch.js`  
 **Symptom:** Color choices are not uniformly distributed.
 
+**Status: Fixed** (colorMatch.js and shapeBuilder.js updated with Fisher-Yates)
+
 **Root cause:** `[...arr].sort(() => Math.random() - 0.5)` produces a biased shuffle. Different sort algorithms handle the comparator differently, leading to uneven distributions.
 
 **Fix:**
@@ -226,6 +234,8 @@ Place in a shared `engine/utils.js` since shuffling could be useful in other gam
 **Severity:** Low  
 **Affected file:** `js/buddy.js`  
 **Symptom:** A `setInterval(..., 100)` polls until `window.startGame` exists, then wraps it. This is a race condition with module loading.
+
+**Status: Fixed** (app.js dispatches custom events, buddy.js listens)
 
 **Root cause:** `buddy.js` needs to intercept `startGame` and `goHome` but they're defined in `app.js`, which loads as a module. The polling is a workaround for not having explicit import/export coordination.
 

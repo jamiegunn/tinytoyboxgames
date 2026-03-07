@@ -24,12 +24,8 @@ export class Input {
       this.dragMoveHandlers.forEach(h => h(x, y))
     }, { passive: false })
 
-    canvas.addEventListener("touchend", e => {
-      if (this.dragging) {
-        this.dragging = false
-        this.dragEndHandlers.forEach(h => h())
-      }
-    })
+    canvas.addEventListener("touchend", () => this._endDrag())
+    canvas.addEventListener("touchcancel", () => this._endDrag())
 
     canvas.addEventListener("mousedown", e => {
       const [x, y] = this._toCanvas(e.clientX, e.clientY)
@@ -44,12 +40,19 @@ export class Input {
       this.dragMoveHandlers.forEach(h => h(x, y))
     })
 
-    canvas.addEventListener("mouseup", () => {
-      if (this.dragging) {
-        this.dragging = false
-        this.dragEndHandlers.forEach(h => h())
-      }
-    })
+    canvas.addEventListener("mouseup", () => this._endDrag())
+    canvas.addEventListener("mouseleave", () => this._endDrag())
+
+    canvas.addEventListener("pointercancel", () => this._endDrag())
+
+    window.addEventListener("blur", () => this._endDrag())
+  }
+
+  _endDrag() {
+    if (this.dragging) {
+      this.dragging = false
+      this.dragEndHandlers.forEach(h => h())
+    }
   }
 
   // Convert screen coordinates to canvas (virtual) coordinates

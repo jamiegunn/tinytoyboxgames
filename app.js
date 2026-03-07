@@ -14,7 +14,6 @@ function resize() {
   // so game elements appear proportionally smaller.
   // Use the smaller dimension to determine scale, works for both orientations.
   const minDim = Math.min(dw, dh)
-  const maxDim = Math.max(dw, dh)
 
   // Base: 400px min dimension = scale 1.0 (comfortable on phones)
   // Clamp so we don't over-shrink or over-enlarge
@@ -47,6 +46,7 @@ startLoop((dt) => {
 })
 
 let firstGame = true
+let inGame = false
 const backBtn = document.getElementById("back-btn")
 const gameStatus = document.getElementById("game-status")
 
@@ -62,10 +62,17 @@ window.startGame = (id) => {
   resize() // recalc in case orientation changed
   gameManager.load(id)
   startGameMusic(id)
-  history.pushState({ inGame: true }, '')
+
+  // Push one history entry only when entering a game from the menu
+  if (!inGame) {
+    history.pushState({ inGame: true }, '')
+  }
+  inGame = true
 }
 
 window.goHome = () => {
+  if (!inGame) return
+  inGame = false
   window.dispatchEvent(new CustomEvent('game:home'))
   stopGameMusic()
   gameManager.unload()
@@ -75,8 +82,8 @@ window.goHome = () => {
   if (gameStatus) gameStatus.textContent = ''
 }
 
-window.addEventListener('popstate', (e) => {
-  if (gameManager.currentGame) {
+window.addEventListener('popstate', () => {
+  if (inGame) {
     goHome()
   }
 })

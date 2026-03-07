@@ -10,6 +10,8 @@ Build and deployment concerns identified during comprehensive code review (March
 **Affected file:** `package.json`  
 **Symptom:** The production Docker image installs Vite and all build tooling before it's discarded in the multi-stage build. Not a runtime issue, but it inflates the build stage and misrepresents what's needed at runtime.
 
+**Status: Fixed**
+
 **Root cause:** `vite` is listed under `dependencies` rather than `devDependencies`.
 
 **Fix:**
@@ -37,6 +39,8 @@ Since the Docker build stage runs `npm ci` (which installs both deps and devDeps
 **Severity:** Low  
 **Affected file:** `vite.config.js`  
 **Symptom:** `require()` and `module.exports` in `vite.config.js` while the rest of the codebase uses ES modules. Vite natively supports ESM config.
+
+**Status: Fixed**
 
 **Root cause:** Config was written in CommonJS style.
 
@@ -68,6 +72,8 @@ export default defineConfig({
 **Severity:** Medium  
 **Affected file:** (none — needs to be created)  
 **Symptom:** No automated build, test, or deploy pipeline. All builds and deploys are manual.
+
+**Status: Fixed** (.github/workflows/ci.yml created)
 
 **Root cause:** The project doesn't have a `.github/workflows/` directory or any CI configuration.
 
@@ -116,6 +122,8 @@ This validates that:
 **Affected file:** `Dockerfile`  
 **Symptom:** If the Vite build silently fails or produces incomplete output, the Docker image still builds but serves broken content.
 
+**Status: Fixed** (Dockerfile updated with build validation)
+
 **Root cause:** The Dockerfile copies `dist/` to nginx without verifying it contains expected files.
 
 **Fix:**
@@ -146,6 +154,8 @@ FROM nginx:alpine
 **Severity:** Low  
 **Affected file:** `nginx.conf`  
 **Symptom:** The `/health` endpoint returns `200 ok` as plain text. This works but could be more useful.
+
+**Status: Fixed** (nginx.conf updated to return JSON)
 
 **Root cause:** Minimal health check implementation.
 

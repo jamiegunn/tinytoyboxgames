@@ -16,7 +16,7 @@ The product requirement is stricter than ordinary cache busting: when Tiny Toybo
 ## Decision
 Disable caching for all locally served application responses across every supported serving path.
 
-This policy is enforced server-side in both `nginx.conf` and `server.js` with these response headers:
+This policy is enforced server-side in `nginx.conf` with these response headers:
 - `Cache-Control: no-store, no-cache, must-revalidate, max-age=0, s-maxage=0`
 - `Pragma: no-cache`
 - `Expires: 0`
@@ -31,7 +31,7 @@ Google-hosted font and stylesheet requests are explicitly out of scope for this 
 ### Positive
 - No client-side cache-busting hacks are needed in HTML or module import paths
 - The policy covers entry HTML, dynamically imported game modules, CSS, images, audio, SVGs, and other local assets
-- The no-cache behavior is consistent between the nginx container and the included Node static server
+- The no-cache behavior is enforced in the nginx container
 
 ### Negative
 - Every visit re-fetches local app assets

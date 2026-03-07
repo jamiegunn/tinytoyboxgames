@@ -16,7 +16,7 @@ Storage.prototype.clear = function(){};
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/toybox-BhHTZvH3.js"></script>
+  <script type="module" crossorigin src="/assets/toybox-ZA3QXlId.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/toybox-DVpXT49g.css">
 </head>
 
@@ -140,7 +140,7 @@ Storage.prototype.clear = function(){};
 
   <div class="shelf">
     <div class="shelf-row">
-      <button class="toy toy-bubble" onclick="startGame('bubblePop')">
+      <button class="toy toy-bubble" onclick="startGame('bubblePop')" aria-label="Bubble Pop">
         <div class="toy-sparkle"></div><div class="toy-sparkle"></div><div class="toy-sparkle"></div>
         <div class="toy-icon">
           <div class="wand-stick"></div>
@@ -150,7 +150,7 @@ Storage.prototype.clear = function(){};
           <div class="mini-bubble b3"></div>
         </div>
       </button>
-      <button class="toy toy-frog" onclick="startGame('feedAnimal')">
+      <button class="toy toy-frog" onclick="startGame('feedAnimal')" aria-label="Feed the Animal">
         <div class="toy-sparkle"></div><div class="toy-sparkle"></div><div class="toy-sparkle"></div>
         <div class="toy-icon">
           <div class="frog-body">
@@ -162,7 +162,7 @@ Storage.prototype.clear = function(){};
           </div>
         </div>
       </button>
-      <button class="toy toy-paint" onclick="startGame('colorMatch')">
+      <button class="toy toy-paint" onclick="startGame('colorMatch')" aria-label="Color Match">
         <div class="toy-sparkle"></div><div class="toy-sparkle"></div><div class="toy-sparkle"></div>
         <div class="toy-icon">
           <div class="palette">
@@ -179,7 +179,7 @@ Storage.prototype.clear = function(){};
     </div>
 
     <div class="shelf-row" style="margin-top: 28px;">
-      <button class="toy toy-jar" onclick="startGame('fireflies')">
+      <button class="toy toy-jar" onclick="startGame('fireflies')" aria-label="Fireflies">
         <div class="toy-sparkle"></div><div class="toy-sparkle"></div><div class="toy-sparkle"></div>
         <div class="toy-icon">
           <div class="jar">
@@ -194,7 +194,7 @@ Storage.prototype.clear = function(){};
           </div>
         </div>
       </button>
-      <button class="toy toy-tree" onclick="startGame('hideAndSeek')">
+      <button class="toy toy-tree" onclick="startGame('hideAndSeek')" aria-label="Hide and Seek">
         <div class="toy-sparkle"></div><div class="toy-sparkle"></div><div class="toy-sparkle"></div>
         <div class="toy-icon">
           <div class="tree">
@@ -208,7 +208,7 @@ Storage.prototype.clear = function(){};
           </div>
         </div>
       </button>
-      <button class="toy toy-sponge" onclick="startGame('cleanTheMess')">
+      <button class="toy toy-sponge" onclick="startGame('cleanTheMess')" aria-label="Clean the Mess">
         <div class="toy-sparkle"></div><div class="toy-sparkle"></div><div class="toy-sparkle"></div>
         <div class="toy-icon">
           <div class="sponge">
@@ -226,7 +226,7 @@ Storage.prototype.clear = function(){};
     </div>
 
     <div class="shelf-row" style="margin-top: 28px;">
-      <button class="toy toy-balloon" onclick="startGame('balloonRace')">
+      <button class="toy toy-balloon" onclick="startGame('balloonRace')" aria-label="Balloon Race">
         <div class="toy-sparkle"></div><div class="toy-sparkle"></div><div class="toy-sparkle"></div>
         <div class="toy-icon">
           <div class="balloon-group">
@@ -237,7 +237,7 @@ Storage.prototype.clear = function(){};
           </div>
         </div>
       </button>
-      <button class="toy toy-shapes" onclick="startGame('shapeBuilder')">
+      <button class="toy toy-shapes" onclick="startGame('shapeBuilder')" aria-label="Shape Builder">
         <div class="toy-sparkle"></div><div class="toy-sparkle"></div><div class="toy-sparkle"></div>
         <div class="toy-icon">
           <div class="shape-circle"></div>
@@ -246,7 +246,7 @@ Storage.prototype.clear = function(){};
           <div class="shape-star"></div>
         </div>
       </button>
-      <button class="toy toy-shark" onclick="startGame('babyShark')">
+      <button class="toy toy-shark" onclick="startGame('babyShark')" aria-label="Baby Shark">
         <div class="toy-sparkle"></div><div class="toy-sparkle"></div><div class="toy-sparkle"></div>
         <div class="toy-icon">
           <div class="shark">
@@ -265,7 +265,7 @@ Storage.prototype.clear = function(){};
     </div>
 
     <div class="shelf-row" style="margin-top: 28px;">
-      <button class="toy toy-puppy" onclick="startGame('puppyFetch')">
+      <button class="toy toy-puppy" onclick="startGame('puppyFetch')" aria-label="Puppy Fetch">
         <div class="toy-sparkle"></div><div class="toy-sparkle"></div><div class="toy-sparkle"></div>
         <div class="toy-icon">
           <div class="puppy">
@@ -288,7 +288,7 @@ Storage.prototype.clear = function(){};
           </div>
         </div>
       </button>
-      <button class="toy toy-elephant" onclick="startGame('elephantSplash')">
+      <button class="toy toy-elephant" onclick="startGame('elephantSplash')" aria-label="Elephant Splash">
         <div class="toy-sparkle"></div><div class="toy-sparkle"></div><div class="toy-sparkle"></div>
         <div class="toy-icon">
           <div class="elephant">
@@ -310,7 +310,7 @@ Storage.prototype.clear = function(){};
           </div>
         </div>
       </button>
-      <button class="toy toy-truck" onclick="startGame('monsterTruck')">
+      <button class="toy toy-truck" onclick="startGame('monsterTruck')" aria-label="Monster Truck">
         <div class="toy-sparkle"></div><div class="toy-sparkle"></div><div class="toy-sparkle"></div>
         <div class="toy-icon">
           <div class="mtruck">
@@ -377,6 +377,6 @@ document.addEventListener('touchstart', function u() {
   document.removeEventListener('touchstart', u);
 });
 </script>
-<script src="./js/libs/confetti.min.js"></script>
+<script src="/js/libs/confetti.min.js"></script>
 </body>
 </html>

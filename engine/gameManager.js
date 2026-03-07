@@ -19,11 +19,15 @@ export class GameManager {
     this.ctx = ctx
     this.input = input
     this.currentGame = null
+    this._loadId = 0
   }
 
   async load(id) {
     if (this.currentGame?.destroy)
       this.currentGame.destroy()
+    this.currentGame = null
+
+    const loadId = ++this._loadId
 
     // Show loading state
     const ctx = this.ctx
@@ -42,6 +46,10 @@ export class GameManager {
 
     try {
       const module = await import(`../games/${id}.js`)
+
+      // If another load or unload happened while awaiting, abandon
+      if (this._loadId !== loadId) return
+
       this.currentGame = module.default
 
       this.currentGame.start({
@@ -52,12 +60,14 @@ export class GameManager {
       })
     } catch (err) {
       console.error(`Failed to load game: ${id}`, err)
+      if (this._loadId !== loadId) return
       this.currentGame = null
       window.goHome()
     }
   }
 
   unload() {
+    this._loadId++
     if (this.currentGame?.destroy)
       this.currentGame.destroy()
     this.currentGame = null

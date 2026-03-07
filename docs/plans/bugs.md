@@ -10,6 +10,8 @@ Bugs identified during comprehensive code review (March 2026).
 **Affected files:** `games/bubblePop.js`, `games/fireflies.js`, `games/hideAndSeek.js`, `games/cleanTheMess.js`  
 **Symptom:** If rendering exits early or errors, `globalAlpha` stays at a non-1.0 value and bleeds into subsequent draw calls (e.g., score text appears semi-transparent).
 
+**Status: Fixed**
+
 **Root cause:** Games set `ctx.globalAlpha = 0.8` (or similar) without wrapping in `ctx.save()`/`ctx.restore()`.
 
 **Fix:**
@@ -25,6 +27,8 @@ Bugs identified during comprehensive code review (March 2026).
 **Severity:** Medium  
 **Affected files:** `games/hideAndSeek.js`, `games/babyShark.js`, `games/feedAnimal.js`, `games/balloonRace.js`  
 **Symptom:** Rotating a phone mid-game causes hiding spots, coral reefs, flowers, and other scene objects to be positioned for the old screen dimensions. They appear off-screen or bunched on one side.
+
+**Status: Fixed**
 
 **Root cause:** Scene objects (spots, corals, grass blades, flowers) are built once in `start()` using the initial `w` and `h`. While `update()` re-reads `ctx.canvas.width/height`, the positions created in `start()` are never recalculated.
 
@@ -42,6 +46,8 @@ Bugs identified during comprehensive code review (March 2026).
 **Severity:** Low  
 **Affected file:** `engine/loop.js`  
 **Symptom:** On the very first frame, `last = 0` and `t` is a large DOMHighResTimeStamp (e.g., 14000ms). The delta is clamped to 0.05s (50ms), so particles and objects jump forward by a full 50ms on frame one.
+
+**Status: Fixed**
 
 **Root cause:** `last` is initialized to `0` instead of the current time.
 
@@ -74,6 +80,8 @@ This skips the first frame so `last` is properly seeded from the first real time
 **Affected files:** `toybox.html` (inline `<script>` block, ~100 lines), `js/musicbox.js`  
 **Symptom:** `window._toyboxMusic` is defined twice — first by the inline script in toybox.html, then overwritten when `js/musicbox.js` loads via the module entry point.
 
+**Status: Fixed**
+
 **Root cause:** The music box logic was duplicated in both locations.
 
 **Fix:**
@@ -99,6 +107,8 @@ This skips the first frame so `last` is properly seeded from the first real time
 **Severity:** Medium  
 **Affected file:** `engine/gameManager.js`  
 **Symptom:** If a game ID is invalid or a module fails to load, the `import()` promise rejects unhandled. The menu is already hidden (by `app.js` `startGame`), so the user sees a blank canvas with no way to recover except browser back.
+
+**Status: Fixed**
 
 **Root cause:** No `try/catch` around the dynamic import in `GameManager.load()`.
 
@@ -136,6 +146,8 @@ async load(id) {
 **Affected file:** `games/hideAndSeek.js`  
 **Symptom:** `ctx.textBaseline = "top"` is set for score rendering but never reset. If GameManager or other code assumes default baseline (`"alphabetic"`), text positioning could be off.
 
+**Status: Fixed**
+
 **Root cause:** Missing reset after rendering.
 
 **Fix:**
@@ -151,6 +163,8 @@ Add `ctx.textBaseline = "alphabetic"` after the score text block, or wrap the sc
 **Affected file:** `toybox.html`  
 **Symptom:** Screen readers can't determine the page language, hurting accessibility.
 
+**Status: Fixed**
+
 **Fix:**
 Change `<html>` to `<html lang="en">`.
 
@@ -163,6 +177,8 @@ Change `<html>` to `<html lang="en">`.
 **Severity:** Low (accessibility)  
 **Affected file:** `toybox.html`  
 **Symptom:** The buddy owl is a `<div onclick="buddyTapped()">` — can't be reached or activated via keyboard.
+
+**Status: Fixed**
 
 **Fix:**
 Change the buddy element to use `role="button"`, `tabindex="0"`, and add a keyboard handler:

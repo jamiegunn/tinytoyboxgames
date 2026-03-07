@@ -464,7 +464,11 @@ function setupRound() {
   shapes = []
 
   const count = Math.max(5, 5 + Math.min(3, Math.floor(score / 2)))
-  const shuffled = [...SHAPE_TYPES].sort(() => Math.random() - 0.5)
+  const shuffled = [...SHAPE_TYPES]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
   const picked = shuffled.slice(0, count)
 
   const margin = 80

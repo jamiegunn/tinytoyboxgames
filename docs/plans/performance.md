@@ -10,6 +10,8 @@ Performance concerns identified during comprehensive code review (March 2026).
 **Affected file:** `games/colorMatch.js`  
 **Symptom:** Sluggish frame rate on large screens or low-end devices.
 
+**Status: Fixed**
+
 **Root cause:** The `render()` function draws a dot at every 24px interval across the entire canvas using individual `arc()` + `fill()` calls. On a 1920×1080 screen, that's ~3,600 draw calls per frame, purely for a subtle background texture.
 
 **Fix:**
@@ -47,6 +49,8 @@ Then in `render()`: `ctx.drawImage(dotPattern, 0, 0)`
 **Affected files:** `games/elephantSplash.js`, `games/balloonRace.js`, `games/babyShark.js`, `games/feedAnimal.js`, `games/monsterTruck.js`, `games/cleanTheMess.js`  
 **Symptom:** Frame drops during sustained heavy tapping/dragging as particle arrays grow large.
 
+**Status: Fixed**
+
 **Root cause:** Particles, sparkles, score popups, hearts, crumbs, spray particles, etc., are pushed into arrays every frame based on `Math.random() < dt * N` checks. While they're filtered by lifetime each frame, under sustained interaction the arrays can grow to hundreds of entries. Each frame creates new objects and filters the arrays (generating GC pressure).
 
 **Fix:**
@@ -68,6 +72,8 @@ Then in `render()`: `ctx.drawImage(dotPattern, 0, 0)`
 **Affected files:** All game files with sound effects (`bubblePop.js`, `feedAnimal.js`, `colorMatch.js`, `hideAndSeek.js`, `cleanTheMess.js`, `shapeBuilder.js`, `puppyFetch.js`, `babyShark.js`, `elephantSplash.js`, `monsterTruck.js`)  
 **Symptom:** In long play sessions, memory slowly grows as disconnected oscillator/gain nodes accumulate before garbage collection.
 
+**Status: Fixed**
+
 **Root cause:** Every sound effect creates `OscillatorNode` + `GainNode` pairs connected to `audioCtx.destination`. After `osc.stop()`, the nodes are no longer active but aren't explicitly disconnected. They rely on GC, which may be delayed.
 
 **Fix:**
@@ -86,6 +92,8 @@ Then in `render()`: `ctx.drawImage(dotPattern, 0, 0)`
 **Severity:** Low  
 **Affected files:** `app.js`, `engine/gameManager.js`  
 **Symptom:** Continuous `requestAnimationFrame` calls and `clearRect()` on the game canvas even when the user is on the menu screen and the canvas is hidden behind the playroom UI.
+
+**Status: Fixed**
 
 **Root cause:** `startLoop()` in `app.js` runs unconditionally. `GameManager.render()` always calls `clearRect` regardless of whether a game is loaded.
 

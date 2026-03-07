@@ -14,7 +14,6 @@ Open `http://localhost:5173` for the landing page and `http://localhost:5173/toy
 Other commands:
 - `npm run build` - production build to `dist/`
 - `npm run preview` - preview the production build
-- `npm start` - serve `dist/` with the included Node static server
 
 ### Docker
 
@@ -25,7 +24,7 @@ docker run -p 8080:80 tinytoyboxgames
 
 The container image runs `vite build` and copies `dist/` into nginx.
 
-Local app responses are intentionally served with no-cache headers in both the nginx container and the included Node static server. Google-hosted font and stylesheet requests are the only exception because they are not served by this app.
+Local app responses are intentionally served with no-cache headers in the nginx container. Google-hosted font and stylesheet requests are the only exception because they are not served by this app.
 
 ## Games
 
@@ -62,6 +61,8 @@ tinytoybox/
 |  |- loop.js              requestAnimationFrame loop with dt
 |  |- input.js             Tap and drag input helpers
 |  |- celebrate.js         Confetti bridge
+|  |- sound.js             Shared sound effect utility
+|  |- motion.js            Reduced motion preference detection
 |- games/
 |  |- *.js                 Individual game modules
 |  |- requirements/        Game design specs
@@ -71,7 +72,7 @@ tinytoybox/
 |  |- features/            Current feature documentation
 |  |- adr/                 Architecture Decision Records
 |  |- plans/               Roadmaps and refactor plans
-|- server.js               Optional static server for built output
+|- .github/workflows/      CI pipeline
 ```
 
 ## Architecture
@@ -98,8 +99,9 @@ The repo also contains planning docs for a future template-based architecture. T
 
 - Vanilla JS, ES modules, canvas 2D
 - Vite for dev/build
-- Optional Node static server for built output
+- Docker + nginx for production
 - `canvas-confetti` served as a static asset for celebrations
+- GitHub Actions CI pipeline
 - Works on mobile (touch) and desktop (mouse)
 
 ## Docs

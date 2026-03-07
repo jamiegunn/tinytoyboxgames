@@ -10,6 +10,8 @@ UX and accessibility concerns identified during comprehensive code review (March
 **Affected file:** `toybox.html`  
 **Symptom:** Screen readers cannot determine the page language, leading to incorrect pronunciation of all text content.
 
+**Status: Fixed**
+
 **Root cause:** The `<html>` tag in `toybox.html` has no `lang` attribute. `index.html` already has `lang="en"`.
 
 **Fix:**
@@ -26,6 +28,8 @@ UX and accessibility concerns identified during comprehensive code review (March
 **Severity:** Medium (accessibility)  
 **Affected file:** `js/buddy.js`  
 **Symptom:** The buddy owl helper character (bottom-right floating element) cannot be activated via keyboard. Users relying on keyboard navigation cannot interact with it.
+
+**Status: Fixed**
 
 **Root cause:** The buddy is a `<div>` with only click/touch event listeners. It has no `tabindex`, `role`, or `keydown` handler.
 
@@ -62,6 +66,8 @@ Also add a visible focus style in CSS:
 **Severity:** Medium (accessibility — long-term)  
 **Affected files:** All 12 game files, `toybox.html`  
 **Symptom:** Once a game starts, the entire experience is a `<canvas>` element with no text alternatives. Screen readers see nothing.
+
+**Status: Fixed**
 
 **Root cause:** Canvas-based games are inherently visual. No ARIA live regions, no alternative text, no audio descriptions.
 
@@ -101,6 +107,8 @@ This is a fundamental limitation of canvas games and a full fix is out of scope.
 **Severity:** Medium (accessibility)  
 **Affected files:** All 12 game files, `engine/celebrate.js`, `js/buddy.js`  
 **Symptom:** Users with vestibular disorders who set `prefers-reduced-motion: reduce` in their OS still see all animations, particles, confetti, and screen shaking.
+
+**Status: Fixed**
 
 **Root cause:** No code checks the `prefers-reduced-motion` media query.
 
@@ -142,6 +150,8 @@ if (shouldAnimate()) {
 **Affected files:** `games/colorMatch.js`, `games/hideAndSeek.js`, `games/shapeBuilder.js`  
 **Symptom:** Some interactive elements (color swatches, hidden animals, shape pieces) may be difficult for preschoolers to tap accurately on small screens.
 
+**Status: Fixed**
+
 **Root cause:** Target sizes are calculated relative to canvas dimensions but don't enforce a minimum pixel size. On a 320px-wide phone screen, some targets can fall below the recommended 44×44px minimum (WCAG 2.5.5).
 
 **Fix:**
@@ -164,6 +174,8 @@ const itemCount = canvas.width < 500 ? 3 : 5
 **Severity:** Low  
 **Affected file:** `engine/gameManager.js`, `app.js`  
 **Symptom:** When a game is tapped on the toy shelf, there's no loading indicator. The dynamic import may take a moment on slow connections, leaving the user with a blank canvas.
+
+**Status: Fixed**
 
 **Root cause:** `startGame()` uses `await import(...)` but shows nothing during the load.
 
@@ -195,6 +207,8 @@ async startGame(id) {
 **Severity:** Low  
 **Affected file:** `toybox.html`, `css/playroom.css`  
 **Symptom:** The home button during gameplay may be hard for preschoolers to find and tap.
+
+**Status: Fixed**
 
 **Root cause:** Per ADR-004, the UI should prioritize large, obvious controls. The home button implementation exists but its discoverability for very young users could be improved.
 

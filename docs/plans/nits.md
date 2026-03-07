@@ -37,6 +37,8 @@ Not worth a separate refactoring pass — just adopt this pattern when editing a
 **Affected files:** Occasional across game files  
 **Detail:** A few stray `var` declarations mixed in with otherwise modern `let`/`const` usage.
 
+**Status: No instances found**
+
 **Action:** Replace with `let` or `const` when touching those files. Not worth a dedicated pass.
 
 ---
@@ -45,6 +47,8 @@ Not worth a separate refactoring pass — just adopt this pattern when editing a
 
 **Affected files:** Various  
 **Detail:** Some files have trailing whitespace, some have double blank lines between functions, others have single. No formatter is configured.
+
+**Status: Fixed** (.editorconfig added)
 
 **Recommendation:**
 Add a `.editorconfig` or configure Prettier:
@@ -69,6 +73,8 @@ insert_final_newline = true
 
 **Affected file:** `package.json`  
 **Detail:** The `description` field is empty and there's no `license` field. Not a problem for a private project, but good practice.
+
+**Status: Fixed** (package.json updated)
 
 **Action:**
 ```json
@@ -109,6 +115,8 @@ Adjust license as appropriate.
 
 **Affected file:** `public/js/libs/confetti.min.js`  
 **Detail:** The confetti library is checked into the repo as a minified file with no indication of which version it is or where it came from. If a bug or security issue is found in the library, there's no easy way to know what version to update from.
+
+**Status: Fixed** (VERSIONS.md added)
 
 **Recommendation:**
 Add a comment at the top of the file or a `public/js/libs/README.md`:

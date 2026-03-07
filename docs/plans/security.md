@@ -11,6 +11,8 @@ Security and configuration concerns identified during comprehensive code review 
 **Affected file:** `Dockerfile`  
 **Symptom:** VS Code reports 9 high vulnerabilities in `node:22-alpine` and 1 in `nginx:alpine`.
 
+**Status: Fixed**
+
 **Root cause:** Unpinned Alpine tags pull whatever was latest at build time. The underlying Alpine packages may have unpatched CVEs.
 
 **Fix:**
@@ -32,6 +34,8 @@ Security and configuration concerns identified during comprehensive code review 
 **Severity:** Low  
 **Affected files:** `index.html`, `toybox.html`  
 **Symptom:** Not a current bug, but a maintenance hazard. Both HTML files override `Storage.prototype` methods to no-op, preventing any localStorage/sessionStorage use.
+
+**Status: Fixed**
 
 **Root cause:** Intentional per ADR-009 (no persistent storage), but it's a global prototype override that affects everything on the page, including:
 - Browser devtools extensions
@@ -62,6 +66,8 @@ Storage.prototype.clear = function(){};
 **Severity:** Low  
 **Affected file:** `nginx.conf`  
 **Symptom:** Any request to a non-existent path (e.g., `/admin`, `/api/anything`) returns `index.html` with a 200 status. This isn't a security hole per se, but it returns misleading 200s for resources that don't exist.
+
+**Status: Fixed**
 
 **Root cause:** `try_files $uri $uri/ /index.html` is a standard SPA pattern, but this isn't really a SPA — it has exactly two pages (`index.html` and `toybox.html`).
 
