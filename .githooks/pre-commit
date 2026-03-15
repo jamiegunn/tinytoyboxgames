@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+staged_file_list="$repo_root/.git/.precommit-staged"
+
+trap 'rm -f "$staged_file_list"' EXIT
+
+git diff --cached --name-only --diff-filter=ACMR > "$staged_file_list"
+
+node "$repo_root/src/scripts/precommit-check.cjs" "$staged_file_list"

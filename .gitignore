@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+docs/*
+!docs/readme-assets/
+!docs/ai-guidance/
+!docs/controlled-terminology.md
+
+*.md
+!docs/controlled-terminology.md
+!docs/ai-guidance/*.md
+
+# Bun
+bun.lockb
+
+# Environment
+.env
+.env.*
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# Vite
+vite.config.ts.timestamp-*
+.vite/
+
+# Test coverage
+coverage/

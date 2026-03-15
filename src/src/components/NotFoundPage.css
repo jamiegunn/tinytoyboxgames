@@ -1,0 +1,299 @@
+/* ── 404 Not Found Page ───────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Quicksand:wght@500;600&display=swap');
+
+.notfound-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  font-family: 'Quicksand', sans-serif;
+  color: #3d2c2c;
+  background: #fff8f0;
+  -webkit-font-smoothing: antialiased;
+  text-align: center;
+  overflow: hidden;
+}
+
+/* Subtle paper grain */
+.notfound-root::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+.notfound-content {
+  position: relative;
+  z-index: 1;
+  animation: notfound-fadeUp 0.6s ease-out both;
+}
+
+/* Sad toybox illustration using CSS shapes */
+.notfound-illustration {
+  position: relative;
+  width: 160px;
+  height: 120px;
+  margin: 0 auto 2rem;
+}
+
+.notfound-box {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 70px;
+  background: linear-gradient(160deg, #ffb4a2, #ff8a65);
+  border-radius: 8px 8px 12px 12px;
+  box-shadow:
+    inset -4px -4px 12px rgba(0,0,0,0.1),
+    inset 3px 3px 8px rgba(255,255,255,0.25),
+    0 4px 16px rgba(255,107,107,0.2);
+}
+
+/* Box lid — tilted open */
+.notfound-lid {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-12deg);
+  transform-origin: left bottom;
+  width: 124px;
+  height: 16px;
+  background: linear-gradient(160deg, #ffc4b0, #ff9a7a);
+  border-radius: 6px 6px 2px 2px;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+  animation: notfound-lidWobble 3s ease-in-out infinite;
+}
+
+/* Question mark floating out of box */
+.notfound-question {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Baloo 2', cursive;
+  font-weight: 800;
+  font-size: 2.4rem;
+  color: #a78bfa;
+  animation: notfound-float 3s ease-in-out infinite;
+  text-shadow: 0 2px 8px rgba(167,139,250,0.3);
+}
+
+.notfound-code {
+  font-family: 'Baloo 2', cursive;
+  font-weight: 800;
+  font-size: clamp(4rem, 12vw, 7rem);
+  line-height: 1;
+  background: linear-gradient(135deg, #ff6b6b, #a78bfa, #4ecdc4);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: notfound-gradient 6s ease infinite;
+  margin-bottom: 0.5rem;
+}
+
+.notfound-heading {
+  font-family: 'Baloo 2', cursive;
+  font-weight: 700;
+  font-size: clamp(1.3rem, 3vw, 1.8rem);
+  margin-bottom: 0.8rem;
+  color: #3d2c2c;
+}
+
+.notfound-message {
+  font-size: clamp(0.95rem, 2vw, 1.1rem);
+  font-weight: 500;
+  color: #6b5858;
+  line-height: 1.6;
+  max-width: 400px;
+  margin: 0 auto 2.5rem;
+}
+
+.notfound-home-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.9rem 2.2rem;
+  border-radius: 100px;
+  background: linear-gradient(135deg, #4ecdc4, #44a99e);
+  color: white;
+  font-family: 'Baloo 2', cursive;
+  font-weight: 700;
+  font-size: 1.15rem;
+  text-decoration: none;
+  box-shadow: 0 4px 16px rgba(78,205,196,0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.notfound-home-link:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 24px rgba(78,205,196,0.45);
+}
+
+.notfound-home-link:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Floating shapes in background */
+.notfound-shapes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.notfound-shape {
+  position: absolute;
+  opacity: 0.12;
+}
+
+.notfound-shape--1 {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #ffe66d;
+  top: 10%;
+  left: 8%;
+  animation: notfound-drift1 8s ease-in-out infinite;
+}
+
+.notfound-shape--2 {
+  width: 50px;
+  height: 50px;
+  background: #ff6b6b;
+  border-radius: 8px;
+  top: 20%;
+  right: 12%;
+  animation: notfound-drift2 10s ease-in-out infinite;
+}
+
+.notfound-shape--3 {
+  width: 40px;
+  height: 40px;
+  background: #4ecdc4;
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+  bottom: 15%;
+  left: 15%;
+  animation: notfound-drift1 7s ease-in-out 1s infinite;
+}
+
+.notfound-shape--4 {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #a78bfa;
+  bottom: 20%;
+  right: 10%;
+  animation: notfound-drift2 9s ease-in-out 0.5s infinite;
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────── */
+
+@keyframes notfound-fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes notfound-float {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%      { transform: translateX(-50%) translateY(-10px); }
+}
+
+@keyframes notfound-lidWobble {
+  0%, 100% { transform: translateX(-50%) rotate(-12deg); }
+  50%      { transform: translateX(-50%) rotate(-8deg); }
+}
+
+@keyframes notfound-gradient {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+@keyframes notfound-drift1 {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(15px, -20px); }
+}
+
+@keyframes notfound-drift2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50%      { transform: translate(-12px, -15px) rotate(10deg); }
+}
+
+/* ── Responsive ────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .notfound-root {
+    padding: 1.5rem;
+  }
+
+  .notfound-illustration {
+    width: 130px;
+    height: 100px;
+    margin-bottom: 1.5rem;
+  }
+
+  .notfound-box {
+    width: 100px;
+    height: 58px;
+  }
+
+  .notfound-lid {
+    width: 104px;
+    bottom: 50px;
+  }
+
+  .notfound-question {
+    font-size: 2rem;
+  }
+
+  .notfound-home-link {
+    padding: 0.85rem 2rem;
+    font-size: 1.05rem;
+    width: 100%;
+    justify-content: center;
+    max-width: 280px;
+  }
+
+  .notfound-shape--1 { width: 50px; height: 50px; }
+  .notfound-shape--2 { width: 35px; height: 35px; }
+  .notfound-shape--3 { width: 28px; height: 28px; }
+  .notfound-shape--4 { width: 40px; height: 40px; }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .notfound-illustration {
+    width: 100px;
+    height: 80px;
+    margin-bottom: 1rem;
+  }
+
+  .notfound-box {
+    width: 80px;
+    height: 48px;
+  }
+
+  .notfound-lid {
+    width: 84px;
+    bottom: 42px;
+  }
+
+  .notfound-code {
+    font-size: 3.5rem;
+  }
+
+  .notfound-message {
+    margin-bottom: 1.5rem;
+  }
+
+  .notfound-shapes {
+    display: none;
+  }
+}

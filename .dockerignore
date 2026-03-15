@@ -1,0 +1,12 @@
+src/node_modules
+src/dist
+src/.vite
+src/coverage
+.git
+.claude
+.vite
+docs
+*.md
+.env*
+.DS_Store
+Thumbs.db

@@ -1,0 +1,947 @@
+/* ── Whimsical Toybox World — Landing Page ────────────────────────── */
+/* Aesthetic: Pop-up storybook meets modern toy brand. Warm, tactile,  */
+/* layered depth with CSS-only floating toy shapes and paper texture.  */
+
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap');
+
+:root {
+  --landing-cream: #fff8f0;
+  --landing-warm: #fef3e8;
+  --landing-coral: #ff6b6b;
+  --landing-coral-deep: #e05555;
+  --landing-sky: #4ecdc4;
+  --landing-sun: #ffe66d;
+  --landing-mint: #95e1d3;
+  --landing-purple: #a78bfa;
+  --landing-peach: #ffb4a2;
+  --landing-blue: #6ec6ff;
+  --landing-text: #3d2c2c;
+  --landing-text-soft: #6b5858;
+  --landing-shadow: rgba(61, 44, 44, 0.12);
+}
+
+.landing-root {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--landing-cream);
+  font-family: 'Quicksand', sans-serif;
+  color: var(--landing-text);
+  -webkit-font-smoothing: antialiased;
+  /* Fluid root font-size: scales all rem values with viewport width.
+     At 1440px → ~36px, 1920px → ~48px, 2560px+ → 56px cap.
+     Accounts for Windows DPI scaling shrinking CSS viewport. */
+  font-size: clamp(20px, 2.5vw, 56px);
+}
+
+/* Subtle paper grain overlay */
+.landing-root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+/* ── Hero section ─────────────────────────────────────────────────── */
+
+.landing-hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  z-index: 1;
+}
+
+/* Curved wave divider at bottom of hero */
+.landing-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 80'%3E%3Cpath fill='%23fef3e8' d='M0,40 C360,80 720,0 1080,40 C1260,60 1380,50 1440,45 L1440,80 L0,80 Z'/%3E%3C/svg%3E") no-repeat bottom center;
+  background-size: 100% 100%;
+  z-index: 2;
+}
+
+.landing-hero-content {
+  text-align: center;
+  max-width: 56rem;
+  z-index: 1;
+  animation: landing-fadeUp 0.8s ease-out both;
+}
+
+.landing-badge {
+  display: inline-block;
+  padding: 0.5rem 1.4rem;
+  border-radius: 100px;
+  background: linear-gradient(135deg, var(--landing-sun), var(--landing-peach));
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--landing-text);
+  margin-bottom: 1.5rem;
+  animation: landing-fadeUp 0.8s ease-out 0.1s both;
+}
+
+.landing-title {
+  font-family: 'Baloo 2', cursive;
+  font-weight: 800;
+  font-size: 4.5rem;
+  line-height: 1.05;
+  margin-bottom: 0.3rem;
+  background: linear-gradient(
+    135deg,
+    var(--landing-coral) 0%,
+    var(--landing-purple) 40%,
+    var(--landing-sky) 70%,
+    var(--landing-sun) 100%
+  );
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: landing-fadeUp 0.8s ease-out 0.15s both, landing-gradientShift 8s ease infinite;
+}
+
+.landing-subtitle {
+  font-family: 'Baloo 2', cursive;
+  font-weight: 600;
+  font-size: 1.4rem;
+  color: var(--landing-text-soft);
+  margin-bottom: 2rem;
+  animation: landing-fadeUp 0.8s ease-out 0.25s both;
+}
+
+.landing-description {
+  font-size: 1.1rem;
+  font-weight: 500;
+  line-height: 1.7;
+  color: var(--landing-text-soft);
+  max-width: 40rem;
+  margin: 0 auto 2.5rem;
+  animation: landing-fadeUp 0.8s ease-out 0.35s both;
+}
+
+/* ── Parent/guardian note under CTA ───────────────────────────────── */
+
+.landing-parent-note {
+  margin-top: 1.2rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--landing-text-soft);
+  opacity: 0.8;
+  animation: landing-fadeUp 0.8s ease-out 0.6s both;
+}
+
+/* ── CTA Button ───────────────────────────────────────────────────── */
+
+.landing-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 1.2rem 3rem;
+  border: none;
+  border-radius: 100px;
+  background: linear-gradient(135deg, var(--landing-coral), var(--landing-coral-deep));
+  color: white;
+  font-family: 'Baloo 2', cursive;
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow:
+    0 4px 20px rgba(255, 107, 107, 0.4),
+    0 0 0 0 rgba(255, 107, 107, 0);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  animation: landing-fadeUp 0.8s ease-out 0.45s both, landing-ctaPulse 3s ease-in-out 1.5s infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-cta::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.landing-cta:hover {
+  transform: translateY(-3px) scale(1.04);
+  box-shadow:
+    0 8px 30px rgba(255, 107, 107, 0.5),
+    0 0 0 4px rgba(255, 107, 107, 0.15);
+}
+
+.landing-cta:hover::before {
+  opacity: 1;
+}
+
+.landing-cta:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.landing-cta-arrow {
+  display: inline-block;
+  transition: transform 0.2s ease;
+  font-size: 1.4rem;
+}
+
+.landing-cta:hover .landing-cta-arrow {
+  transform: translateX(4px);
+}
+
+/* ── Floating toy shapes (CSS-only illustrations) ─────────────────── */
+
+.landing-shapes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.landing-shape {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0;
+  animation: landing-floatIn 1s ease-out both;
+}
+
+/* Star shape */
+.landing-shape--star {
+  width: 3rem;
+  height: 3rem;
+  background: var(--landing-sun);
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  border-radius: 0;
+  top: 12%;
+  left: 8%;
+  animation-delay: 0.3s;
+  animation-duration: 1s;
+}
+.landing-shape--star::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: inherit;
+  clip-path: inherit;
+  animation: landing-spin 20s linear infinite;
+}
+
+/* Circle — coral */
+.landing-shape--circle1 {
+  width: 4.5rem;
+  height: 4.5rem;
+  background: linear-gradient(135deg, var(--landing-coral), var(--landing-peach));
+  top: 18%;
+  right: 10%;
+  animation-delay: 0.5s;
+  box-shadow: inset -4px -4px 8px rgba(0,0,0,0.08), inset 3px 3px 6px rgba(255,255,255,0.3);
+}
+
+/* Triangle — mint */
+.landing-shape--triangle {
+  width: 3.5rem;
+  height: 3.5rem;
+  background: var(--landing-mint);
+  clip-path: polygon(50% 10%, 95% 90%, 5% 90%);
+  border-radius: 0;
+  bottom: 25%;
+  left: 6%;
+  animation-delay: 0.7s;
+}
+
+/* Circle — sky */
+.landing-shape--circle2 {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: linear-gradient(135deg, var(--landing-sky), var(--landing-blue));
+  top: 35%;
+  left: 15%;
+  animation-delay: 0.4s;
+  box-shadow: inset -3px -3px 6px rgba(0,0,0,0.06), inset 2px 2px 4px rgba(255,255,255,0.4);
+}
+
+/* Square — purple */
+.landing-shape--square {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: var(--landing-purple);
+  border-radius: 6px !important;
+  bottom: 30%;
+  right: 8%;
+  animation-delay: 0.6s;
+  box-shadow: inset -3px -3px 6px rgba(0,0,0,0.1);
+}
+
+/* Diamond — sun */
+.landing-shape--diamond {
+  width: 2rem;
+  height: 2rem;
+  background: var(--landing-sun);
+  border-radius: 4px !important;
+  transform: rotate(45deg);
+  top: 60%;
+  right: 15%;
+  animation-delay: 0.8s;
+}
+
+/* Dot cluster — peach */
+.landing-shape--dot1 {
+  width: 1.2rem;
+  height: 1.2rem;
+  background: var(--landing-peach);
+  top: 70%;
+  left: 12%;
+  animation-delay: 0.9s;
+}
+
+.landing-shape--dot2 {
+  width: 0.9rem;
+  height: 0.9rem;
+  background: var(--landing-sky);
+  top: 10%;
+  left: 45%;
+  animation-delay: 1s;
+}
+
+.landing-shape--dot3 {
+  width: 1.5rem;
+  height: 1.5rem;
+  background: var(--landing-mint);
+  bottom: 15%;
+  right: 25%;
+  animation-delay: 0.55s;
+}
+
+/* Continuous float after entrance */
+.landing-shape--star     { animation: landing-floatIn 1s ease-out 0.3s both, landing-bob1 6s ease-in-out 1.3s infinite; }
+.landing-shape--circle1  { animation: landing-floatIn 1s ease-out 0.5s both, landing-bob2 7s ease-in-out 1.5s infinite; }
+.landing-shape--triangle { animation: landing-floatIn 1s ease-out 0.7s both, landing-bob3 5s ease-in-out 1.7s infinite; }
+.landing-shape--circle2  { animation: landing-floatIn 1s ease-out 0.4s both, landing-bob1 8s ease-in-out 1.4s infinite; }
+.landing-shape--square   { animation: landing-floatIn 1s ease-out 0.6s both, landing-bob2 6s ease-in-out 1.6s infinite; }
+.landing-shape--diamond  { animation: landing-floatIn 1s ease-out 0.8s both, landing-bob3 7s ease-in-out 1.8s infinite; }
+.landing-shape--dot1     { animation: landing-floatIn 1s ease-out 0.9s both, landing-bob1 5s ease-in-out 1.9s infinite; }
+.landing-shape--dot2     { animation: landing-floatIn 1s ease-out 1.0s both, landing-bob2 9s ease-in-out 2.0s infinite; }
+.landing-shape--dot3     { animation: landing-floatIn 1s ease-out 0.55s both, landing-bob3 6s ease-in-out 1.55s infinite; }
+
+/* ── Features section ─────────────────────────────────────────────── */
+
+.landing-features {
+  position: relative;
+  background: var(--landing-warm);
+  padding: 5rem 2rem;
+  z-index: 1;
+}
+
+.landing-features-title {
+  font-family: 'Baloo 2', cursive;
+  font-weight: 700;
+  font-size: 2rem;
+  text-align: center;
+  margin-bottom: 3rem;
+  color: var(--landing-text);
+}
+
+.landing-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 2rem;
+  max-width: 72rem;
+  margin: 0 auto;
+}
+
+.landing-feature-card {
+  background: var(--landing-cream);
+  border-radius: 1.25rem;
+  padding: 2rem 1.8rem;
+  box-shadow: 0 2px 16px var(--landing-shadow);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 20px 20px 0 0;
+}
+
+.landing-feature-card:nth-child(1)::before { background: var(--landing-coral); }
+.landing-feature-card:nth-child(2)::before { background: var(--landing-sky); }
+.landing-feature-card:nth-child(3)::before { background: var(--landing-sun); }
+.landing-feature-card:nth-child(4)::before { background: var(--landing-purple); }
+
+.landing-feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px var(--landing-shadow);
+}
+
+.landing-feature-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  margin-bottom: 1.2rem;
+}
+
+.landing-feature-card:nth-child(1) .landing-feature-icon { background: linear-gradient(135deg, #ffe0e0, #ffc4c4); }
+.landing-feature-card:nth-child(2) .landing-feature-icon { background: linear-gradient(135deg, #d4f5f0, #b8ede5); }
+.landing-feature-card:nth-child(3) .landing-feature-icon { background: linear-gradient(135deg, #fff3cc, #ffe799); }
+.landing-feature-card:nth-child(4) .landing-feature-icon { background: linear-gradient(135deg, #ede4ff, #d8c9ff); }
+
+.landing-feature-name {
+  font-family: 'Baloo 2', cursive;
+  font-weight: 700;
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+  color: var(--landing-text);
+}
+
+.landing-feature-desc {
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--landing-text-soft);
+}
+
+/* ── Safe Space Trust Banner ───────────────────────────────────────── */
+
+.landing-safe {
+  position: relative;
+  padding: 5rem 2rem;
+  background: linear-gradient(170deg, #eef9f7 0%, #f0f4ff 50%, #fef3e8 100%);
+  z-index: 1;
+  overflow: hidden;
+}
+
+/* Subtle diagonal stripe pattern */
+.landing-safe::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 20px,
+    rgba(78, 205, 196, 0.03) 20px,
+    rgba(78, 205, 196, 0.03) 40px
+  );
+  pointer-events: none;
+}
+
+.landing-safe-inner {
+  max-width: 50rem;
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+}
+
+.landing-safe-shield {
+  font-size: 3.2rem;
+  margin-bottom: 1rem;
+  filter: drop-shadow(0 4px 12px rgba(78, 205, 196, 0.3));
+}
+
+.landing-safe-title {
+  font-family: 'Baloo 2', cursive;
+  font-weight: 800;
+  font-size: 2.2rem;
+  color: var(--landing-text);
+  margin-bottom: 0.5rem;
+}
+
+.landing-safe-subtitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--landing-text-soft);
+  margin-bottom: 2.5rem;
+}
+
+.landing-safe-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.2rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 520px) {
+  .landing-safe-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.landing-safe-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.2rem 0.8rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 1px 8px rgba(61, 44, 44, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.landing-safe-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(61, 44, 44, 0.1);
+}
+
+.landing-safe-icon {
+  font-size: 1.6rem;
+}
+
+.landing-safe-label {
+  font-family: 'Baloo 2', cursive;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--landing-text);
+}
+
+.landing-safe-note {
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.7;
+  color: var(--landing-text-soft);
+  max-width: 36rem;
+  margin: 0 auto;
+}
+
+.landing-safe-parental {
+  margin-top: 1.5rem;
+  padding: 0.9rem 1.4rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(78, 205, 196, 0.2);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--landing-text);
+  max-width: 36rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── Worlds showcase section ──────────────────────────────────────── */
+
+.landing-worlds {
+  padding: 5rem 2rem;
+  background: var(--landing-cream);
+  position: relative;
+  z-index: 1;
+}
+
+.landing-worlds-title {
+  font-family: 'Baloo 2', cursive;
+  font-weight: 700;
+  font-size: 2.2rem;
+  text-align: center;
+  margin-bottom: 3rem;
+  color: var(--landing-text);
+}
+
+.landing-worlds-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  max-width: 66rem;
+  margin: 0 auto;
+}
+
+.landing-world-card {
+  border-radius: 1.25rem;
+  padding: 2.5rem 1.5rem 2rem;
+  text-align: center;
+  color: white;
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+  transition: transform 0.25s ease;
+}
+
+.landing-world-card:hover {
+  transform: scale(1.03);
+}
+
+.landing-world-card:nth-child(1) { background: linear-gradient(160deg, #ff8a65, #e05555); }
+.landing-world-card:nth-child(2) { background: linear-gradient(160deg, #81c784, #4caf50); }
+.landing-world-card:nth-child(3) { background: linear-gradient(160deg, #ba68c8, #7b1fa2); }
+.landing-world-card:nth-child(4) { background: linear-gradient(160deg, #4dd0e1, #00897b); }
+
+.landing-world-card::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+}
+
+.landing-world-card::after {
+  content: '';
+  position: absolute;
+  bottom: -30px;
+  left: -10px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+}
+
+.landing-world-emoji {
+  font-size: 2.8rem;
+  margin-bottom: 0.8rem;
+  display: block;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+}
+
+.landing-world-name {
+  font-family: 'Baloo 2', cursive;
+  font-weight: 700;
+  font-size: 1.3rem;
+  margin-bottom: 0.3rem;
+}
+
+.landing-world-desc {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* ── Bottom CTA section ───────────────────────────────────────────── */
+
+.landing-bottom-cta {
+  padding: 5rem 2rem;
+  text-align: center;
+  background: var(--landing-warm);
+  position: relative;
+  z-index: 1;
+}
+
+/* Curved top edge */
+.landing-bottom-cta::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 60'%3E%3Cpath fill='%23fff8f0' d='M0,15 C480,60 960,-10 1440,25 L1440,0 L0,0 Z'/%3E%3C/svg%3E") no-repeat top center;
+  background-size: 100% 100%;
+}
+
+.landing-bottom-cta-text {
+  font-family: 'Baloo 2', cursive;
+  font-weight: 700;
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  color: var(--landing-text);
+}
+
+/* ── Footer ───────────────────────────────────────────────────────── */
+
+.landing-footer {
+  text-align: center;
+  padding: 2rem 1.5rem;
+  background: var(--landing-warm);
+  font-size: 0.85rem;
+  color: var(--landing-text-soft);
+  font-weight: 500;
+  position: relative;
+  z-index: 1;
+}
+
+.landing-footer-hearts {
+  color: var(--landing-coral);
+}
+
+/* ── Scroll fade-in for sections ──────────────────────────────────── */
+
+.landing-reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.landing-reveal--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────── */
+
+@keyframes landing-fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes landing-floatIn {
+  from { opacity: 0; transform: scale(0.3) translateY(20px); }
+  to   { opacity: 0.7; transform: scale(1) translateY(0); }
+}
+
+@keyframes landing-bob1 {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-12px); }
+}
+
+@keyframes landing-bob2 {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-10px) rotate(5deg); }
+}
+
+@keyframes landing-bob3 {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-8px) rotate(-4deg); }
+}
+
+@keyframes landing-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes landing-gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+@keyframes landing-ctaPulse {
+  0%, 100% { box-shadow: 0 4px 20px rgba(255,107,107,0.4), 0 0 0 0 rgba(255,107,107,0); }
+  50%      { box-shadow: 0 4px 20px rgba(255,107,107,0.4), 0 0 0 8px rgba(255,107,107,0.08); }
+}
+
+/* ── Responsive ───────────────────────────────────────────────────── */
+
+/* Tablet layout (641–1024px) — keep fluid scaling, just adjust grids */
+@media (max-width: 1024px) {
+  .landing-features-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+
+  .landing-worlds-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .landing-safe-grid {
+    gap: 1rem;
+  }
+}
+
+/* Standard phones (481–640px) — lock to 16px base */
+@media (max-width: 640px) {
+  .landing-root {
+    font-size: 16px;
+  }
+
+  .landing-hero {
+    padding: 2rem 1.25rem;
+    min-height: 92vh;
+  }
+
+  .landing-hero-content {
+    max-width: 100%;
+  }
+
+  .landing-features,
+  .landing-worlds,
+  .landing-bottom-cta {
+    padding: 3rem 1.25rem;
+  }
+
+  .landing-safe {
+    padding: 3rem 1.25rem;
+  }
+
+  .landing-features-grid {
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+    max-width: 400px;
+  }
+
+  .landing-feature-card {
+    padding: 1.5rem 1.4rem;
+  }
+
+  .landing-worlds-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .landing-world-card {
+    padding: 1.8rem 1rem 1.5rem;
+  }
+
+  .landing-world-emoji {
+    font-size: 2.2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .landing-world-name {
+    font-size: 1.1rem;
+  }
+
+  .landing-world-desc {
+    font-size: 0.8rem;
+  }
+
+  .landing-cta {
+    padding: 1rem 2.2rem;
+    font-size: 1.15rem;
+  }
+
+  .landing-badge {
+    font-size: 0.72rem;
+    padding: 0.35rem 1rem;
+  }
+
+  .landing-description {
+    font-size: 0.95rem;
+    margin-bottom: 2rem;
+  }
+
+  .landing-safe-shield {
+    font-size: 2.6rem;
+  }
+
+  .landing-safe-note br {
+    display: none;
+  }
+
+  /* Shrink floating shapes so they don't crowd content */
+  .landing-shape--circle1 { width: 2.5rem; height: 2.5rem; }
+  .landing-shape--star { width: 1.8rem; height: 1.8rem; }
+  .landing-shape--triangle { width: 2rem; height: 2rem; }
+  .landing-shape--square { width: 1.6rem; height: 1.6rem; }
+  .landing-shape--diamond { width: 1.3rem; height: 1.3rem; }
+}
+
+/* Small phones (≤ 380px) */
+@media (max-width: 380px) {
+  .landing-hero {
+    padding: 1.5rem 1rem;
+    min-height: 88vh;
+  }
+
+  .landing-features,
+  .landing-worlds,
+  .landing-bottom-cta,
+  .landing-safe {
+    padding: 2.5rem 1rem;
+  }
+
+  .landing-features-title,
+  .landing-worlds-title {
+    margin-bottom: 2rem;
+  }
+
+  .landing-worlds-grid {
+    grid-template-columns: 1fr;
+    max-width: 280px;
+    margin: 0 auto;
+  }
+
+  .landing-safe-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.8rem;
+  }
+
+  .landing-safe-item {
+    padding: 0.9rem 0.5rem;
+  }
+
+  .landing-safe-label {
+    font-size: 0.82rem;
+  }
+
+  .landing-cta {
+    padding: 0.9rem 1.8rem;
+    font-size: 1.05rem;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .landing-bottom-cta-text {
+    font-size: 1.15rem;
+  }
+
+  /* Hide smaller decorative shapes on tiny screens */
+  .landing-shape--dot1,
+  .landing-shape--dot2,
+  .landing-shape--dot3,
+  .landing-shape--diamond {
+    display: none;
+  }
+}
+
+/* Landscape phones — reduce hero height, tighten spacing */
+@media (max-height: 500px) and (orientation: landscape) {
+  .landing-hero {
+    min-height: auto;
+    padding: 2rem 2rem;
+  }
+
+  .landing-title {
+    font-size: 2.4rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .landing-subtitle {
+    margin-bottom: 1rem;
+  }
+
+  .landing-description {
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+  }
+
+  .landing-badge {
+    margin-bottom: 0.8rem;
+  }
+
+  /* Hide shapes in cramped landscape to avoid content overlap */
+  .landing-shapes {
+    display: none;
+  }
+}
+
+/* Large desktop (> 1200px) — add breathing room */
+@media (min-width: 1200px) {
+  .landing-hero {
+    padding: 5rem 3rem;
+  }
+
+  .landing-features,
+  .landing-worlds,
+  .landing-bottom-cta,
+  .landing-safe {
+    padding: 6rem 3rem;
+  }
+}

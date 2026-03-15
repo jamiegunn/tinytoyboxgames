@@ -1,0 +1,327 @@
+﻿
+C:\dev\canvas_webgl\src\src\components\ErrorBoundary.tsx
+  25:34  warning  Missing JSDoc comment  jsdoc/require-jsdoc
+  29:20  warning  Missing JSDoc comment  jsdoc/require-jsdoc
+  33:9   warning  Missing JSDoc comment  jsdoc/require-jsdoc
+
+C:\dev\canvas_webgl\src\src\entities\owl\body.ts
+  5:1  warning  Missing JSDoc @param "name" declaration       jsdoc/require-param
+  5:1  warning  Missing JSDoc @param "diameterX" declaration  jsdoc/require-param
+  5:1  warning  Missing JSDoc @param "diameterY" declaration  jsdoc/require-param
+  5:1  warning  Missing JSDoc @param "diameterZ" declaration  jsdoc/require-param
+  5:1  warning  Missing JSDoc @param "segments" declaration   jsdoc/require-param
+  5:1  warning  Missing JSDoc @param "material" declaration   jsdoc/require-param
+  5:1  warning  Missing JSDoc @returns declaration            jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\entities\owl\head.ts
+   5:1  warning  Missing JSDoc @param "name" declaration       jsdoc/require-param
+   5:1  warning  Missing JSDoc @param "diameterX" declaration  jsdoc/require-param
+   5:1  warning  Missing JSDoc @param "diameterY" declaration  jsdoc/require-param
+   5:1  warning  Missing JSDoc @param "diameterZ" declaration  jsdoc/require-param
+   5:1  warning  Missing JSDoc @param "segments" declaration   jsdoc/require-param
+   5:1  warning  Missing JSDoc @param "material" declaration   jsdoc/require-param
+   5:1  warning  Missing JSDoc @returns declaration            jsdoc/require-returns
+  98:1  warning  Missing JSDoc @param "name" declaration       jsdoc/require-param
+  98:1  warning  Missing JSDoc @param "radiusX" declaration    jsdoc/require-param
+  98:1  warning  Missing JSDoc @param "radiusY" declaration    jsdoc/require-param
+  98:1  warning  Missing JSDoc @param "radiusZ" declaration    jsdoc/require-param
+  98:1  warning  Missing JSDoc @param "segments" declaration   jsdoc/require-param
+  98:1  warning  Missing JSDoc @param "material" declaration   jsdoc/require-param
+  98:1  warning  Missing JSDoc @returns declaration            jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\framework\InputDispatcher.ts
+  69:3  warning  Missing JSDoc @param "screenX" declaration  jsdoc/require-param
+  69:3  warning  Missing JSDoc @param "screenY" declaration  jsdoc/require-param
+  69:3  warning  Missing JSDoc @returns declaration          jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\games\balloon-race\environment\scenery.ts
+  27:1  warning  Missing JSDoc @param "_scene" declaration  jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\minigames\games\balloon-race\index.ts
+  81:3  warning  Missing JSDoc @param "pickResult" declaration  jsdoc/require-param
+  81:3  warning  Missing JSDoc @returns declaration             jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\games\bubble-pop\bubbles\lifecycle.ts
+  38:1  warning  Missing JSDoc @param "_scene" declaration  jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\minigames\games\bubble-pop\environment\setup.ts
+  19:1  warning  Missing JSDoc @param "_scene" declaration  jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\minigames\games\bubble-pop\index.ts
+  176:3  warning  Missing JSDoc @param "index" declaration  jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\minigames\games\bubble-pop\physics\softBody.ts
+  17:1  warning  Missing JSDoc @param "bubble" declaration  jsdoc/require-param
+  17:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\games\clean-the-mess\environment\scenery.ts
+  133:1  warning  Missing JSDoc @param "_texture" declaration  jsdoc/require-param
+  160:1  warning  Missing JSDoc @param "_texture" declaration  jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\minigames\games\clean-the-mess\index.ts
+  123:3  warning  Missing JSDoc @param "worldX" declaration   jsdoc/require-param
+  123:3  warning  Missing JSDoc @param "worldZ" declaration   jsdoc/require-param
+  123:3  warning  Missing JSDoc @param "screenX" declaration  jsdoc/require-param
+  123:3  warning  Missing JSDoc @param "screenY" declaration  jsdoc/require-param
+  164:3  warning  Missing JSDoc @param "shape" declaration    jsdoc/require-param
+  164:3  warning  Missing JSDoc @param "screenX" declaration  jsdoc/require-param
+  164:3  warning  Missing JSDoc @param "screenY" declaration  jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\minigames\games\clean-the-mess\toys\lifecycle.ts
+   46:1  warning  Missing JSDoc @param "scene" declaration   jsdoc/require-param
+   46:1  warning  Missing JSDoc @param "name" declaration    jsdoc/require-param
+   46:1  warning  Missing JSDoc @param "mat" declaration     jsdoc/require-param
+   46:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+   65:1  warning  Missing JSDoc @param "scene" declaration   jsdoc/require-param
+   65:1  warning  Missing JSDoc @param "name" declaration    jsdoc/require-param
+   65:1  warning  Missing JSDoc @param "mat" declaration     jsdoc/require-param
+   65:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+   82:1  warning  Missing JSDoc @param "scene" declaration   jsdoc/require-param
+   82:1  warning  Missing JSDoc @param "name" declaration    jsdoc/require-param
+   82:1  warning  Missing JSDoc @param "mat" declaration     jsdoc/require-param
+   82:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+  116:1  warning  Missing JSDoc @param "scene" declaration   jsdoc/require-param
+  116:1  warning  Missing JSDoc @param "name" declaration    jsdoc/require-param
+  116:1  warning  Missing JSDoc @param "mat" declaration     jsdoc/require-param
+  116:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+  144:1  warning  Missing JSDoc @param "scene" declaration   jsdoc/require-param
+  144:1  warning  Missing JSDoc @param "name" declaration    jsdoc/require-param
+  144:1  warning  Missing JSDoc @param "mat" declaration     jsdoc/require-param
+  144:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+  173:1  warning  Missing JSDoc @param "scene" declaration   jsdoc/require-param
+  173:1  warning  Missing JSDoc @param "name" declaration    jsdoc/require-param
+  173:1  warning  Missing JSDoc @param "mat" declaration     jsdoc/require-param
+  173:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+  199:1  warning  Missing JSDoc @param "scene" declaration   jsdoc/require-param
+  199:1  warning  Missing JSDoc @param "name" declaration    jsdoc/require-param
+  199:1  warning  Missing JSDoc @param "mat" declaration     jsdoc/require-param
+  199:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+  230:1  warning  Missing JSDoc @param "scene" declaration   jsdoc/require-param
+  230:1  warning  Missing JSDoc @param "name" declaration    jsdoc/require-param
+  230:1  warning  Missing JSDoc @param "mat" declaration     jsdoc/require-param
+  230:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+  254:1  warning  Missing JSDoc @param "scene" declaration   jsdoc/require-param
+  254:1  warning  Missing JSDoc @param "name" declaration    jsdoc/require-param
+  254:1  warning  Missing JSDoc @param "mat" declaration     jsdoc/require-param
+  254:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+  301:1  warning  Missing JSDoc @param "scene" declaration   jsdoc/require-param
+  301:1  warning  Missing JSDoc @param "name" declaration    jsdoc/require-param
+  301:1  warning  Missing JSDoc @param "mat" declaration     jsdoc/require-param
+  301:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+  340:1  warning  Missing JSDoc @param "_scene" declaration  jsdoc/require-param
+  340:1  warning  Missing JSDoc @param "name" declaration    jsdoc/require-param
+  340:1  warning  Missing JSDoc @param "radius" declaration  jsdoc/require-param
+  340:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+  353:1  warning  Missing JSDoc @param "scene" declaration   jsdoc/require-param
+  353:1  warning  Missing JSDoc @param "name" declaration    jsdoc/require-param
+  353:1  warning  Missing JSDoc @param "mat" declaration     jsdoc/require-param
+  353:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+  365:1  warning  Missing JSDoc @param "scene" declaration   jsdoc/require-param
+  365:1  warning  Missing JSDoc @param "name" declaration    jsdoc/require-param
+  365:1  warning  Missing JSDoc @param "mat" declaration     jsdoc/require-param
+  365:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\games\color-match\index.ts
+   61:3  warning  Missing JSDoc @param "poolSize" declaration   jsdoc/require-param
+   61:3  warning  Missing JSDoc @returns declaration            jsdoc/require-returns
+  143:3  warning  Missing JSDoc @param "swatchIdx" declaration  jsdoc/require-param
+  143:3  warning  Missing JSDoc @param "screenX" declaration    jsdoc/require-param
+  143:3  warning  Missing JSDoc @param "screenY" declaration    jsdoc/require-param
+  161:3  warning  Missing JSDoc @param "swatchIdx" declaration  jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\minigames\games\elephant-splash\interactions.ts
+  33:1  warning  Missing JSDoc @param "p" declaration  jsdoc/require-param
+  33:1  warning  Missing JSDoc @returns declaration    jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\games\fireflies\audio.ts
+  74:3  warning  Missing JSDoc @returns declaration            jsdoc/require-returns
+  79:3  warning  Missing JSDoc @returns declaration            jsdoc/require-returns
+  84:3  warning  Missing JSDoc @param "frequency" declaration  jsdoc/require-param
+  84:3  warning  Missing JSDoc @param "volume" declaration     jsdoc/require-param
+  84:3  warning  Missing JSDoc @param "time" declaration       jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\minigames\games\fireflies\entities.ts
+  12:1  warning  Missing JSDoc @returns declaration  jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\games\fireflies\helpers.ts
+  53:1  warning  Missing JSDoc @returns declaration  jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\games\fireflies\illumination.ts
+  187:1  warning  Missing JSDoc @param "collectedCount" declaration  jsdoc/require-param
+  187:1  warning  Missing JSDoc @returns declaration                 jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\games\fireflies\index.ts
+  61:1  warning  Missing JSDoc @returns declaration  jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\games\little-shark\effects\particles.ts
+  35:1  warning  Missing JSDoc @param "min" declaration     jsdoc/require-param
+  35:1  warning  Missing JSDoc @param "max" declaration     jsdoc/require-param
+  35:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+  40:1  warning  Missing JSDoc @param "spread" declaration  jsdoc/require-param
+  40:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\games\little-shark\fish\effects.ts
+  21:1  warning  Missing JSDoc @returns declaration  jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\games\little-shark\fish\meshes.ts
+   8:1  warning  Missing JSDoc @param "prefix" declaration  jsdoc/require-param
+   8:1  warning  Missing JSDoc @param "color" declaration   jsdoc/require-param
+   8:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+  18:1  warning  Missing JSDoc @param "prefix" declaration  jsdoc/require-param
+  18:1  warning  Missing JSDoc @param "color" declaration   jsdoc/require-param
+  18:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+  29:1  warning  Missing JSDoc @param "prefix" declaration  jsdoc/require-param
+  29:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+  39:1  warning  Missing JSDoc @param "prefix" declaration  jsdoc/require-param
+  39:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\games\little-shark\fish\schooling.ts
+  21:1  warning  Missing JSDoc @param "x" declaration  jsdoc/require-param
+  21:1  warning  Missing JSDoc @param "z" declaration  jsdoc/require-param
+  21:1  warning  Missing JSDoc @returns declaration    jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\games\little-shark\index.ts
+  107:1  warning  Missing JSDoc @param "child" declaration            jsdoc/require-param
+  107:1  warning  Missing JSDoc @param "root" declaration             jsdoc/require-param
+  107:1  warning  Missing JSDoc @returns declaration                  jsdoc/require-returns
+  290:3  warning  Missing JSDoc @param "dt" declaration               jsdoc/require-param
+  326:3  warning  Missing JSDoc @param "dt" declaration               jsdoc/require-param
+  367:3  warning  Missing JSDoc @param "dt" declaration               jsdoc/require-param
+  380:3  warning  Missing JSDoc @param "dt" declaration               jsdoc/require-param
+  380:3  warning  Missing JSDoc @param "speedMultiplier" declaration  jsdoc/require-param
+  431:3  warning  Missing JSDoc @param "dt" declaration               jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\minigames\games\little-shark\shark\expressions.ts
+  84:1  warning  Missing JSDoc @param "a" declaration  jsdoc/require-param
+  84:1  warning  Missing JSDoc @param "b" declaration  jsdoc/require-param
+  84:1  warning  Missing JSDoc @param "t" declaration  jsdoc/require-param
+  84:1  warning  Missing JSDoc @returns declaration    jsdoc/require-returns
+  89:1  warning  Missing JSDoc @param "t" declaration  jsdoc/require-param
+  89:1  warning  Missing JSDoc @returns declaration    jsdoc/require-returns
+  94:1  warning  Missing JSDoc @param "a" declaration  jsdoc/require-param
+  94:1  warning  Missing JSDoc @param "b" declaration  jsdoc/require-param
+  94:1  warning  Missing JSDoc @param "t" declaration  jsdoc/require-param
+  94:1  warning  Missing JSDoc @returns declaration    jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\games\little-shark\surprises.ts
+  5:1  warning  Missing JSDoc @param "obj" declaration  jsdoc/require-param
+  5:1  warning  Missing JSDoc @returns declaration      jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\minigames\games\monster-truck\entities.ts
+  267:1  warning  Missing JSDoc @param "scene" declaration  jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\minigames\games\monster-truck\index.ts
+  78:3  warning  Missing JSDoc @returns declaration  jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\scenes\hub\critters\animalVisitors.ts
+   13:1  warning  Missing JSDoc @returns declaration             jsdoc/require-returns
+  138:1  warning  Missing JSDoc @returns declaration             jsdoc/require-returns
+  257:1  warning  Missing JSDoc @param "from" declaration        jsdoc/require-param
+  257:1  warning  Missing JSDoc @param "to" declaration          jsdoc/require-param
+  257:1  warning  Missing JSDoc @returns declaration             jsdoc/require-returns
+  262:1  warning  Missing JSDoc @param "root" declaration        jsdoc/require-param
+  262:1  warning  Missing JSDoc @param "target" declaration      jsdoc/require-param
+  262:1  warning  Missing JSDoc @param "speed" declaration       jsdoc/require-param
+  275:1  warning  Missing JSDoc @param "root" declaration        jsdoc/require-param
+  275:1  warning  Missing JSDoc @param "landTarget" declaration  jsdoc/require-param
+  275:1  warning  Missing JSDoc @param "peakY" declaration       jsdoc/require-param
+  275:1  warning  Missing JSDoc @param "duration" declaration    jsdoc/require-param
+  308:1  warning  Missing JSDoc @param "seconds" declaration     jsdoc/require-param
+  308:1  warning  Missing JSDoc @returns declaration             jsdoc/require-returns
+  346:1  warning  Missing JSDoc @param "from" declaration        jsdoc/require-param
+  346:1  warning  Missing JSDoc @param "to" declaration          jsdoc/require-param
+  346:1  warning  Missing JSDoc @returns declaration             jsdoc/require-returns
+  373:1  warning  Missing JSDoc @param "from" declaration        jsdoc/require-param
+  373:1  warning  Missing JSDoc @param "to" declaration          jsdoc/require-param
+  373:1  warning  Missing JSDoc @returns declaration             jsdoc/require-returns
+  403:1  warning  Missing JSDoc @param "root" declaration        jsdoc/require-param
+  403:1  warning  Missing JSDoc @param "target" declaration      jsdoc/require-param
+  403:1  warning  Missing JSDoc @param "speed" declaration       jsdoc/require-param
+  403:1  warning  Missing JSDoc @param "stopShort" declaration   jsdoc/require-param
+  457:1  warning  Missing JSDoc @param "root" declaration        jsdoc/require-param
+  457:1  warning  Missing JSDoc @param "toyboxPos" declaration   jsdoc/require-param
+  457:1  warning  Missing JSDoc @param "topY" declaration        jsdoc/require-param
+  457:1  warning  Missing JSDoc @returns declaration             jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\scenes\hub\decor\hangingMobile.ts
+  156:1  warning  Missing JSDoc @param "parent" declaration  jsdoc/require-param
+  156:1  warning  Missing JSDoc @param "hp" declaration      jsdoc/require-param
+  156:1  warning  Missing JSDoc @param "mat" declaration     jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\scenes\hub\decor\raggedyDolls.ts
+   20:1  warning  Missing JSDoc @param "scene" declaration  jsdoc/require-param
+   20:1  warning  Missing JSDoc @param "x" declaration      jsdoc/require-param
+   20:1  warning  Missing JSDoc @param "y" declaration      jsdoc/require-param
+   20:1  warning  Missing JSDoc @param "z" declaration      jsdoc/require-param
+  189:1  warning  Missing JSDoc @param "scene" declaration  jsdoc/require-param
+  189:1  warning  Missing JSDoc @param "x" declaration      jsdoc/require-param
+  189:1  warning  Missing JSDoc @param "y" declaration      jsdoc/require-param
+  189:1  warning  Missing JSDoc @param "z" declaration      jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\scenes\hub\room.ts
+  123:1  warning  Missing JSDoc @param "_scene" declaration   jsdoc/require-param
+  123:1  warning  Missing JSDoc @param "canvas" declaration   jsdoc/require-param
+  123:1  warning  Missing JSDoc @param "camera" declaration   jsdoc/require-param
+  123:1  warning  Missing JSDoc @param "root" declaration     jsdoc/require-param
+  123:1  warning  Missing JSDoc @param "runtime" declaration  jsdoc/require-param
+  123:1  warning  Missing JSDoc @param "id" declaration       jsdoc/require-param
+  123:1  warning  Missing JSDoc @param "nav" declaration      jsdoc/require-param
+  123:1  warning  Missing JSDoc @param "owl" declaration      jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\scenes\hub\room\wallArt.ts
+  16:1  warning  Missing JSDoc @param "scene" declaration  jsdoc/require-param
+  98:1  warning  Missing JSDoc @param "scene" declaration  jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\scenes\hub\window.ts
+  25:1  warning  Missing JSDoc @param "scene" declaration     jsdoc/require-param
+  25:1  warning  Missing JSDoc @param "cx" declaration        jsdoc/require-param
+  25:1  warning  Missing JSDoc @param "cy" declaration        jsdoc/require-param
+  25:1  warning  Missing JSDoc @param "cz" declaration        jsdoc/require-param
+  25:1  warning  Missing JSDoc @param "w" declaration         jsdoc/require-param
+  25:1  warning  Missing JSDoc @param "h" declaration         jsdoc/require-param
+  25:1  warning  Missing JSDoc @param "faceRotY" declaration  jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\scenes\naturescene\builders\placed\complex\stream\shared\context.ts
+  5:1  warning  Missing JSDoc @param "value" declaration  jsdoc/require-param
+  5:1  warning  Missing JSDoc @returns declaration        jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\scenes\naturescene\builders\placed\complex\stream\shared\ribbon.ts
+  4:1  warning  Missing JSDoc @param "t" declaration       jsdoc/require-param
+  4:1  warning  Missing JSDoc @param "across" declaration  jsdoc/require-param
+  4:1  warning  Missing JSDoc @returns declaration         jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\scenes\naturescene\builders\placed\complex\stream\stream-bank\shared\samples.ts
+  6:1  warning  Missing JSDoc @param "frame" declaration       jsdoc/require-param
+  6:1  warning  Missing JSDoc @param "sideSign" declaration    jsdoc/require-param
+  6:1  warning  Missing JSDoc @param "offset" declaration      jsdoc/require-param
+  6:1  warning  Missing JSDoc @param "height" declaration      jsdoc/require-param
+  6:1  warning  Missing JSDoc @param "flowOffset" declaration  jsdoc/require-param
+  6:1  warning  Missing JSDoc @returns declaration             jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\scenes\naturescene\builders\placed\procedural\trees\build.ts
+  235:1  warning  Missing JSDoc @param "geo" declaration         jsdoc/require-param
+  235:1  warning  Missing JSDoc @param "seed" declaration        jsdoc/require-param
+  235:1  warning  Missing JSDoc @param "baseRadius" declaration  jsdoc/require-param
+  235:1  warning  Missing JSDoc @param "topRadius" declaration   jsdoc/require-param
+  293:1  warning  Missing JSDoc @param "geo" declaration         jsdoc/require-param
+  293:1  warning  Missing JSDoc @param "seed" declaration        jsdoc/require-param
+  293:1  warning  Missing JSDoc @param "radius" declaration      jsdoc/require-param
+
+C:\dev\canvas_webgl\src\src\scenes\naturescene\builders\systems\fireflies\build.ts
+   6:1  warning  Missing JSDoc @returns declaration        jsdoc/require-returns
+  14:1  warning  Missing JSDoc @param "home" declaration   jsdoc/require-param
+  14:1  warning  Missing JSDoc @param "range" declaration  jsdoc/require-param
+  14:1  warning  Missing JSDoc @returns declaration        jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\utils\cameraPresets.ts
+  114:3  warning  Missing JSDoc @returns declaration  jsdoc/require-returns
+
+C:\dev\canvas_webgl\src\src\utils\particles.ts
+  104:3  warning  Missing JSDoc @param "opts" declaration         jsdoc/require-param
+  139:3  warning  Missing JSDoc @param "count" declaration        jsdoc/require-param
+  146:3  warning  Missing JSDoc @param "scene" declaration        jsdoc/require-param
+  146:3  warning  Missing JSDoc @param "autoDispose" declaration  jsdoc/require-param
+
+Γ£û 239 problems (0 errors, 239 warnings)
+  0 errors and 185 warnings potentially fixable with the `--fix` option.
+

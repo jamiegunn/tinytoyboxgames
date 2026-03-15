@@ -1,0 +1,1 @@
+export { composeSampleSimpleProps } from './compose';
