@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { SceneId, MiniGameId, NavigationState, NavigationActions } from '@app/types/scenes';
-import { DEFAULT_SCENE_ID, isSceneId } from '@app/scenes/sceneCatalog';
+import { DEFAULT_SCENE_ID, isSceneId, isGameInScene } from '@app/scenes/sceneCatalog';
 import { getGameEntry } from '@app/minigames/framework/MiniGameManifest';
 
 interface SceneRouterContextValue extends NavigationState, NavigationActions {}
@@ -26,7 +26,7 @@ function parseHash(): { scene: SceneId; game: MiniGameId | null } {
 
   if (gamePart) {
     const entry = getGameEntry(gamePart);
-    if (entry && entry.launchableFrom.includes(scene)) {
+    if (entry && isGameInScene(scene, entry.id)) {
       return { scene, game: entry.id };
     }
   }

@@ -51,7 +51,6 @@ export function addMiniGameManifestEntry(source, { gameId, displayName }) {
     `    id: '${gameId}',`,
     `    displayName: '${escapedDisplayName}',`,
     `    description: 'TODO: write a description for ${escapedDisplayName}.',`,
-    `    launchableFrom: ['nature'],`,
     `    inputModes: ['tap'],`,
     `    themeColor: '#8FD3FF',`,
     `    iconAssetId: '${toSnakeCase(gameId)}_icon',`,

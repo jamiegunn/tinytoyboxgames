@@ -1,4 +1,4 @@
-import type { MiniGameManifestEntry, MiniGameLaunchSceneId } from './types';
+import type { MiniGameManifestEntry } from './types';
 
 /** Mini-game manifest entries for the nature world. */
 const manifest: MiniGameManifestEntry[] = [
@@ -6,7 +6,7 @@ const manifest: MiniGameManifestEntry[] = [
     id: 'bubble-pop',
     displayName: 'Bubble Pop',
     description: 'Pop shimmering bubbles in the night sky!',
-    launchableFrom: ['nature'],
+
     inputModes: ['tap'],
     themeColor: '#A8E0FF',
     iconAssetId: 'bubble_pop_icon',
@@ -21,7 +21,7 @@ const manifest: MiniGameManifestEntry[] = [
     id: 'fireflies',
     displayName: 'Fireflies',
     description: 'Catch glowing fireflies in a jar!',
-    launchableFrom: ['nature'],
+
     inputModes: ['tap'],
     themeColor: '#FFD700',
     iconAssetId: 'fireflies_icon',
@@ -36,7 +36,7 @@ const manifest: MiniGameManifestEntry[] = [
     id: 'little-shark',
     displayName: 'Little Shark',
     description: 'Chase and munch colorful fish!',
-    launchableFrom: ['nature'],
+
     inputModes: ['tap', 'drag'],
     themeColor: '#1A6FB5',
     iconAssetId: 'little_shark_icon',
@@ -51,7 +51,7 @@ const manifest: MiniGameManifestEntry[] = [
     id: 'star-catcher',
     displayName: 'Star Catcher',
     description: 'TODO: write a description for Star Catcher.',
-    launchableFrom: ['nature'],
+
     inputModes: ['tap'],
     themeColor: '#8FD3FF',
     iconAssetId: 'star_catcher_icon',
@@ -66,7 +66,7 @@ const manifest: MiniGameManifestEntry[] = [
     id: 'cannonball-splash',
     displayName: 'Cannonball Splash',
     description: 'Fire cannonballs at floating targets and make the biggest splash!',
-    launchableFrom: ['pirate-cove'],
+
     inputModes: ['tap'],
     themeColor: '#2A6FA8',
     iconAssetId: 'cannonball_splash_icon',
@@ -97,16 +97,6 @@ export function getManifest(): ReadonlyArray<MiniGameManifestEntry> {
  */
 export function getGameEntry(id: string): MiniGameManifestEntry | undefined {
   return manifest.find((e) => e.id === id);
-}
-
-/**
- * Returns all mini-games that can be launched from a given scene.
- *
- * @param sceneId - The scene identifier to filter by.
- * @returns An array of manifest entries launchable from that scene.
- */
-export function getGamesForScene(sceneId: MiniGameLaunchSceneId): MiniGameManifestEntry[] {
-  return manifest.filter((e) => e.launchableFrom.includes(sceneId));
 }
 
 /**

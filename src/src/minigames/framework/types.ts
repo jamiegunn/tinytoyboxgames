@@ -1,8 +1,4 @@
 import type { MiniGameId } from '@app/types/scenes';
-import type { SceneId } from '@app/scenes/sceneCatalog';
-
-/** Identifies a navigable scene that can launch a play-mode mini-game. */
-export type MiniGameLaunchSceneId = SceneId;
 
 /** Viewport information provided to mini-games for responsive layout. */
 export interface ViewportInfo {
@@ -53,7 +49,6 @@ export interface MiniGameManifestEntry {
   id: MiniGameId;
   displayName: string;
   description: string;
-  launchableFrom: MiniGameLaunchSceneId[];
   inputModes: Array<'tap' | 'drag'>;
   themeColor: string;
   iconAssetId: string;

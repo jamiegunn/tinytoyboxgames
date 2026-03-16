@@ -38,6 +38,27 @@ export interface SceneCameraPresetDefinition {
   };
 }
 
+/**
+ * Returns the mini-game ids that a scene is allowed to launch.
+ *
+ * @param sceneId - Registered scene identifier.
+ * @returns Read-only array of game ids registered for that scene.
+ */
+export function getGamesForScene(sceneId: SceneId): readonly string[] {
+  return SCENE_CATALOG[sceneId].games ?? [];
+}
+
+/**
+ * Returns true when a scene is allowed to launch the given game.
+ *
+ * @param sceneId - Registered scene identifier.
+ * @param gameId - Mini-game identifier to check.
+ * @returns True when the game is registered under this scene.
+ */
+export function isGameInScene(sceneId: SceneId, gameId: string): boolean {
+  return (SCENE_CATALOG[sceneId].games ?? []).includes(gameId);
+}
+
 /** Optional scene-level music and ambient bed identifiers. */
 export interface SceneAudioDefinition {
   /** Background music sound id. Empty string disables music. */
@@ -64,6 +85,8 @@ export interface SceneDefinition {
   cameraPreset: SceneCameraPresetDefinition;
   /** Optional audio configuration consumed by the audio provider. */
   audio: SceneAudioDefinition | null;
+  /** Mini-game ids this scene is allowed to launch. Empty or omitted means none. */
+  games?: readonly string[];
 }
 
 /**
@@ -96,6 +119,7 @@ export const SCENE_CATALOG = {
     loader: () => import('@app/scenes/immersive-toybox-scenes/naturescene'),
     cameraPreset: { azimuth: 0, polar: 1.2, distance: 10, target: [0, 0.3, 0] },
     audio: { musicId: 'mus_nature_background', ambientId: 'amb_nature_stream' },
+    games: ['bubble-pop', 'fireflies', 'little-shark', 'star-catcher'],
   },
   'pirate-cove': {
     displayName: 'Pirate Cove',
@@ -119,6 +143,7 @@ export const SCENE_CATALOG = {
       },
     },
     audio: null,
+    games: ['cannonball-splash'],
   },
   // __IMMERSIVE_SCENE_GENERATOR_ENTRY_MARKER__
 } as const satisfies Record<string, SceneDefinition>;

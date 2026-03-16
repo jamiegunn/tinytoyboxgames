@@ -13,7 +13,6 @@ test('generator registers the new minigame in the manifest with template default
 
     assert.match(manifest, /id:\s*'template-demo'/);
     assert.match(manifest, /displayName:\s*'Template Demo'/);
-    assert.match(manifest, /launchableFrom:\s*\['nature'\]/);
     assert.match(manifest, /inputModes:\s*\['tap'\]/);
     assert.match(manifest, /mode:\s*'endless'/);
     assert.match(manifest, /load:\s*\(\)\s*=>\s*import\('@app\/minigames\/games\/template-demo'\)/);
