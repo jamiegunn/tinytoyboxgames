@@ -1,0 +1,1 @@
+export { composeAnchor } from './compose';

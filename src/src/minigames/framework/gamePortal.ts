@@ -413,6 +413,27 @@ function buildSharkFinIcon(id: string): Group {
   return root;
 }
 
+function buildCannonballIcon(id: string): Group {
+  const root = new Group();
+  root.name = `${id}_cannonball`;
+  // Dark iron cannonball
+  const ball = createSphere(`${id}_ball`, 0.3, 8);
+  ball.material = mat(`${id}_ballMat`, new Color(0.1, 0.1, 0.12), new Color(0.02, 0.02, 0.03));
+  (ball.material as MeshStandardMaterial).metalness = 0.8;
+  (ball.material as MeshStandardMaterial).roughness = 0.3;
+  root.add(ball);
+  // 3 splash droplets arcing upward
+  const dropMat = mat(`${id}_dropMat`, new Color(0.5, 0.75, 1), new Color(0.12, 0.2, 0.35));
+  const dropPositions = [new Vector3(-0.15, 0.25, 0.05), new Vector3(0.05, 0.35, -0.05), new Vector3(0.18, 0.2, 0.08)];
+  for (let i = 0; i < 3; i++) {
+    const drop = createSphere(`${id}_drop${i}`, 0.1, 6);
+    drop.position.copy(dropPositions[i]);
+    drop.material = dropMat;
+    root.add(drop);
+  }
+  return root;
+}
+
 // ── Icon builder dispatch ──
 
 function buildFallbackSparkIcon(id: string): Group {
@@ -443,6 +464,7 @@ const ICON_BUILDERS: Record<BuiltInMiniGameId, (id: string) => Group> = {
   'bubble-pop': buildBubblesIcon,
   fireflies: buildJarIcon,
   'little-shark': buildSharkFinIcon,
+  'cannonball-splash': buildCannonballIcon,
 };
 
 /**

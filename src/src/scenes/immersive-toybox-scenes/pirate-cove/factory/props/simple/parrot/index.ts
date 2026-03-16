@@ -1,0 +1,1 @@
+export { composeParrots } from './compose';

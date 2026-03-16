@@ -20,16 +20,9 @@ export async function createFixturePackageRoot() {
   await fs.mkdir(path.join(tempRoot, 'src', 'scenes', 'immersive-toybox-scenes'), { recursive: true });
   await fs.mkdir(path.join(tempRoot, 'src', 'minigames', 'framework'), { recursive: true });
 
-  await fs.cp(
-    path.join(packageRoot, 'templates', 'immersive-scene'),
-    path.join(tempRoot, 'templates', 'immersive-scene'),
-    { recursive: true },
-  );
+  await fs.cp(path.join(packageRoot, 'templates', 'immersive-scene'), path.join(tempRoot, 'templates', 'immersive-scene'), { recursive: true });
 
-  await fs.copyFile(
-    path.join(packageRoot, 'src', 'scenes', 'sceneCatalog.ts'),
-    path.join(tempRoot, 'src', 'scenes', 'sceneCatalog.ts'),
-  );
+  await fs.copyFile(path.join(packageRoot, 'src', 'scenes', 'sceneCatalog.ts'), path.join(tempRoot, 'src', 'scenes', 'sceneCatalog.ts'));
 
   await fs.copyFile(
     path.join(packageRoot, 'src', 'minigames', 'framework', 'MiniGameManifest.ts'),

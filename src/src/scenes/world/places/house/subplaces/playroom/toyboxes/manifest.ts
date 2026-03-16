@@ -4,7 +4,7 @@ import type { ToyboxSpec } from '@app/toyboxes/framework';
 export const PLAYROOM_TOYBOXES: ToyboxSpec[] = [
   {
     id: 'adventure',
-    destination: null,
+    destination: 'pirate-cove',
     variant: 'classic',
     placement: {
       x: 5.25,
@@ -51,22 +51,5 @@ export const PLAYROOM_TOYBOXES: ToyboxSpec[] = [
       accent: new Color(0.95, 0.92, 0.82),
     },
     emblem: 'clover',
-  },
-  {
-    id: 'storybook-garden',
-    destination: 'storybook-garden',
-    variant: 'classic',
-    placement: {
-      x: 3.67,
-      y: 0.01,
-      z: -6.88,
-      rotationY: Math.PI + Math.PI / 4,
-      scale: 0.75,
-    },
-    palette: {
-      base: new Color(0.7, 0.55, 0.82),
-      accent: new Color(0.65, 0.88, 0.72),
-    },
-    emblem: 'heart',
   },
 ];

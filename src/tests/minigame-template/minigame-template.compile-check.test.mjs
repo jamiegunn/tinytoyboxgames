@@ -18,11 +18,10 @@ const packageRoot = path.resolve(testDir, '../..');
  */
 test('in-tree generated minigame compiles with the project tsconfig', async () => {
   try {
-    await execFileAsync(
-      path.join(packageRoot, 'node_modules', '.bin', 'tsc'),
-      ['--noEmit', '--project', path.join(packageRoot, 'tsconfig.app.json')],
-      { timeout: 60000, cwd: packageRoot },
-    );
+    await execFileAsync(path.join(packageRoot, 'node_modules', '.bin', 'tsc'), ['--noEmit', '--project', path.join(packageRoot, 'tsconfig.app.json')], {
+      timeout: 60000,
+      cwd: packageRoot,
+    });
   } catch (error) {
     const output = (error.stdout || '') + (error.stderr || '');
 

@@ -66,10 +66,6 @@ export function setupSampleInteractiveTap(
       { fps: ANIMATION_FPS },
     );
 
-    createBurstEffect(
-      scene,
-      sampleInteractive.tapTarget.getWorldPosition(new Vector3()),
-      POLLEN_BURST,
-    );
+    createBurstEffect(scene, sampleInteractive.tapTarget.getWorldPosition(new Vector3()), POLLEN_BURST);
   });
 }

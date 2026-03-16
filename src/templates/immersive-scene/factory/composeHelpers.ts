@@ -29,11 +29,7 @@ export const NOOP_DISPOSE: DisposeFn = () => {};
  * @param create - Builder for a single staged entry.
  * @returns A no-op cleanup to preserve the shared composer contract.
  */
-export function composeCollection<TStaging>(
-  scene: Scene,
-  staging: readonly TStaging[],
-  create: (scene: Scene, placement: TStaging) => void,
-): DisposeFn {
+export function composeCollection<TStaging>(scene: Scene, staging: readonly TStaging[], create: (scene: Scene, placement: TStaging) => void): DisposeFn {
   staging.forEach((entry) => create(scene, entry));
   return NOOP_DISPOSE;
 }

@@ -1,0 +1,1 @@
+export { composeBarrels } from './compose';

@@ -97,10 +97,10 @@ export const SCENE_CATALOG = {
     cameraPreset: { azimuth: 0, polar: 1.2, distance: 10, target: [0, 0.3, 0] },
     audio: { musicId: 'mus_nature_background', ambientId: 'amb_nature_stream' },
   },
-  'storybook-garden': {
-    displayName: 'Storybook Garden',
+  'pirate-cove': {
+    displayName: 'Pirate Cove',
     kind: 'immersive-toybox',
-    loader: () => import('@app/scenes/immersive-toybox-scenes/storybook-garden'),
+    loader: () => import('@app/scenes/immersive-toybox-scenes/pirate-cove'),
     cameraPreset: {
       azimuth: 0,
       polar: 1.2,

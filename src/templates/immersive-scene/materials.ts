@@ -16,12 +16,7 @@
 
 import type { Material } from 'three';
 import { Color } from 'three';
-import {
-  createFeltMaterial,
-  createGlossyPaintMaterial,
-  createPlasticMaterial,
-  createWoodMaterial,
-} from '@app/utils/materialFactory';
+import { createFeltMaterial, createGlossyPaintMaterial, createPlasticMaterial, createWoodMaterial } from '@app/utils/materialFactory';
 
 /** Scene-local collection of shared materials injected through `ComposeContext`. */
 export interface ImmersiveSceneMaterials {

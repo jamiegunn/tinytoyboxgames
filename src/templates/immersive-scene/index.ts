@@ -63,10 +63,7 @@ export function createScene(scene: Scene, canvas: HTMLCanvasElement, nav: Naviga
         materials,
       };
 
-      const propComposers: Array<(composeContext: ComposeContext) => DisposeFn> = [
-        composeSampleSimpleProps,
-        composeSampleInteractiveProps,
-      ];
+      const propComposers: Array<(composeContext: ComposeContext) => DisposeFn> = [composeSampleSimpleProps, composeSampleInteractiveProps];
 
       // The shell and backdrop establish the "inside a toybox" feeling before
       // any authored props are placed. These are scaffold concerns, not prop

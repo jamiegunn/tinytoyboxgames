@@ -3,7 +3,7 @@ import type { SceneId } from '@app/scenes/sceneCatalog';
 export type { SceneId } from '@app/scenes/sceneCatalog';
 
 /** Hand-authored mini-games that currently have bespoke portal icon builders. */
-export type BuiltInMiniGameId = 'little-shark' | 'bubble-pop' | 'fireflies';
+export type BuiltInMiniGameId = 'little-shark' | 'bubble-pop' | 'fireflies' | 'cannonball-splash';
 
 /**
  * Identifier for each in-world mini-game.

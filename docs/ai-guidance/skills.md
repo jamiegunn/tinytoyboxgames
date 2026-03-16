@@ -121,7 +121,7 @@ This file defines reusable skills (prompt templates) for the Whimsical Toybox Wo
    - `docs/specs/phase-3/11-recursive-scene-hierarchy-spec.md`
    - `docs/specs/phase-3/12-recursive-scene-hierarchy-migration-plan.md`
 2. Read the current Nature implementation as the reference for an immersive toybox scene.
-2. Present a summary of:
+3. Present a summary of:
    - **Scene contract:** `index.ts` + `meta.ts` minimum, optional local files by complexity
    - **Compose pattern:** `ComposeContext` injection, `DisposeFn` contract, `propComposers` array where the scene warrants it
    - **Result types:** typed `CreateResult` interfaces per entity

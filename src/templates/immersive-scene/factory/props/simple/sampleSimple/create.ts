@@ -9,15 +9,7 @@
 import { CylinderGeometry, Group, Mesh, SphereGeometry, type Scene } from 'three';
 import { createEntityRoot, type EntityPlacement } from '../../../../types';
 import type { ImmersiveSceneMaterials } from '../../../../materials';
-import {
-  ACCENT_HEIGHT,
-  ACCENT_RADIUS,
-  BASE_HEIGHT,
-  BASE_RADIUS,
-  SIDE_TOKEN_COUNT,
-  SIDE_TOKEN_DISTANCE,
-  SIDE_TOKEN_RADIUS,
-} from './constants';
+import { ACCENT_HEIGHT, ACCENT_RADIUS, BASE_HEIGHT, BASE_RADIUS, SIDE_TOKEN_COUNT, SIDE_TOKEN_DISTANCE, SIDE_TOKEN_RADIUS } from './constants';
 
 /** Shared dependencies required to build one simple example prop. */
 export interface SampleSimpleBuildOptions {
@@ -52,11 +44,7 @@ export function createSampleSimple(scene: Scene, placement: EntityPlacement, opt
     const angle = (index / SIDE_TOKEN_COUNT) * Math.PI * 2;
     const token = new Mesh(new SphereGeometry(SIDE_TOKEN_RADIUS, 10, 10), options.materials.sampleSimpleAccent);
     token.name = `sample_simple_token_${index}`;
-    token.position.set(
-      Math.cos(angle) * SIDE_TOKEN_DISTANCE,
-      BASE_HEIGHT * 0.65,
-      Math.sin(angle) * SIDE_TOKEN_DISTANCE,
-    );
+    token.position.set(Math.cos(angle) * SIDE_TOKEN_DISTANCE, BASE_HEIGHT * 0.65, Math.sin(angle) * SIDE_TOKEN_DISTANCE);
     token.castShadow = true;
     root.add(token);
   }

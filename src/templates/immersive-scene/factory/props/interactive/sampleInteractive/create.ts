@@ -31,11 +31,7 @@ export interface SampleInteractiveCreateResult {
  * @param options - Shared materials used by the prop.
  * @returns Typed handles needed by the interaction layer.
  */
-export function createSampleInteractive(
-  scene: Scene,
-  placement: EntityPlacement,
-  options: SampleInteractiveBuildOptions,
-): SampleInteractiveCreateResult {
+export function createSampleInteractive(scene: Scene, placement: EntityPlacement, options: SampleInteractiveBuildOptions): SampleInteractiveCreateResult {
   const root = createEntityRoot('sample_interactive_prop', placement, scene);
 
   const stem = new Mesh(new CylinderGeometry(STEM_RADIUS, STEM_RADIUS * 1.1, STEM_HEIGHT, 14), options.materials.sampleInteractiveStem);

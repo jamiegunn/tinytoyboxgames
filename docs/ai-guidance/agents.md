@@ -275,14 +275,14 @@ When agents disagree:
 
 Agents are invoked based on the task at hand:
 
-| Task                       | Primary Agent     | Supporting Agents                         |
-| -------------------------- | ----------------- | ----------------------------------------- |
-| Writing or updating specs  | Product Architect | —                                         |
-| Building the React shell   | Scene Engineer    | Art Engineer, Sound Engineer              |
-| Creating procedural meshes | Art Engineer      | Scene Engineer                            |
-| Creating procedural audio  | Sound Engineer    | Scene Engineer                            |
-| Implementing a mini-game   | Game Engineer     | Art Engineer, Sound Engineer, UX Guardian |
-| Reviewing accessibility    | UX Guardian       | Game Engineer, Art Engineer               |
-| Running acceptance tests   | Quality Engineer  | All agents                                |
-| Resolving scope questions  | Product Architect | —                                         |
-| Adding a new scene or minigame | Product Architect | All agents (ADR + spec update first) |
+| Task                           | Primary Agent     | Supporting Agents                         |
+| ------------------------------ | ----------------- | ----------------------------------------- |
+| Writing or updating specs      | Product Architect | —                                         |
+| Building the React shell       | Scene Engineer    | Art Engineer, Sound Engineer              |
+| Creating procedural meshes     | Art Engineer      | Scene Engineer                            |
+| Creating procedural audio      | Sound Engineer    | Scene Engineer                            |
+| Implementing a mini-game       | Game Engineer     | Art Engineer, Sound Engineer, UX Guardian |
+| Reviewing accessibility        | UX Guardian       | Game Engineer, Art Engineer               |
+| Running acceptance tests       | Quality Engineer  | All agents                                |
+| Resolving scope questions      | Product Architect | —                                         |
+| Adding a new scene or minigame | Product Architect | All agents (ADR + spec update first)      |
