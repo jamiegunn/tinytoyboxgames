@@ -62,6 +62,10 @@ try {
 
   console.log(`Generated minigame "${args.gameId}" in ${result.outputDir}`);
   console.log(`Created ${result.createdFiles.length} files and updated ${result.updatedFiles.length} registry files.`);
+  console.log('');
+  console.log('Next steps:');
+  console.log('  1. Update the manifest description in src/minigames/framework/MiniGameManifest.ts');
+  console.log('  2. Add a portal icon builder for this game in src/minigames/framework/gamePortal.ts');
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   console.error(`[create-minigame] ${message}`);

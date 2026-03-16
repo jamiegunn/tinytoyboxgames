@@ -149,6 +149,29 @@ docs/
 
 ---
 
+## Content Generators
+
+Three generators scaffold new content from canonical templates. Run them from `src/`:
+
+```bash
+# New immersive toybox scene
+npm run create:immersive-scene -- --scene-id coral-reef --display-name "Coral Reef"
+
+# New room scene (sub-place)
+npm run create:room-scene -- --scene-id bedroom --display-name "Bedroom"
+
+# New minigame
+npm run create:minigame -- --game-id star-catcher --display-name "Star Catcher"
+```
+
+Each generator copies a governed template, replaces placeholder tokens, registers the result in the appropriate manifest, and prints next steps. See the template READMEs for full details:
+
+- [Immersive scene template](src/templates/immersive-scene/README.md)
+- [Room scene template](src/templates/room-scene/GENERATED_README.md.template)
+- [Minigame template](src/templates/minigame/README.md)
+
+---
+
 ## Documentation
 
 - [**AI Guidance**](docs/ai-guidance/) - Vision, design soul, agent roles, and skill definitions used by AI collaborators
