@@ -70,8 +70,9 @@ export interface SceneDefinition {
  * Canonical registry of scene metadata.
  *
  * Generator note:
- * Insert new immersive scene entries immediately above the generator marker so
- * the script has one deterministic edit surface to manage.
+ * Insert new room scene entries immediately above the room marker and new
+ * immersive scene entries immediately above the immersive marker so the
+ * generators each have one deterministic edit surface to manage.
  */
 export const SCENE_CATALOG = {
   playroom: {
@@ -81,6 +82,14 @@ export const SCENE_CATALOG = {
     cameraPreset: { azimuth: 0, polar: 1.19, distance: 14, target: [0, 0.5, 0] },
     audio: { musicId: '', ambientId: '' },
   },
+  kitchen: {
+    displayName: 'Kitchen',
+    kind: 'landing',
+    loader: () => import('@app/scenes/world/places/house/subplaces/kitchen'),
+    cameraPreset: { azimuth: 0, polar: 1.19, distance: 14, target: [0, 0.5, 0] },
+    audio: { musicId: '', ambientId: '' },
+  },
+  // __ROOM_SCENE_GENERATOR_ENTRY_MARKER__
   nature: {
     displayName: 'Nature',
     kind: 'immersive-toybox',

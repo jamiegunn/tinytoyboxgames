@@ -3,11 +3,13 @@ import { Color, Raycaster, Vector2, Vector3, type Camera } from 'three';
 import type { OwlCompanion } from '@app/entities/owl';
 import type { NavigationActions, SceneId } from '@app/types/scenes';
 import { triggerSound } from '@app/assets/audio/sceneBridge';
+import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
 import type { ToyboxInteractionOptions, ToyboxRuntime } from './types';
 
 interface WireToyboxInteractionsArgs {
   canvas: HTMLCanvasElement;
   camera: Camera;
+  dispatcher: WorldTapDispatcher;
   runtime: ToyboxRuntime;
   destination: SceneId | null;
   nav: NavigationActions;
@@ -18,10 +20,10 @@ interface WireToyboxInteractionsArgs {
 /**
  * Wires the default hover, owl fly-to, open animation, and navigation behavior for a toybox.
  *
- * @param args - Canvas, camera, runtime, destination, owl, navigation, and interaction settings.
+ * @param args - Canvas, camera, dispatcher, runtime, destination, owl, navigation, and interaction settings.
  * @returns A cleanup function that removes the shared hover and click listeners.
  */
-export function wireToyboxInteractions({ canvas, camera, runtime, destination, nav, owl, options }: WireToyboxInteractionsArgs): () => void {
+export function wireToyboxInteractions({ canvas, camera, dispatcher, runtime, destination, nav, owl, options }: WireToyboxInteractionsArgs): () => void {
   if (!destination) {
     return () => {};
   }
@@ -58,17 +60,8 @@ export function wireToyboxInteractions({ canvas, camera, runtime, destination, n
 
   let pendingNav = false;
 
-  const onClick = (event: PointerEvent) => {
+  const onTap = () => {
     if (pendingNav) return;
-
-    const rect = canvas.getBoundingClientRect();
-    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(pointer, camera);
-
-    if (raycaster.intersectObjects(runtime.pickMeshes, true).length === 0) {
-      return;
-    }
 
     pendingNav = true;
     triggerSound(options.tapSoundId);
@@ -104,6 +97,8 @@ export function wireToyboxInteractions({ canvas, camera, runtime, destination, n
     });
   };
 
+  const unregisterTap = dispatcher.register(runtime.root, onTap);
+
   const onPointerMove = (event: PointerEvent) => {
     const rect = canvas.getBoundingClientRect();
     pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -113,11 +108,10 @@ export function wireToyboxInteractions({ canvas, camera, runtime, destination, n
     setHoverState(intersects.length > 0);
   };
 
-  canvas.addEventListener('pointerdown', onClick);
   canvas.addEventListener('pointermove', onPointerMove);
 
   return () => {
-    canvas.removeEventListener('pointerdown', onClick);
+    unregisterTap();
     canvas.removeEventListener('pointermove', onPointerMove);
   };
 }

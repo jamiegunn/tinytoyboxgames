@@ -1,0 +1,46 @@
+# __SCENE_DISPLAY_NAME__
+
+Room scene generated from the room-scene template.
+
+## How To Test In The Browser
+
+Start the frontend dev server from `src/`:
+
+```bash
+npm run dev
+```
+
+Then open:
+
+`http://localhost:5173/#/__SCENE_ID__`
+
+Expected result:
+
+- the room shell renders (walls, ceiling, floor)
+- the owl is present and responds to floor taps
+- any declared toyboxes are tappable and open their target scenes
+- the room feels like a landing scene, not a toybox interior
+
+## Folder Structure
+
+- `index.ts`: room composition boundary and lifecycle owner
+- `environment.ts`: room-owned clear color, lighting, owl spawn, and floor-tap bounds
+- `layout.ts`: authored spatial constants for shell and room content
+- `room.ts`: room-authored composition that builds shell, decor, and toyboxes
+- `room/`: architectural shell (walls, ceiling, floor)
+- `decor/`: room-owned authored content
+- `toyboxes/`: scene-local toybox declarations
+
+## Extension Guidance
+
+1. Add more shell pieces in `room/` only if they are structural
+2. Add authored props or fixtures in `decor/`
+3. Keep toybox decisions in `toyboxes/manifest.ts`
+4. Keep `index.ts` thin and push authored content into `room.ts`
+
+## What Not To Do
+
+- Do not move camera or lighting ownership back into `index.ts`
+- Do not add scene-level `pointerdown` listeners from room feature folders
+- Do not let toybox wiring bypass the shared toybox framework
+- Do not turn `room.ts` into a dumping ground for every helper in the scene

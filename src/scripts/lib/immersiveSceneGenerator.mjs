@@ -1,5 +1,8 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
+import { validateSceneId, validateDisplayName, copyTemplateDirectory } from './generatorUtils.mjs';
+
+export { validateSceneId, validateDisplayName, copyTemplateDirectory };
 
 const TEMPLATE_ROOT = path.join('templates', 'immersive-scene');
 const OUTPUT_ROOT = path.join('src', 'scenes', 'immersive-toybox-scenes');
@@ -7,64 +10,6 @@ const SCENE_CATALOG_PATH = path.join('src', 'scenes', 'sceneCatalog.ts');
 const MINI_GAME_MANIFEST_PATH = path.join('src', 'minigames', 'framework', 'MiniGameManifest.ts');
 const SCENE_CATALOG_MARKER = '// __IMMERSIVE_SCENE_GENERATOR_ENTRY_MARKER__';
 const DEFAULT_PARENT_SCENE_STUB_RELATIVE_PATHS = [path.join('parent-scene-stubs', 'playroom.toybox.stub.ts')];
-
-/**
- * Validates the CLI / generator scene id.
- *
- * The generator only accepts lowercase kebab-case ids because they become
- * folder names, route segments, and object keys in the central scene catalog.
- *
- * @param {string} sceneId - Candidate scene id.
- */
-export function validateSceneId(sceneId) {
-  if (!/^[a-z][a-z0-9-]*$/.test(sceneId)) {
-    throw new Error(`Invalid scene id "${sceneId}". Use lowercase kebab-case like "moonlit-meadow".`);
-  }
-}
-
-/**
- * Validates the human-readable display name.
- *
- * @param {string} displayName - Scene display name entered by the user.
- */
-export function validateDisplayName(displayName) {
-  if (!displayName.trim()) {
-    throw new Error('Display name is required.');
-  }
-}
-
-/**
- * Recursively copies the canonical template tree while replacing placeholder
- * tokens in every file.
- *
- * @param {string} sourceDir - Template source directory.
- * @param {string} targetDir - Output directory for the generated scene.
- * @param {Record<string, string>} replacements - Placeholder replacement map.
- * @param {string[]} createdFiles - Mutable list used for reporting.
- */
-export async function copyTemplateDirectory(sourceDir, targetDir, replacements, createdFiles) {
-  await fs.mkdir(targetDir, { recursive: true });
-  const entries = await fs.readdir(sourceDir, { withFileTypes: true });
-
-  for (const entry of entries) {
-    const sourcePath = path.join(sourceDir, entry.name);
-    const targetPath = path.join(targetDir, entry.name);
-
-    if (entry.isDirectory()) {
-      await copyTemplateDirectory(sourcePath, targetPath, replacements, createdFiles);
-      continue;
-    }
-
-    let content = await fs.readFile(sourcePath, 'utf8');
-    for (const [token, value] of Object.entries(replacements)) {
-      content = content.replaceAll(token, value);
-    }
-
-    await fs.mkdir(path.dirname(targetPath), { recursive: true });
-    await fs.writeFile(targetPath, content, 'utf8');
-    createdFiles.push(targetPath);
-  }
-}
 
 /**
  * Inserts a new scene registration entry into the central scene catalog.

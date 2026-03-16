@@ -13,7 +13,7 @@ import {
   type Object3D,
 } from 'three';
 import gsap from 'gsap';
-import type { MiniGameId, NavigationActions } from '@app/types/scenes';
+import type { BuiltInMiniGameId, MiniGameId, NavigationActions } from '@app/types/scenes';
 import { triggerSound } from '@app/assets/audio/sceneBridge';
 
 /** Configuration for a single game portal placement. */
@@ -415,7 +415,31 @@ function buildSharkFinIcon(id: string): Group {
 
 // ── Icon builder dispatch ──
 
-const ICON_BUILDERS: Record<MiniGameId, (id: string) => Group> = {
+function buildFallbackSparkIcon(id: string): Group {
+  const root = new Group();
+  root.name = `${id}_fallback`;
+
+  const core = createSphere(`${id}_core`, 0.28, 10);
+  core.material = mat(`${id}_coreMat`, new Color(0.9, 0.86, 0.42), new Color(0.35, 0.25, 0.08));
+  root.add(core);
+
+  const halo = createTorus(`${id}_halo`, 0.72, 0.08, 24);
+  halo.rotation.x = Math.PI / 2;
+  halo.material = mat(`${id}_haloMat`, new Color(0.66, 0.84, 1), new Color(0.18, 0.24, 0.34));
+  root.add(halo);
+
+  for (let index = 0; index < 4; index += 1) {
+    const ray = createCylinder(`${id}_ray${index}`, 0.04, 0.02, 0.5, 6);
+    ray.material = mat(`${id}_rayMat${index}`, new Color(1, 0.95, 0.72), new Color(0.22, 0.18, 0.08));
+    ray.position.y = 0.02;
+    ray.rotation.z = (Math.PI / 2) * index;
+    root.add(ray);
+  }
+
+  return root;
+}
+
+const ICON_BUILDERS: Record<BuiltInMiniGameId, (id: string) => Group> = {
   'bubble-pop': buildBubblesIcon,
   fireflies: buildJarIcon,
   'little-shark': buildSharkFinIcon,
@@ -479,7 +503,7 @@ export function buildGamePortal(scene: Scene, config: GamePortalConfig, nav: Nav
   tappableMeshes.push(pedestal);
 
   // ── Game-specific icon ──
-  const builder = ICON_BUILDERS[gameId];
+  const builder = ICON_BUILDERS[gameId as BuiltInMiniGameId] ?? buildFallbackSparkIcon;
   const icon = builder(`portal_${gameId}`);
   icon.position.y = 0.75;
   root.add(icon);

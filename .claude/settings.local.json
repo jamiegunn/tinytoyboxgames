@@ -49,7 +49,8 @@
       "Bash(sort -k3)",
       "Bash(grep -r \"^\\\\s*//.*\\(\" src/scenes/naturescene --include=\"*.ts\" | head -20)",
       "Bash(head -5 src/scenes/naturescene/factory/props/interactive/*/index.ts)",
-      "Bash(cd /c/dev/canvas_webgl && rm -rf src/src/scenes/adventurescene src/src/scenes/animalsscene src/src/scenes/creativescene src/src/minigames/games/balloon-race src/src/minigames/games/monster-truck src/src/minigames/games/feed-animal src/src/minigames/games/puppy-fetch src/src/minigames/games/elephant-splash src/src/minigames/games/color-match src/src/minigames/games/shape-builder src/src/minigames/games/clean-the-mess src/src/assets/audio/adventure src/src/assets/audio/animals src/src/assets/audio/creative)"
+      "Bash(cd /c/dev/canvas_webgl && rm -rf src/src/scenes/adventurescene src/src/scenes/animalsscene src/src/scenes/creativescene src/src/minigames/games/balloon-race src/src/minigames/games/monster-truck src/src/minigames/games/feed-animal src/src/minigames/games/puppy-fetch src/src/minigames/games/elephant-splash src/src/minigames/games/color-match src/src/minigames/games/shape-builder src/src/minigames/games/clean-the-mess src/src/assets/audio/adventure src/src/assets/audio/animals src/src/assets/audio/creative)",
+      "Bash(cd src:*)"
     ]
   },
   "enabledPlugins": {

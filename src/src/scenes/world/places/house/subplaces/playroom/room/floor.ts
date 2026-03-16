@@ -1,14 +1,6 @@
 import { Color, CylinderGeometry, Mesh, PlaneGeometry, RingGeometry, type Scene } from 'three';
 import { createWoodMaterial, createWovenMaterial } from '@app/utils/materialFactory';
-import {
-  FLOOR_WIDTH,
-  FLOOR_DEPTH,
-  PLANK_SPACING,
-  PLANK_HALF_COUNT,
-  RUG_DIAMETER,
-  RUG_THICKNESS,
-  RUG_BAND_DIAMETERS,
-} from '@app/scenes/world/places/house/subplaces/playroom/layout';
+import { FLOOR_WIDTH, FLOOR_DEPTH, PLANK_SPACING, PLANK_HALF_COUNT, RUG_DIAMETER, RUG_THICKNESS, RUG_BAND_DIAMETERS } from '../layout';
 
 /**
  * Creates the wood floor, plank seams, and braided rug. Returns floor and rug meshes for click handling.
@@ -24,7 +16,7 @@ export function createFloor(scene: Scene): { floor: Mesh; rug: Mesh } {
   scene.add(floor);
 
   // Plank seams
-  const seamMat = createWoodMaterial('hub_seamMat', new Color(0.58, 0.42, 0.26));
+  const seamMat = createWoodMaterial('playroom_seamMat', new Color(0.58, 0.42, 0.26));
   for (let si = -PLANK_HALF_COUNT; si <= PLANK_HALF_COUNT; si++) {
     const seamGeo = new PlaneGeometry(FLOOR_DEPTH, 0.02);
     const seam = new Mesh(seamGeo, seamMat);
@@ -57,7 +49,7 @@ export function createFloor(scene: Scene): { floor: Mesh; rug: Mesh } {
     const innerR = outerR - bandWidth;
     const ringGeo = new RingGeometry(innerR, outerR, 48);
     ringGeo.rotateX(-Math.PI / 2);
-    const band = new Mesh(ringGeo, createWovenMaterial(`hub_rugBandMat${ri}`, rugBandColors[ri]));
+    const band = new Mesh(ringGeo, createWovenMaterial(`playroom_rugBandMat${ri}`, rugBandColors[ri]));
     band.name = `rugBand${ri}`;
     band.position.y = RUG_THICKNESS + 0.005;
     scene.add(band);

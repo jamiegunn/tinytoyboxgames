@@ -2,8 +2,18 @@ import type { SceneId } from '@app/scenes/sceneCatalog';
 
 export type { SceneId } from '@app/scenes/sceneCatalog';
 
-/** Identifier for each in-world mini-game. */
-export type MiniGameId = 'little-shark' | 'bubble-pop' | 'fireflies';
+/** Hand-authored mini-games that currently have bespoke portal icon builders. */
+export type BuiltInMiniGameId = 'little-shark' | 'bubble-pop' | 'fireflies';
+
+/**
+ * Identifier for each in-world mini-game.
+ *
+ * The manifest is the real runtime source of truth. We keep the built-in union
+ * for autocomplete on existing authored games, but allow generator-created
+ * games to exist without editing this file every time a new template output is
+ * added to the repo.
+ */
+export type MiniGameId = BuiltInMiniGameId | (string & {});
 
 /** Read-only snapshot of the current navigation state. */
 export interface NavigationState {

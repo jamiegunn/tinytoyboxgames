@@ -1,6 +1,7 @@
 import type { Camera, ColorRepresentation, Group, Mesh, MeshStandardMaterial, Object3D, Scene } from 'three';
 import type { OwlCompanion } from '@app/entities/owl';
 import type { NavigationActions, SceneId } from '@app/types/scenes';
+import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
 
 export type ToyboxVariantId = 'classic' | 'animals-open-box' | 'dresser';
 export type ToyboxEmblemKind = 'stars' | 'clover' | 'heart';
@@ -58,6 +59,7 @@ export interface CreateInteractiveToyboxArgs {
   scene: Scene;
   canvas: HTMLCanvasElement;
   camera: Camera;
+  dispatcher: WorldTapDispatcher;
   owl: OwlCompanion;
   nav: NavigationActions;
   spec: ToyboxSpec;

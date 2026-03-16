@@ -6,7 +6,7 @@ A magical browser-based 3D experience for children ages 3-6. Move through a whim
 
 ![Tiny Toybox Games - Interactive Playroom Landing Scene](docs/readme-assets/hub-image.png)
 
-> *"The player should feel like they are peeking into a tiny living world inside a toybox."*
+> _"The player should feel like they are peeking into a tiny living world inside a toybox."_
 
 ---
 
@@ -20,7 +20,6 @@ Tiny Toybox Games is a real-time 3D interactive experience rendered with **Three
 
 The current build exposes a small but real slice of the larger architecture:
 
-- a Playroom landing scene, currently still loaded through the historical `hub` scene id
 - a Nature toybox immersive scene, currently still loaded through the historical `naturescene` path
 - four play-mode minigames launched from Nature
 - a shared owl companion that appears in every navigable non-minigame scene
@@ -48,12 +47,11 @@ Open the Nature toybox and you enter a tiny forest-floor diorama: deep greens, m
 
 The current manifest launches four minigames from the Nature immersive scene:
 
-| Game | What You Do |
-|---|---|
-| **Bubble Pop** | Pop shimmering bubbles in the night sky with soft splats and sparkles |
-| **Hide And Seek** | Find friendly animals peeking from hiding spots |
-| **Fireflies** | Catch glowing fireflies in a jar and fill the scene with warm light |
-| **Little Shark** | Chase and tap colorful fish in a cheerful underwater play space |
+| Game             | What You Do                                                           |
+| ---------------- | --------------------------------------------------------------------- |
+| **Bubble Pop**   | Pop shimmering bubbles in the night sky with soft splats and sparkles |
+| **Fireflies**    | Catch glowing fireflies in a jar and fill the scene with warm light   |
+| **Little Shark** | Chase and tap colorful fish in a cheerful underwater play space       |
 
 ![Bubble Pop](docs/readme-assets/bubble-pop.png)
 
@@ -79,28 +77,28 @@ No textures, no 3D model files, and no audio files are required for the baseline
 
 ## Technology Stack
 
-| Layer | Choice |
-|---|---|
-| Language | TypeScript (strict mode) |
-| UI Framework | React 18+ |
-| 3D Engine | Three.js with React Three Fiber |
-| Animation | GSAP 3.x |
-| Build Tool | Vite 6.x |
-| Runtime / Package Manager | Bun 1.x |
-| Deployment | Docker (multi-stage build + nginx) |
+| Layer                     | Choice                             |
+| ------------------------- | ---------------------------------- |
+| Language                  | TypeScript (strict mode)           |
+| UI Framework              | React 18+                          |
+| 3D Engine                 | Three.js with React Three Fiber    |
+| Animation                 | GSAP 3.x                           |
+| Build Tool                | Vite 6.x                           |
+| Runtime / Package Manager | Bun 1.x                            |
+| Deployment                | Docker (multi-stage build + nginx) |
 
 ---
 
 ## Design Principles
 
-| Principle | What It Means |
-|---|---|
-| **Delight within the first tap** | Every interaction produces an immediate, satisfying response |
-| **No reading required** | The experience works for pre-literate children through visual affordance and sensory feedback |
-| **Zero persistence** | No localStorage, cookies, IndexedDB, or browser-stored app data |
-| **Browser-first** | A URL is the only install flow |
-| **Warmth over complexity** | Fidelity comes from lighting, materials, and motion rather than content sprawl |
-| **Open-ended play** | Toy, not test. Enter, explore, leave, and return freely |
+| Principle                        | What It Means                                                                                 |
+| -------------------------------- | --------------------------------------------------------------------------------------------- |
+| **Delight within the first tap** | Every interaction produces an immediate, satisfying response                                  |
+| **No reading required**          | The experience works for pre-literate children through visual affordance and sensory feedback |
+| **Zero persistence**             | No localStorage, cookies, IndexedDB, or browser-stored app data                               |
+| **Browser-first**                | A URL is the only install flow                                                                |
+| **Warmth over complexity**       | Fidelity comes from lighting, materials, and motion rather than content sprawl                |
+| **Open-ended play**              | Toy, not test. Enter, explore, leave, and return freely                                       |
 
 ---
 

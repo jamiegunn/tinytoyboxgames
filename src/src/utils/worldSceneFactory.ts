@@ -2,7 +2,14 @@ import { Scene, Color, Mesh, Vector3, type DirectionalLight, type Camera } from 
 import type { NavigationActions, MiniGameId, SceneId } from '@app/types/scenes';
 import { buildGamePortals } from '@app/minigames/framework/gamePortal';
 import { createSceneCamera, type CameraHandle } from '@app/utils/cameraPresets';
-import { createSceneLighting, wireFloorTap, type LightingConfig, type FloorTapConfig, type SceneLighting } from '@app/utils/sceneHelpers';
+import {
+  createSceneLighting,
+  disposeSceneResources,
+  wireFloorTap,
+  type LightingConfig,
+  type FloorTapConfig,
+  type SceneLighting,
+} from '@app/utils/sceneHelpers';
 import { clearMaterialCache } from '@app/utils/materialFactory';
 import { createWorldTapDispatcher, type WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
 
@@ -105,17 +112,7 @@ export function createWorldScene(existingScene: Scene, canvas: HTMLCanvasElement
     owlCleanup();
     dispatcher.dispose();
     cameraHandle.dispose();
-    // Traverse and dispose all geometries/materials
-    scene.traverse((obj) => {
-      if (obj instanceof Mesh) {
-        obj.geometry?.dispose();
-        if (Array.isArray(obj.material)) {
-          obj.material.forEach((m) => m.dispose());
-        } else {
-          obj.material?.dispose();
-        }
-      }
-    });
+    disposeSceneResources(scene);
     clearMaterialCache();
   };
 

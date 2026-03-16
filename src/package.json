@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "create:immersive-scene": "node scripts/create-immersive-scene.mjs",
+    "create:minigame": "node scripts/create-minigame.mjs",
+    "create:room-scene": "node scripts/create-room-scene.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
@@ -12,8 +14,11 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
     "precommit:check": "node scripts/precommit-check.cjs",
     "preview": "vite preview",
-    "test": "node --test tests/template/*.test.mjs",
-    "test:template": "node --test tests/template/*.test.mjs"
+    "test": "node --test tests/template/*.test.mjs tests/room/*.test.mjs tests/room-template/*.test.mjs tests/minigame-template/*.test.mjs",
+    "test:minigame-template": "node --test tests/minigame-template/*.test.mjs",
+    "test:room": "node --test tests/room/*.test.mjs",
+    "test:template": "node --test tests/template/*.test.mjs",
+    "test:room-template": "node --test tests/room-template/*.test.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.0.0",

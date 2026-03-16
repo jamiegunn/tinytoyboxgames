@@ -2,6 +2,8 @@ import { Box3, Color, DirectionalLight, AmbientLight, PointLight, Vector3, Mesh,
 import { createFeltMaterial, createPlasticMaterial, createWoodMaterial } from './materialFactory';
 import { createSparkleBurst } from './particles';
 import { createOwlCompanion, type OwlCompanion } from '@app/entities/owl';
+import { triggerSound } from '@app/assets/audio/sceneBridge';
+import type { OwlFlightBounds } from '@app/entities/owl/types';
 import type { WorldTapDispatcher } from './worldTapDispatcher';
 
 // ── Shadow Configuration ──────────────────────────────────────────────────────
@@ -58,6 +60,18 @@ export interface LightingConfig {
   accentIntensity?: number;
   /** Colour of the accent light. */
   accentColor?: Color;
+
+  /** Additional point lights used by room scenes that need a slightly richer rig. */
+  extraPointLights?: ReadonlyArray<{
+    /** Position of the authored point light. */
+    position: Vector3;
+    /** Intensity of the point light. */
+    intensity: number;
+    /** Colour of the point light. */
+    color: Color;
+    /** Optional distance falloff. */
+    distance?: number;
+  }>;
 }
 
 /** The lighting objects returned by createSceneLighting. */
@@ -65,6 +79,7 @@ export interface SceneLighting {
   keyLight: DirectionalLight;
   fillLight: AmbientLight;
   accentLight: PointLight | null;
+  extraLights: PointLight[];
 }
 
 /**
@@ -94,7 +109,19 @@ export function createSceneLighting(scene: Scene, config: LightingConfig, shadow
     scene.add(accentLight);
   }
 
-  return { keyLight, fillLight, accentLight };
+  const extraLights =
+    config.extraPointLights?.map((lightConfig, index) => {
+      const extraLight = new PointLight(lightConfig.color, lightConfig.intensity);
+      extraLight.name = `sceneExtraLight${index}`;
+      extraLight.position.copy(lightConfig.position);
+      if (lightConfig.distance !== undefined) {
+        extraLight.distance = lightConfig.distance;
+      }
+      scene.add(extraLight);
+      return extraLight;
+    }) ?? [];
+
+  return { keyLight, fillLight, accentLight, extraLights };
 }
 
 // ── Scene Base (ground + sky) ─────────────────────────────────────────────────
@@ -161,10 +188,16 @@ export interface FloorTapConfig {
   owlPosition: Vector3;
   /** Optional perch rotation override for scenes whose camera faces a different direction. */
   owlFacingY?: number;
+  /** Optional authored flight bounds override when the tap target is not a good proxy for the room volume. */
+  flightBounds?: OwlFlightBounds;
   /** Interior inset applied when deriving owl flight bounds from the floor mesh. */
   owlBoundsMargin?: number;
   /** Scene-authored vertical clamp used to keep the owl arc inside the shell. */
   ceilingY?: number;
+  /** Optional sound played the first time the floor tap path is used. */
+  firstTapSoundId?: string;
+  /** Optional sound played on subsequent floor taps. */
+  repeatTapSoundId?: string;
   /** Particle effect to play on first tap. @default createSparkleBurst */
   particleFn?: (scene: Scene, point: Vector3) => void;
 }
@@ -175,48 +208,89 @@ export interface FloorTapConfig {
  *
  * @param scene - The Three.js scene.
  * @param dispatcher - The world tap dispatcher.
- * @param ground - The ground mesh to attach the pick trigger to.
+ * @param groundTargets - One or more tappable floor targets used for owl movement.
  * @param config - Owl position and optional particle function override.
+ * @param existingOwl - Optional pre-built owl used by room scenes that need the companion earlier in composition.
  * @returns The OwlCompanion handle and a cleanup function.
  */
-export function wireFloorTap(scene: Scene, dispatcher: WorldTapDispatcher, ground: Mesh, config: FloorTapConfig): { owl: OwlCompanion; cleanup: () => void } {
-  ground.updateWorldMatrix(true, false);
-  const groundBounds = new Box3().setFromObject(ground);
+export function wireFloorTap(
+  scene: Scene,
+  dispatcher: WorldTapDispatcher,
+  groundTargets: Mesh | readonly Mesh[],
+  config: FloorTapConfig,
+  existingOwl?: OwlCompanion,
+): { owl: OwlCompanion; cleanup: () => void } {
+  const targets = Array.isArray(groundTargets) ? [...groundTargets] : [groundTargets];
+  const primaryTarget = targets[0];
+
+  primaryTarget.updateWorldMatrix(true, false);
+  const groundBounds = new Box3().setFromObject(primaryTarget);
   const margin = config.owlBoundsMargin ?? 0.5;
   const maxInsetX = Math.max(0, (groundBounds.max.x - groundBounds.min.x) / 2 - 0.1);
   const maxInsetZ = Math.max(0, (groundBounds.max.z - groundBounds.min.z) / 2 - 0.1);
   const insetX = Math.min(margin, maxInsetX);
   const insetZ = Math.min(margin, maxInsetZ);
 
-  const owl = createOwlCompanion(scene, config.owlPosition, {
-    restFacingY: config.owlFacingY,
-    flightBounds: {
-      minX: groundBounds.min.x + insetX,
-      maxX: groundBounds.max.x - insetX,
-      minZ: groundBounds.min.z + insetZ,
-      maxZ: groundBounds.max.z - insetZ,
-      minY: 0.3,
-      maxY: Math.max(config.owlPosition.y, (config.ceilingY ?? 6.0) - 1.0),
-    },
-  });
+  const flightBounds = config.flightBounds ?? {
+    minX: groundBounds.min.x + insetX,
+    maxX: groundBounds.max.x - insetX,
+    minZ: groundBounds.min.z + insetZ,
+    maxZ: groundBounds.max.z - insetZ,
+    minY: 0.3,
+    maxY: Math.max(config.owlPosition.y, (config.ceilingY ?? 6.0) - 1.0),
+  };
+
+  const owl =
+    existingOwl ??
+    createOwlCompanion(scene, config.owlPosition, {
+      restFacingY: config.owlFacingY,
+      flightBounds,
+    });
   const emitParticle = config.particleFn ?? createSparkleBurst;
 
   let firstTapHandled = false;
 
-  const unregister = dispatcher.registerWithPoint(ground, (point: Vector3) => {
+  const onFloorTap = (point: Vector3) => {
     if (!firstTapHandled) {
       firstTapHandled = true;
+      if (config.firstTapSoundId) {
+        triggerSound(config.firstTapSoundId);
+      }
       emitParticle(scene, point);
+    } else if (config.repeatTapSoundId) {
+      triggerSound(config.repeatTapSoundId);
     }
     owl.flyTo(point);
-  });
+  };
+
+  const unregisters = targets.map((target) => dispatcher.registerWithPoint(target, onFloorTap));
 
   const cleanup = () => {
-    unregister();
-    owl.dispose();
+    unregisters.forEach((unregister) => unregister());
+    if (!existingOwl) {
+      owl.dispose();
+    }
   };
 
   return { owl, cleanup };
+}
+
+/**
+ * Disposes Three.js geometries and materials owned by a scene graph.
+ *
+ * @param scene - The scene whose mesh resources should be released.
+ */
+export function disposeSceneResources(scene: Scene): void {
+  scene.traverse((obj) => {
+    if (obj instanceof Mesh) {
+      obj.geometry?.dispose();
+      if (Array.isArray(obj.material)) {
+        obj.material.forEach((material) => material.dispose());
+      } else {
+        obj.material?.dispose();
+      }
+    }
+  });
 }
 
 // ── Dispose Collector ─────────────────────────────────────────────────────────

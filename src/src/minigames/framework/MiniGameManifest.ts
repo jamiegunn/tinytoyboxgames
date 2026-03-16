@@ -47,6 +47,22 @@ const manifest: MiniGameManifestEntry[] = [
     showProgressBar: false,
     load: () => import('@app/minigames/games/little-shark'),
   },
+  {
+    id: 'star-catcher',
+    displayName: 'Star Catcher',
+    description: 'Tap glowing targets before they drift away in Star Catcher.',
+    launchableFrom: ['nature'],
+    inputModes: ['tap'],
+    themeColor: '#8FD3FF',
+    iconAssetId: 'star_catcher_icon',
+    comboWindowSeconds: 3,
+    hasSpecialItems: false,
+    mode: 'endless',
+    showScore: true,
+    showProgressBar: false,
+    load: () => import('@app/minigames/games/star-catcher'),
+  },
+  // __MINIGAME_GENERATOR_ENTRY_MARKER__
 ];
 
 /**
