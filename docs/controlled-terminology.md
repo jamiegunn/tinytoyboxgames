@@ -2,6 +2,24 @@
 
 Use these terms consistently across specs, prompts, ADRs, reviews, and implementation planning. If a document uses a conflicting term, this file wins.
 
+## Product Naming
+
+| Canonical term | Definition | Replace / avoid |
+|---|---|---|
+| **Tiny Toybox Games** | The public product name used in README, landing-page copy, and external-facing communication. | mixing in "Whimsical Toybox World" in public copy |
+| **Whimsical Toybox World** | Optional internal codename / documentation-program label for architecture and prompt materials. | using it as the default public product name |
+
+## State Vocabulary
+
+| Canonical term | Definition | Replace / avoid |
+|---|---|---|
+| **Implemented** | Code exists and is wired into runtime behavior. | "planned", "coming soon" used as if already present |
+| **Registered** | Present in a catalog or manifest, but not necessarily surfaced in the player UI. | assuming registered means playable by normal navigation |
+| **Discoverable** | Reachable by a normal player through the current UI without manual deep linking. | "available" when deep link only |
+| **Inactive** | Present in scene composition or manifests but intentionally or currently unwired to a live destination/action. | "active", "playable now" |
+| **Roadmap** | Planned future content not currently present in the codebase. | presenting roadmap items as current features |
+| **Target architecture** | The intended structural end-state the code is moving toward. | describing target architecture as already fully implemented |
+
 ## Canonical Terms
 
 | Canonical term                     | Definition                                                                                                                             | Replace / avoid                                            |

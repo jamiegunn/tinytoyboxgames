@@ -1,6 +1,7 @@
 # Tiny Toybox Games
 
-A magical browser-based 3D experience for children ages 3-6. Move through a whimsical world, enter the House's Playroom, open a toybox, and explore living miniature scenes filled with sparkles, sounds, and surprises without reading a single word.
+Tiny Toybox Games is a browser-based 3D play experience for ages 3-6.
+The current repo contains a playable Playroom and Kitchen, two toybox immersive scenes (Nature and Pirate Cove), five registered minigames, and shared runtime scaffolding for procedural art, procedural audio, and memory-only browser play.
 
 **Play it now: [tinytoyboxgames.com](https://www.tinytoyboxgames.com/)**
 
@@ -10,95 +11,122 @@ A magical browser-based 3D experience for children ages 3-6. Move through a whim
 
 ---
 
-## What Is This?
+## What This Repo Currently Contains
 
-Tiny Toybox Games is a real-time 3D interactive experience rendered with **Three.js** inside a **React** app shell. It runs entirely in the browser: no install, no app store, no accounts, and no browser persistence.
+This repository includes a real playable slice of the larger architecture.
+
+### Current scenes
+
+The current scene catalog registers four navigable scenes:
+
+- **Playroom** (`playroom`) — landing scene
+- **Kitchen** (`kitchen`) — landing scene
+- **Nature** (`nature`) — immersive toybox scene
+- **Pirate Cove** (`pirate-cove`) — immersive toybox scene
+
+### Current toybox destinations
+
+#### Playroom
+
+The Playroom currently contains three visible toybox-like destinations:
+
+- **Adventure** → opens **Pirate Cove** (active)
+- **Animals** → opens **Nature** (active)
+- **Creative** → present but **inactive** (destination is `null`)
+
+#### Kitchen
+
+The Kitchen currently contains one active toybox:
+
+- **Kitchen Nature** → opens **Nature** (active)
+
+### Current minigames
+
+The current minigame manifest registers five games:
+
+| Game | Launchable from | Status |
+|---|---|---|
+| **Bubble Pop** | Nature | registered |
+| **Fireflies** | Nature | registered |
+| **Little Shark** | Nature | registered |
+| **Star Catcher** | Nature | registered |
+| **Cannonball Splash** | Pirate Cove | registered |
+
+### What is currently discoverable in the UI
+
+A normal player can currently reach these minigames through in-scene portals:
+
+- From **Nature**: Bubble Pop, Little Shark, Fireflies
+- From **Pirate Cove**: Cannonball Splash
+
+`Star Catcher` is registered in the manifest and deep-link launchable, but not yet surfaced through Nature's portal layout.
 
 ---
 
-## Current Implemented Slice
+## Architecture Direction
 
-The current build exposes a small but real slice of the larger architecture:
+The repo is moving toward a larger recursive scene hierarchy, but this README describes only what is currently in the build.
 
-- a Nature toybox immersive scene, currently still loaded through the historical `naturescene` path
-- four play-mode minigames launched from Nature
-- a shared owl companion that appears in every navigable non-minigame scene
+Today's code already includes:
 
-### Playroom Landing Scene
+- a React app shell with hash-based routing
+- direct Three.js scene lifecycle ownership
+- lazy scene loading and lazy minigame loading
+- shared room-scene and world-scene factories
+- a shared owl companion in every navigable non-minigame scene
+- generator-based scaffolding for immersive scenes, room scenes, and minigames
 
-The experience opens in a warm afternoon playroom scene. In the target hierarchy this is the `Playroom` sub-place inside `House`.
-
-Inside you'll find:
-
-- hand-crafted toyboxes arranged around a central play rug
-- a plush owl companion that hops, blinks, head-tracks, and reacts to taps
-- living toy critters such as wind-up mice, hopping chicks, and passing toy trains
-- ambient details including dust motes, cozy lighting, wallpaper, wall art, bookshelves, hanging mobiles, and floor toys
-- procedural audio for taps, ambience, and transitions
-- first-tap fallback so there are no dead taps
-
-### Nature Toybox Immersive Scene
-
-Open the Nature toybox and you enter a tiny forest-floor diorama: deep greens, mossy textures, firefly golds, and calm tactile interactions. Mushrooms bounce, flowers bloom, leaves flip, the stream ripples, and gentle effects reward curiosity immediately.
-
-![Immersive Nature World](docs/readme-assets/nature-immersive.png)
-
-### Current Playable Minigames
-
-The current manifest launches four minigames from the Nature immersive scene:
-
-| Game             | What You Do                                                           |
-| ---------------- | --------------------------------------------------------------------- |
-| **Bubble Pop**   | Pop shimmering bubbles in the night sky with soft splats and sparkles |
-| **Fireflies**    | Catch glowing fireflies in a jar and fill the scene with warm light   |
-| **Little Shark** | Chase and tap colorful fish in a cheerful underwater play space       |
-
-![Bubble Pop](docs/readme-assets/bubble-pop.png)
-
-![Little Shark](docs/readme-assets/little%20shark.png)
-
-All four minigames are play modes, not navigable scenes. They share the same constraints:
-
-- no fail states
-- one-tap exit
-- icon-first HUD
-- age-3 accessibility floor
-- no browser persistence
-
-### Everything Is Code-Generated
+### Everything is code-generated
 
 No textures, no 3D model files, and no audio files are required for the baseline experience. Meshes, materials, particles, and sound are authored in TypeScript and generated at runtime.
 
-- **Procedural meshes** - toyboxes, owl, props, creatures, and scene geometry are built from code
-- **Procedural audio** - Web Audio synthesis creates music, sound effects, and ambience in real time
-- **Procedural particles** - sparkles, bubbles, confetti, and celebration effects are all runtime systems
+- **Procedural meshes** — toyboxes, owl, props, creatures, and scene geometry are built from code
+- **Procedural audio** — Web Audio synthesis creates music, sound effects, and ambience in real time
+- **Procedural particles** — sparkles, bubbles, confetti, and celebration effects are all runtime systems
+
+---
+
+## Zero-Persistence Runtime Policy
+
+The app bootstraps with a storage-guard module that blocks browser persistence APIs before React loads.
+
+The current runtime explicitly patches or blocks:
+
+- `localStorage`
+- `sessionStorage`
+- `document.cookie` writes
+- `indexedDB`
+- Cache API app-state usage
+
+The intended app model is memory-only for the current page lifecycle.
 
 ---
 
 ## Technology Stack
 
-| Layer                     | Choice                             |
-| ------------------------- | ---------------------------------- |
-| Language                  | TypeScript (strict mode)           |
-| UI Framework              | React 18+                          |
-| 3D Engine                 | Three.js with React Three Fiber    |
-| Animation                 | GSAP 3.x                           |
-| Build Tool                | Vite 6.x                           |
-| Runtime / Package Manager | Bun 1.x                            |
-| Deployment                | Docker (multi-stage build + nginx) |
+| Layer | Choice |
+|---|---|
+| Language | TypeScript `~5.9.3` (strict mode) |
+| UI Framework | React `19.2.0` |
+| 3D Engine | Three.js `0.175.0` with React Three Fiber `9.1.0` and drei `10.0.0` |
+| Animation | GSAP `3.12.0` |
+| Build Tool | Vite `7.3.1` |
+| Deployment | Docker (multi-stage build + nginx) |
+
+Note: the repo currently contains both `bun.lock` and `package-lock.json`. Until one package-manager story is standardized, do not describe Bun as the only supported workflow.
 
 ---
 
 ## Design Principles
 
-| Principle                        | What It Means                                                                                 |
-| -------------------------------- | --------------------------------------------------------------------------------------------- |
-| **Delight within the first tap** | Every interaction produces an immediate, satisfying response                                  |
-| **No reading required**          | The experience works for pre-literate children through visual affordance and sensory feedback |
-| **Zero persistence**             | No localStorage, cookies, IndexedDB, or browser-stored app data                               |
-| **Browser-first**                | A URL is the only install flow                                                                |
-| **Warmth over complexity**       | Fidelity comes from lighting, materials, and motion rather than content sprawl                |
-| **Open-ended play**              | Toy, not test. Enter, explore, leave, and return freely                                       |
+| Principle | What It Means |
+|---|---|
+| **Delight within the first tap** | Every interaction produces an immediate, satisfying response |
+| **No reading required** | The experience works for pre-literate children through visual affordance and sensory feedback |
+| **Zero persistence** | No localStorage, cookies, IndexedDB, or browser-stored app data |
+| **Browser-first** | A URL is the only install flow |
+| **Warmth over complexity** | Fidelity comes from lighting, materials, and motion rather than content sprawl |
+| **Open-ended play** | Toy, not test. Enter, explore, leave, and return freely |
 
 ---
 
@@ -109,6 +137,8 @@ cd src
 bun install
 bun run dev
 ```
+
+If you prefer npm-based workflows, verify them against `src/package.json` and the lockfiles present in the repo.
 
 Open `http://localhost:5173` and start tapping.
 
@@ -136,13 +166,14 @@ src/
     entities/       # Shared entities such as the owl companion
     hooks/          # Custom hooks and shell helpers
     minigames/      # Minigame framework + game implementations
-    scenes/         # Current legacy scene ids plus migration toward recursive scene hierarchy
+    scenes/         # Scene catalog, room scenes, immersive scenes
     types/          # TypeScript type definitions
     utils/          # Shared utilities
 docs/
   adr/             # Architecture decisions
   ai-guidance/     # AI collaborator context
   specs/           # Product and technical specs
+  status/          # Canonical current-state documentation
   controlled-terminology.md
   readme-assets/
 ```
@@ -164,20 +195,23 @@ npm run create:room-scene -- --scene-id bedroom --display-name "Bedroom"
 npm run create:minigame -- --game-id star-catcher --display-name "Star Catcher"
 ```
 
-Each generator copies a governed template, replaces placeholder tokens, registers the result in the appropriate manifest, and prints next steps. See the template READMEs for full details:
-
-- [Immersive scene template](src/templates/immersive-scene/README.md)
-- [Room scene template](src/templates/room-scene/GENERATED_README.md.template)
-- [Minigame template](src/templates/minigame/README.md)
+Each generator copies a governed template, replaces placeholder tokens, registers the result in the appropriate manifest, and prints next steps.
 
 ---
 
-## Documentation
+## Documentation Map
 
-- [**AI Guidance**](docs/ai-guidance/) - Vision, design soul, agent roles, and skill definitions used by AI collaborators
-- [**Controlled Terminology**](docs/controlled-terminology.md) - Canonical glossary of names, labels, and structure terms
-- [**Recursive Scene Hierarchy Spec**](docs/specs/phase-3/11-recursive-scene-hierarchy-spec.md) - Canonical scene, toybox, owl, and minigame model
-- [**Migration Plan**](docs/specs/phase-3/12-recursive-scene-hierarchy-migration-plan.md) - Ordered path from `hub` / `naturescene` to the target hierarchy
+Start here:
+
+- [`docs/status/current-state.md`](docs/status/current-state.md) — canonical current repo surface area
+- [`docs/ai-guidance/CLAUDE.md`](docs/ai-guidance/CLAUDE.md) — internal LLM operating guidance
+- [`docs/controlled-terminology.md`](docs/controlled-terminology.md) — canonical naming and state vocabulary
+- [`docs/ai-guidance/agents.md`](docs/ai-guidance/agents.md) — AI collaboration model
+
+For architecture and specs:
+
+- [Recursive Scene Hierarchy Spec](docs/specs/phase-3/11-recursive-scene-hierarchy-spec.md)
+- [Migration Plan](docs/specs/phase-3/12-recursive-scene-hierarchy-migration-plan.md)
 
 ---
 

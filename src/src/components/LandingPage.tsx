@@ -4,7 +4,7 @@ import './LandingPage.css';
 /**
  * Marketing landing page for Tiny Toybox.
  * Renders a playful, storybook-style page with floating toy shapes,
- * feature highlights, world previews, safe-space trust banner, and a CTA
+ * feature highlights, scene previews, safe-space trust banner, and a CTA
  * that links to the playroom.
  *
  * @returns The full landing page React element.
@@ -64,8 +64,8 @@ export function LandingPage() {
           <p className="landing-subtitle">Where every tap sparks wonder</p>
 
           <p className="landing-description">
-            A magical 3D playground where children explore four toybox worlds, discover friendly animals, create art, and play twelve delightful mini-games
-            &mdash; all inside the browser, no downloads needed.
+            A magical 3D toybox playground in the browser. Explore the Playroom, open active toyboxes into Nature and Pirate Cove, and try the mini-games
+            included in the current build &mdash; no install required.
           </p>
 
           <a href="/#/playroom" className="landing-cta">
@@ -92,24 +92,24 @@ export function LandingPage() {
 
             <div className="landing-feature-card">
               <div className="landing-feature-icon">&#127760;</div>
-              <div className="landing-feature-name">Four Unique Worlds</div>
+              <div className="landing-feature-name">Playable Scenes Today</div>
               <div className="landing-feature-desc">
-                Adventure, Animals, Creative, and Nature &mdash; each a handcrafted 3D diorama filled with surprises, hidden interactions, and friendly
-                characters.
+                The current build includes Playroom and Kitchen landing scenes, plus Nature and Pirate Cove toybox scenes &mdash; each a handcrafted 3D diorama
+                filled with surprises and friendly characters.
               </div>
             </div>
 
             <div className="landing-feature-card">
               <div className="landing-feature-icon">&#127918;</div>
-              <div className="landing-feature-name">12 Mini-Games</div>
+              <div className="landing-feature-name">Mini-Games in the Build</div>
               <div className="landing-feature-desc">
-                Pop bubbles, race balloons, feed animals, catch fireflies, build shapes, and more. No fail states, no timers &mdash; just pure playful joy.
+                Pop bubbles, catch fireflies, swim with friendly sharks, and fire cannonballs. More mini-games are planned as the toybox grows.
               </div>
             </div>
 
             <div className="landing-feature-card">
               <div className="landing-feature-icon">&#128155;</div>
-              <div className="landing-feature-name">No Fail States</div>
+              <div className="landing-feature-name">No-Fail Play</div>
               <div className="landing-feature-desc">
                 No timers, no punishment, no game-over screens. Every interaction is positive. Children play at their own pace with gentle encouragement.
               </div>
@@ -122,38 +122,32 @@ export function LandingPage() {
       <section className="landing-safe">
         <div className="landing-safe-inner">
           <div className="landing-safe-shield">&#128737;&#65039;</div>
-          <h2 className="landing-safe-title">A Safe Space for Kids</h2>
-          <p className="landing-safe-subtitle">Tiny Toybox is built with one rule: children come first.</p>
+          <h2 className="landing-safe-title">A Gentle Browser Play Space</h2>
+          <p className="landing-safe-subtitle">
+            Tiny Toybox is built as a browser-first play experience with no install required and no browser persistence in the app runtime.
+          </p>
           <div className="landing-safe-grid">
             <div className="landing-safe-item">
               <span className="landing-safe-icon">&#128683;</span>
-              <span className="landing-safe-label">No Ads. Ever.</span>
-            </div>
-            <div className="landing-safe-item">
-              <span className="landing-safe-icon">&#128373;&#65039;</span>
-              <span className="landing-safe-label">No Tracking</span>
+              <span className="landing-safe-label">No Ads</span>
             </div>
             <div className="landing-safe-item">
               <span className="landing-safe-icon">&#128274;</span>
-              <span className="landing-safe-label">No Data Collection</span>
+              <span className="landing-safe-label">No Browser Persistence</span>
             </div>
             <div className="landing-safe-item">
               <span className="landing-safe-icon">&#128587;</span>
               <span className="landing-safe-label">No Accounts</span>
             </div>
             <div className="landing-safe-item">
-              <span className="landing-safe-icon">&#127850;</span>
-              <span className="landing-safe-label">No Cookies</span>
-            </div>
-            <div className="landing-safe-item">
-              <span className="landing-safe-icon">&#128247;</span>
-              <span className="landing-safe-label">No Camera or Mic</span>
+              <span className="landing-safe-icon">&#128230;</span>
+              <span className="landing-safe-label">No Install Required</span>
             </div>
           </div>
           <p className="landing-safe-note">
-            Nothing is stored on the device. No sign-ups, no emails, no in-app purchases.
+            The app runtime blocks localStorage, sessionStorage, cookies, and IndexedDB before the page loads.
             <br />
-            Close the tab and it&rsquo;s gone &mdash; exactly how children&rsquo;s apps should work.
+            Close the tab and it&rsquo;s gone &mdash; play is memory-only.
           </p>
           <p className="landing-safe-parental">
             &#9888;&#65039; Tiny Toybox is designed to be enjoyed together &mdash; always play with a parent or guardian present.
@@ -161,33 +155,33 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── Worlds ───────────────────────────────── */}
+      {/* ── Scenes ───────────────────────────────── */}
       <section className="landing-worlds">
         <div ref={worldsRef} className="landing-reveal">
-          <h2 className="landing-worlds-title">Four Worlds to Explore</h2>
+          <h2 className="landing-worlds-title">Scenes in the Current Build</h2>
           <div className="landing-worlds-grid">
             <div className="landing-world-card">
-              <span className="landing-world-emoji">&#9968;&#65039;</span>
-              <div className="landing-world-name">Adventure</div>
-              <div className="landing-world-desc">Sail ships, race trucks, and launch balloons across rugged terrain</div>
+              <span className="landing-world-emoji">&#127968;</span>
+              <div className="landing-world-name">Playroom</div>
+              <div className="landing-world-desc">A cozy landing scene with active toyboxes that open into Nature and Pirate Cove</div>
             </div>
 
             <div className="landing-world-card">
-              <span className="landing-world-emoji">&#128062;</span>
-              <div className="landing-world-name">Animals</div>
-              <div className="landing-world-desc">Feed bunnies, play fetch with puppies, and splash with elephants</div>
-            </div>
-
-            <div className="landing-world-card">
-              <span className="landing-world-emoji">&#127912;</span>
-              <div className="landing-world-name">Creative</div>
-              <div className="landing-world-desc">Squish clay, pop bubbles, match colors, and build shapes from scratch</div>
+              <span className="landing-world-emoji">&#127859;</span>
+              <div className="landing-world-name">Kitchen</div>
+              <div className="landing-world-desc">A second landing scene with a toybox leading to Nature</div>
             </div>
 
             <div className="landing-world-card">
               <span className="landing-world-emoji">&#127807;</span>
               <div className="landing-world-name">Nature</div>
-              <div className="landing-world-desc">Catch fireflies in the meadow and swim with friendly baby sharks</div>
+              <div className="landing-world-desc">A forest-floor toybox world with Bubble Pop, Fireflies, and Little Shark mini-game portals</div>
+            </div>
+
+            <div className="landing-world-card">
+              <span className="landing-world-emoji">&#9968;&#65039;</span>
+              <div className="landing-world-name">Pirate Cove</div>
+              <div className="landing-world-desc">A pirate ship toybox world with Cannonball Splash</div>
             </div>
           </div>
         </div>

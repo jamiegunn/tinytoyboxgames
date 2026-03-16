@@ -8,10 +8,13 @@ docs/*
 !docs/readme-assets/
 !docs/ai-guidance/
 !docs/controlled-terminology.md
+!docs/status/
 
 *.md
+!README.md
 !docs/controlled-terminology.md
 !docs/ai-guidance/*.md
+!docs/status/*.md
 
 # Bun
 bun.lockb

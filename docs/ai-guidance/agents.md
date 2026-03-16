@@ -1,8 +1,11 @@
 # Agents — AI Collaboration Model
 
-This document defines the specialized AI agent roles that collaborate on the Whimsical Toybox World. Each agent has a distinct domain, a clear boundary of authority, and a defined relationship to the canonical documentation.
+This document defines the specialized AI agent roles that collaborate on Tiny Toybox Games (internal codename: Whimsical Toybox World). Each agent has a distinct domain, a clear boundary of authority, and a defined relationship to the canonical documentation.
 
-No agent may override the canonical specs. All agents operate within the source-of-truth hierarchy defined in the [README](README.md) and enforced by the [controlled terminology](docs/controlled-terminology.md).
+No agent may override the canonical specs. All agents operate within the source-of-truth hierarchy defined in the [README](../../README.md) and enforced by the [controlled terminology](../controlled-terminology.md).
+
+> **Agents must not promote roadmap or target-architecture items into current-state documentation or marketing copy.**
+> When counts or availability are described, agents must verify them against `docs/status/current-state.md` and the code manifests/catalogs.
 
 ---
 
@@ -11,8 +14,9 @@ No agent may override the canonical specs. All agents operate within the source-
 1. **Specification supremacy.** Every agent reads the canonical docs before acting. No agent introduces behavior that contradicts Phase 1, Phase 3, or the ADRs.
 2. **Bounded authority.** Each agent owns a specific workstream. Agents do not make decisions outside their domain without explicit cross-agent coordination.
 3. **Traceability.** Every artifact an agent produces must trace back to a canonical spec requirement. If the spec does not call for it, the agent must not invent it.
-4. **Terminology compliance.** Agents use the vocabulary defined in [controlled-terminology.md](docs/controlled-terminology.md). Non-canonical terms are flagged and mapped.
+4. **Terminology compliance.** Agents use the vocabulary defined in [controlled-terminology.md](../controlled-terminology.md). Non-canonical terms are flagged and mapped.
 5. **Soul alignment.** Every agent internalizes the emotional and philosophical principles in [soul.md](soul.md). Technical correctness without warmth is a failure.
+6. **Current-state accuracy.** Every agent reads `docs/status/current-state.md` before making claims about what is implemented, registered, discoverable, or inactive.
 
 ---
 
@@ -32,6 +36,7 @@ No agent may override the canonical specs. All agents operate within the source-
 
 **Reads first:**
 
+- `docs/status/current-state.md`
 - `vision.md`
 - `docs/controlled-terminology.md`
 - `docs/specs/README.md`
@@ -59,6 +64,7 @@ No agent may override the canonical specs. All agents operate within the source-
 
 **Reads first:**
 
+- `docs/status/current-state.md`
 - [App Architecture Spec](docs/specs/phase-3/05-app-architecture-spec.md)
 - [Scene Implementation Spec](docs/specs/phase-3/06-scene-implementation-spec.md)
 - [Build & Deploy Spec](docs/specs/phase-3/07-build-and-deploy-spec.md)
@@ -146,6 +152,7 @@ No agent may override the canonical specs. All agents operate within the source-
 
 **Reads first:**
 
+- `docs/status/current-state.md`
 - [Mini-Game Framework Spec](docs/specs/phase-3/09-minigame-framework-spec.md)
 - [Age-Appropriate UX Spec](docs/specs/phase-3/10-age-appropriate-ux-spec.md)
 - [Per-Game Specs](docs/specs/phase-3/games/README.md)
@@ -207,6 +214,7 @@ No agent may override the canonical specs. All agents operate within the source-
 
 **Reads first:**
 
+- `docs/status/current-state.md`
 - [Acceptance Criteria](docs/specs/phase-1/05-acceptance-criteria.md)
 - [Phase 3 Acceptance Criteria](docs/specs/phase-3/08-phase-3-acceptance-criteria.md)
 - [Technical Constraints](docs/specs/phase-1/04-technical-constraints-and-non-goals.md)

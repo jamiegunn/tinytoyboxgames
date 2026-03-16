@@ -2,47 +2,57 @@
 
 This file provides guidance to Claude Code when working with code in this repository.
 
-## Project Overview
+## Product Naming
 
-**Whimsical Toybox World** is a browser-based 3D interactive experience for children ages 3-12. The target architecture is a recursive hierarchy:
+- **Public product name:** Tiny Toybox Games
+- **Internal codename (optional):** Whimsical Toybox World
 
-- World scene
-- Place scenes such as House, Backyard, and Park
-- optional sub-place scenes such as Playroom or Kitchen
-- literal toyboxes that open immersive toybox scenes such as Nature
-- minigames launched as play modes from immersive scenes
+Use **Tiny Toybox Games** in public-facing copy.
+Use the codename only when discussing internal architecture/spec material that already depends on it.
 
-The current implementation is an early slice of that model:
+## Current-State Reading Order
 
-- `hub` is the historical scene id for the Playroom landing scene
-- `nature` is the current immersive toybox scene
-- four minigames launch from Nature: `bubble-pop`, `hide-and-seek`, `fireflies`, and `little-shark`
+Before making product, copy, routing, or scope claims, read these files in order:
 
-All art and audio are procedural. No binary asset pipeline is required for the baseline experience.
+1. `docs/status/current-state.md`
+2. `docs/controlled-terminology.md`
+3. `src/src/App.tsx`
+4. `src/src/scenes/sceneCatalog.ts`
+5. `src/src/minigames/framework/MiniGameManifest.ts`
+6. relevant room toybox manifests
+7. relevant immersive-scene `environment.ts` files
 
-## Tech Stack
+If docs and code disagree, verify against code and update the docs.
 
-- **Language:** TypeScript (strict mode)
-- **UI:** React 18+ with functional components and hooks
-- **3D Engine:** Three.js with React Three Fiber
-- **Animation:** GSAP 3.x
-- **Build:** Vite 6.x
-- **Runtime / Package Manager:** Bun 1.x
-- **Linting:** ESLint 9
-- **Formatting:** Prettier
-- **Testing:** Vitest + React Testing Library
+## Current Product Surface Area
 
-## Common Commands
+The current repo registers four scenes:
 
-```bash
-bun install
-bun run dev
-bun run build
-bun run lint
-bun run format
-bun run format:check
-bun run test
-```
+- `playroom`
+- `kitchen`
+- `nature`
+- `pirate-cove`
+
+The current minigame manifest registers five minigames:
+
+- `bubble-pop`
+- `fireflies`
+- `little-shark`
+- `star-catcher`
+- `cannonball-splash`
+
+Important nuance:
+
+- registered is not the same as discoverable
+- `star-catcher` is currently registered for `nature`, but is not currently surfaced through Nature's portal array
+- the Playroom includes a visible `creative` toybox object whose destination is `null` — treat it as **present but inactive**
+
+## Audience
+
+- Public target audience: ages 3-6
+- Design floor: age 3
+
+Older children may still enjoy the experience, but docs and UX decisions should optimize for the youngest player.
 
 ## Architecture
 
@@ -63,7 +73,7 @@ bun run test
       <AudioProvider>
         <SceneRouter>        // scene <-> scene <-> minigame navigation
           <SceneFrame />     // canvas + renderer + active scene lifecycle
-          <MiniGameRouter /> // lazy-loaded game modules
+          <MiniGameOverlay />
           <UIOverlay />      // back button, audio toggle, loading
         </SceneRouter>
       </AudioProvider>
@@ -80,12 +90,24 @@ bun run test
 
 ### Current Routing State
 
-The repo is still on the legacy scene id surface:
+The scene catalog registers these scene ids:
 
-- `SceneId = 'hub' | 'nature'`
-- `MiniGameId = 'little-shark' | 'bubble-pop' | 'fireflies' | 'hide-and-seek'`
+- `SceneId = 'playroom' | 'kitchen' | 'nature' | 'pirate-cove'`
+- `MiniGameId = 'bubble-pop' | 'fireflies' | 'little-shark' | 'star-catcher' | 'cannonball-splash'`
 
-That is an implementation detail, not the target architecture. Read the recursive hierarchy docs before extending scene structure.
+### Runtime Truths
+
+The current codebase includes:
+
+- React app shell with hash-based routing
+- direct Three.js scene lifecycle ownership
+- lazy scene loading and lazy minigame loading
+- shared room-scene and world-scene factories
+- shared owl companion in every navigable non-minigame scene
+- storage-guard bootstrap before React loads
+- procedural geometry, material, and particle systems
+- procedural audio architecture
+- generators for immersive scenes, room scenes, and minigames
 
 ### Owl Rule
 
@@ -95,6 +117,26 @@ The owl is a shared companion, not a scene-local novelty:
 - it does not appear inside minigames by default
 - scene code may tune owl placement and lightweight behavior
 - owl lifecycle should be owned by shared scene scaffolding whenever possible
+
+## Critical Language Rules
+
+Always distinguish:
+
+- **implemented** = code exists and is wired into runtime
+- **registered** = present in a catalog or manifest
+- **discoverable** = reachable by a normal player through the current UI
+- **inactive** = present but not currently wired to an active destination
+- **roadmap** = planned but not present in code
+- **target architecture** = the intended structural end-state
+
+Do not describe roadmap content as currently playable.
+
+Do not claim:
+
+- four worlds are currently playable
+- twelve mini-games are currently playable
+- all visible toyboxes are active
+- all registered minigames are surfaced in-scene
 
 ## Critical Constraints
 
@@ -120,55 +162,43 @@ No external GLB, texture, MP3, OGG, or WAV files for baseline content. Art is au
 - first-tap fallback must exist in navigable scenes
 - audio is optional and supportive
 
+## Tech Stack
+
+Use `src/package.json` as the source of truth for versions.
+
+Current important versions:
+
+- React `19.2.0`
+- React DOM `19.2.0`
+- Three `0.175.0`
+- `@react-three/fiber` `9.1.0`
+- `@react-three/drei` `10.0.0`
+- GSAP `3.12.0`
+- Vite `7.3.1`
+- TypeScript `~5.9.3`
+
+Note: the repo currently contains both `bun.lock` and `package-lock.json`. Do not imply a single package-manager story unless the repo is intentionally standardized.
+
+## Common Commands
+
+```bash
+bun install
+bun run dev
+bun run build
+bun run lint
+bun run format
+bun run format:check
+bun run test
+```
+
 ## Canonical Terminology
 
 Use terms from `docs/controlled-terminology.md`. Key terms:
 
 - **Playroom** for the current room destination
-- **Toybox immersive scene** for scenes such as Nature
+- **Toybox immersive scene** for scenes such as Nature and Pirate Cove
 - **Minigame** for play-mode game modules
 - **Shared owl companion** for the recurring owl character
-- **hub** and **naturescene** only when referring to historical code paths or ids
-
-## Reading Order
-
-Read these before making structural changes:
-
-1. `docs/ai-guidance/vision.md`
-2. `docs/controlled-terminology.md`
-3. `docs/specs/README.md`
-4. `docs/adr/ADR-0009-adopt-a-recursive-scene-hierarchy-for-navigable-world-content.md`
-5. `docs/adr/ADR-0010-keep-minigames-as-play-modes-with-hybrid-scene-ownership.md`
-6. `docs/adr/ADR-0011-make-the-owl-a-shared-companion-in-all-navigable-scenes.md`
-7. `docs/specs/phase-3/11-recursive-scene-hierarchy-spec.md`
-8. `docs/specs/phase-3/12-recursive-scene-hierarchy-migration-plan.md`
-
-For lower-level implementation detail, then read:
-
-- `docs/specs/phase-3/05-app-architecture-spec.md`
-- `docs/specs/phase-3/06-scene-implementation-spec.md`
-- `docs/specs/phase-3/09-minigame-framework-spec.md`
-- `docs/specs/phase-3/10-age-appropriate-ux-spec.md`
-
-## Current Scene Notes
-
-### Playroom
-
-The current Playroom implementation lives under the historical path `src/src/scenes/hub`.
-
-- `layout.ts` centralizes room-structural dimensions
-- `room.ts` owns room contents, toyboxes, owl wiring, and interactions
-- `index.ts` owns scene assembly and rendering pipeline orchestration
-
-Treat this as the current Playroom landing scene, not as a generic hub pattern that should be copied unchanged.
-
-### Nature
-
-The current Nature implementation lives under `src/src/scenes/naturescene`.
-
-- it is the reference implementation for an immersive toybox scene
-- it uses shared world-scene scaffolding plus local staging and factory structure
-- it is not the generic template as-is; use the recursive hierarchy docs to decide what should be generalized
 
 ## Minigame Framework
 
@@ -182,10 +212,37 @@ Games implement the `IMiniGame` lifecycle:
 
 Minigames are launched from immersive scenes and return to those scenes on exit. They are not navigable scenes.
 
+## Reading Order
+
+Read these before making structural changes:
+
+1. `docs/status/current-state.md`
+2. `docs/ai-guidance/vision.md`
+3. `docs/controlled-terminology.md`
+4. `docs/specs/README.md`
+5. `docs/adr/ADR-0009-adopt-a-recursive-scene-hierarchy-for-navigable-world-content.md`
+6. `docs/adr/ADR-0010-keep-minigames-as-play-modes-with-hybrid-scene-ownership.md`
+7. `docs/adr/ADR-0011-make-the-owl-a-shared-companion-in-all-navigable-scenes.md`
+8. `docs/specs/phase-3/11-recursive-scene-hierarchy-spec.md`
+9. `docs/specs/phase-3/12-recursive-scene-hierarchy-migration-plan.md`
+
+For lower-level implementation detail, then read:
+
+- `docs/specs/phase-3/05-app-architecture-spec.md`
+- `docs/specs/phase-3/06-scene-implementation-spec.md`
+- `docs/specs/phase-3/09-minigame-framework-spec.md`
+- `docs/specs/phase-3/10-age-appropriate-ux-spec.md`
+
 ## JSDoc Standard
 
 All public functions, interfaces, classes, and exported type aliases must have JSDoc comments. When modifying a file, add missing JSDoc for any public export you touch.
 
 ## Practical Rule
 
-If you are changing scene structure, routing, scene ids, or toybox ownership, do not rely on older `hub` / "world scene" assumptions. The current target model is defined by the recursive hierarchy ADRs and specs, and the docs that still describe the older five-scene baseline should be read as implementation history unless they have been updated explicitly.
+If you are changing docs or public copy:
+
+1. verify the current state in code
+2. update `docs/status/current-state.md`
+3. then update README / landing page / guidance docs
+
+If you are changing scene structure, routing, scene ids, or toybox ownership, read the recursive hierarchy ADRs and specs first. The current target model is defined by those documents.
