@@ -1,6 +1,6 @@
 import { CircleGeometry, Color, Mesh, SphereGeometry, type DirectionalLight, type Scene } from 'three';
 import { createGlossyPaintMaterial, createPlasticMaterial } from '@app/utils/materialFactory';
-import gsap from 'gsap';
+import { getIdleAnimator } from '@app/utils/idle/registry';
 
 /**
  * Creates a red glossy toy ball with a white star and a gentle rolling animation.
@@ -20,11 +20,6 @@ export function createToyBall(scene: Scene, _keyLight: DirectionalLight): void {
   ball.add(star);
 
   // Rolling animation
-  gsap.to(ball.position, {
-    x: 0.9,
-    duration: 400 / 60,
-    repeat: -1,
-    yoyo: true,
-    ease: 'sine.inOut',
-  });
+  // Slow roll back and forth along x to x=0.9. See architecture-standards.md#idleanimator.
+  getIdleAnimator(scene).bob(ball, { axis: 'x', amplitude: 0.9 - ball.position.x, period: 800 / 60 });
 }

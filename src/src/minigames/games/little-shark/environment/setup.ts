@@ -1,7 +1,7 @@
 import { Scene, Vector3, Color, FogExp2, type Mesh, type Object3D } from 'three';
-import { createGameCamera, createGameLighting, disposeGameRig } from '@app/minigames/shared/sceneSetup';
-import type { GameCamera, GameLights } from '@app/minigames/shared/sceneSetup';
-import { CAMERA_RADIUS_LANDSCAPE } from '../types';
+import { createGameLighting } from '@app/minigames/shared/sceneSetup';
+import type { GameLights } from '@app/minigames/shared/sceneSetup';
+import type { DisposalScope } from '@app/utils/disposal';
 import { buildOceanSurface, buildAnemones, buildRocks, buildTreasureChest, buildCausticLights } from './scenery';
 import type { CausticLight } from './scenery';
 import { disposeMeshDeep } from '@app/minigames/shared/disposal';
@@ -16,7 +16,6 @@ import { buildCoral, buildPlant, type CoralType, type PlantType } from './coralF
 
 /** All disposable resources created during scene setup. */
 export interface SceneEnvironment {
-  camera: GameCamera;
   lights: GameLights;
   causticLights: CausticLight[];
   reefFloor: Mesh;
@@ -31,30 +30,31 @@ export interface SceneEnvironment {
 /**
  * Sets up the full underwater scene: camera, lighting, and all environment meshes.
  * @param scene - The Three.js scene.
+ * @param scope - Disposal scope that frees the lighting rig on teardown.
  * @returns All environment handles for update/teardown.
  */
-export function setupScene(scene: Scene): SceneEnvironment {
+export function setupScene(scene: Scene, scope: DisposalScope): SceneEnvironment {
   // Bright cheerful Caribbean ocean background
   scene.background = new Color(0.15, 0.4, 0.65);
   // Underwater haze — fades distant geometry into the ocean background
   scene.fog = new FogExp2(new Color(0.18, 0.42, 0.6).getHex(), 0.025);
 
-  // Camera: 3/4 overhead view
-  const camera = createGameCamera({
-    name: 'shark',
-    radius: CAMERA_RADIUS_LANDSCAPE,
-    beta: 0.95,
-    fov: 0.85,
-  });
+  // Camera comes from the manifest (an orbit descriptor) applied to the shell
+  // camera; the follow cam drives it thereafter. See architecture-standards.md#cameradescriptor.
 
-  // Bright, cheerful underwater lighting — boosted for visibility
-  const lights = createGameLighting({
-    name: 'shark',
-    direction: new Vector3(0.3, -1, 0.2).normalize(),
-    directionalIntensity: 2.0,
-    hemisphericIntensity: 1.5,
-    pointIntensity: 0.8,
-  });
+  // Bright, cheerful underwater lighting — boosted for visibility.
+  // The rig adds the lights to the scene and scope-owns them.
+  const lights = createGameLighting(
+    scene,
+    {
+      name: 'shark',
+      direction: new Vector3(0.3, -1, 0.2).normalize(),
+      directionalIntensity: 2.0,
+      hemisphericIntensity: 1.5,
+      pointIntensity: 0.8,
+    },
+    scope,
+  );
 
   // Build environment meshes — no ocean walls for infinite reef
   const reefFloor = buildReefTerrain(scene, 60.0);
@@ -105,7 +105,6 @@ export function setupScene(scene: Scene): SceneEnvironment {
   const causticLights = buildCausticLights(scene);
 
   return {
-    camera,
     lights,
     causticLights,
     reefFloor,
@@ -159,6 +158,5 @@ export function teardownScene(env: SceneEnvironment): void {
   // Dispose reef floor
   disposeMeshDeep(env.reefFloor);
 
-  // Dispose lights and camera
-  disposeGameRig(env.camera, env.lights);
+  // Lights are freed by the shell's disposal scope; the camera is the shell's.
 }

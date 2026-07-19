@@ -5,11 +5,23 @@
  * all tweens created inside a context are killed automatically by
  * ctx.revert(), eliminating the need for manual tween tracking or
  * killed-flag bookkeeping.
+ *
+ * The glow is faked with an additive billboard sprite rather than a real
+ * PointLight, so the blink drives sprite opacity instead of light intensity.
  */
-import { Vector3, type Color, type Mesh, type PointLight, type MeshStandardMaterial } from 'three';
+import { Vector3, type Color, type Mesh, type SpriteMaterial, type MeshStandardMaterial } from 'three';
 import gsap from 'gsap';
 import { rand } from '@app/utils/randomHelpers';
 import type { FireflyConfig } from './types';
+
+/** Resting opacity of the glow sprite while the firefly is lit. */
+export const GLOW_SPRITE_REST_OPACITY = 0.55;
+
+/** Opacity of the glow sprite while the firefly is dim between blinks. */
+const GLOW_SPRITE_DIM_OPACITY = 0.06;
+
+/** Peak opacity of the glow sprite during the tap flash. */
+const GLOW_SPRITE_FLASH_OPACITY = 1.0;
 
 /**
  * Generates a random drift destination near a home position.
@@ -62,14 +74,14 @@ export function startDrift(fly: Mesh, home: Vector3): () => void {
 
 /**
  * Starts a looping blink cycle that fades the firefly's emissive color
- * and point light between glow and dim states with organic timing.
+ * and glow-sprite opacity between glow and dim states with organic timing.
  *
  * @param mat - The firefly mesh's standard material.
- * @param glow - The point light parented to the firefly.
+ * @param glowMat - The additive glow sprite's material.
  * @param config - Firefly config providing glow and dim colors.
  * @returns A cleanup function that kills the blink tween chain.
  */
-export function startBlink(mat: MeshStandardMaterial, glow: PointLight, config: FireflyConfig): () => void {
+export function startBlink(mat: MeshStandardMaterial, glowMat: SpriteMaterial, config: FireflyConfig): () => void {
   const ctx = gsap.context(() => {});
 
   const blinkCycle = () => {
@@ -87,7 +99,7 @@ export function startBlink(mat: MeshStandardMaterial, glow: PointLight, config: 
         delay: onDuration,
         onComplete: () => {
           ctx.add(() => {
-            gsap.to(glow, { intensity: 0.02, duration: fadeDuration * 0.5 });
+            gsap.to(glowMat, { opacity: GLOW_SPRITE_DIM_OPACITY, duration: fadeDuration * 0.5 });
           });
         },
       });
@@ -101,7 +113,7 @@ export function startBlink(mat: MeshStandardMaterial, glow: PointLight, config: 
             duration: fadeDuration,
             ease: 'power2.out',
           });
-          gsap.to(glow, { intensity: 0.15, duration: fadeDuration });
+          gsap.to(glowMat, { opacity: GLOW_SPRITE_REST_OPACITY, duration: fadeDuration });
           gsap.delayedCall(fadeDuration + 0.1, blinkCycle);
         });
       });
@@ -115,15 +127,15 @@ export function startBlink(mat: MeshStandardMaterial, glow: PointLight, config: 
 }
 
 /**
- * Triggers a bright glow flash on a firefly, then fades back to resting intensity.
+ * Triggers a bright glow flash on a firefly, then fades back to resting opacity.
  * Called by the tap interaction handler.
  *
  * @param mat - The firefly mesh's standard material.
- * @param glow - The point light parented to the firefly.
+ * @param glowMat - The additive glow sprite's material.
  * @param glowColor - The firefly's glow color to flash.
  */
-export function triggerGlowFlash(mat: MeshStandardMaterial, glow: PointLight, glowColor: Color): void {
+export function triggerGlowFlash(mat: MeshStandardMaterial, glowMat: SpriteMaterial, glowColor: Color): void {
   mat.emissive.copy(glowColor);
-  glow.intensity = 0.4;
-  gsap.to(glow, { intensity: 0.15, duration: 0.6, ease: 'power2.out' });
+  glowMat.opacity = GLOW_SPRITE_FLASH_OPACITY;
+  gsap.to(glowMat, { opacity: GLOW_SPRITE_REST_OPACITY, duration: 0.6, ease: 'power2.out' });
 }

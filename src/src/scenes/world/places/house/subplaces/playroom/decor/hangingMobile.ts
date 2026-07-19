@@ -1,7 +1,7 @@
 import { Color, ConeGeometry, CylinderGeometry, Group, Mesh, SphereGeometry, TorusGeometry, type Scene } from 'three';
 import { createFeltMaterial, createGlossyPaintMaterial, createPlasticMaterial, createWoodMaterial } from '@app/utils/materialFactory';
 import { CEILING_Y } from '../layout';
-import gsap from 'gsap';
+import { getIdleAnimator } from '@app/utils/idle/registry';
 
 /**
  * Creates a hanging mobile attached to the ceiling by a string.
@@ -128,29 +128,12 @@ export function createHangingMobile(scene: Scene): void {
     cloudGroup.add(puff);
   });
 
-  // ── Slow rotation ──
-  gsap.to(pivot.rotation, {
-    y: Math.PI * 2,
-    duration: 25,
-    repeat: -1,
-    ease: 'none',
-  });
-
-  // ── Gentle sway ──
-  gsap.to(crossGroup.rotation, {
-    x: 0.04,
-    duration: 4,
-    repeat: -1,
-    yoyo: true,
-    ease: 'sine.inOut',
-  });
-  gsap.to(crossGroup.rotation, {
-    z: 0.03,
-    duration: 5.5,
-    repeat: -1,
-    yoyo: true,
-    ease: 'sine.inOut',
-  });
+  // Slow revolution + gentle two-axis sway, all killed on scene teardown.
+  // See architecture-standards.md#idleanimator.
+  const idle = getIdleAnimator(scene);
+  idle.spin(pivot, { axis: 'y', period: 25 });
+  idle.sway(crossGroup, { axis: 'x', amplitude: 0.04, period: 8 });
+  idle.sway(crossGroup, { axis: 'z', amplitude: 0.03, period: 11 });
 }
 
 /**

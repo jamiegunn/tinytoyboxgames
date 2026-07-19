@@ -2,7 +2,8 @@ import { Scene, Vector3 } from 'three';
 import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
 import { createTapInteraction } from '@app/utils/tapInteraction';
 import { playAnimation } from '@app/utils/animationHelpers';
-import { createBurstEffect, POLLEN_BURST } from '@app/utils/particleFactory';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import type { FlowerCreateResult } from './types';
 import { BLOOM_FRAME_BASE, BLOOM_FRAME_STAGGER, BLOOMED_PETAL_SCALE_X, BLOOMED_PETAL_SCALE_Y, BLOOMED_PETAL_SCALE_Z } from './constants';
 
@@ -32,6 +33,6 @@ export function setupFlowerTap(scene: Scene, dispatcher: WorldTapDispatcher, flo
       isOpen = true;
     }
 
-    createBurstEffect(scene, flower.tapTarget.getWorldPosition(new Vector3()), POLLEN_BURST);
+    getParticleEngine(scene).emit(PARTICLES.pollen, flower.tapTarget.getWorldPosition(new Vector3()));
   });
 }

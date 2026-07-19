@@ -1,6 +1,7 @@
 import { Scene, Vector3, type Mesh } from 'three';
 import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
-import { createSparkleBurst } from '@app/utils/particles';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import { createTapInteraction } from '@app/utils/tapInteraction';
 
 /**
@@ -13,6 +14,6 @@ import { createTapInteraction } from '@app/utils/tapInteraction';
  */
 export function setupLogTap(scene: Scene, dispatcher: WorldTapDispatcher, tapTarget: Mesh): () => void {
   return createTapInteraction(dispatcher, tapTarget, () => {
-    createSparkleBurst(scene, tapTarget.getWorldPosition(new Vector3()));
+    getParticleEngine(scene).emit(PARTICLES.sceneSparkle, tapTarget.getWorldPosition(new Vector3()));
   });
 }

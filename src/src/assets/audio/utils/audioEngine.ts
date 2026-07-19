@@ -13,6 +13,19 @@ const DUCK_ATTACK = 0.08;
 const DUCK_RELEASE = 0.4;
 const CROSSFADE_DURATION = 1.5;
 
+/** Base category levels. Music sits close enough to SFX to stay audible under taps. */
+const MUSIC_LEVEL = 0.35;
+const AMBIENT_LEVEL = 0.18;
+const SFX_LEVEL = 0.45;
+
+/** Reverb send levels per category (pre-fader sends into the shared convolver). */
+const MUSIC_REVERB_SEND = 0.35;
+const AMBIENT_REVERB_SEND = 0.12;
+const SFX_REVERB_SEND = 0.18;
+
+/** Generated impulse-response length in seconds. */
+const REVERB_TAIL_S = 1.8;
+
 interface ActiveSound {
   id: string;
   category: 'sfx' | 'music' | 'ambient';
@@ -39,20 +52,78 @@ export function initEngine(audioContext: AudioContext): void {
   if (ctx === audioContext) return;
   ctx = audioContext;
 
+  // Safety limiter: gentle bus compression protects small ears from
+  // stacked simultaneous events (celebration + music + ambient + taps).
+  const compressor = ctx.createDynamicsCompressor();
+  compressor.threshold.value = -14;
+  compressor.knee.value = 30;
+  compressor.ratio.value = 5;
+  compressor.attack.value = 0.003;
+  compressor.release.value = 0.25;
+  compressor.connect(ctx.destination);
+
   masterGain = ctx.createGain();
-  masterGain.connect(ctx.destination);
+  masterGain.connect(compressor);
 
   musicGain = ctx.createGain();
-  musicGain.gain.value = 0.25;
+  musicGain.gain.value = MUSIC_LEVEL;
   musicGain.connect(masterGain);
 
   ambientGain = ctx.createGain();
-  ambientGain.gain.value = 0.18;
+  ambientGain.gain.value = AMBIENT_LEVEL;
   ambientGain.connect(masterGain);
 
   sfxGain = ctx.createGain();
-  sfxGain.gain.value = 0.5;
+  sfxGain.gain.value = SFX_LEVEL;
   sfxGain.connect(masterGain);
+
+  // Shared generated-impulse reverb. One convolver fed by per-category sends
+  // gives every dry synth voice a soft, cohesive space at negligible cost.
+  try {
+    const convolver = ctx.createConvolver();
+    convolver.buffer = createReverbImpulse(ctx, REVERB_TAIL_S);
+    convolver.connect(masterGain);
+    connectReverbSend(musicGain, convolver, MUSIC_REVERB_SEND);
+    connectReverbSend(ambientGain, convolver, AMBIENT_REVERB_SEND);
+    connectReverbSend(sfxGain, convolver, SFX_REVERB_SEND);
+  } catch {
+    // Reverb is a polish layer — the app remains fully audible without it.
+  }
+}
+
+/**
+ * Connects a post-category reverb send into the shared convolver.
+ *
+ * @param source - The category gain node to tap.
+ * @param convolver - The shared ConvolverNode.
+ * @param level - Send level (0-1).
+ */
+function connectReverbSend(source: GainNode, convolver: ConvolverNode, level: number): void {
+  if (!ctx) return;
+  const send = ctx.createGain();
+  send.gain.value = level;
+  source.connect(send);
+  send.connect(convolver);
+}
+
+/**
+ * Generates a stereo exponentially-decaying noise impulse response.
+ *
+ * @param audioContext - The AudioContext used to allocate the buffer.
+ * @param seconds - Tail length in seconds.
+ * @returns A stereo AudioBuffer suitable for a ConvolverNode.
+ */
+function createReverbImpulse(audioContext: AudioContext, seconds: number): AudioBuffer {
+  const rate = audioContext.sampleRate;
+  const length = Math.ceil(rate * seconds);
+  const impulse = audioContext.createBuffer(2, length, rate);
+  for (let channel = 0; channel < 2; channel++) {
+    const data = impulse.getChannelData(channel);
+    for (let i = 0; i < length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.5);
+    }
+  }
+  return impulse;
 }
 
 /**
@@ -189,10 +260,33 @@ export function stopCategory(category: 'sfx' | 'music' | 'ambient'): void {
 export function duck(): void {
   if (!ctx || !musicGain || !ambientGain) return;
   const t = ctx.currentTime;
-  musicGain.gain.setTargetAtTime(0.25 * DUCK_AMOUNT, t, DUCK_ATTACK);
-  ambientGain.gain.setTargetAtTime(0.18 * DUCK_AMOUNT, t, DUCK_ATTACK);
-  musicGain.gain.setTargetAtTime(0.25, t + DUCK_ATTACK + 0.2, DUCK_RELEASE);
-  ambientGain.gain.setTargetAtTime(0.18, t + DUCK_ATTACK + 0.2, DUCK_RELEASE);
+  musicGain.gain.setTargetAtTime(MUSIC_LEVEL * DUCK_AMOUNT, t, DUCK_ATTACK);
+  ambientGain.gain.setTargetAtTime(AMBIENT_LEVEL * DUCK_AMOUNT, t, DUCK_ATTACK);
+  musicGain.gain.setTargetAtTime(MUSIC_LEVEL, t + DUCK_ATTACK + 0.2, DUCK_RELEASE);
+  ambientGain.gain.setTargetAtTime(AMBIENT_LEVEL, t + DUCK_ATTACK + 0.2, DUCK_RELEASE);
+}
+
+/**
+ * Fades the current music bed to silence and releases its fade gain.
+ * Unlike a bare stop, this also silences notes that were already scheduled
+ * into the audio graph (loops schedule a full cycle ahead, so up to several
+ * seconds of audio would otherwise keep ringing).
+ *
+ * @param fadeDuration - Fade-out duration in seconds.
+ */
+export function fadeOutMusic(fadeDuration = 0.8): void {
+  fadeOutAndDisconnect(currentMusicFadeGain, fadeDuration);
+  currentMusicFadeGain = null;
+}
+
+/**
+ * Fades the current ambient bed to silence and releases its fade gain.
+ *
+ * @param fadeDuration - Fade-out duration in seconds.
+ */
+export function fadeOutAmbient(fadeDuration = 0.8): void {
+  fadeOutAndDisconnect(currentAmbientFadeGain, fadeDuration);
+  currentAmbientFadeGain = null;
 }
 
 /**
@@ -206,16 +300,12 @@ export function crossfadeMusic(fadeDuration = CROSSFADE_DURATION): GainNode | nu
   if (!ctx || !musicGain) return null;
   const t = ctx.currentTime;
 
-  // Stop all tracked music and disconnect the old fade gain
+  // Stop all tracked music loops, then genuinely fade the old bed out.
+  // Notes already scheduled into the old fade gain ring out under the ramp
+  // instead of being cut by an instant disconnect (which clicks audibly).
   stopCategory('music');
-  if (currentMusicFadeGain) {
-    try {
-      currentMusicFadeGain.disconnect();
-    } catch {
-      /* already disconnected */
-    }
-    currentMusicFadeGain = null;
-  }
+  fadeOutAndDisconnect(currentMusicFadeGain, fadeDuration);
+  currentMusicFadeGain = null;
 
   // Create a sub-gain for the new music that fades in
   const fadeIn = ctx.createGain();
@@ -224,6 +314,38 @@ export function crossfadeMusic(fadeDuration = CROSSFADE_DURATION): GainNode | nu
   fadeIn.connect(musicGain);
   currentMusicFadeGain = fadeIn;
   return fadeIn;
+}
+
+/**
+ * Ramps an outgoing fade gain to silence, then disconnects it after the ramp.
+ *
+ * @param fadeGain - The outgoing gain node (may be null).
+ * @param fadeDuration - Fade-out duration in seconds.
+ */
+function fadeOutAndDisconnect(fadeGain: GainNode | null, fadeDuration: number): void {
+  if (!fadeGain || !ctx) return;
+  const t = ctx.currentTime;
+  try {
+    fadeGain.gain.cancelScheduledValues(t);
+    fadeGain.gain.setValueAtTime(fadeGain.gain.value, t);
+    fadeGain.gain.linearRampToValueAtTime(0, t + fadeDuration);
+    setTimeout(
+      () => {
+        try {
+          fadeGain.disconnect();
+        } catch {
+          /* already disconnected */
+        }
+      },
+      (fadeDuration + 0.1) * 1000,
+    );
+  } catch {
+    try {
+      fadeGain.disconnect();
+    } catch {
+      /* already disconnected */
+    }
+  }
 }
 
 /**
@@ -237,14 +359,8 @@ export function crossfadeAmbient(fadeDuration = CROSSFADE_DURATION): GainNode | 
   const t = ctx.currentTime;
 
   stopCategory('ambient');
-  if (currentAmbientFadeGain) {
-    try {
-      currentAmbientFadeGain.disconnect();
-    } catch {
-      /* already disconnected */
-    }
-    currentAmbientFadeGain = null;
-  }
+  fadeOutAndDisconnect(currentAmbientFadeGain, fadeDuration);
+  currentAmbientFadeGain = null;
 
   const fadeIn = ctx.createGain();
   fadeIn.gain.setValueAtTime(0, t);

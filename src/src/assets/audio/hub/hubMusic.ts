@@ -1,129 +1,145 @@
 /**
  * Hub background music module for the Whimsical Toybox World.
- * Procedurally generates a gentle music-box style lullaby via Web Audio synthesis — no audio files.
+ * Procedurally generates a gentle music-box lullaby via Web Audio synthesis — no audio files.
+ *
+ * Arrangement (three layers, per docs/ai-guidance/audio-standards.md):
+ * - Music-box melody in the C5 register where music boxes actually live.
+ * - Chord pad following a I-vi-IV-V progression with common-tone voicings.
+ * - Bass an octave below each chord root.
+ *
+ * The melody is a 4-phrase AABA tune that cadences properly (B4 leading tone
+ * resolving to C5 over G -> C), scheduled sample-accurately via the shared
+ * lookahead loop scheduler. Every other cycle drops the pad for variety.
  */
 
 import { midiToFreq } from '@app/assets/audio/utils/synthHelpers';
+import { startAudioLoop } from '@app/assets/audio/utils/loopScheduler';
+import { scheduleMusicBoxNote, schedulePadChord, scheduleBassNote } from '@app/assets/audio/utils/instruments';
 
-/** MIDI note numbers for C major scale notes used in the melody. */
-const C4 = 60;
-const D4 = 62;
-const E4 = 64;
-const G4 = 67;
-const A4 = 69;
+/** Base duration of one melody step in seconds. */
+const STEP_S = 0.4;
 
-/** Primary melody pattern (MIDI notes). */
-const MELODY_A: number[] = [C4, E4, G4, A4, G4, E4, C4, D4];
+/** Melody peak gain (soft background level; bus gain does the rest). */
+const MELODY_GAIN = 0.13;
 
-/** Variation melody pattern for alternating loops. */
-const MELODY_B: number[] = [E4, G4, A4, G4, E4, D4, C4, E4];
+/** Pad per-voice gain. */
+const PAD_GAIN = 0.045;
 
-/** Second variation for added interest. */
-const MELODY_C: number[] = [G4, E4, C4, D4, E4, G4, A4, G4];
-
-/** All melody patterns cycled through in order. */
-const MELODIES: number[][] = [MELODY_A, MELODY_B, MELODY_A, MELODY_C];
-
-/** Duration of each note in seconds. */
-const NOTE_DURATION_S = 0.35;
-
-/** Attack time per note in seconds (gentle fade-in). */
-const NOTE_ATTACK_S = 0.02;
-
-/** Release time per note in seconds (soft tail). */
-const NOTE_RELEASE_S = 0.2;
-
-/** Overall gain for the music (very soft for background). */
-const MASTER_GAIN = 0.15;
-
-/** Slight detuning in cents for the warmth oscillator. */
-const WARMTH_DETUNE_CENTS = 3;
-
-/** Total loop length in seconds (~8s for 4 patterns of 8 notes at 0.35s each, with a small gap). */
-const LOOP_INTERVAL_MS = NOTE_DURATION_S * 8 * MELODIES.length * 1000 + 200;
+/** Bass note gain. */
+const BASS_GAIN = 0.06;
 
 /**
- * Schedules a single music-box note with two layered oscillators for warmth.
- *
- * @param ctx - The Web Audio context
- * @param destination - The destination AudioNode to connect output to
- * @param frequency - Note frequency in Hz
- * @param startTime - Audio context time to start the note
- * @param masterGain - Peak gain level for the note
+ * One melodic phrase: MIDI notes plus per-note duration multipliers.
+ * The final note of each phrase is held for two steps to let it breathe.
  */
-function scheduleNote(ctx: AudioContext, destination: AudioNode, frequency: number, startTime: number, masterGain: number): void {
-  const totalDuration = NOTE_ATTACK_S + NOTE_RELEASE_S + 0.15;
-
-  // Primary oscillator — sine for pure music-box tone
-  const osc1 = ctx.createOscillator();
-  osc1.type = 'sine';
-  osc1.frequency.value = frequency;
-
-  const gain1 = ctx.createGain();
-  gain1.gain.setValueAtTime(0, startTime);
-  gain1.gain.linearRampToValueAtTime(masterGain, startTime + NOTE_ATTACK_S);
-  gain1.gain.exponentialRampToValueAtTime(0.001, startTime + NOTE_ATTACK_S + NOTE_RELEASE_S);
-
-  osc1.connect(gain1).connect(destination);
-  osc1.start(startTime);
-  osc1.stop(startTime + totalDuration);
-
-  // Warmth oscillator — triangle with slight detune
-  const osc2 = ctx.createOscillator();
-  osc2.type = 'triangle';
-  osc2.frequency.value = frequency;
-  osc2.detune.value = WARMTH_DETUNE_CENTS;
-
-  const gain2 = ctx.createGain();
-  gain2.gain.setValueAtTime(0, startTime);
-  gain2.gain.linearRampToValueAtTime(masterGain * 0.5, startTime + NOTE_ATTACK_S);
-  gain2.gain.exponentialRampToValueAtTime(0.001, startTime + NOTE_ATTACK_S + NOTE_RELEASE_S);
-
-  osc2.connect(gain2).connect(destination);
-  osc2.start(startTime);
-  osc2.stop(startTime + totalDuration);
+interface Phrase {
+  notes: number[];
+  beats: number[];
 }
 
+// MIDI reference: C5 = 72.
+const PHRASE_A: Phrase = {
+  notes: [72, 76, 79, 81, 79, 76, 74, 72],
+  beats: [1, 1, 1, 1, 1, 1, 1, 2],
+};
+
+const PHRASE_B: Phrase = {
+  notes: [76, 79, 81, 84, 81, 79, 76, 74],
+  beats: [1, 1, 1, 1, 1, 1, 1, 2],
+};
+
+/** Closing phrase: walks down to the leading tone and resolves home. */
+const PHRASE_A_CADENCE: Phrase = {
+  notes: [72, 76, 79, 81, 79, 74, 71, 72],
+  beats: [1, 1, 1, 1, 1, 1, 1, 2],
+};
+
+/** AABA form. */
+const PHRASES: Phrase[] = [PHRASE_A, PHRASE_A, PHRASE_B, PHRASE_A_CADENCE];
+
+/** Chord voicings (MIDI) — two chords per phrase, half a phrase each. */
+const PHRASE_CHORDS: Array<[number[], number[]]> = [
+  [
+    [60, 64, 67], // C
+    [57, 60, 64], // Am
+  ],
+  [
+    [53, 57, 60], // F
+    [55, 59, 62], // G
+  ],
+  [
+    [57, 60, 64], // Am
+    [53, 57, 60], // F
+  ],
+  [
+    [55, 59, 62], // G
+    [60, 64, 67], // C — resolution under the melodic cadence
+  ],
+];
+
 /**
- * Schedules one full cycle of the hub melody (all melody patterns back-to-back).
+ * Seconds in one phrase (sum of beats * step).
  *
- * @param ctx - The Web Audio context
- * @param destination - The destination AudioNode to connect output to
- * @param baseTime - Audio context time at which to begin the cycle
+ * @param phrase - The phrase whose duration to compute.
+ * @returns Phrase duration in seconds.
  */
-function scheduleMelodyCycle(ctx: AudioContext, destination: AudioNode, baseTime: number): void {
-  let offset = 0;
-  for (const melody of MELODIES) {
-    for (const note of melody) {
-      scheduleNote(ctx, destination, midiToFreq(note), baseTime + offset, MASTER_GAIN);
-      offset += NOTE_DURATION_S;
+function phraseSeconds(phrase: Phrase): number {
+  return phrase.beats.reduce((sum, b) => sum + b, 0) * STEP_S;
+}
+
+/** Total cycle length in seconds. */
+const CYCLE_S = PHRASES.reduce((sum, p) => sum + phraseSeconds(p), 0);
+
+/**
+ * Schedules one full AABA cycle: melody, pads, and bass.
+ *
+ * @param ctx - The Web Audio context.
+ * @param destination - The destination AudioNode.
+ * @param baseTime - Audio-clock time at which the cycle begins.
+ * @param withPad - Whether to include the pad/bass layers this cycle.
+ */
+function scheduleCycle(ctx: AudioContext, destination: AudioNode, baseTime: number, withPad: boolean): void {
+  let phraseStart = baseTime;
+
+  for (let p = 0; p < PHRASES.length; p++) {
+    const phrase = PHRASES[p];
+    const phraseDur = phraseSeconds(phrase);
+
+    // Harmony: two chords per phrase, each covering half the phrase.
+    if (withPad) {
+      const [chordA, chordB] = PHRASE_CHORDS[p];
+      schedulePadChord(ctx, destination, chordA, phraseStart, phraseDur / 2, { gain: PAD_GAIN });
+      schedulePadChord(ctx, destination, chordB, phraseStart + phraseDur / 2, phraseDur / 2, { gain: PAD_GAIN });
+      scheduleBassNote(ctx, destination, chordA[0] - 12, phraseStart, phraseDur / 2, BASS_GAIN);
+      scheduleBassNote(ctx, destination, chordB[0] - 12, phraseStart + phraseDur / 2, phraseDur / 2, BASS_GAIN);
     }
+
+    // Melody on top
+    let offset = 0;
+    for (let i = 0; i < phrase.notes.length; i++) {
+      const noteDur = phrase.beats[i] * STEP_S;
+      scheduleMusicBoxNote(ctx, destination, midiToFreq(phrase.notes[i]), phraseStart + offset, noteDur, MELODY_GAIN);
+      offset += noteDur;
+    }
+
+    phraseStart += phraseDur;
   }
 }
 
 /**
- * Plays a looping music-box style background melody for the Playroom Hub.
- * Uses sine and triangle oscillators with slight detuning for warmth.
- * The melody loops approximately every 8 seconds with gentle dynamics.
+ * Plays the looping music-box lullaby for the Playroom Hub.
+ * Sample-accurate looping via the shared lookahead scheduler; the pad and
+ * bass layers rest every other cycle so the piece breathes over time.
  *
  * @param ctx - The Web Audio context
  * @param destination - The destination AudioNode to connect output to
- * @returns A cleanup function that stops all oscillators and clears the loop interval
+ * @returns A cleanup function that stops the loop
  */
 export function playMusHubBackground(ctx: AudioContext, destination: AudioNode): () => void {
-  let stopped = false;
-
-  // Schedule the first cycle immediately
-  scheduleMelodyCycle(ctx, destination, ctx.currentTime + 0.05);
-
-  // Schedule subsequent cycles on a repeating interval
-  const intervalId = setInterval(() => {
-    if (stopped) return;
-    scheduleMelodyCycle(ctx, destination, ctx.currentTime + 0.05);
-  }, LOOP_INTERVAL_MS);
-
-  return () => {
-    stopped = true;
-    clearInterval(intervalId);
-  };
+  let cycleIndex = 0;
+  return startAudioLoop(ctx, CYCLE_S, (startTime) => {
+    const withPad = cycleIndex % 2 === 0;
+    scheduleCycle(ctx, destination, startTime, withPad);
+    cycleIndex++;
+  });
 }

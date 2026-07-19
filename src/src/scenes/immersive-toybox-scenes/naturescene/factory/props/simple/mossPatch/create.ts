@@ -1,4 +1,4 @@
-﻿import { CircleGeometry, Group, Mesh, type Material, type Scene } from 'three';
+import { CircleGeometry, Group, Mesh, type Material, type Scene } from 'three';
 import { seededRng, placementSeed } from '@app/utils/seededRng';
 import { createEntityRoot, type EntityPlacement } from '@scenes/immersive-toybox-scenes/naturescene/types';
 import { setEllipticalScatterPosition } from '@scenes/immersive-toybox-scenes/naturescene/factory/shared/scatter';

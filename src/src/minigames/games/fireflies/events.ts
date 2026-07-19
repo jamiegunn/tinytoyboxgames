@@ -1,5 +1,6 @@
 import { type Scene, Vector3, Sprite, SpriteMaterial, AdditiveBlending, CanvasTexture, Color } from 'three';
-import { createSparkleBurst } from '@app/minigames/shared/particleFx';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 
 // ── Shooting Star ────────────────────────────────────────────────────────────
 
@@ -125,7 +126,7 @@ export function createSurpriseEvents(scene: Scene): SurpriseEventController {
           star.active = false;
           star.sprite.visible = false;
           // Sparkle burst at the end point
-          createSparkleBurst(scene, star.endPos.clone(), new Color(0.8, 0.85, 1.0), 8);
+          getParticleEngine(scene).emit(PARTICLES.sparkle, star.endPos.clone(), { colors: [new Color(0.8, 0.85, 1.0)], count: 8 });
           continue;
         }
 

@@ -1,6 +1,7 @@
 import { Scene, Vector3, type Mesh } from 'three';
 import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
-import { createDustPuff } from '@app/utils/particles';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import { createRevealInteraction } from '@app/utils/revealInteraction';
 import { rand } from '@app/utils/randomHelpers';
 import type { StoneRevealHandle } from './types';
@@ -45,6 +46,6 @@ export function setupStoneTap(scene: Scene, dispatcher: WorldTapDispatcher, tapT
       { frame: 0, value: pos.clone() },
       { frame: GRUB_ESCAPE_END_FRAME, value: new Vector3(pos.x + GRUB_ESCAPE_OFFSET_X, pos.y, pos.z + GRUB_ESCAPE_OFFSET_Z) },
     ],
-    particleFn: createDustPuff,
+    particleFn: (s, p) => getParticleEngine(s).emit(PARTICLES.sceneDust, p),
   });
 }

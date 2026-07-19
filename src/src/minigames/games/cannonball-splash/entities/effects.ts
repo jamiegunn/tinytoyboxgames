@@ -43,6 +43,14 @@ const goldenSparkMat = makeMat('golden_spark', [1.0, 0.85, 0.3], { emissive: [1.
 
 // ── Target Explosion ────────────────────────────────────────────────────────
 
+/**
+ *
+ * @param scene
+ * @param position
+ * @param kind
+ * @param fragments
+ * @param splashParticles
+ */
 export function spawnTargetExplosion(scene: Scene, position: Vector3, kind: TargetKind, fragments: Fragment[], splashParticles: SplashParticle[]): void {
   const color = getTargetColor(kind);
   const isGlass = kind === 'bottle' || kind === 'rainbow-bottle';
@@ -87,6 +95,12 @@ export function spawnTargetExplosion(scene: Scene, position: Vector3, kind: Targ
 
 // ── Water Splash ────────────────────────────────────────────────────────────
 
+/**
+ *
+ * @param scene
+ * @param position
+ * @param splashParticles
+ */
 export function spawnWaterSplash(scene: Scene, position: Vector3, splashParticles: SplashParticle[]): void {
   for (let i = 0; i < C.SPLASH_PARTICLE_COUNT; i++) {
     const mesh = new Mesh(new SphereGeometry(randomRange(0.05, 0.12), 4, 3), splashMat);
@@ -154,6 +168,13 @@ function spawnSplashRing(scene: Scene, position: Vector3, maxRadius: number, dur
 
 // ── Muzzle Flash ────────────────────────────────────────────────────────────
 
+/**
+ *
+ * @param scene
+ * @param position
+ * @param direction
+ * @param splashParticles
+ */
 export function spawnMuzzleFlash(scene: Scene, position: Vector3, direction: Vector3, splashParticles: SplashParticle[]): void {
   for (let i = 0; i < C.MUZZLE_FLASH_COUNT; i++) {
     const mesh = new Mesh(new SphereGeometry(0.08, 4, 3), muzzleMat.clone());
@@ -176,6 +197,12 @@ export function spawnMuzzleFlash(scene: Scene, position: Vector3, direction: Vec
 
 // ── Golden Sparkle ──────────────────────────────────────────────────────────
 
+/**
+ *
+ * @param scene
+ * @param position
+ * @param splashParticles
+ */
 export function spawnGoldenSparkle(scene: Scene, position: Vector3, splashParticles: SplashParticle[]): void {
   for (let i = 0; i < C.GOLDEN_SPARKLE_COUNT; i++) {
     const mesh = new Mesh(new SphereGeometry(0.04, 4, 3), goldenSparkMat.clone());
@@ -196,6 +223,12 @@ export function spawnGoldenSparkle(scene: Scene, position: Vector3, splashPartic
 
 // ── Rainbow Ring ────────────────────────────────────────────────────────────
 
+/**
+ *
+ * @param scene
+ * @param position
+ * @param splashParticles
+ */
 export function spawnRainbowRing(scene: Scene, position: Vector3, splashParticles: SplashParticle[]): void {
   const rainbowMat = new MeshStandardMaterial({
     color: new Color().setHSL(0, 0.8, 0.55),
@@ -225,6 +258,12 @@ export function spawnRainbowRing(scene: Scene, position: Vector3, splashParticle
 
 // ── Trail Particle ──────────────────────────────────────────────────────────
 
+/**
+ *
+ * @param scene
+ * @param position
+ * @param splashParticles
+ */
 export function spawnTrailParticle(scene: Scene, position: Vector3, splashParticles: SplashParticle[]): void {
   const trailMatInst = new MeshStandardMaterial({
     color: new Color(0.4, 0.4, 0.4),
@@ -250,6 +289,11 @@ export function spawnTrailParticle(scene: Scene, position: Vector3, splashPartic
 
 // ── Ocean Sparkle (ambient) ─────────────────────────────────────────────────
 
+/**
+ *
+ * @param scene
+ * @param splashParticles
+ */
 export function spawnOceanSparkle(scene: Scene, splashParticles: SplashParticle[]): void {
   const x = randomRange(C.PLAY_X_MIN, C.PLAY_X_MAX);
   const z = randomRange(C.PLAY_Z_MIN, C.PLAY_Z_MAX);
@@ -271,6 +315,12 @@ export function spawnOceanSparkle(scene: Scene, splashParticles: SplashParticle[
 
 // ── Bonus Coins ─────────────────────────────────────────────────────────────
 
+/**
+ *
+ * @param scene
+ * @param position
+ * @param coins
+ */
 export function spawnBonusCoins(scene: Scene, position: Vector3, coins: BonusCoin[]): void {
   for (let i = 0; i < C.BONUS_COIN_COUNT; i++) {
     const mesh = new Mesh(new CylinderGeometry(0.1, 0.1, 0.02, 8), coinMat);
@@ -299,6 +349,9 @@ const scoreIndicatorMat = makeMat('score_indicator', [1.0, 0.85, 0.3], {
 /**
  * Spawns a small gold emissive mesh at hit position to indicate points earned.
  * Drifts upward and fades over 0.8s.
+ * @param scene
+ * @param position
+ * @param splashParticles
  */
 export function spawnScoreIndicator(scene: Scene, position: Vector3, splashParticles: SplashParticle[]): void {
   const indicatorMat = scoreIndicatorMat.clone();
@@ -319,7 +372,11 @@ export function spawnScoreIndicator(scene: Scene, position: Vector3, splashParti
 
 // ── Particle Update ─────────────────────────────────────────────────────────
 
-/** Updates all splash/effect particles, removes expired ones. */
+/**
+ * Updates all splash/effect particles, removes expired ones.
+ * @param particles
+ * @param dt
+ */
 export function updateParticles(particles: SplashParticle[], dt: number): void {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
@@ -388,7 +445,11 @@ export function updateParticles(particles: SplashParticle[], dt: number): void {
   }
 }
 
-/** Updates all fragment particles. */
+/**
+ * Updates all fragment particles.
+ * @param fragments
+ * @param dt
+ */
 export function updateFragments(fragments: Fragment[], dt: number): void {
   for (let i = fragments.length - 1; i >= 0; i--) {
     const f = fragments[i];
@@ -421,7 +482,13 @@ export function updateFragments(fragments: Fragment[], dt: number): void {
   }
 }
 
-/** Updates bonus coins (gravity + spin). */
+/**
+ * Updates bonus coins (gravity + spin).
+ * @param coins
+ * @param dt
+ * @param scene
+ * @param splashParticles
+ */
 export function updateCoins(coins: BonusCoin[], dt: number, scene: Scene, splashParticles: SplashParticle[]): void {
   for (let i = coins.length - 1; i >= 0; i--) {
     const c = coins[i];

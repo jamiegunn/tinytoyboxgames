@@ -31,9 +31,9 @@ export const PIRATE_COVE_ENVIRONMENT: PirateCoveEnvironmentConfig = {
   clearColor: new Color(0.05, 0.15, 0.25),
   lighting: {
     keyDirection: new Vector3(-0.4, -1, 0.5),
-    keyIntensity: 0.85,
-    keyColor: new Color(1.0, 0.9, 0.65),
-    fillIntensity: 0.4,
+    keyIntensity: 1.3,
+    keyColor: new Color(1.0, 0.9, 0.62),
+    fillIntensity: 0.26,
     fillColor: new Color(0.4, 0.6, 0.85),
     fillGroundColor: new Color(0.12, 0.1, 0.08),
     accentPosition: new Vector3(-2.0, 2.8, -1.5),

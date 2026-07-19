@@ -7,23 +7,43 @@
 import { Vector3 } from 'three';
 import { C, type Target, type TargetKind } from './types';
 
-/** Random number in [min, max). */
+/**
+ * Random number in [min, max).
+ * @param min - Inclusive lower bound.
+ * @param max - Exclusive upper bound.
+ * @returns A pseudo-random value between the two bounds.
+ */
 export function randomRange(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
-/** Clamps value to [0, 1]. */
+/**
+ * Clamps value to [0, 1].
+ * @param value - The value to clamp.
+ * @returns The value clamped to the [0, 1] range.
+ */
 export function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-/** Linear interpolation. */
+/**
+ * Linear interpolation.
+ * @param a - Start value at t = 0.
+ * @param b - End value at t = 1.
+ * @param t - Interpolation factor.
+ * @returns The interpolated value between a and b.
+ */
 export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
 /**
  * Evaluates the parametric arc position at time t ∈ [0, 1].
+ * @param start - Arc start point (launch position).
+ * @param end - Arc end point (impact position).
+ * @param arcHeight - Peak height added at the midpoint of the arc.
+ * @param t - Normalized flight time in [0, 1].
+ * @returns A new world-space position along the arc at time t.
  */
 export function computeArcPosition(start: Vector3, end: Vector3, arcHeight: number, t: number): Vector3 {
   return new Vector3(lerp(start.x, end.x, t), lerp(start.y, end.y, t) + arcHeight * 4 * t * (1 - t), lerp(start.z, end.z, t));
@@ -32,6 +52,8 @@ export function computeArcPosition(start: Vector3, end: Vector3, arcHeight: numb
 /**
  * Maps target z-depth to flight duration.
  * Near (z > -8) → 0.6s, Far (z < -14) → 1.0s, interpolated between.
+ * @param targetZ - The target's world z coordinate.
+ * @returns Flight duration in seconds.
  */
 export function computeFlightDuration(targetZ: number): number {
   const t = clamp01((targetZ - -8) / (-14 - -8));
@@ -41,6 +63,8 @@ export function computeFlightDuration(targetZ: number): number {
 /**
  * Maps target z-depth to arc height.
  * Near → 1.5, Far → 4.0.
+ * @param targetZ - The target's world z coordinate.
+ * @returns The arc peak height for a shot at that depth.
  */
 export function computeArcHeight(targetZ: number): number {
   const t = clamp01((targetZ - -8) / (-14 - -8));
@@ -49,6 +73,9 @@ export function computeArcHeight(targetZ: number): number {
 
 /**
  * Computes cannon aim angles toward a world point, with clamping.
+ * @param cannonPos - The cannon's world position.
+ * @param targetPos - The world point to aim at.
+ * @returns Clamped yaw (rotY) and pitch (rotX) angles in radians.
  */
 export function computeCannonAim(cannonPos: Vector3, targetPos: Vector3): { rotY: number; rotX: number } {
   const dx = targetPos.x - cannonPos.x;
@@ -64,7 +91,12 @@ export function computeCannonAim(cannonPos: Vector3, targetPos: Vector3): { rotY
   return { rotY, rotX };
 }
 
-/** Returns true if the point is inside the play area. */
+/**
+ * Returns true if the point is inside the play area.
+ * @param x - World x coordinate.
+ * @param z - World z coordinate.
+ * @returns True when the point lies within the play-area bounds.
+ */
 export function isInsidePlayArea(x: number, z: number): boolean {
   return x >= C.PLAY_X_MIN && x <= C.PLAY_X_MAX && z >= C.PLAY_Z_MIN && z <= C.PLAY_Z_MAX;
 }
@@ -72,6 +104,9 @@ export function isInsidePlayArea(x: number, z: number): boolean {
 /**
  * Generates a drift velocity for a newly spawned target.
  * Targets from the left drift right, and vice versa.
+ * @param spawnSide - Which edge the target spawned from.
+ * @param difficulty - Normalized difficulty in [0, 1].
+ * @returns Drift velocity components (vx toward the opposite side, small random vz).
  */
 export function randomDriftVector(spawnSide: 'left' | 'right', difficulty: number): { vx: number; vz: number } {
   const speed = lerp(C.DRIFT_SPEED_MIN, C.DRIFT_SPEED_MAX, difficulty);
@@ -82,6 +117,8 @@ export function randomDriftVector(spawnSide: 'left' | 'right', difficulty: numbe
 
 /**
  * Weighted random target kind selection based on difficulty.
+ * @param difficulty - Normalized difficulty in [0, 1].
+ * @returns A randomly chosen target kind ('barrel', 'bottle', or 'duck').
  */
 export function selectTargetKind(difficulty: number): TargetKind {
   const barrelWeight = lerp(80, 40, difficulty);
@@ -97,6 +134,10 @@ export function selectTargetKind(difficulty: number): TargetKind {
 /**
  * Finds the nearest active target within maxDist of a world point.
  * Returns the index into the targets array, or null if none found.
+ * @param targets - The pool of targets to search.
+ * @param worldPoint - The world point to measure from.
+ * @param maxDist - Maximum horizontal distance to consider.
+ * @returns Index of the nearest active target, or null when none is in range.
  */
 export function nearestTarget(targets: Target[], worldPoint: Vector3, maxDist: number): number | null {
   let bestIndex: number | null = null;
@@ -121,6 +162,8 @@ export function nearestTarget(targets: Target[], worldPoint: Vector3, maxDist: n
 
 /**
  * Computes the score value for a target kind.
+ * @param kind - The target kind to look up.
+ * @returns The point value awarded for hitting that kind.
  */
 export function scoreForKind(kind: TargetKind): number {
   switch (kind) {
@@ -139,19 +182,36 @@ export function scoreForKind(kind: TargetKind): number {
 
 /**
  * Returns interpolated values for difficulty-scaled parameters.
+ * @param difficulty - Normalized difficulty in [0, 1].
+ * @returns Maximum number of simultaneously active targets.
  */
 export function getSpawnCapacity(difficulty: number): number {
   return Math.round(lerp(C.MAX_TARGETS_MIN, C.MAX_TARGETS_MAX, difficulty));
 }
 
+/**
+ * Difficulty-scaled spawn interval.
+ * @param difficulty - Normalized difficulty in [0, 1].
+ * @returns Seconds between spawn attempts (shorter at higher difficulty).
+ */
 export function getSpawnInterval(difficulty: number): number {
   return lerp(C.SPAWN_INTERVAL_MAX, C.SPAWN_INTERVAL_MIN, difficulty);
 }
 
+/**
+ * Difficulty-scaled drift speed.
+ * @param difficulty - Normalized difficulty in [0, 1].
+ * @returns Target drift speed in world units per second.
+ */
 export function getDriftSpeed(difficulty: number): number {
   return lerp(C.DRIFT_SPEED_MIN, C.DRIFT_SPEED_MAX, difficulty);
 }
 
+/**
+ * Difficulty-scaled target scale.
+ * @param difficulty - Normalized difficulty in [0, 1].
+ * @returns Uniform scale factor applied to targets (smaller at higher difficulty).
+ */
 export function getTargetScale(difficulty: number): number {
   return lerp(C.TARGET_SCALE_MAX, C.TARGET_SCALE_MIN, difficulty);
 }

@@ -1,4 +1,4 @@
-﻿import type { ComposeContext } from '@scenes/immersive-toybox-scenes/naturescene/types';
+import type { ComposeContext } from '@scenes/immersive-toybox-scenes/naturescene/types';
 import { LOG_STAGING } from '@scenes/immersive-toybox-scenes/naturescene/staging/log';
 import type { DisposeFn } from '@scenes/immersive-toybox-scenes/naturescene/factory/composeHelpers';
 import { createLog } from './create';

@@ -1,4 +1,5 @@
-import { MeshStandardMaterial, Color, DoubleSide } from 'three';
+import { MeshStandardMaterial, MeshPhysicalMaterial, Color, DoubleSide } from 'three';
+import { applyProceduralSurface } from './proceduralSurface';
 
 /** Global material cache — prevents duplicate materials with the same name. */
 const materialCache = new Map<string, MeshStandardMaterial>();
@@ -37,7 +38,7 @@ export function clearMaterialCache(): void {
  * @returns A configured MeshStandardMaterial with metalness=0 and roughness=0.7.
  */
 export function createWoodMaterial(name: string, color: Color): MeshStandardMaterial {
-  return new MeshStandardMaterial({ name, color, metalness: 0, roughness: 0.7 });
+  return applyProceduralSurface(new MeshStandardMaterial({ name, color, metalness: 0, roughness: 0.7 }), 'wood');
 }
 
 /**
@@ -48,7 +49,7 @@ export function createWoodMaterial(name: string, color: Color): MeshStandardMate
  * @returns A configured MeshStandardMaterial with metalness=0 and roughness=0.95.
  */
 export function createFeltMaterial(name: string, color: Color): MeshStandardMaterial {
-  return new MeshStandardMaterial({ name, color, metalness: 0, roughness: 0.95 });
+  return applyProceduralSurface(new MeshStandardMaterial({ name, color, metalness: 0, roughness: 0.95 }), 'felt');
 }
 
 /**
@@ -59,7 +60,10 @@ export function createFeltMaterial(name: string, color: Color): MeshStandardMate
  * @returns A configured MeshStandardMaterial with metalness=0 and roughness=0.25.
  */
 export function createGlossyPaintMaterial(name: string, color: Color): MeshStandardMaterial {
-  return new MeshStandardMaterial({ name, color, metalness: 0, roughness: 0.25 });
+  // Physical clearcoat gives the "wet, candy-highlight" paint the soul asks for:
+  // a low-roughness clear layer over a tinted base catches a crisp specular pip.
+  const mat = new MeshPhysicalMaterial({ name, color, metalness: 0, roughness: 0.32, clearcoat: 0.7, clearcoatRoughness: 0.28 });
+  return applyProceduralSurface(mat, 'paint');
 }
 
 /**
@@ -70,7 +74,7 @@ export function createGlossyPaintMaterial(name: string, color: Color): MeshStand
  * @returns A configured MeshStandardMaterial with metalness=0 and roughness=0.35.
  */
 export function createPlasticMaterial(name: string, color: Color): MeshStandardMaterial {
-  return new MeshStandardMaterial({ name, color, metalness: 0, roughness: 0.35 });
+  return applyProceduralSurface(new MeshStandardMaterial({ name, color, metalness: 0, roughness: 0.35 }), 'plastic');
 }
 
 /**
@@ -81,7 +85,7 @@ export function createPlasticMaterial(name: string, color: Color): MeshStandardM
  * @returns A configured MeshStandardMaterial with metalness=0.35 and roughness=0.5.
  */
 export function createToyMetalMaterial(name: string, color: Color): MeshStandardMaterial {
-  return new MeshStandardMaterial({ name, color, metalness: 0.35, roughness: 0.5 });
+  return applyProceduralSurface(new MeshStandardMaterial({ name, color, metalness: 0.35, roughness: 0.5 }), 'metal');
 }
 
 /**
@@ -112,7 +116,7 @@ export function createTranslucentMaterial(name: string, color: Color, alpha = 0.
  * @returns A configured MeshStandardMaterial with metalness=0 and roughness=0.85.
  */
 export function createWovenMaterial(name: string, color: Color): MeshStandardMaterial {
-  return new MeshStandardMaterial({ name, color, metalness: 0, roughness: 0.85 });
+  return applyProceduralSurface(new MeshStandardMaterial({ name, color, metalness: 0, roughness: 0.85 }), 'woven');
 }
 
 /**
@@ -123,5 +127,5 @@ export function createWovenMaterial(name: string, color: Color): MeshStandardMat
  * @returns A configured MeshStandardMaterial with metalness=0 and roughness=0.6.
  */
 export function createPaperMaterial(name: string, color: Color): MeshStandardMaterial {
-  return new MeshStandardMaterial({ name, color, metalness: 0, roughness: 0.6 });
+  return applyProceduralSurface(new MeshStandardMaterial({ name, color, metalness: 0, roughness: 0.6 }), 'paper');
 }

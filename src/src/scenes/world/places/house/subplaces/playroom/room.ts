@@ -1,4 +1,6 @@
-import { createDustMotes } from '@app/utils/particles';
+import { Vector3 } from 'three';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES, DUST_MOTES_RATE } from '@app/utils/particles/presets';
 import { createDisposeCollector } from '@app/utils/sceneHelpers';
 import { createInteractiveToybox } from '@app/toyboxes/framework';
 import type { RoomBuildContext, RoomContentResult } from '@app/utils/roomSceneFactory';
@@ -16,6 +18,9 @@ import { createCritters } from './critters';
 import { createDecor } from './decor';
 import { spawnAnimalVisitors } from './critters/animalVisitors';
 
+/** Fixed room-centre emit point for ambient dust motes (matches the legacy origin emitter). */
+const MOTE_ORIGIN = new Vector3(0, 0, 0);
+
 /**
  * Builds the Playroom-authored contents on top of the shared room runtime.
  *
@@ -31,11 +36,14 @@ export function buildPlayroomContents(context: RoomBuildContext): RoomContentRes
   const { floor, rug } = createFloor(scene);
   createWainscoting(scene);
   createCloudWallpaper(scene);
-  createDoor(scene);
+  disposer.add(createDoor(scene, dispatcher, nav));
   createWallArt(scene);
 
-  const dustMotes = createDustMotes(scene);
-  disposer.add({ dispose: () => dustMotes.dispose() });
+  // Ambient warm dust motes drifting from the room-centre origin. The shared
+  // batch is freed by SceneFrame's disposal scope; we only stop the stream.
+  // See architecture-standards.md#particleengine.
+  const dustMotes = getParticleEngine(scene).stream(PARTICLES.dustMotes, () => MOTE_ORIGIN, DUST_MOTES_RATE);
+  disposer.add({ dispose: () => dustMotes.stop() });
 
   createBookshelf(scene, keyLight);
   createFloorToys(scene, keyLight);

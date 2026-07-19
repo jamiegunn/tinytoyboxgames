@@ -1,4 +1,4 @@
-﻿import { ConeGeometry, Group, Mesh, type Material, type Scene } from 'three';
+import { ConeGeometry, Group, Mesh, type Material, type Scene } from 'three';
 import { seededRng, placementSeed } from '@app/utils/seededRng';
 import { createEntityRoot, type EntityPlacement } from '@scenes/immersive-toybox-scenes/naturescene/types';
 import { randomFullRotation, setEllipticalScatterPosition } from '@scenes/immersive-toybox-scenes/naturescene/factory/shared/scatter';

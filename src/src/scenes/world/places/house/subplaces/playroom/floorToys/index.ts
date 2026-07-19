@@ -9,6 +9,7 @@ import { createRubberDuck } from './rubberDuck';
 import { createToyTrain } from './toyTrain';
 import { createPaperAirplane } from './paperAirplane';
 import { createFloorBooks } from './floorBooks';
+import { createWebSlinger } from './webSlinger';
 
 /**
  * Creates all scattered floor toys in the playroom scene.
@@ -26,4 +27,5 @@ export function createFloorToys(scene: Scene, keyLight: DirectionalLight): void 
   createToyTrain(scene, keyLight);
   createPaperAirplane(scene, keyLight);
   createFloorBooks(scene, keyLight);
+  createWebSlinger(scene, keyLight);
 }

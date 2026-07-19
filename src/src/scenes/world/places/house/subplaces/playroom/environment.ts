@@ -9,9 +9,9 @@ export const PLAYROOM_ENVIRONMENT: RoomEnvironmentConfig = {
   clearColor: new Color(0.12, 0.15, 0.22),
   lighting: {
     keyDirection: new Vector3(-0.5, -0.8, 0.3),
-    keyIntensity: 1.0,
-    keyColor: new Color(1.0, 0.92, 0.75),
-    fillIntensity: 0.55,
+    keyIntensity: 1.4,
+    keyColor: new Color(1.0, 0.9, 0.72),
+    fillIntensity: 0.3,
     fillColor: new Color(0.9, 0.92, 1.0),
     accentPosition: new Vector3(0, 4, -5),
     accentIntensity: 0.3,

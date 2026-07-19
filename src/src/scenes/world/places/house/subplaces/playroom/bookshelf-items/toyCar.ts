@@ -2,6 +2,7 @@ import { BoxGeometry, Color, CylinderGeometry, MeshBasicMaterial, Mesh, SphereGe
 import { createGlossyPaintMaterial, createPlasticMaterial } from '@app/utils/materialFactory';
 import { triggerSound } from '@app/assets/audio/sceneBridge';
 import gsap from 'gsap';
+import { getIdleAnimator } from '@app/utils/idle/registry';
 
 /**
  * Creates a toy car on the bottom shelf of the bookshelf. Clicks to drive around the back of the room.
@@ -81,7 +82,10 @@ export function createToyCar(scene: Scene): void {
     });
   };
 
-  const exhaustTimer = gsap.to({}, { duration: 0.5, repeat: -1, paused: true, onRepeat: emitPuff, onStart: emitPuff });
+  // Registered so the looping timers/loops are killed on scene teardown (this
+  // builder returns void). See architecture-standards.md#idleanimator.
+  const idle = getIdleAnimator(scene);
+  const exhaustTimer = idle.register(gsap.to({}, { duration: 0.5, repeat: -1, paused: true, onRepeat: emitPuff, onStart: emitPuff }));
 
   // Invisible hitbox — the car is small, so a larger clickable area helps
   const hitbox = new Mesh(new BoxGeometry(0.3, 0.15, 0.15), new MeshBasicMaterial({ visible: false }));
@@ -121,7 +125,7 @@ export function createToyCar(scene: Scene): void {
     tl.to(carBody.rotation, { y: Math.PI, duration: 0.3, ease: 'power2.inOut' });
 
     tl.call(() => {
-      const cruiseTl = gsap.timeline({ repeat: -1 });
+      const cruiseTl = idle.register(gsap.timeline({ repeat: -1 }));
 
       // Drive left (-X)
       cruiseTl.to(carBody.position, { x: leftX, duration: 3, ease: 'sine.inOut' });

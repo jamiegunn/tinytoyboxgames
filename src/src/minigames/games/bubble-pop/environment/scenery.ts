@@ -69,14 +69,15 @@ export function buildMoon(scene: Scene): Mesh {
  * @returns A StarMesh with twinkle parameters.
  */
 export function buildStar(scene: Scene, index: number): StarMesh {
-  const size = 0.04 + Math.random() * 0.08;
-  const geo = new SphereGeometry(size / 2, 6, 6);
+  // Sized for the sky-rig depth (~14-20 units) so stars stay visible as dots.
+  const size = 0.12 + Math.random() * 0.18;
+  const geo = new SphereGeometry(size / 2, 8, 8);
 
   const warmth = Math.random();
   const coldColor = new Color(0.8, 0.85, 1.0);
   const warmColor = new Color(1.0, 0.95, 0.7);
   const color = coldColor.clone().lerp(warmColor, warmth);
-  const baseIntensity = 0.3 + Math.random() * 0.5;
+  const baseIntensity = 0.6 + Math.random() * 0.5;
 
   const mat = new MeshStandardMaterial({
     color: color.clone(),

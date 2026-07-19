@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Tiny Toybox Games — a warm little toy chest with a sparkle -->
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#f7e8d4"/>
+  <!-- chest body -->
+  <rect x="14" y="30" width="36" height="20" rx="4" fill="#c0392b"/>
+  <rect x="14" y="30" width="36" height="4" fill="#96281b"/>
+  <!-- chest lid (slightly open) -->
+  <path d="M13 28 Q13 18 32 18 Q51 18 51 28 L51 30 L13 30 Z" fill="#e74c3c"/>
+  <!-- clasp -->
+  <rect x="29" y="28" width="6" height="8" rx="2" fill="#f1c40f"/>
+  <!-- sparkle peeking out -->
+  <g fill="#ffd966">
+    <path d="M32 6 L33.8 11.2 L39 13 L33.8 14.8 L32 20 L30.2 14.8 L25 13 L30.2 11.2 Z"/>
+    <circle cx="45" cy="12" r="2"/>
+    <circle cx="20" cy="10" r="1.5"/>
+  </g>
+</svg>

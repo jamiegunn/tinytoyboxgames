@@ -1,4 +1,4 @@
-﻿import type { ComposeContext } from '@scenes/immersive-toybox-scenes/naturescene/types';
+import type { ComposeContext } from '@scenes/immersive-toybox-scenes/naturescene/types';
 import { MUSHROOM_STAGING } from '@scenes/immersive-toybox-scenes/naturescene/staging/mushrooms';
 import { composeInteractiveCollection, type DisposeFn } from '@scenes/immersive-toybox-scenes/naturescene/factory/composeHelpers';
 import { createMushroom } from './create';

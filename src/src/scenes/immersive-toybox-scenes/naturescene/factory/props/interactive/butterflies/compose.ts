@@ -1,4 +1,4 @@
-﻿import type { ComposeContext } from '@scenes/immersive-toybox-scenes/naturescene/types';
+import type { ComposeContext } from '@scenes/immersive-toybox-scenes/naturescene/types';
 import { BUTTERFLY_STAGING } from '@scenes/immersive-toybox-scenes/naturescene/staging/butterflies';
 import { composeInteractiveCollection, type DisposeFn } from '@scenes/immersive-toybox-scenes/naturescene/factory/composeHelpers';
 import { createButterfly } from './create';

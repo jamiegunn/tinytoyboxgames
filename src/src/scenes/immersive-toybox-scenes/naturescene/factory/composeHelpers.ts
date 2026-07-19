@@ -1,4 +1,4 @@
-﻿import type { Scene } from 'three';
+import type { Scene } from 'three';
 import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
 import type { ComposeContext } from '@scenes/immersive-toybox-scenes/naturescene/types';
 

@@ -1,4 +1,4 @@
-﻿import { Scene, Mesh, SphereGeometry, CylinderGeometry, type Material } from 'three';
+import { Scene, Mesh, SphereGeometry, CylinderGeometry, type Material } from 'three';
 import { createEntityRoot, type EntityPlacement } from '@scenes/immersive-toybox-scenes/naturescene/types';
 import type { StoneBuildOptions, StoneCreateResult, StoneRevealHandle } from './types';
 import { STONE_RADIUS, STONE_SCALE_X, STONE_SCALE_Y, STONE_SCALE_Z, STONE_Y, GRUB_TOP_RADIUS, GRUB_BOTTOM_RADIUS, GRUB_HEIGHT } from './constants';

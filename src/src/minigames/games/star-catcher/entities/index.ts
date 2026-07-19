@@ -7,9 +7,44 @@
  * turning `index.ts` into a geometry file.
  */
 
-import { Color, IcosahedronGeometry, Mesh, MeshStandardMaterial, Scene } from 'three';
+import { Color, ExtrudeGeometry, Mesh, MeshStandardMaterial, Scene, Shape } from 'three';
 import { randomRange } from '../helpers';
 import type { TemplateTargetKind, TemplateTargetState } from '../types';
+
+/**
+ * Builds a rounded five-point star geometry centred on the origin, lying in
+ * the XY plane so it faces the camera and twirls face-on.
+ *
+ * @returns An extruded, centred five-point star geometry.
+ */
+function buildStarGeometry(): ExtrudeGeometry {
+  const outer = 0.34;
+  const inner = 0.15;
+  const points = 5;
+  const shape = new Shape();
+  for (let i = 0; i < points * 2; i += 1) {
+    const radius = i % 2 === 0 ? outer : inner;
+    const angle = (i / (points * 2)) * Math.PI * 2 + Math.PI / 2;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    if (i === 0) {
+      shape.moveTo(x, y);
+    } else {
+      shape.lineTo(x, y);
+    }
+  }
+  shape.closePath();
+
+  const geometry = new ExtrudeGeometry(shape, {
+    depth: 0.07,
+    bevelEnabled: true,
+    bevelThickness: 0.03,
+    bevelSize: 0.03,
+    bevelSegments: 2,
+  });
+  geometry.center();
+  return geometry;
+}
 
 /**
  * Creates a pooled target entity and adds it to the shared scene.
@@ -19,17 +54,19 @@ import type { TemplateTargetKind, TemplateTargetState } from '../types';
  */
 export function createTarget(scene: Scene): TemplateTargetState {
   const material = new MeshStandardMaterial({
-    color: new Color(0.82, 0.92, 1),
-    emissive: new Color(0.14, 0.2, 0.32),
-    roughness: 0.4,
-    metalness: 0.12,
+    color: new Color(1, 0.95, 0.72),
+    emissive: new Color(1, 0.86, 0.5),
+    emissiveIntensity: 1.6,
+    roughness: 0.35,
+    metalness: 0.05,
   });
   material.name = 'star-catcher_targetMat';
 
-  const mesh = new Mesh(new IcosahedronGeometry(0.28, 0), material);
+  const mesh = new Mesh(buildStarGeometry(), material);
   mesh.name = 'star-catcher_target';
   mesh.visible = false;
-  mesh.castShadow = true;
+  // Glowing stars don't cast hard shadows — that read as dirt smudges.
+  mesh.castShadow = false;
   scene.add(mesh);
 
   return {
@@ -70,11 +107,15 @@ export function activateTarget(target: TemplateTargetState, kind: TemplateTarget
 
   const material = target.mesh.material as MeshStandardMaterial;
   if (kind === 'bonus') {
-    material.color.setRGB(1, 0.82, 0.42);
-    material.emissive.setRGB(0.32, 0.18, 0.04);
+    // Bright golden hero star.
+    material.color.setRGB(1, 0.8, 0.32);
+    material.emissive.setRGB(1, 0.72, 0.28);
+    material.emissiveIntensity = 2.2;
   } else {
-    material.color.setRGB(0.82, 0.92, 1);
-    material.emissive.setRGB(0.14, 0.2, 0.32);
+    // Warm cream-gold star.
+    material.color.setRGB(1, 0.95, 0.72);
+    material.emissive.setRGB(1, 0.86, 0.5);
+    material.emissiveIntensity = 1.6;
   }
 }
 
@@ -91,12 +132,12 @@ export function updateTargetMotion(target: TemplateTargetState, elapsedTime: num
   target.lifetimeRemaining -= deltaTime;
   target.mesh.position.y += target.driftSpeed * deltaTime * 0.22;
   target.mesh.position.x += Math.sin(elapsedTime * 1.6 + target.bobPhase) * deltaTime * 0.18;
-  target.mesh.rotation.y += target.rotationSpeed * deltaTime;
-  target.mesh.rotation.x += target.rotationSpeed * 0.45 * deltaTime;
+  // Twirl in the view plane (Z) so the star face never turns edge-on.
+  target.mesh.rotation.z += target.rotationSpeed * deltaTime;
 
   const material = target.mesh.material as MeshStandardMaterial;
-  const pulse = 0.7 + Math.sin(elapsedTime * 3 + target.bobPhase) * 0.3;
-  material.emissiveIntensity = target.kind === 'bonus' ? 1 + pulse * 0.6 : 0.7 + pulse * 0.35;
+  const pulse = 0.5 + (Math.sin(elapsedTime * 3 + target.bobPhase) * 0.5 + 0.5) * 0.5;
+  material.emissiveIntensity = target.kind === 'bonus' ? 2.0 + pulse : 1.4 + pulse;
 }
 
 /**

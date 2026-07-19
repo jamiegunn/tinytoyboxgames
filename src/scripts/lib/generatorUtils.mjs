@@ -34,16 +34,22 @@ export function validateDisplayName(displayName) {
  * @param {string} targetDir - Output directory for the generated scene.
  * @param {Record<string, string>} replacements - Placeholder replacement map.
  * @param {string[]} createdFiles - Mutable list used for reporting.
- * @param {{ skipFiles?: string[], renameMap?: Record<string, string> }} [options] - Optional copy options.
+ * @param {{ skipFiles?: string[], renameMap?: Record<string, string>, depth?: number }} [options] - Optional copy
+ *   options. `skipFiles` only applies to entries at the top level of the template
+ *   (depth 0); identically named files in subdirectories are still copied.
+ *   `depth` is internal recursion state and should not be set by callers.
  */
 export async function copyTemplateDirectory(sourceDir, targetDir, replacements, createdFiles, options = {}) {
-  const { skipFiles = [], renameMap = {} } = options;
+  const { skipFiles = [], renameMap = {}, depth = 0 } = options;
 
   await fs.mkdir(targetDir, { recursive: true });
   const entries = await fs.readdir(sourceDir, { withFileTypes: true });
 
   for (const entry of entries) {
-    if (skipFiles.includes(entry.name)) {
+    // Skip-list entries are template-root-only on purpose: they exist to hold
+    // back template-side files (like a template README) without hiding
+    // same-named files that belong inside generated subfolders.
+    if (depth === 0 && skipFiles.includes(entry.name)) {
       continue;
     }
 
@@ -52,7 +58,7 @@ export async function copyTemplateDirectory(sourceDir, targetDir, replacements, 
     const targetPath = path.join(targetDir, outputName);
 
     if (entry.isDirectory()) {
-      await copyTemplateDirectory(sourcePath, targetPath, replacements, createdFiles, { renameMap });
+      await copyTemplateDirectory(sourcePath, targetPath, replacements, createdFiles, { skipFiles, renameMap, depth: depth + 1 });
       continue;
     }
 

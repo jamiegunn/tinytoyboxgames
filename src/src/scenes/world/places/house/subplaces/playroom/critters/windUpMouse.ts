@@ -1,6 +1,7 @@
 import { BoxGeometry, CircleGeometry, Color, CylinderGeometry, Group, Mesh, PlaneGeometry, SphereGeometry, type DirectionalLight, type Scene } from 'three';
 import { createFeltMaterial, createGlossyPaintMaterial, createToyMetalMaterial } from '@app/utils/materialFactory';
 import gsap from 'gsap';
+import { getIdleAnimator } from '@app/utils/idle/registry';
 
 /**
  * Creates an animated wind-up mouse that scurries around the floor.
@@ -130,8 +131,10 @@ export function createWindUpMouse(scene: Scene, _keyLight: DirectionalLight): vo
     body.add(backFoot);
   });
 
-  // Scurry animation — position (animate the root group, keep Y=0.06 above rug)
-  const scurryTimeline = gsap.timeline({ repeat: -1 });
+  // Scurry animation — position (animate the root group, keep Y=0.06 above rug).
+  // Registered so the loop is killed on teardown. See architecture-standards.md#idleanimator.
+  const idle = getIdleAnimator(scene);
+  const scurryTimeline = idle.register(gsap.timeline({ repeat: -1 }));
   scurryTimeline.to(root.position, {
     x: -1.5,
     y: 0.06,
@@ -162,7 +165,7 @@ export function createWindUpMouse(scene: Scene, _keyLight: DirectionalLight): vo
   });
 
   // Scurry animation — rotation
-  const rotTimeline = gsap.timeline({ repeat: -1 });
+  const rotTimeline = idle.register(gsap.timeline({ repeat: -1 }));
   rotTimeline.to(root.rotation, { y: -0.3, duration: 90 / 60, ease: 'power1.inOut' });
   rotTimeline.to(root.rotation, { y: -0.8, duration: 90 / 60, ease: 'power1.inOut' });
   rotTimeline.to(root.rotation, { y: -0.8, duration: 60 / 60, ease: 'none' });

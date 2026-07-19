@@ -6,4 +6,6 @@ export interface FireflyCreateResult {
   instances: FireflyInstance[];
   /** Kills all firefly drift and blink tween chains (including delayedCalls). */
   killAnimations: () => void;
+  /** Disposes the per-firefly glow sprite materials (meshes/geometry are handled by scene disposal). */
+  dispose: () => void;
 }

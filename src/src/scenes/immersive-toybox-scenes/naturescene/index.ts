@@ -1,9 +1,10 @@
-import { type Camera, type Scene } from 'three';
+import { Fog, Vector3, type Camera, type Scene } from 'three';
 import type { NavigationActions } from '@app/types/scenes';
 import { createWorldScene } from '@app/utils/worldSceneFactory';
 import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
 import { buildSceneBase, createDisposeCollector } from '@app/utils/sceneHelpers';
-import { GLOW_SPORES, createContinuousEffect } from '@app/utils/particleFactory';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES, GLOW_SPORES_RATE } from '@app/utils/particles/presets';
 import { createNatureMaterials } from './materials';
 import { NATURE_ENVIRONMENT } from './environment';
 import type { ComposeContext } from './types';
@@ -26,6 +27,9 @@ import { composeTrees } from './factory/props/complex/trees';
 import { createSkyBackdrop } from './factory/scaffold/skyBackdrop';
 import { createToyboxWalls } from './factory/scaffold/toyboxWalls';
 import { createFireflies, FIREFLY_CONFIG, setupFireflyTap } from './factory/systems/fireflies';
+
+/** Fixed forest-floor emit point for ambient spores (matches the legacy origin emitter). */
+const SPORE_ORIGIN = new Vector3(0, 0, 0);
 
 /**
  * Creates the Nature toybox interior world scene: a forest-floor diorama
@@ -84,28 +88,34 @@ export function createScene(scene: Scene, canvas: HTMLCanvasElement, nav: Naviga
         disposer.add({ dispose: compose(ctx) });
       });
 
-      // Continuous particle effect
-      const sporeSystem = createContinuousEffect(sc, GLOW_SPORES);
-      disposer.add({
-        dispose: () => {
-          sporeSystem.stop();
-          sporeSystem.dispose();
-        },
-      });
+      // Continuous ambient spores drifting up from the forest-floor origin.
+      // The shared batch is freed by SceneFrame's disposal scope; we only stop
+      // the stream here. See architecture-standards.md#particleengine.
+      const spores = getParticleEngine(sc).stream(PARTICLES.glowSpores, () => SPORE_ORIGIN, GLOW_SPORES_RATE);
+      disposer.add({ dispose: () => spores.stop() });
 
       // Firefly system
-      const { instances: fireflyInstances, killAnimations } = createFireflies(sc, FIREFLY_CONFIG);
+      const { instances: fireflyInstances, killAnimations, dispose: disposeFireflies } = createFireflies(sc, FIREFLY_CONFIG);
       const fireflyCleanup = setupFireflyTap(sc, dispatcher, fireflyInstances);
       disposer.add({ dispose: fireflyCleanup });
       disposer.add({ dispose: killAnimations });
+      disposer.add({ dispose: disposeFireflies });
 
       return forestFloor;
     },
   });
 
+  // Gentle depth fog matched to the clear colour: the camera orbits ~10 units
+  // out, so fog starts beyond the tabletop play area and only softens the
+  // toybox walls and sky backdrop into the background.
+  scene.fog = new Fog(NATURE_ENVIRONMENT.clearColor.clone(), 14, 30);
+
   return {
     cameraHandle: result.cameraHandle,
     dispose: () => {
+      // SceneFrame reuses one Scene object across scene switches — clear the
+      // fog here so it never bleeds into the next scene.
+      scene.fog = null;
       disposer.disposeAll();
       result.dispose();
     },

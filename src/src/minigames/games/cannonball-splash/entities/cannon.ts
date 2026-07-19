@@ -9,7 +9,11 @@ import type { CannonRig } from '../types';
 import { C } from '../types';
 import { computeCannonAim, lerp } from '../helpers';
 
-/** Aim the cannon barrel toward a world point (sets target for smooth lerp). */
+/**
+ * Aim the cannon barrel toward a world point (sets target for smooth lerp).
+ * @param rig
+ * @param targetWorldPos
+ */
 export function aimCannon(rig: CannonRig, targetWorldPos: Vector3): void {
   const cannonPos = new Vector3(C.CANNON_X, C.CANNON_Y, C.CANNON_Z);
   const { rotY, rotX } = computeCannonAim(cannonPos, targetWorldPos);
@@ -17,12 +21,20 @@ export function aimCannon(rig: CannonRig, targetWorldPos: Vector3): void {
   rig.aimPitch = rotX;
 }
 
-/** Triggers the fire recoil animation. */
+/**
+ * Triggers the fire recoil animation.
+ * @param rig
+ */
 export function fireCannonAnimation(rig: CannonRig): void {
   rig.recoilTimer = C.RECOIL_DURATION;
 }
 
-/** Updates the cannon's idle breathing and recoil recovery. */
+/**
+ * Updates the cannon's idle breathing and recoil recovery.
+ * @param rig
+ * @param dt
+ * @param elapsedTime
+ */
 export function updateCannonIdle(rig: CannonRig, dt: number, elapsedTime: number): void {
   rig.idlePhase = elapsedTime;
 
@@ -70,7 +82,11 @@ export function updateCannonIdle(rig: CannonRig, dt: number, elapsedTime: number
   }
 }
 
-/** Returns the world position of the cannon barrel mouth (fire point). */
+/**
+ * Returns the world position of the cannon barrel mouth (fire point).
+ * @param rig - The cannon rig whose barrel to sample.
+ * @returns A new world-space position at the barrel mouth.
+ */
 export function getCannonMouthPosition(rig: CannonRig): Vector3 {
   const worldPos = new Vector3(0, 0, -1.2);
   rig.barrelGroup.localToWorld(worldPos);

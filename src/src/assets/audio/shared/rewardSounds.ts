@@ -3,7 +3,7 @@
  * All sounds are procedurally generated via Web Audio — no audio files.
  */
 
-import { playTone, rand } from '@app/assets/audio/utils/synthHelpers';
+import { playTone, rand, midiToFreq, pentatonicScale } from '@app/assets/audio/utils/synthHelpers';
 
 /** Minimum fade-in time in seconds to avoid clicks (per spec). */
 const MIN_ATTACK_S = 0.005;
@@ -15,10 +15,17 @@ const SPARKLE_STAGGER_S = 0.05;
 const SPARKLE_TONE_COUNT = 4;
 
 /**
+ * Sparkle note pool: C major pentatonic across C6-C7. Quantizing the burst to
+ * a scale keeps the game's most-played reward sound consonant with every
+ * scene's music instead of producing a random inharmonic cluster.
+ */
+const SPARKLE_FREQS: number[] = [...pentatonicScale(84), 96].map((midi) => midiToFreq(midi));
+
+/**
  * Plays a delightful sparkle burst for triumph/delight moments.
- * Duration: 0.4–0.6s. Layers 3–4 quick high-frequency sine tones with
- * staggered start times for a cascading sparkle effect.
- * Includes 3 variations through frequency randomization.
+ * Duration: 0.4–0.6s. Layers quick high sine tones with staggered start
+ * times for a cascading sparkle effect. Notes are drawn from a pentatonic
+ * pool and always cascade upward, so every burst is musical.
  *
  * @param ctx - The Web Audio context
  * @param dest - The destination AudioNode to connect output to
@@ -29,12 +36,10 @@ export function playSfxSharedSparkleBurst(ctx: AudioContext, dest: AudioNode): v
   const release = 0.15;
   const gain = 0.12;
 
-  // Frequency range for sparkle tones: 1200–2400Hz
-  const freqMin = 1200;
-  const freqMax = 2400;
-
+  // Ascending run: random starting degree, then upward through the pool.
+  const startIndex = Math.floor(rand(0, SPARKLE_FREQS.length - SPARKLE_TONE_COUNT + 1));
   for (let i = 0; i < SPARKLE_TONE_COUNT; i++) {
-    const freq = rand(freqMin, freqMax);
+    const freq = SPARKLE_FREQS[Math.min(startIndex + i, SPARKLE_FREQS.length - 1)];
     const startOffset = i * SPARKLE_STAGGER_S;
     playTone(ctx, dest, 'sine', freq, attack, release, gain, now + startOffset);
   }
@@ -50,7 +55,9 @@ export function playSfxSharedSparkleBurst(ctx: AudioContext, dest: AudioNode): v
  */
 export function playSfxSharedStarChime(ctx: AudioContext, dest: AudioNode): void {
   const now = ctx.currentTime;
-  const baseFreq = 1000 + rand(-50, 50);
+  // Root drawn from C major triad tones (C6/E6/G6) so chimes always harmonize.
+  const triadMidi = [84, 88, 91];
+  const baseFreq = midiToFreq(triadMidi[Math.floor(rand(0, triadMidi.length))]);
   const attack = MIN_ATTACK_S;
   const release = 0.35;
 

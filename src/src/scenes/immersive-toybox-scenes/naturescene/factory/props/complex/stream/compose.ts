@@ -1,4 +1,4 @@
-﻿import type { ComposeContext } from '@scenes/immersive-toybox-scenes/naturescene/types';
+import type { ComposeContext } from '@scenes/immersive-toybox-scenes/naturescene/types';
 import { STREAM_STAGING } from '@scenes/immersive-toybox-scenes/naturescene/staging/stream';
 import type { DisposeFn } from '@scenes/immersive-toybox-scenes/naturescene/factory/composeHelpers';
 import { createStream } from './create';

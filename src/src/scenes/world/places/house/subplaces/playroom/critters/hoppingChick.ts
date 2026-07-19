@@ -1,6 +1,7 @@
 import { CircleGeometry, Color, CylinderGeometry, Mesh, SphereGeometry, type DirectionalLight, type Scene } from 'three';
 import { createFeltMaterial, createGlossyPaintMaterial, createPlasticMaterial } from '@app/utils/materialFactory';
 import gsap from 'gsap';
+import { getIdleAnimator } from '@app/utils/idle/registry';
 
 /**
  * Creates an animated hopping chick toy.
@@ -72,8 +73,9 @@ export function createHoppingChick(scene: Scene, _keyLight: DirectionalLight): v
     body.add(foot);
   });
 
-  // Hop animation
-  const hopTimeline = gsap.timeline({ repeat: -1 });
+  // Hop animation — registered so the looping timeline is killed on scene
+  // teardown instead of leaking. See architecture-standards.md#idleanimator.
+  const hopTimeline = getIdleAnimator(scene).register(gsap.timeline({ repeat: -1 }));
   hopTimeline.to(body.position, { y: 0.42, duration: 10 / 60, ease: 'power2.out' });
   hopTimeline.to(body.position, { y: 0.16, duration: 10 / 60, ease: 'power2.in' });
   hopTimeline.to(body.position, { y: 0.16, duration: 130 / 60 }); // pause

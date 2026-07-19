@@ -1,6 +1,7 @@
 import { Vector3, type Scene } from 'three';
 import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
-import { createSparkleBurst } from '@app/utils/particles';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import type { FireflyInstance } from './types';
 import { triggerGlowFlash } from './animation';
 
@@ -15,10 +16,10 @@ import { triggerGlowFlash } from './animation';
 export function setupFireflyTap(scene: Scene, dispatcher: WorldTapDispatcher, instances: FireflyInstance[]): () => void {
   const cleanups: (() => void)[] = [];
 
-  instances.forEach(({ mesh, material, glow, glowColor }) => {
+  instances.forEach(({ mesh, material, glowMaterial, glowColor }) => {
     const cleanup = dispatcher.register(mesh, () => {
-      createSparkleBurst(scene, mesh.getWorldPosition(new Vector3()));
-      triggerGlowFlash(material, glow, glowColor);
+      getParticleEngine(scene).emit(PARTICLES.sceneSparkle, mesh.getWorldPosition(new Vector3()));
+      triggerGlowFlash(material, glowMaterial, glowColor);
     });
     cleanups.push(cleanup);
   });

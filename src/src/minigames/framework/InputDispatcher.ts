@@ -1,4 +1,5 @@
 import { Raycaster, Vector2, type Scene, type PerspectiveCamera } from 'three';
+import { DRAG_THRESHOLD_PX, WOBBLE_TAP_TOLERANCE_PX } from '@app/utils/interaction/gestureRules';
 import type { MiniGameTapEvent, MiniGameDragEvent, MiniGameDragEndEvent, PickResult } from './types';
 
 /** Return type for createInputDispatcher. */
@@ -23,8 +24,14 @@ interface InputManifest {
   inputModes: Array<'tap' | 'drag'>;
 }
 
-/** Minimum distance in pixels before a pointer gesture is classified as a drag. */
-const DRAG_THRESHOLD = 10;
+// Tap-vs-drag thresholds come from the shared interaction rules so mini-games
+// and scene props read from one source. See architecture-standards.md#interactioncontroller.
+// NOTE: this dispatcher's single-handler model also treats a wobble on a
+// *draggable* target as a tap (more permissive than the scene controller's
+// classifyGesture, which follows the doc's "no tap on draggable wobble" rule);
+// that shipped game behaviour is preserved intentionally.
+const DRAG_THRESHOLD = DRAG_THRESHOLD_PX;
+const WOBBLE_TAP_TOLERANCE = WOBBLE_TAP_TOLERANCE_PX;
 
 /** Minimum milliseconds between taps at the same position. */
 const TAP_COOLDOWN_MS = 120;
@@ -149,30 +156,38 @@ export function createInputDispatcher(canvas: HTMLCanvasElement, scene: unknown,
 
     isDown = false;
 
-    if (isDragging) {
-      // End of drag
-      if (supportsDrag && dragEndHandler) {
-        dragEndHandler({
-          screenX: e.clientX,
-          screenY: e.clientY,
-          totalDistance,
-        });
-      }
-    } else {
-      // Tap
-      if (supportsTap && tapHandler && !isTapOnCooldown(e.clientX, e.clientY)) {
-        lastTapX = e.clientX;
-        lastTapY = e.clientY;
-        lastTapTime = Date.now();
+    // A gesture is treated as an intended tap when it never crossed the drag
+    // threshold, OR when it wobbled slightly (toddler "smeared tap") in a game
+    // that either has no drag mode or where the movement stayed tiny.
+    const isWobblyTap = isDragging && (!supportsDrag || totalDistance < WOBBLE_TAP_TOLERANCE);
 
-        tapHandler({
-          screenX: e.clientX,
-          screenY: e.clientY,
-          pickResult: performPick(e.clientX, e.clientY),
-        });
-      }
+    if (isDragging && supportsDrag && dragEndHandler) {
+      dragEndHandler({
+        screenX: e.clientX,
+        screenY: e.clientY,
+        totalDistance,
+      });
     }
 
+    if ((!isDragging || isWobblyTap) && supportsTap && tapHandler && !isTapOnCooldown(e.clientX, e.clientY)) {
+      lastTapX = e.clientX;
+      lastTapY = e.clientY;
+      lastTapTime = Date.now();
+
+      tapHandler({
+        screenX: e.clientX,
+        screenY: e.clientY,
+        pickResult: performPick(e.clientX, e.clientY),
+      });
+    }
+
+    isDragging = false;
+    totalDistance = 0;
+  }
+
+  /** Resets gesture state when the browser cancels a pointer (e.g. iPadOS system gesture). */
+  function handlePointerCancel(): void {
+    isDown = false;
     isDragging = false;
     totalDistance = 0;
   }
@@ -180,6 +195,7 @@ export function createInputDispatcher(canvas: HTMLCanvasElement, scene: unknown,
   canvas.addEventListener('pointerdown', handlePointerDown);
   canvas.addEventListener('pointermove', handlePointerMove);
   canvas.addEventListener('pointerup', handlePointerUp);
+  canvas.addEventListener('pointercancel', handlePointerCancel);
 
   return {
     onTap(handler: (e: MiniGameTapEvent) => void): void {
@@ -208,6 +224,7 @@ export function createInputDispatcher(canvas: HTMLCanvasElement, scene: unknown,
       canvas.removeEventListener('pointerdown', handlePointerDown);
       canvas.removeEventListener('pointermove', handlePointerMove);
       canvas.removeEventListener('pointerup', handlePointerUp);
+      canvas.removeEventListener('pointercancel', handlePointerCancel);
       tapHandler = null;
       dragHandler = null;
       dragEndHandler = null;

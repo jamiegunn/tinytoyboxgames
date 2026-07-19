@@ -1,5 +1,6 @@
 import { type Object3D, type Mesh, Scene, Vector3, Color } from 'three';
-import { createBubblePopEffect, createSparkleBurst } from '@app/minigames/shared/particleFx';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import type { SharkAnimState } from './shark';
 import { triggerBarrelRoll } from './shark';
 import type { MiniGameContext } from '../../framework/types';
@@ -65,7 +66,7 @@ export function createInteractionState(): InteractionState {
 
   function handleCoralTap(mesh: Object3D, scene: Scene, audio: MiniGameContext['audio']): void {
     enqueueTapAnimation(mesh, 'z', mesh.rotation.z, 40, 0.087, 0.3);
-    createBubblePopEffect(scene, mesh.position.clone(), new Color(0.5, 0.4, 0.3), 6);
+    getParticleEngine(scene).emit(PARTICLES.bubblePop, mesh.position.clone(), { colors: [new Color(0.5, 0.4, 0.3)], count: 6 });
     audio.playSound('coral-bonk');
   }
 
@@ -76,7 +77,7 @@ export function createInteractionState(): InteractionState {
 
   function handleTreasureChestTap(mesh: Object3D, scene: Scene, audio: MiniGameContext['audio']): void {
     enqueueTapAnimation(mesh, 'x', 0, 15, 0.175, 0.4);
-    createSparkleBurst(scene, mesh.position.clone(), new Color(1.0, 0.85, 0.2), 15);
+    getParticleEngine(scene).emit(PARTICLES.sparkle, mesh.position.clone(), { colors: [new Color(1.0, 0.85, 0.2)], count: 15 });
     audio.playSound('treasure-jingle');
   }
 
@@ -163,7 +164,7 @@ export function classifyPickedMesh(meshName: string): 'fish' | 'golden' | 'shark
  * @param audio - Audio context for sound playback.
  */
 export function handleWaterTap(scene: Scene, worldPos: Vector3, audio: MiniGameContext['audio']): void {
-  createBubblePopEffect(scene, worldPos, new Color(0.5, 0.7, 1.0), 10);
+  getParticleEngine(scene).emit(PARTICLES.bubblePop, worldPos, { colors: [new Color(0.5, 0.7, 1.0)], count: 10 });
   audio.playSound('water-bloop');
 }
 
@@ -174,7 +175,7 @@ export function handleWaterTap(scene: Scene, worldPos: Vector3, audio: MiniGameC
  * @param audio - Audio context for sound playback.
  */
 export function handleRockTap(mesh: Object3D, scene: Scene, audio: MiniGameContext['audio']): void {
-  createBubblePopEffect(scene, mesh.position.clone(), new Color(0.5, 0.5, 0.5), 5);
+  getParticleEngine(scene).emit(PARTICLES.bubblePop, mesh.position.clone(), { colors: [new Color(0.5, 0.5, 0.5)], count: 5 });
   audio.playSound('crab-skitter');
 }
 
@@ -189,7 +190,7 @@ export function handleRockTap(mesh: Object3D, scene: Scene, audio: MiniGameConte
 export function handleSharkTap(sharkAnim: SharkAnimState, scene: Scene, sharkRoot: Mesh, audio: MiniGameContext['audio']): boolean {
   const rolled = triggerBarrelRoll(sharkAnim);
   if (rolled) {
-    createBubblePopEffect(scene, sharkRoot.position.clone(), new Color(0.4, 0.7, 1.0), 15);
+    getParticleEngine(scene).emit(PARTICLES.bubblePop, sharkRoot.position.clone(), { colors: [new Color(0.4, 0.7, 1.0)], count: 15 });
     audio.playSound('shark-barrel-roll');
   }
   return rolled;

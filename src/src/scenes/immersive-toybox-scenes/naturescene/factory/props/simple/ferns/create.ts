@@ -1,4 +1,4 @@
-﻿import { Group, Mesh, PlaneGeometry, CylinderGeometry, type Material, type Scene } from 'three';
+import { Group, Mesh, PlaneGeometry, CylinderGeometry, type Material, type Scene } from 'three';
 import { seededRng, placementSeed } from '@app/utils/seededRng';
 import { createEntityRoot, type EntityPlacement } from '@scenes/immersive-toybox-scenes/naturescene/types';
 import type { FernBuildOptions } from './types';

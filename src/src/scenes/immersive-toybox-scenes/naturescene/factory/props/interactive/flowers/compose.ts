@@ -1,4 +1,4 @@
-﻿import type { ComposeContext } from '@scenes/immersive-toybox-scenes/naturescene/types';
+import type { ComposeContext } from '@scenes/immersive-toybox-scenes/naturescene/types';
 import { FLOWER_STAGING } from '@scenes/immersive-toybox-scenes/naturescene/staging/flowers';
 import { composeInteractiveCollection, type DisposeFn } from '@scenes/immersive-toybox-scenes/naturescene/factory/composeHelpers';
 import { createFlower } from './create';

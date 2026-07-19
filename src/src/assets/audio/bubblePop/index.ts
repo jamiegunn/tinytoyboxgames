@@ -5,6 +5,8 @@
  */
 
 import { playTone, playFilteredNoiseBurst, playFreqSweep, rand, midiToFreq } from '@app/assets/audio/utils/synthHelpers';
+import { startAudioLoop } from '@app/assets/audio/utils/loopScheduler';
+import { scheduleMusicBoxNote, schedulePadChord, scheduleBassNote } from '@app/assets/audio/utils/instruments';
 
 /** Minimum fade-in time in seconds to avoid clicks. */
 const MIN_ATTACK_S = 0.005;
@@ -170,52 +172,89 @@ export function playAmbBubblePopNightSky(ctx: AudioContext, dest: AudioNode): ()
   };
 }
 
-/** Pentatonic note frequencies for the background music: C5, E5, G5. */
-const LULLABY_FREQS = [midiToFreq(72), midiToFreq(76), midiToFreq(79)] as const; // C5, E5, G5
+/** Duration of one lullaby bar in seconds — slow and dreamy. */
+const LULLABY_BAR_S = 4;
 
-/** Note spacing in seconds for the lullaby loop. */
-const LULLABY_NOTE_SPACING_S = 2;
+/** One lullaby bar: chord voicing, bass root, and sparse melody events. */
+interface LullabyBar {
+  /** Pad chord voicing (MIDI). */
+  chord: number[];
+  /** Bass root (MIDI, bass register). */
+  bassMidi: number;
+  /** Melody notes as [midi, barOffsetSeconds, durationSeconds]. */
+  melody: Array<[number, number, number]>;
+}
 
-/** Total loop duration in seconds (3 notes x 2s spacing). */
-const LULLABY_LOOP_DURATION_S = LULLABY_FREQS.length * LULLABY_NOTE_SPACING_S;
+// A 4-bar night lullaby: Cmaj7-family colors drifting Am7 -> Fmaj7 -> G and
+// resolving home, with a sparse music-box melody floating above like bubbles.
+const LULLABY_BARS: LullabyBar[] = [
+  {
+    chord: [60, 64, 67, 71], // Cmaj7
+    bassMidi: 48,
+    melody: [
+      [79, 0.4, 1.8], // G5
+      [76, 2.6, 1.2], // E5
+    ],
+  },
+  {
+    chord: [57, 60, 64, 67], // Am7
+    bassMidi: 45,
+    melody: [
+      [81, 0.8, 1.8], // A5
+      [84, 3.0, 0.9], // C6
+    ],
+  },
+  {
+    chord: [53, 57, 60, 64], // Fmaj7
+    bassMidi: 41,
+    melody: [
+      [81, 0.5, 1.4], // A5
+      [77, 2.4, 1.4], // F5
+    ],
+  },
+  {
+    chord: [55, 59, 62], // G
+    bassMidi: 43,
+    melody: [
+      [74, 0.8, 1.4], // D5
+      [72, 2.6, 1.3], // C5 — resolution home
+    ],
+  },
+];
+
+/** Total lullaby cycle length in seconds. */
+const LULLABY_CYCLE_S = LULLABY_BARS.length * LULLABY_BAR_S;
 
 /**
- * Plays a minimal dreamy music loop for the Bubble Pop mini-game.
- * Soft triangle/sine notes cycling through a pentatonic pattern (C5, E5, G5)
- * with long release tails, lullaby-adjacent. Notes play one at a time with 2s spacing.
+ * Plays the dreamy night lullaby for the Bubble Pop mini-game: a slow
+ * seventh-chord pad through a dark lowpass, a deep bass root, and a sparse
+ * music-box melody drifting above. The melody rests every other cycle so the
+ * night sky stays spacious. Scheduled sample-accurately via the shared
+ * lookahead loop scheduler.
  *
  * @param ctx - The Web Audio context
  * @param dest - The destination AudioNode to connect output to
  * @returns A stop function that halts playback and cleans up resources
  */
 export function playMusBubblePopBackground(ctx: AudioContext, dest: AudioNode): () => void {
-  let intervalId: ReturnType<typeof setInterval> | null = null;
-  let stopped = false;
+  let cycleIndex = 0;
+  return startAudioLoop(ctx, LULLABY_CYCLE_S, (startTime) => {
+    const withMelody = cycleIndex % 2 === 0;
+    let barStart = startTime;
 
-  const playLoop = () => {
-    if (stopped) return;
-    const now = ctx.currentTime;
+    for (const bar of LULLABY_BARS) {
+      schedulePadChord(ctx, dest, bar.chord, barStart, LULLABY_BAR_S, { gain: 0.035, lowpassHz: 700, detuneCents: 5 });
+      scheduleBassNote(ctx, dest, bar.bassMidi, barStart, LULLABY_BAR_S, 0.055);
 
-    for (let i = 0; i < LULLABY_FREQS.length; i++) {
-      if (stopped) break;
-      const noteTime = now + i * LULLABY_NOTE_SPACING_S;
-      const freq = LULLABY_FREQS[i];
+      if (withMelody) {
+        for (const [midi, offset, dur] of bar.melody) {
+          scheduleMusicBoxNote(ctx, dest, midiToFreq(midi), barStart + offset, dur, 0.08);
+        }
+      }
 
-      // Soft triangle wave for warmth
-      playTone(ctx, dest, 'triangle', freq, 0.05, 1.6, 0.1, noteTime);
-      // Even softer sine layer for depth
-      playTone(ctx, dest, 'sine', freq, 0.08, 1.8, 0.06, noteTime);
+      barStart += LULLABY_BAR_S;
     }
-  };
 
-  playLoop();
-  intervalId = setInterval(playLoop, LULLABY_LOOP_DURATION_S * 1000);
-
-  return () => {
-    stopped = true;
-    if (intervalId !== null) {
-      clearInterval(intervalId);
-      intervalId = null;
-    }
-  };
+    cycleIndex++;
+  });
 }

@@ -44,7 +44,10 @@ function parseHash(): { scene: SceneId; game: MiniGameId | null } {
 function writeHash(scene: SceneId, game: MiniGameId | null): void {
   const path = game ? `#/${scene}/${game}` : `#/${scene}`;
   if (window.location.hash !== path && `#${window.location.hash}` !== path) {
-    window.history.pushState(null, '', path);
+    // replaceState (not pushState): an accidental browser-back / iPad edge
+    // swipe should leave the app, not walk a child backwards through every
+    // scene and game they visited this session.
+    window.history.replaceState(null, '', path);
   }
 }
 
@@ -81,9 +84,7 @@ export function SceneRouter({ children }: { children: ReactNode }) {
   const gameRef = useRef(activeMiniGame);
 
   const navigateTo = useCallback((scene: SceneId) => {
-    console.log(`[SceneRouter] navigateTo called: ${scene}, transitioning=${transitioningRef.current}`);
     if (transitioningRef.current) {
-      console.warn(`[SceneRouter] BLOCKED — still transitioning`);
       return;
     }
     transitioningRef.current = true;
@@ -93,17 +94,14 @@ export function SceneRouter({ children }: { children: ReactNode }) {
     sceneRef.current = scene;
     gameRef.current = null;
     writeHash(scene, null);
-    console.log(`[SceneRouter] Scene set to: ${scene}`);
     transitionTimerRef.current = setTimeout(() => {
       transitioningRef.current = false;
       setIsTransitioning(false);
       transitionTimerRef.current = null;
-      console.log(`[SceneRouter] Transition complete for: ${scene}`);
     }, 600);
   }, []);
 
   const launchMiniGame = useCallback((gameId: MiniGameId) => {
-    console.log(`[SceneRouter] launchMiniGame called: ${gameId}`);
     setActiveMiniGame(gameId);
     gameRef.current = gameId;
     writeHash(sceneRef.current, gameId);
@@ -115,9 +113,12 @@ export function SceneRouter({ children }: { children: ReactNode }) {
     writeHash(sceneRef.current, null);
   }, []);
 
-  // Listen for browser back/forward navigation
+  // Listen for browser back/forward (popstate) AND direct hash edits
+  // (hashchange) so the router state can never go stale relative to the URL —
+  // App.tsx already tracks both for the top-level view. The handler is
+  // idempotent (guards on an actual change), so a double-fire is harmless.
   useEffect(() => {
-    function onPopState() {
+    function onRouteChange() {
       const { scene, game } = parseHash();
       // Only update if the state actually changed
       if (scene !== sceneRef.current) {
@@ -127,9 +128,12 @@ export function SceneRouter({ children }: { children: ReactNode }) {
         setActiveMiniGame(game);
         sceneRef.current = scene;
         gameRef.current = game;
-        setTimeout(() => {
+        // Store the timeout so it is cleared on unmount (same ref as normal nav).
+        if (transitionTimerRef.current !== null) clearTimeout(transitionTimerRef.current);
+        transitionTimerRef.current = setTimeout(() => {
           transitioningRef.current = false;
           setIsTransitioning(false);
+          transitionTimerRef.current = null;
         }, 600);
       } else if (game !== gameRef.current) {
         setActiveMiniGame(game);
@@ -137,8 +141,12 @@ export function SceneRouter({ children }: { children: ReactNode }) {
       }
     }
 
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
+    window.addEventListener('popstate', onRouteChange);
+    window.addEventListener('hashchange', onRouteChange);
+    return () => {
+      window.removeEventListener('popstate', onRouteChange);
+      window.removeEventListener('hashchange', onRouteChange);
+    };
   }, []);
 
   useEffect(() => {

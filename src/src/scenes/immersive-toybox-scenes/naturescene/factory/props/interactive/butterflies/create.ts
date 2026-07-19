@@ -1,4 +1,4 @@
-﻿import { Scene, Color, Mesh, Group, SphereGeometry, CylinderGeometry, type Material } from 'three';
+import { Scene, Color, Mesh, Group, SphereGeometry, CylinderGeometry, type Material } from 'three';
 import { createGlossyPaintMaterial, createTranslucentMaterial, getOrCreateMaterial } from '@app/utils/materialFactory';
 import { createEntityRoot, type EntityPlacement } from '@scenes/immersive-toybox-scenes/naturescene/types';
 import { animateWingFlutter, setupDriftAndFlee } from './animation';

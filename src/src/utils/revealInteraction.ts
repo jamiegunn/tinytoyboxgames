@@ -1,7 +1,8 @@
 import { Vector3, type Mesh, type Scene, type DirectionalLight } from 'three';
 import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
 import { playAnimation, type AnimKey } from './animationHelpers';
-import { createSparkleBurst } from './particles';
+import { getParticleEngine } from './particles/registry';
+import { PARTICLES } from './particles/presets';
 
 /**
  * Specifies how the cover object animates when tapped (e.g. shrink, flip, roll, slide).
@@ -29,7 +30,7 @@ export interface RevealConfig {
   castShadow?: boolean;
   /** Key light for shadow casting. Required if castShadow is true. */
   keyLight?: DirectionalLight;
-  /** Particle effect on reveal. @default createSparkleBurst */
+  /** Particle effect on reveal. @default a sceneSparkle burst via getParticleEngine */
   particleFn?: (scene: Scene, position: Vector3) => void;
   /** Offset from cover position for the particle emission. @default Vector3(0, 0.2, 0) */
   particleOffset?: Vector3;
@@ -51,7 +52,7 @@ export interface RevealConfig {
  */
 export function createRevealInteraction(scene: Scene, dispatcher: WorldTapDispatcher, config: RevealConfig): () => void {
   let revealed = false;
-  const emitParticle = config.particleFn ?? createSparkleBurst;
+  const emitParticle = config.particleFn ?? ((s: Scene, position: Vector3) => getParticleEngine(s).emit(PARTICLES.sceneSparkle, position));
   const particleOffset = config.particleOffset ?? new Vector3(0, 0.2, 0);
   const repeatOnTap = config.repeatOnTap ?? true;
   const getCoverWorldPosition = () => config.coverMesh.getWorldPosition(new Vector3());

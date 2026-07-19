@@ -1,5 +1,6 @@
-import { type Scene, SpriteMaterial, Sprite, PointLight, Vector3, AdditiveBlending, CanvasTexture } from 'three';
-import { createFireflyGlow } from '@app/minigames/shared/particleFx';
+import { type Scene, SpriteMaterial, Sprite, Vector3, AdditiveBlending, CanvasTexture } from 'three';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES, FIREFLY_GLOW_RATE } from '@app/utils/particles/presets';
 import type { FireflyData } from './types';
 import { FIREFLY_COLOR, GOLDEN_COLOR } from './types';
 import { randomRange } from '@app/minigames/shared/mathUtils';
@@ -35,8 +36,10 @@ function getGlowDotTexture(): CanvasTexture {
 }
 
 /**
- * Creates a firefly entity as a soft glowing sprite with a point light
- * and particle trail. No 3D mesh — fireflies are points of light.
+ * Creates a firefly entity as a soft glowing additive sprite with a particle
+ * trail. No 3D mesh and no per-firefly PointLight — the additive sprite IS
+ * the glow, which keeps the fragment shaders cheap and avoids the shader
+ * recompile hitch that adding/removing dynamic lights causes mid-scene.
  *
  * @param scene - The Three.js scene.
  * @param index - Index for unique naming.
@@ -62,18 +65,12 @@ export function createFirefly(scene: Scene, index: number, isGolden: boolean): F
   sprite.raycast = () => {}; // hit detection is screen-space, not raycaster
   scene.add(sprite);
 
-  // ── Point light for local glow illumination ──
-  const light = new PointLight(baseColor.clone(), isGolden ? 0.6 : 0.35, isGolden ? 3.5 : 2.5);
-  light.name = `nature_firefly_light_${index}`;
-  scene.add(light);
-
   // ── Position ──
   const pos = randomSpawnPos();
   sprite.position.copy(pos);
-  light.position.copy(pos);
 
-  // ── Continuous glow particle trail ──
-  const glowTrail = createFireflyGlow(scene, sprite, baseColor);
+  // ── Continuous glow particle trail (follows the sprite each tick) ──
+  const glowTrail = getParticleEngine(scene).stream(PARTICLES.fireflyGlow, sprite, FIREFLY_GLOW_RATE, { colors: [baseColor] });
 
   const behavior = randomBehavior();
   const behaviorCenter = randomSpawnPos();
@@ -83,7 +80,6 @@ export function createFirefly(scene: Scene, index: number, isGolden: boolean): F
   return {
     sprite,
     spriteMaterial,
-    light,
     glowTrail,
     speed: randomRange(0.25, 0.55),
     glowPhase: Math.random() * Math.PI * 2,
@@ -112,12 +108,10 @@ export function createFirefly(scene: Scene, index: number, isGolden: boolean): F
  * Resets a firefly to a new random position with new drift parameters.
  *
  * @param fd - The firefly data to reset.
- * @param scene - The Three.js scene (needed to re-start the glow trail).
  */
-export function resetFirefly(fd: FireflyData, scene: Scene): void {
+export function resetFirefly(fd: FireflyData): void {
   const pos = randomSpawnPos();
   fd.sprite.position.copy(pos);
-  fd.light.position.copy(pos);
   fd.speed = randomRange(0.25, 0.55);
   fd.glowPhase = Math.random() * Math.PI * 2;
   fd.driftOffsetX = Math.random() * Math.PI * 2;
@@ -137,7 +131,6 @@ export function resetFirefly(fd: FireflyData, scene: Scene): void {
   fd.zigzagTimer = randomRange(1.0, 2.0);
   fd.zigzagDir = new Vector3(randomRange(-1, 1), randomRange(-0.5, 0.5), randomRange(-0.5, 0.5)).normalize();
   fd.sprite.visible = true;
-  fd.light.visible = true;
   fd.spriteMaterial.opacity = 0.85;
-  fd.glowTrail.start(scene);
+  fd.glowTrail.start();
 }

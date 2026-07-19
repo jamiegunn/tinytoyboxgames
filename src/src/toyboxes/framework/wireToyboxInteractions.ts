@@ -1,5 +1,5 @@
 import gsap from 'gsap';
-import { Color, Raycaster, Vector2, Vector3, type Camera } from 'three';
+import { Box3, Color, Raycaster, Vector2, Vector3, type Camera } from 'three';
 import type { OwlCompanion } from '@app/entities/owl';
 import type { NavigationActions, SceneId } from '@app/types/scenes';
 import { triggerSound } from '@app/assets/audio/sceneBridge';
@@ -24,8 +24,49 @@ interface WireToyboxInteractionsArgs {
  * @returns A cleanup function that removes the shared hover and click listeners.
  */
 export function wireToyboxInteractions({ canvas, camera, dispatcher, runtime, destination, nav, owl, options }: WireToyboxInteractionsArgs): () => void {
+  // A toybox with no destination still answers every tap — a dead tap is a
+  // broken promise. It wiggles, sparkles, and plays a friendly "not yet" tone.
   if (!destination) {
-    return () => {};
+    const baseScale = runtime.root.scale.clone();
+    let wiggling = false;
+
+    const onInactiveTap = () => {
+      if (wiggling) return;
+      wiggling = true;
+      triggerSound(options.tapSoundId);
+      triggerSound('sfx_shared_sparkle_burst');
+
+      gsap.killTweensOf(runtime.root.rotation);
+      gsap.killTweensOf(runtime.root.scale);
+      const baseRotY = runtime.root.rotation.y;
+      gsap.to(runtime.root.scale, {
+        x: baseScale.x * 1.06,
+        y: baseScale.y * 1.06,
+        z: baseScale.z * 1.06,
+        duration: 0.1,
+        ease: 'power2.out',
+        yoyo: true,
+        repeat: 1,
+      });
+      gsap.to(runtime.root.rotation, {
+        y: baseRotY + 0.08,
+        duration: 0.08,
+        ease: 'sine.inOut',
+        yoyo: true,
+        repeat: 5,
+        onComplete: () => {
+          runtime.root.rotation.y = baseRotY;
+          wiggling = false;
+        },
+      });
+    };
+
+    const unregister = dispatcher.register(runtime.root, onInactiveTap);
+    return () => {
+      unregister();
+      gsap.killTweensOf(runtime.root.rotation);
+      gsap.killTweensOf(runtime.root.scale);
+    };
   }
 
   const raycaster = new Raycaster();
@@ -66,8 +107,13 @@ export function wireToyboxInteractions({ canvas, camera, dispatcher, runtime, de
     pendingNav = true;
     triggerSound(options.tapSoundId);
 
-    const toyboxPosition = new Vector3();
-    runtime.root.getWorldPosition(toyboxPosition);
+    // Perch the owl ON TOP of the toybox (its lid), never at the base — the owl
+    // must never fly inside an object. Combined with the flight code's
+    // land-on-surface height, target.y = the box's top makes the owl settle on
+    // the lid before it opens.
+    runtime.root.updateWorldMatrix(true, true);
+    const toyboxBounds = new Box3().setFromObject(runtime.root);
+    const toyboxPosition = new Vector3((toyboxBounds.min.x + toyboxBounds.max.x) / 2, toyboxBounds.max.y, (toyboxBounds.min.z + toyboxBounds.max.z) / 2);
 
     owl.flyTo(toyboxPosition, () => {
       playOpenAnimations();

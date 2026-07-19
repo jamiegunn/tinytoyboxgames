@@ -1,5 +1,6 @@
 import { Scene, Color, Vector3, type ShaderMaterial } from 'three';
-import { createSparkleBurst } from '@app/minigames/shared/particleFx';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import type { BubbleState } from '../types';
 import { SIZE_VARIANTS, GIANT_SCALE, WOBBLE_AMPLITUDE, SPAWN_ANIM_DURATION, SWAY_AMPLITUDE, SWAY_FREQUENCY, BUBBLE_COLORS, GOLDEN_COLOR } from '../types';
 import { randomRange } from '../helpers';
@@ -129,20 +130,21 @@ export function popBubbleEffect(scene: Scene, bubble: BubbleState, onComplete: (
   const burstScale = sizeScale * (bubble.kind === 'giant' ? GIANT_SCALE : 1);
   // Use tmpVec3 for the position copy (sparkle burst needs a stable ref so copy once)
   const popPos = tmpVec3(0).copy(bubble.mesh.position);
-  // createSparkleBurst stores the position internally, so passing a temp is safe
-  createSparkleBurst(scene, popPos, bubble.baseColor, Math.round(20 * burstScale));
+  // The engine copies the position per particle on emit, so passing a temp is safe.
+  const fx = getParticleEngine(scene);
+  fx.emit(PARTICLES.sparkle, popPos, { colors: [bubble.baseColor], count: Math.round(20 * burstScale) });
 
   if (bubble.kind === 'golden') {
-    createSparkleBurst(scene, popPos, GOLDEN_COLOR, 35);
+    fx.emit(PARTICLES.sparkle, popPos, { colors: [GOLDEN_COLOR], count: 35 });
   } else if (bubble.kind === 'rainbow') {
     for (let i = 0; i < 3; i++) {
       const c = BUBBLE_COLORS[Math.floor(Math.random() * BUBBLE_COLORS.length)];
       const offset = tmpVec3(1).set(randomRange(-0.3, 0.3), randomRange(-0.3, 0.3), 0);
       const burstPos = tmpVec3(2).copy(popPos).add(offset);
-      createSparkleBurst(scene, burstPos, c, 12);
+      fx.emit(PARTICLES.sparkle, burstPos, { colors: [c], count: 12 });
     }
   } else if (bubble.kind === 'giant') {
-    createSparkleBurst(scene, popPos, bubble.baseColor, 40);
+    fx.emit(PARTICLES.sparkle, popPos, { colors: [bubble.baseColor], count: 40 });
   }
 }
 
@@ -181,7 +183,7 @@ const FALLBACK_SPARKLE_COLOR = new Color(0.7, 0.8, 1.0);
  * @param position - World position for the sparkle.
  */
 export function createTapFallbackSparkle(scene: Scene, position: Vector3): void {
-  createSparkleBurst(scene, position, FALLBACK_SPARKLE_COLOR, 8);
+  getParticleEngine(scene).emit(PARTICLES.sparkle, position, { colors: [FALLBACK_SPARKLE_COLOR], count: 8 });
 }
 
 /**

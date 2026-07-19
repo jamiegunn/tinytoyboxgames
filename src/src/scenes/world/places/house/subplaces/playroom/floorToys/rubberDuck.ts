@@ -1,6 +1,6 @@
 import { CircleGeometry, Color, CylinderGeometry, Group, Mesh, SphereGeometry, type DirectionalLight, type Scene } from 'three';
 import { createGlossyPaintMaterial, createPlasticMaterial } from '@app/utils/materialFactory';
-import gsap from 'gsap';
+import { getIdleAnimator } from '@app/utils/idle/registry';
 
 /**
  * Creates a yellow rubber duck on the floor with a bobbing animation.
@@ -82,11 +82,6 @@ export function createRubberDuck(scene: Scene, _keyLight: DirectionalLight): voi
   });
 
   // Bobbing animation
-  gsap.to(root.position, {
-    y: 0.03,
-    duration: 200 / 60,
-    repeat: -1,
-    yoyo: true,
-    ease: 'sine.inOut',
-  });
+  // Gentle vertical bob up to y=0.03. See architecture-standards.md#idleanimator.
+  getIdleAnimator(scene).bob(root, { amplitude: 0.03 - root.position.y, period: 400 / 60 });
 }

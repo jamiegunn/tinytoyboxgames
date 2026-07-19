@@ -89,15 +89,15 @@ export const SPAWN_X_MIN = -4.5;
 export const SPAWN_X_MAX = 4.5;
 
 /** Bottom-edge spawn Y (just below visible area). */
-export const SPAWN_Y_BOTTOM = -6;
+export const SPAWN_Y_BOTTOM = -4.5;
 
 /** Side-edge spawn X offsets (just beyond visible area). */
 export const SPAWN_X_LEFT_EDGE = -5.5;
 export const SPAWN_X_RIGHT_EDGE = 5.5;
 
 /** Side-edge spawn Y range (visible band for side-entering bubbles). */
-export const SPAWN_SIDE_Y_MIN = -4;
-export const SPAWN_SIDE_Y_MAX = 2;
+export const SPAWN_SIDE_Y_MIN = -3;
+export const SPAWN_SIDE_Y_MAX = 4;
 
 /** Probability of spawning from the bottom vs. a side edge. */
 export const SPAWN_BOTTOM_CHANCE = 0.7;

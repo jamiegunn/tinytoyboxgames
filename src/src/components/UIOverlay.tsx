@@ -1,15 +1,20 @@
 import { useNavigation } from './SceneRouter';
 import { useAudio } from './AudioProvider';
+import { SCENE_CATALOG, type SceneDefinition } from '@app/scenes/sceneCatalog';
 
 /**
  * Renders the fixed-position HUD overlay with back button, audio toggle, and loading spinner.
- * The back button is hidden when the current scene is the playroom.
+ * The back button is hidden when the current scene is the playroom and follows
+ * each scene's catalog `backTarget` (defaulting to the playroom) elsewhere.
  *
  * @returns A fixed-position overlay div with pointer-events passthrough.
  */
 export function UIOverlay() {
   const { currentScene, isTransitioning, navigateTo } = useNavigation();
   const { isMuted, toggleMute, playSound } = useAudio();
+
+  const sceneDefinition: SceneDefinition = SCENE_CATALOG[currentScene];
+  const backTarget = sceneDefinition.backTarget ?? 'playroom';
 
   return (
     <div
@@ -28,14 +33,14 @@ export function UIOverlay() {
         <button
           onClick={() => {
             playSound('sfx_shared_button_press');
-            navigateTo('playroom');
+            navigateTo(backTarget);
           }}
-          aria-label="Back to playroom"
+          aria-label={`Back to ${SCENE_CATALOG[backTarget].displayName.toLowerCase()}`}
           style={{
             pointerEvents: 'auto',
             position: 'absolute',
-            top: 16,
-            left: 16,
+            top: 'calc(16px + env(safe-area-inset-top, 0px))',
+            left: 'calc(16px + env(safe-area-inset-left, 0px))',
             width: 56,
             height: 56,
             borderRadius: '50%',
@@ -64,8 +69,8 @@ export function UIOverlay() {
         style={{
           pointerEvents: 'auto',
           position: 'absolute',
-          top: 16,
-          left: currentScene !== 'playroom' ? 80 : 16,
+          top: 'calc(16px + env(safe-area-inset-top, 0px))',
+          left: currentScene !== 'playroom' ? 'calc(80px + env(safe-area-inset-left, 0px))' : 'calc(16px + env(safe-area-inset-left, 0px))',
           width: 48,
           height: 48,
           borderRadius: '50%',
@@ -93,8 +98,8 @@ export function UIOverlay() {
         style={{
           pointerEvents: 'auto',
           position: 'absolute',
-          top: 16,
-          right: 16,
+          top: 'calc(16px + env(safe-area-inset-top, 0px))',
+          right: 'calc(16px + env(safe-area-inset-right, 0px))',
           width: 48,
           height: 48,
           borderRadius: '50%',

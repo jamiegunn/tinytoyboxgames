@@ -10,6 +10,14 @@ import { createCannonballMesh, createCannonballShadow } from './cannonball';
 
 /**
  * Spawns a target, adds it to the scene and active list.
+ * @param kind - The target kind to build.
+ * @param position - World-space spawn position.
+ * @param driftVx - Initial drift velocity along x.
+ * @param driftVz - Initial drift velocity along z.
+ * @param scene - Scene to add the target's root to.
+ * @param activeTargets - Active-target list the new target is pushed onto.
+ * @param difficulty - Normalized difficulty in [0, 1], used for target scale.
+ * @returns The newly created target state (in 'spawning' state).
  */
 export function spawnTarget(
   kind: TargetKind,
@@ -48,6 +56,8 @@ export function spawnTarget(
 
 /**
  * Recycles a target at the given index using swap-remove.
+ * @param activeTargets
+ * @param index
  */
 export function recycleTarget(activeTargets: Target[], index: number): void {
   const target = activeTargets[index];
@@ -72,6 +82,14 @@ export function recycleTarget(activeTargets: Target[], index: number): void {
 
 /**
  * Spawns a cannonball and adds it to the scene and active list.
+ * @param startPos - World-space launch position (cannon mouth).
+ * @param endPos - World-space impact position.
+ * @param flightDuration - Total flight time in seconds.
+ * @param arcHeight - Peak height of the flight arc.
+ * @param target - The locked-on target, or null for a water shot.
+ * @param scene - Scene to add the ball and shadow meshes to.
+ * @param activeCannonballs - Active-cannonball list the new ball is pushed onto.
+ * @returns The newly created cannonball state.
  */
 export function spawnCannonball(
   startPos: Vector3,
@@ -110,6 +128,8 @@ export function spawnCannonball(
 
 /**
  * Recycles a cannonball at the given index using swap-remove.
+ * @param activeCannonballs
+ * @param index
  */
 export function recycleCannonball(activeCannonballs: Cannonball[], index: number): void {
   const ball = activeCannonballs[index];
@@ -130,6 +150,8 @@ export function recycleCannonball(activeCannonballs: Cannonball[], index: number
 
 /**
  * Returns all tappable meshes from all active targets.
+ * @param targets - The pool of targets to collect from.
+ * @returns A flat array of raycast-tappable meshes from active targets.
  */
 export function getAllTargetMeshes(targets: Target[]): import('three').Mesh[] {
   const meshes: import('three').Mesh[] = [];

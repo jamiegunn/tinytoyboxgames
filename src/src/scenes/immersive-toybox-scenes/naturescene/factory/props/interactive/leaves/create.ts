@@ -1,4 +1,4 @@
-﻿import { Scene, Mesh, Group, CircleGeometry, SphereGeometry, type Material } from 'three';
+import { Scene, Mesh, Group, CircleGeometry, SphereGeometry, type Material } from 'three';
 import { createEntityRoot, type EntityPlacement } from '@scenes/immersive-toybox-scenes/naturescene/types';
 import type { LeafBuildOptions, LeafCreateResult, LeafRevealHandle } from './types';
 import { LEAF_DISC_RADIUS, LADYBUG_RADIUS, SPOT_COUNT, SPOT_RADIUS, SPOT_SPACING, SPOT_Y } from './constants';

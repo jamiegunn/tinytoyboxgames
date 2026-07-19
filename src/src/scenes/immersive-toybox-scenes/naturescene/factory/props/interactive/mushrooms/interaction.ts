@@ -1,7 +1,8 @@
 import { Scene, Vector3, Color } from 'three';
 import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
 import { createTapInteraction } from '@app/utils/tapInteraction';
-import { createSparkleBurst } from '@app/utils/particles';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import { playAnimation } from '@app/utils/animationHelpers';
 import type { MushroomCreateResult } from './types';
 import {
@@ -42,6 +43,6 @@ export function setupMushroomTap(scene: Scene, dispatcher: WorldTapDispatcher, m
       { frame: GLOW_END_FRAME, value: new Color(0, 0, 0) },
     ]);
 
-    createSparkleBurst(scene, mushroom.tapTarget.getWorldPosition(new Vector3()));
+    getParticleEngine(scene).emit(PARTICLES.sceneSparkle, mushroom.tapTarget.getWorldPosition(new Vector3()));
   });
 }

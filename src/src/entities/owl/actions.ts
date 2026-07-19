@@ -4,9 +4,13 @@ import { spawnAlertBurst, spawnLandingBurst, startFlightTrail } from './effects'
 import { BLINK_CLOSE_MS, FACING_CAMERA_Y, FLY_ARC_HEIGHT, FLY_SPEED_FPS, WING_FLAP_RATE, WING_REST_ANGLE } from './palette';
 import type { OwlActions, OwlBuildParts, OwlCleanup, OwlCompanionOptions, OwlFlightBounds, OwlIdleHandle, OwlRuntimeDisposer } from './types';
 
-function clampFlightTarget(target: Vector3, perchHeight: number, flightBounds?: OwlFlightBounds): Vector3 {
+function clampFlightTarget(target: Vector3, perchOffset: number, flightBounds?: OwlFlightBounds): Vector3 {
   const clamped = target.clone();
-  clamped.y = perchHeight;
+  // Land ON TOP of whatever was tapped: keep the tapped surface's height and add
+  // the owl's perch offset (its resting centre height above a floor at y≈0), so
+  // the owl perches on a toybox/table/log instead of sinking to floor level
+  // inside it. A floor tap has target.y≈0, so this reproduces the old behaviour.
+  clamped.y = target.y + perchOffset;
 
   if (!flightBounds) {
     return clamped;
@@ -170,7 +174,7 @@ export function createOwlActions(
 
     const burstPosition = parts.root.position.clone();
     burstPosition.y += 1.2;
-    spawnAlertBurst(scene, burstPosition, runtime);
+    spawnAlertBurst(scene, burstPosition);
   };
 
   const flyTo = (target: Vector3, onLand?: () => void): void => {
@@ -206,7 +210,7 @@ export function createOwlActions(
     gsap.killTweensOf(parts.wingL.rotation);
     gsap.killTweensOf(parts.wingR.rotation);
 
-    const trail = startFlightTrail(scene, () => parts.root.position, flyDuration, runtime);
+    const trail = startFlightTrail(scene, () => parts.root.position);
 
     let settled = false;
     let landingTimeline: ReturnType<typeof gsap.timeline> | null = null;
@@ -302,7 +306,7 @@ export function createOwlActions(
 
       const landingBurstOrigin = parts.root.position.clone();
       landingBurstOrigin.y -= 0.25;
-      spawnLandingBurst(scene, landingBurstOrigin, runtime);
+      spawnLandingBurst(scene, landingBurstOrigin);
 
       onLand?.();
     };

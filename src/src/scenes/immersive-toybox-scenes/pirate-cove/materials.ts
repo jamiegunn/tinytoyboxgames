@@ -39,7 +39,7 @@ const PALETTE = {
   shellWall: new Color(0.5, 0.35, 0.2),
   shellTrim: new Color(0.4, 0.28, 0.15),
   weatheredWood: new Color(0.6, 0.42, 0.25),
-  metal: new Color(0.3, 0.3, 0.32),
+  metal: new Color(0.44, 0.36, 0.26),
   gold: new Color(1.0, 0.82, 0.3),
   rope: new Color(0.75, 0.65, 0.48),
   chestWood: new Color(0.45, 0.3, 0.15),

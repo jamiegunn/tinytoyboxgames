@@ -1,5 +1,6 @@
 import { Scene, Color, Vector3, Mesh, PlaneGeometry, MeshBasicMaterial, SphereGeometry, DoubleSide, type Object3D, type MeshStandardMaterial } from 'three';
-import { createBubblePopEffect, createSparkleBurst } from '@app/minigames/shared/particleFx';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import type { SceneEnvironment } from './environment';
 
 /**
@@ -136,7 +137,7 @@ function startWhaleShadow(state: SurpriseState, scene: Scene, elapsedTime: numbe
 function startTreasureSparkle(state: SurpriseState, scene: Scene, env: SceneEnvironment): void {
   const chestPos = env.treasureChest.position.clone();
   // First burst immediately
-  createSparkleBurst(scene, chestPos, new Color(1.0, 0.85, 0.2), 15);
+  getParticleEngine(scene).emit(PARTICLES.sparkle, chestPos, { colors: [new Color(1.0, 0.85, 0.2)], count: 15 });
   state.activeSurprise = 'treasureSparkle';
   state.surpriseTimer = 2.0;
   // Schedule remaining bursts at 0.7s and 1.4s from now
@@ -223,7 +224,7 @@ export function updateSurprises(state: SurpriseState, elapsedTime: number, dt: n
       for (const burstTime of state.sparkleBurstTimes) {
         if (elapsed >= burstTime) {
           const chestPos = env.treasureChest.position.clone();
-          createSparkleBurst(scene, chestPos, new Color(1.0, 0.85, 0.2), 15);
+          getParticleEngine(scene).emit(PARTICLES.sparkle, chestPos, { colors: [new Color(1.0, 0.85, 0.2)], count: 15 });
         } else {
           remaining.push(burstTime);
         }
@@ -283,7 +284,7 @@ export function updateSurprises(state: SurpriseState, elapsedTime: number, dt: n
 
   if (kind === 'bubbleColumn') {
     // Burst of bubbles from center
-    createBubblePopEffect(scene, new Vector3(0, 0, 0), new Color(0.5, 0.8, 1.0), 25);
+    getParticleEngine(scene).emit(PARTICLES.bubblePop, new Vector3(0, 0, 0), { colors: [new Color(0.5, 0.8, 1.0)], count: 25 });
     state.activeSurprise = 'bubbleColumn';
     state.surpriseTimer = 3.0;
   } else if (kind === 'colorShift') {

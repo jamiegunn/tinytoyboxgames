@@ -83,7 +83,7 @@ import { createCelebrationQueue } from './celebrations';
 import { createProximitySpawnState, updateProximitySpawning, notifyFishEaten, CAMERA_VIEW_RADIUS, CULL_DISTANCE, type ProximitySpawnState } from './waves';
 import { createSurpriseState, updateSurprises, type SurpriseState } from './surprises';
 import { disposeMeshDeep } from '@app/minigames/shared/disposal';
-import type { createGlowTrail } from '@app/minigames/shared/particleFx';
+import type { StreamHandle } from '@app/utils/particles/engine';
 
 // Phase 6 — Camera, VFX, Screen effects
 import { createCameraState, updateFollowCamera, triggerCatchZoom, triggerScreenShake, resetCamera, type CameraState } from './camera/followCamera';
@@ -131,7 +131,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
   let ambientCreatures: AmbientCreatures | null = null;
   let sharkRoot: Mesh | null = null;
   let sharkBody: Object3D | null = null;
-  let sharkGlowTrail: ReturnType<typeof createGlowTrail> | null = null;
+  let sharkGlowTrail: StreamHandle | null = null;
   let tailMeshes: Object3D[] = [];
   let eyeMeshes: Object3D[] = [];
   let sharkAnim: SharkAnimState = createSharkAnimState();
@@ -225,26 +225,13 @@ export function createGame(context: MiniGameContext): IMiniGame {
 
   // ── Update subsystems ───────────────────────────────────────────────
 
-  /** Updates shark movement, rotation, hunt FSM, and applies to mesh. */
-  let _dbgTimer = 0;
+  /**
+   * Updates shark movement, rotation, hunt FSM, and applies to mesh.
+   *
+   * @param dt - Frame delta time in seconds.
+   */
   function updateSharkMovement(dt: number): void {
     const huntPhase = getHuntPhase(huntState);
-    _dbgTimer += dt;
-    if (_dbgTimer > 1.0) {
-      _dbgTimer = 0;
-      console.log(
-        '[SHARK-DBG] movement tick: huntPhase=',
-        huntPhase,
-        '| swimPhase=',
-        sharkMove.swimPhase,
-        '| pos=',
-        { x: sharkMove.posX.toFixed(2), z: sharkMove.posZ.toFixed(2) },
-        '| dest=',
-        { x: sharkMove.swimDestX.toFixed(2), z: sharkMove.swimDestZ.toFixed(2) },
-        '| dragging=',
-        sharkMove.isBeingDragged,
-      );
-    }
 
     // Hunt FSM drives movement when not idle
     if (huntPhase !== 'idle') {
@@ -484,24 +471,11 @@ export function createGame(context: MiniGameContext): IMiniGame {
     id: 'little-shark',
 
     async setup(): Promise<void> {
-      env = setupScene(scene);
+      env = setupScene(scene, context.disposal);
 
-      // Copy game camera settings onto the shell's camera so rendering and raycasting align
-      if (env.camera && context.camera) {
-        shellCam.position.copy(env.camera.position);
-        shellCam.rotation.copy(env.camera.rotation);
-        shellCam.fov = env.camera.fov;
-        shellCam.near = env.camera.near;
-        shellCam.far = env.camera.far;
-        shellCam.updateProjectionMatrix();
-      }
-
-      // Add lights to scene
-      if (env.lights) {
-        scene.add(env.lights.directionalLight);
-        scene.add(env.lights.ambientLight);
-        scene.add(env.lights.pointLight);
-      }
+      // The shell already positioned shellCam from the manifest camera
+      // descriptor; the follow cam (createCameraState below) drives it from here.
+      // Lights are added to the scene by the lighting rig (see setupScene).
 
       ambientCreatures = createAmbientCreatures(scene);
       const sharkResult = buildSharkEntity(scene, sharkPos);
@@ -566,7 +540,6 @@ export function createGame(context: MiniGameContext): IMiniGame {
           }
         }
       });
-      context.audio.playMusic('ocean-ambient');
     },
 
     update(deltaTime: number): void {
@@ -617,7 +590,9 @@ export function createGame(context: MiniGameContext): IMiniGame {
       cameraState = null;
 
       if (sharkGlowTrail) {
-        sharkGlowTrail.dispose();
+        // Stop the stream; the shared glow batch is freed by the shell's
+        // disposal scope. See architecture-standards.md#particleengine.
+        sharkGlowTrail.stop();
         sharkGlowTrail = null;
       }
       for (const f of fishArray) disposeFish(f);
@@ -655,20 +630,11 @@ export function createGame(context: MiniGameContext): IMiniGame {
     onTap(event: MiniGameTapEvent): void {
       if (paused) return;
       const pick = event.pickResult;
-      console.log('[SHARK-DBG] onTap pick:', {
-        hit: pick?.hit,
-        meshName: (pick?.pickedMesh as Object3D)?.name,
-        pickedPoint: pick?.pickedPoint,
-        screenX: event.screenX,
-        screenY: event.screenY,
-      });
       if (!pick || !pick.hit || !pick.pickedMesh) {
-        console.log('[SHARK-DBG] onTap: no pick, bailing');
         return;
       }
       const pickedMesh = pick.pickedMesh as Object3D;
       const kind = classifyPickedMesh(pickedMesh.name);
-      console.log('[SHARK-DBG] classified as:', kind, '| mesh:', pickedMesh.name);
       switch (kind) {
         case 'fish': {
           const fish = fishArray.find((f) => f.active && !f.spawning && isDescendantOf(pickedMesh, f.root));
@@ -725,7 +691,6 @@ export function createGame(context: MiniGameContext): IMiniGame {
         case 'water':
         default: {
           const wp = pick.pickedPoint;
-          console.log('[SHARK-DBG] water tap: pickedPoint=', wp, '| sharkPos=', { x: sharkPos.x, z: sharkPos.z });
           if (wp) {
             // Cancel any active hunt so the shark goes where you tap
             if (getHuntPhase(huntState) !== 'idle') {
@@ -735,12 +700,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
             }
             const cx = clamp(wp.x, -BOUNDS, BOUNDS);
             const cz = clamp(wp.z, -BOUNDS, BOUNDS);
-            console.log('[SHARK-DBG] startLunge to:', { cx, cz }, '| BOUNDS:', BOUNDS);
             startLunge(sharkMove, cx, cz, BOUNDS * 3);
-            console.log('[SHARK-DBG] after startLunge: swimPhase=', sharkMove.swimPhase, '| dest=', {
-              x: sharkMove.swimDestX,
-              z: sharkMove.swimDestZ,
-            });
             handleWaterTap(scene, new Vector3(cx, 0, cz), context.audio);
           }
           break;

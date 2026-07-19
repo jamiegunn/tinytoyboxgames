@@ -1,6 +1,7 @@
 import { Scene, Vector3, type Mesh } from 'three';
 import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
-import { createSparkleBurst } from '@app/utils/particles';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import { createRevealInteraction } from '@app/utils/revealInteraction';
 import type { LeafRevealHandle } from './types';
 import {
@@ -40,7 +41,7 @@ export function setupLeafTap(scene: Scene, dispatcher: WorldTapDispatcher, tapTa
       { frame: 0, value: pos.clone() },
       { frame: LADYBUG_ESCAPE_END_FRAME, value: new Vector3(pos.x + LADYBUG_ESCAPE_OFFSET_X, pos.y, pos.z + LADYBUG_ESCAPE_OFFSET_Z) },
     ],
-    particleFn: createSparkleBurst,
+    particleFn: (s, p) => getParticleEngine(s).emit(PARTICLES.sceneSparkle, p),
     particleOffset: new Vector3(0, LEAF_PARTICLE_OFFSET_Y, 0),
     repeatOnTap: false,
   });

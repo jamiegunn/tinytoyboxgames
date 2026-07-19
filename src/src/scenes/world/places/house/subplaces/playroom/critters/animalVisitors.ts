@@ -1,6 +1,7 @@
 import { Color, CylinderGeometry, Group, Mesh, SphereGeometry, Vector3, type Scene } from 'three';
 import { createPlasticMaterial, createFeltMaterial } from '@app/utils/materialFactory';
 import gsap from 'gsap';
+import { getIdleAnimator } from '@app/utils/idle/registry';
 
 // ── Positions ──
 // The door crack is at the knob/free edge: X ≈ -5.7 (just inside wall), Z ≈ +0.9
@@ -140,9 +141,10 @@ function buildKitty(): Group {
 
 /**
  * Builds a soft, rounded golden retriever dog.
+ * @param scene - The scene, used to register the tail-wag idle for scoped teardown.
  * @returns The dog group
  */
-function buildDog(): Group {
+function buildDog(scene: Scene): Group {
   const root = new Group();
   root.name = 'visitor_dog_root';
   root.scale.setScalar(1.0); // 2x the original 0.5
@@ -252,8 +254,9 @@ function buildDog(): Group {
   tailFluff.scale.set(0.8, 1.5, 0.8);
   tail.add(tailFluff);
 
-  // Tail wag animation
-  gsap.to(tail.rotation, { z: 1.0, duration: 0.3, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+  // Tail wag animation — registered so it's killed on scene teardown rather than
+  // ticking forever on a removed dog. See architecture-standards.md#idleanimator.
+  getIdleAnimator(scene).register(gsap.to(tail.rotation, { z: 1.0, duration: 0.3, repeat: -1, yoyo: true, ease: 'sine.inOut' }));
 
   return root;
 }
@@ -590,7 +593,7 @@ export function spawnAnimalVisitors(scene: Scene): () => void {
 
   // ── Golden retriever sequence (5 seconds after kitty exits, ~22s total) ──
   const dogDelay = gsap.delayedCall(22, async () => {
-    const dog = buildDog();
+    const dog = buildDog(scene);
     dog.position.copy(DOOR_CRACK_OUTSIDE);
     dog.position.y = 0;
     scene.add(dog);

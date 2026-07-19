@@ -1,5 +1,6 @@
 import { Vector3, type Mesh, type Group, type Scene } from 'three';
-import { createSparkleBurst } from '@app/utils/particles';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import { startIdleLoop } from '@app/utils/animationHelpers';
 import { idleWithInterrupt, type IdleInterruptHandle } from '@app/utils/idleInterruptible';
 import { rand } from '@app/utils/randomHelpers';
@@ -74,7 +75,7 @@ export function setupDriftAndFlee(root: Group, homePos: Vector3, scene: Scene): 
           },
         ];
       },
-      particleFn: createSparkleBurst,
+      particleFn: (s, p) => getParticleEngine(s).emit(PARTICLES.sceneSparkle, p),
       particleOffset: new Vector3(0, PARTICLE_OFFSET_Y, 0),
       lockDuringReaction: true,
     },

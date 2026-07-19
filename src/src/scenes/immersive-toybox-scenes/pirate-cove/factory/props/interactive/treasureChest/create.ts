@@ -26,7 +26,11 @@ import {
   NECKLACE_TUBE_RADIUS,
 } from './constants';
 
-/** Per-instance gem material — each gem has a unique color so no sharing. */
+/**
+ * Per-instance gem material — each gem has a unique color so no sharing.
+ * @param color - The gem's color.
+ * @returns A new standard material tinted with that color.
+ */
 function gemMat(color: Color): MeshStandardMaterial {
   return new MeshStandardMaterial({ color, metalness: 0.1, roughness: 0.2 });
 }

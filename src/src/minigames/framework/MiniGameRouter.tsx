@@ -18,13 +18,11 @@ interface MiniGameRouterProps {
  * @returns The loading screen and game shell, or null when idle.
  */
 export function MiniGameRouter({ activeGameId, onGameExit }: MiniGameRouterProps) {
-  console.log(`[MiniGameRouter] render: activeGameId=${activeGameId}`);
   if (activeGameId === null) {
     return null;
   }
 
   const entry = getGameEntry(activeGameId);
-  console.log(`[MiniGameRouter] manifest entry for ${activeGameId}:`, entry ? entry.displayName : 'NOT FOUND');
   if (!entry) {
     // Unknown game ID -- silently exit
     console.error(`[MiniGameRouter] No manifest entry for ${activeGameId} — exiting`);

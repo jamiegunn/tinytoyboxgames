@@ -1,5 +1,6 @@
 import { type Object3D, Mesh, Scene, Vector3, Color } from 'three';
-import { createBubblePopEffect, createSparkleBurst } from '@app/minigames/shared/particleFx';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import type { SharkAnimState } from './shark';
 import { triggerHappySquint, triggerBarrelRoll } from './shark';
 import { SHARK_BODY_SCALE_X } from './types';
@@ -98,7 +99,7 @@ export function createCelebrationQueue(): CelebrationQueue {
 
       // 100ms: Bubble burst at fish position
       scheduleEffect(0.1, () => {
-        createBubblePopEffect(scene, fishPos, new Color(0.4, 0.7, 1.0), 20);
+        getParticleEngine(scene).emit(PARTICLES.bubblePop, fishPos, { colors: [new Color(0.4, 0.7, 1.0)], count: 20 });
       });
 
       // 150ms: Belly flash (emissive pulse)
@@ -128,7 +129,7 @@ export function createCelebrationQueue(): CelebrationQueue {
       // Golden fish extras
       if (fishKind === 'golden') {
         scheduleEffect(0.1, () => {
-          createSparkleBurst(scene, fishPos, new Color(1.0, 0.85, 0.2), 60);
+          getParticleEngine(scene).emit(PARTICLES.sparkle, fishPos, { colors: [new Color(1.0, 0.85, 0.2)], count: 60 });
         });
         scheduleEffect(0.3, () => {
           context.audio.playSound('golden-catch');
@@ -142,7 +143,7 @@ export function createCelebrationQueue(): CelebrationQueue {
       if (isFirstCatch) {
         triggerBarrelRoll(sharkAnim);
         scheduleEffect(0.1, () => {
-          createSparkleBurst(scene, fishPos, new Color(1.0, 0.9, 0.5), 45);
+          getParticleEngine(scene).emit(PARTICLES.sparkle, fishPos, { colors: [new Color(1.0, 0.9, 0.5)], count: 45 });
         });
         context.audio.playSound('shark-happy');
       }
@@ -174,5 +175,5 @@ export function playComboReaction(combo: number, pos: Vector3, scene: Scene): vo
   const count = Math.min(10 + combo * 5, 40);
   const color =
     combo >= 5 ? new Color(1.0, 0.5, 1.0) : combo >= 4 ? new Color(0.5, 1.0, 0.5) : combo >= 3 ? new Color(1.0, 0.9, 0.3) : new Color(1.0, 0.7, 0.3);
-  createSparkleBurst(scene, pos, color, count);
+  getParticleEngine(scene).emit(PARTICLES.sparkle, pos, { colors: [color], count });
 }

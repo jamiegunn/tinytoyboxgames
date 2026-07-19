@@ -1,4 +1,4 @@
-﻿import { Color, Group, Mesh, SphereGeometry, CylinderGeometry, type Material, type Scene } from 'three';
+import { Color, Group, Mesh, SphereGeometry, CylinderGeometry, type Material, type Scene } from 'three';
 import { createGlossyPaintMaterial, createFeltMaterial, getOrCreateMaterial } from '@app/utils/materialFactory';
 import { createEntityRoot, type EntityPlacement } from '@scenes/immersive-toybox-scenes/naturescene/types';
 import type { FlowerBuildOptions, FlowerCreateResult } from './types';

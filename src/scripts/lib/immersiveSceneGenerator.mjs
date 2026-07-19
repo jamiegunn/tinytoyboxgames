@@ -106,7 +106,10 @@ export async function generateImmersiveScene({ packageRoot, sceneId, displayName
   };
 
   const createdFiles = [];
-  await copyTemplateDirectory(templateDir, outputDir, replacements, createdFiles);
+  await copyTemplateDirectory(templateDir, outputDir, replacements, createdFiles, {
+    skipFiles: ['README.md'],
+    renameMap: { 'GENERATED_README.md.template': 'README.md' },
+  });
 
   const currentSceneCatalog = await fs.readFile(sceneCatalogPath, 'utf8');
   const nextSceneCatalog = addSceneCatalogEntry(currentSceneCatalog, { sceneId, displayName });

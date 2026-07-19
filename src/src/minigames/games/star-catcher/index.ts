@@ -14,7 +14,7 @@
  * - this file orchestrates those pieces
  */
 
-import { PerspectiveCamera, Scene, Vector3 } from 'three';
+import { Scene, Vector3 } from 'three';
 import type { EntityPool, IMiniGame, MiniGameContext, MiniGameDragEndEvent, MiniGameDragEvent, MiniGameTapEvent, ViewportInfo } from '../../framework/types';
 import { approximateMissWorldPoint } from './helpers';
 import { setupTemplateEnvironment, teardownTemplateEnvironment, updateTemplateEnvironment } from './environment';
@@ -34,7 +34,6 @@ import type { RuntimeViewportSnapshot, TemplateEnvironmentRig, TemplateTargetSta
  */
 export function createGame(context: MiniGameContext): IMiniGame {
   const scene = context.scene as Scene;
-  const shellCamera = context.camera as PerspectiveCamera;
 
   let environment: TemplateEnvironmentRig | null = null;
   let targetPool: EntityPool<TemplateTargetState> | null = null;
@@ -99,7 +98,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
     id: 'star-catcher',
 
     async setup(): Promise<void> {
-      environment = setupTemplateEnvironment(scene, shellCamera);
+      environment = setupTemplateEnvironment(scene, context.disposal);
 
       targetPool = context.createPool<TemplateTargetState>({
         create: () => createTarget(scene),

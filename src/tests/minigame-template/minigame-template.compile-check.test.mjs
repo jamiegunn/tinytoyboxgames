@@ -36,7 +36,9 @@ test('in-tree generated minigame compiles with the project tsconfig', async () =
       assert.fail(`Generated star-catcher has compile errors:\n${gameErrors}`);
     }
 
-    // If there are errors but none in star-catcher, the project has other
-    // issues — not the template's fault. Pass the test.
+    // Even when star-catcher itself is clean, a failing project-wide type
+    // check must fail this test: the generated game only counts as compiling
+    // when tsc exits 0 for the whole project it lives in.
+    assert.fail(`Project type check failed (tsc exited non-zero):\n${output}`);
   }
 });

@@ -60,8 +60,9 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
   const camera = new PerspectiveCamera(50, aspect, 0.1, 100);
   const target = p.target.clone();
 
-  // Babylon azimuth 0 = front view; Three.js theta 0 = +Z, so offset by PI.
-  const spherical = new Spherical(MathUtils.clamp(p.distance * portraitMultiplier, minDistance, maxDistance), p.polar, p.azimuth + Math.PI);
+  // Azimuth is stored in the native three.js Spherical convention (θ=0 → +Z), so
+  // no offset is applied here. See architecture-standards.md#cameradescriptor.
+  const spherical = new Spherical(MathUtils.clamp(p.distance * portraitMultiplier, minDistance, maxDistance), p.polar, p.azimuth);
 
   const maxAzimuthRange = preset.constraints?.maxAzimuthRange ?? 0.25;
   const minPolar = preset.constraints?.minPolar ?? Math.max(0.9, p.polar - 0.1);
@@ -81,7 +82,7 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
   };
 
   const clampSpherical = () => {
-    const baseTheta = p.azimuth + Math.PI;
+    const baseTheta = p.azimuth;
     spherical.theta = MathUtils.clamp(spherical.theta, baseTheta - maxAzimuthRange, baseTheta + maxAzimuthRange);
     spherical.phi = MathUtils.clamp(spherical.phi, minPolar, maxPolar);
     spherical.radius = MathUtils.clamp(spherical.radius, minDistance, maxDistance);
@@ -212,7 +213,7 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
 
   const recenter = () => {
     target.copy(p.target);
-    spherical.set(MathUtils.clamp(p.distance * distanceMultiplierForAspect(camera.aspect), minDistance, maxDistance), p.polar, p.azimuth + Math.PI);
+    spherical.set(MathUtils.clamp(p.distance * distanceMultiplierForAspect(camera.aspect), minDistance, maxDistance), p.polar, p.azimuth);
     updateCameraPosition();
   };
 

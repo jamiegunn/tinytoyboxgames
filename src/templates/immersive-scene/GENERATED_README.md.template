@@ -1,0 +1,92 @@
+# __SCENE_DISPLAY_NAME__
+
+Immersive toybox scene generated from the immersive-scene template.
+
+This scene follows the canonical immersive scene ceremony (ADR-0012): a thin
+`index.ts` orchestration boundary, environment and materials modules,
+data-only staging, and a `factory/` tree that separates scaffold, props, and
+systems. The shared world-scene runtime supplies the owl (ADR-0011), and the
+template, generator, and contract tests stay aligned (ADR-0013).
+
+## How To Use The Generator
+
+This folder was produced by:
+
+```bash
+npm run create:immersive-scene
+```
+
+The generator copies the canonical template with all placeholder tokens
+replaced and registers the scene in `src/scenes/sceneCatalog.ts` with a
+default camera preset and a Bubble Pop portal. The catalog entry is the single
+registration surface — id, display name, loader, camera constraints, and the
+`games` list all live there. Run the generator once per scene; it refuses to
+overwrite an existing scene folder.
+
+## How To Test In The Browser
+
+Start the frontend dev server from `src/`:
+
+```bash
+npm run dev
+```
+
+Then open:
+
+`http://localhost:5173/#/__SCENE_ID__`
+
+Expected result:
+
+- the scene shell and sky backdrop render around the felt ground
+- the owl is present and responds to floor taps
+- the sample simple props are visible; the sample interactive props respond
+  to taps
+- the Bubble Pop portal is present and enters the minigame
+
+## Wiring The Scene Into The Playroom
+
+The generator creates the scene but does not decide where its toybox sits in
+a parent scene. A ready-to-copy `ToyboxSpec` lives at
+`parent-scene-stubs/playroom.toybox.stub.ts` — copy that entry into the
+Playroom's `toyboxes/manifest.ts`, then tune placement, palette, and emblem.
+
+## How To Use The Authoring Prompt
+
+When asking an assistant (or a teammate) to author real content for this
+scene, give them a prompt built from three ingredients:
+
+1. this README plus the `factory/` folder READMEs, so the compose / create /
+   interaction split is stated up front
+2. one sample prop as the pattern to imitate —
+   `factory/props/simple/sampleSimple` for static props,
+   `factory/props/interactive/sampleInteractive` for tappable props
+3. the concrete ask: prop name, tier (simple / interactive / complex), rough
+   placement, and what a tap should do
+
+Insist that new props keep staging data in `staging/`, return a dispose
+function from their composer, and register taps only through the shared
+dispatcher. Anything that ignores those constraints will fail the scene
+contract tests.
+
+## Folder Structure
+
+- `index.ts`: orchestration boundary and lifecycle owner
+- `environment.ts`: clear color, lighting, portals, ground, and floor-tap config
+- `materials.ts`: scene-wide shared materials
+- `types.ts`: `ComposeContext` and shared scene types
+- `staging/`: data-only placement records for prop families
+- `factory/`: everything that builds meshes and wires behavior
+- `parent-scene-stubs/`: copyable toybox entries for parent scenes
+
+## Graduation Note
+
+The sample props exist to teach the pattern, not to ship. Once the scene has
+real props, delete `sampleSimple` and `sampleInteractive` (their `factory/`
+folders and `staging/` files) and remove their composers from `index.ts`.
+
+## What Not To Do
+
+- Do not move camera, portal, or owl ownership out of the shared runtime
+- Do not add scene-level `pointerdown` listeners from prop folders
+- Do not inline placement numbers in create code — staging owns placement
+- Do not let `index.ts` grow mesh details; it composes, it does not build

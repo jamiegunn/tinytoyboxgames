@@ -104,9 +104,10 @@ export interface GameState {
 export interface EnvironmentRig {
   ocean: Mesh;
   skyBase: Mesh;
-  skyHorizon: Mesh;
-  clouds: Mesh[];
+  sun: Group;
+  clouds: Group[];
   foamStrips: Mesh[];
+  waveBands: Mesh[];
   islands: Group[];
   deckFloor: Mesh;
   railing: Group;
@@ -144,8 +145,8 @@ export const C = {
   SPAWN_INTERVAL_MAX: 2.5,
   MAX_TARGETS_MIN: 3,
   MAX_TARGETS_MAX: 8,
-  TARGET_SCALE_MIN: 0.85,
-  TARGET_SCALE_MAX: 1.0,
+  TARGET_SCALE_MIN: 1.1,
+  TARGET_SCALE_MAX: 1.35,
   RAMP_START: 50,
   RAMP_END: 500,
   GOLDEN_UNLOCK: 150,
@@ -168,11 +169,11 @@ export const C = {
   CAMERA_NEAR: 0.1,
   CAMERA_FAR: 80,
   CAMERA_POS_X: 0,
-  CAMERA_POS_Y: 4,
-  CAMERA_POS_Z: 3,
+  CAMERA_POS_Y: 3.0,
+  CAMERA_POS_Z: 2.8,
   CAMERA_LOOK_X: 0,
-  CAMERA_LOOK_Y: 0.5,
-  CAMERA_LOOK_Z: -8,
+  CAMERA_LOOK_Y: 1.1,
+  CAMERA_LOOK_Z: -10,
 
   // Cannon position
   CANNON_X: 0,

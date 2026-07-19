@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { WebGLRenderer, Scene, PerspectiveCamera, Color } from 'three';
 import type { MiniGameId } from '@app/types/scenes';
-import { triggerSound } from '@app/assets/audio/sceneBridge';
+import { triggerSound, triggerMusic, triggerStopMusic } from '@app/assets/audio/sceneBridge';
+import { isMuted as engineIsMuted } from '@app/assets/audio/utils/audioEngine';
+import { useAudio } from '@app/components/AudioProvider';
+import { createConfiguredRenderer, applyDefaultEnvironment } from '@app/utils/rendererFactory';
+import { createFrameClock } from '@app/utils/frameClock';
+import { createDisposalScope } from '@app/utils/disposal';
+import { setSceneParticleEngine } from '@app/utils/particles/registry';
+import { setSceneIdleAnimator } from '@app/utils/idle/registry';
+import { setSceneRuntime } from '@app/utils/sceneRuntime';
+import { createCamera, DEFAULT_GAME_CAMERA } from '@app/utils/camera/cameraDescriptor';
 import { createScoreManager } from './ScoreManager';
 import { createComboTracker } from './ComboTracker';
 import { createDifficultyController } from './DifficultyController';
@@ -67,6 +76,7 @@ export function MiniGameShell({ gameId, manifest, onExit }: MiniGameShellProps) 
   const [isLoading, setIsLoading] = useState(true);
   // Progress state will be driven by round-based games in Phase 4.5
   const [progress, _setProgress] = useState(0);
+  const { isMuted, toggleMute } = useAudio();
 
   /** Handles clean exit by tearing down the game and disposing renderer resources. */
   const handleExit = useCallback(() => {
@@ -92,23 +102,18 @@ export function MiniGameShell({ gameId, manifest, onExit }: MiniGameShellProps) 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const renderer = new WebGLRenderer({
-      canvas,
-      antialias: true,
-      powerPreference: 'high-performance',
-    });
-    renderer.setPixelRatio(window.devicePixelRatio || 1);
-    renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
-    renderer.shadowMap.enabled = true;
+    const renderer = createConfiguredRenderer(canvas);
     rendererRef.current = renderer;
 
     const scene = new Scene();
     scene.background = new Color(0x1a1a2e);
+    applyDefaultEnvironment(renderer, scene);
     sceneRef.current = scene;
 
-    const camera = new PerspectiveCamera(60, canvas.clientWidth / canvas.clientHeight, 0.1, 100);
-    camera.position.set(0, 2, 5);
-    camera.lookAt(0, 0, 0);
+    // Build the camera from the manifest descriptor (default: the fixed shell
+    // view at (0,2,5)). Games that drive the camera per-frame read this pose as
+    // their start. See architecture-standards.md#cameradescriptor.
+    const camera = createCamera(manifest.camera ?? DEFAULT_GAME_CAMERA, canvas.clientWidth / canvas.clientHeight);
     cameraRef.current = camera;
 
     // Build shared systems
@@ -122,16 +127,27 @@ export function MiniGameShell({ gameId, manifest, onExit }: MiniGameShellProps) 
     const spawner = createSpawnScheduler();
     const celebration = createCelebrationSystem((id: string) => triggerSound(id));
 
+    // Per-frame clock + teardown registry for this game instance (foundation
+    // for the particle/animation standards). See architecture-standards.md.
+    const clock = createFrameClock();
+    const disposal = createDisposalScope();
+    // One particle engine per game scene, ticked by `clock` and torn down by
+    // `disposal`. Deep effect call sites reach it via getParticleEngine(scene).
+    // See architecture-standards.md#particleengine.
+    setSceneParticleEngine(scene, clock, disposal);
+    // Idle animator, whose looping tweens are killed by the same scope.
+    // See architecture-standards.md#idleanimator.
+    setSceneIdleAnimator(scene, disposal);
+    // Publish the clock+scope so deep effects can subscribe to the shared pump
+    // instead of a private rAF loop. See architecture-standards.md#frameclock.
+    setSceneRuntime(scene, clock, disposal);
+
     const audio: AudioBridge = {
       playSound: (id: string) => triggerSound(id),
-      playMusic: () => {
-        // TODO: Phase 4.5 -- wire to AudioProvider music system
-      },
-      stopMusic: () => {
-        // TODO: Phase 4.5
-      },
+      playMusic: (id: string) => triggerMusic(id),
+      stopMusic: () => triggerStopMusic(),
       get isMuted() {
-        return false; // TODO: read from audio provider
+        return engineIsMuted();
       },
     };
 
@@ -155,6 +171,8 @@ export function MiniGameShell({ gameId, manifest, onExit }: MiniGameShellProps) 
       audio,
       difficulty,
       spawner,
+      clock,
+      disposal,
       createPool: <T,>(config: EntityPoolConfig<T>) => createEntityPool(config),
     };
 
@@ -176,25 +194,17 @@ export function MiniGameShell({ gameId, manifest, onExit }: MiniGameShellProps) 
     let cancelled = false;
 
     const initGame = async () => {
-      console.log(`[MiniGameShell] initGame START for: ${gameId}`);
       try {
-        console.log(`[MiniGameShell] Loading module...`);
         const module = await manifest.load();
-        console.log(`[MiniGameShell] Module loaded:`, Object.keys(module));
         if (cancelled || !mountedRef.current) {
-          console.warn(`[MiniGameShell] Cancelled after load`);
           return;
         }
 
-        console.log(`[MiniGameShell] Calling createGame...`);
         const game = module.createGame(context);
         gameRef.current = game;
-        console.log(`[MiniGameShell] createGame returned, calling setup...`);
 
         await game.setup(context);
-        console.log(`[MiniGameShell] setup() complete`);
         if (cancelled || !mountedRef.current) {
-          console.warn(`[MiniGameShell] Cancelled after setup`);
           return;
         }
 
@@ -209,7 +219,10 @@ export function MiniGameShell({ gameId, manifest, onExit }: MiniGameShellProps) 
         }
 
         game.start();
-        console.log(`[MiniGameShell] game.start() called, game running`);
+
+        // Every game ships its own music (audio-standards rule): the shell
+        // owns starting it so no game can forget. Scene music resumes on exit.
+        audio.playMusic(manifest.musicId);
 
         if (mountedRef.current) {
           setIsLoading(false);
@@ -222,6 +235,9 @@ export function MiniGameShell({ gameId, manifest, onExit }: MiniGameShellProps) 
           const rawDelta = (now - lastTime) / 1000;
           lastTime = now;
           const deltaTime = Math.min(rawDelta, MAX_DELTA_TIME);
+
+          // Drive the shared frame clock (subscribers clamp internally too).
+          clock.tick(rawDelta);
 
           if (gameRef.current) {
             gameRef.current.update(deltaTime);
@@ -293,6 +309,9 @@ export function MiniGameShell({ gameId, manifest, onExit }: MiniGameShellProps) 
         gameRef.current.teardown();
         gameRef.current = null;
       }
+      // Dispose everything registered on the game's scope (tweens, tickers,
+      // Object3D subtrees) before the scene/renderer go away.
+      disposal.dispose();
       if (sceneRef.current) {
         disposeScene(sceneRef.current);
         sceneRef.current = null;
@@ -327,6 +346,8 @@ export function MiniGameShell({ gameId, manifest, onExit }: MiniGameShellProps) 
           showProgressBar={manifest.showProgressBar}
           progress={progress}
           onExit={handleExit}
+          isMuted={isMuted}
+          onToggleMute={toggleMute}
         />
       )}
     </div>

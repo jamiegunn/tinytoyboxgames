@@ -35,6 +35,12 @@ let oceanSparkleTimer = 0;
 
 /**
  * Main per-frame update orchestrator.
+ * @param state
+ * @param dt
+ * @param context
+ * @param env
+ * @param scene
+ * @param camera
  */
 export function updateGameFrame(state: GameState, dt: number, context: MiniGameContext, env: EnvironmentRig, scene: Scene, camera: PerspectiveCamera): void {
   state.elapsedTime += dt;
@@ -75,8 +81,16 @@ export function updateGameFrame(state: GameState, dt: number, context: MiniGameC
   }
 }
 
-/** Updates all active targets — spawning animation, bob/drift, boundary recycling. */
-function updateTargets(state: GameState, dt: number, time: number, scene: Scene, difficulty: number, oceanY: number = 0): void {
+/**
+ * Updates all active targets — spawning animation, bob/drift, boundary recycling.
+ * @param state
+ * @param dt
+ * @param time
+ * @param _scene
+ * @param difficulty
+ * @param oceanY
+ */
+function updateTargets(state: GameState, dt: number, time: number, _scene: Scene, difficulty: number, oceanY: number = 0): void {
   // Difficulty-scaled bob amplitude
   const bobAmplitude = lerp(0.06, 0.08, difficulty);
 
@@ -150,7 +164,14 @@ function updateTargets(state: GameState, dt: number, time: number, scene: Scene,
   }
 }
 
-/** Updates cannonball arcs and handles arrival (hit or miss effects). */
+/**
+ * Updates cannonball arcs and handles arrival (hit or miss effects).
+ * @param state
+ * @param dt
+ * @param scene
+ * @param context
+ * @param _camera
+ */
 function updateCannonballs(state: GameState, dt: number, scene: Scene, context: MiniGameContext, _camera: PerspectiveCamera): void {
   for (let i = state.cannonballs.length - 1; i >= 0; i--) {
     const ball = state.cannonballs[i];
@@ -205,7 +226,14 @@ function updateCannonballs(state: GameState, dt: number, scene: Scene, context: 
   }
 }
 
-/** Processes pending chain reaction hits. */
+/**
+ * Processes pending chain reaction hits.
+ * @param state
+ * @param dt
+ * @param scene
+ * @param context
+ * @param _camera
+ */
 function processChainHits(state: GameState, dt: number, scene: Scene, context: MiniGameContext, _camera: PerspectiveCamera): void {
   for (let i = state.pendingChainHits.length - 1; i >= 0; i--) {
     const ch = state.pendingChainHits[i];
@@ -234,7 +262,12 @@ function processChainHits(state: GameState, dt: number, scene: Scene, context: M
   }
 }
 
-/** Updates camera shake after cannon fire. */
+/**
+ * Updates camera shake after cannon fire.
+ * @param state
+ * @param dt
+ * @param camera
+ */
 function updateCameraShake(state: GameState, dt: number, camera: PerspectiveCamera): void {
   if (state.cameraShakeTimer > 0) {
     state.cameraShakeTimer -= dt;

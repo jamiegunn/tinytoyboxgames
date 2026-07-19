@@ -1,6 +1,6 @@
 # Mini-Game Architecture Reference
 
-This document describes the architectural patterns, principles, and conventions used in this mini-game. It serves as the reference implementation for all 12 mini-games in the project.
+This document describes the architectural patterns, principles, and conventions used in this mini-game. It serves as the reference implementation documenting the patterns used across the project's mini-games.
 
 ## Invocation
 
@@ -32,23 +32,35 @@ createGame(context)
 ## Directory Structure
 
 ```
-game-name/
+bubble-pop/
 ├── index.ts          # Factory + lifecycle orchestration (the only export)
 ├── types.ts          # Interfaces, type aliases, tuning constants
 ├── helpers.ts        # Pure stateless utility functions
-├── entities/         # Primary game entity domain
+├── adaptive.ts       # Adaptive quality/performance scaling
+├── balance.ts        # Difficulty-driven balance interpolation
+├── tempPool.ts       # Pre-allocated scratch objects for hot paths
+├── animation/        # Spring/tween animation helpers
+│   ├── index.ts      # Barrel re-exports
+│   └── spring.ts     # Spring animation primitives
+├── bubbles/          # Primary game entity domain
 │   ├── index.ts      # Barrel re-exports
 │   ├── lifecycle.ts  # What an entity IS — create, reset, dispose, material
 │   ├── effects.ts    # How it LOOKS/MOVES — animation, particles, visual FX
 │   └── rules.ts      # Game logic operating on collections of entities
+├── physics/          # Motion simulation
+│   ├── index.ts      # Barrel re-exports
+│   ├── flowField.ts  # Ambient drift flow field
+│   ├── noise.ts      # Noise sources for organic motion
+│   ├── softBody.ts   # Soft-body repulsion and pop pressure waves
+│   └── spatialHash.ts# Spatial hashing for neighbor queries
 └── environment/      # Scene/world domain
     ├── index.ts      # Barrel re-exports
     ├── setup.ts      # Camera, lighting rig, scene-level assembly
     ├── effects.ts    # Per-frame environment animation (ambient motion, pulse/decay)
-    └── scenery.ts    # Low-level mesh/particle builders (pure constructors)
+    └── scenery.ts    # Low-level mesh builders (pure constructors)
 ```
 
-**Directories group by domain, not by technical category.** An `effects.ts` inside `entities/` handles entity animation; an `effects.ts` inside `environment/` handles scene animation. The directory provides the noun; the filename provides the verb.
+**Directories group by domain, not by technical category.** An `effects.ts` inside `bubbles/` (the entity domain) handles entity animation; an `effects.ts` inside `environment/` handles scene animation. The directory provides the noun; the filename provides the verb.
 
 **Barrel re-exports** in each `index.ts` give the factory a single import path per domain, keeping the orchestrator's import block clean and decoupled from internal file splits.
 
@@ -56,7 +68,7 @@ game-name/
 
 ### Entity Domain vs. Environment Domain
 
-Entity code and environment code never mix. A file in `entities/` never imports from `environment/`, and vice versa. The factory orchestrator is the only place that wires them together (e.g., "when an entity is popped, pulse the nearby stars").
+Entity code and environment code never mix. A file in `bubbles/` never imports from `environment/`, and vice versa. The factory orchestrator is the only place that wires them together (e.g., "when an entity is popped, pulse the nearby stars").
 
 This separation means either domain can be redesigned, rebalanced, or replaced without touching the other. It also prevents circular dependencies.
 
@@ -76,7 +88,7 @@ Within each domain directory, files are split by responsibility:
 
 ### Setup vs. Scenery (Environment)
 
-`setup.ts` orchestrates the scene: creates the camera, lighting rig, and calls mesh builders to assemble the environment. `scenery.ts` contains pure constructors — functions that take a `Scene` and return a `Mesh` or `ParticleSystem` with no side effects beyond Babylon's scene graph registration. This follows the same lifecycle/builder split as the entity domain.
+`setup.ts` orchestrates the scene: creates the camera, lighting rig, and calls mesh builders to assemble the environment. `scenery.ts` contains pure constructors — functions that take a `Scene` and return a `Mesh` with no side effects beyond Three.js scene graph registration. This follows the same lifecycle/builder split as the entity domain.
 
 ## Framework Integration
 
@@ -153,19 +165,21 @@ The game depends on abstractions (`MiniGameContext`, `EntityPool<T>`, `AudioBrid
 Cross-cutting concerns live in `@app/minigames/shared/`:
 - `materials` — reusable material factories (e.g., `createBubbleMaterial`)
 - `meshBuilders` — common geometry (e.g., `buildSkyGradient`)
-- `particleFx` — shared particle burst builders (e.g., `createSparkleBurst`)
+
+Particle effects come from the per-scene ParticleEngine (`@app/utils/particles`,
+see `docs/ai-guidance/architecture-standards.md#particleengine`): call
+`getParticleEngine(scene).emit(PARTICLES.sparkle, pos, { colors, count })`. The
+shared sprite textures are exported via `getParticleTexture('circle' | 'star')`.
 
 Games import from shared libraries for common building blocks. Game-specific mesh builders live in the game's own `scenery.ts`.
-
-**Known gap:** The shared `particleFx` module does not export its cached texture helpers (`getCircleTexture`, `getSparkleTexture`). This forces games with custom particle systems (e.g., the iridescent pop burst) to create their own canvas textures locally. A future pass should export these helpers so games can share the texture cache.
 
 ### No GC Pressure in Hot Paths
 
 Per-frame code (anything called from `update`) avoids allocations:
-- `copyFromFloats()` over `new Color3()` for color mutations
-- Pre-allocated scratch variables for vector math
+- `setRGB()` over `new Color()` for color mutations
+- Pre-allocated scratch variables for vector math (see `tempPool.ts`)
 - Object pool (`EntityPool<T>`) for entity recycling — acquire/release instead of create/dispose
-- No `setTimeout` in animation callbacks — use Babylon's `onAnimationEnd` instead
+- No `setTimeout` in animation callbacks — animations are driven from `update` and invoke `onComplete` callbacks when they finish
 
 ### No Raw Timers
 
@@ -185,12 +199,12 @@ All spawn timing is delegated to `context.spawner`. The framework handles timer 
 - `AudioBridge` — sound and music playback
 
 ### Engine (direct import)
-- `@babylonjs/core` — Scene, Mesh, MeshBuilder, materials, lights, particles, vectors, colors
+- `three` — Scene, Mesh, geometries, materials, lights, vectors, colors
 
 ### Shared Libraries (cross-game reuse)
 - `@app/minigames/shared/materials` — entity material factories
 - `@app/minigames/shared/meshBuilders` — sky gradients, common geometry
-- `@app/minigames/shared/particleFx` — sparkle bursts, confetti helpers
+- `@app/utils/particles` — per-scene ParticleEngine (`getParticleEngine(scene).emit(PARTICLES.x, pos)`)
 
 ### Internal (game-specific)
 - `types.ts` — all interfaces, type aliases, and tuning constants (MIN/MAX bounds, scoring, audio maps)
@@ -202,7 +216,6 @@ No game file imports from another game. No game file imports from React, the app
 
 | Item | Scope | Notes |
 |------|-------|-------|
-| Shared texture helpers not exported | `shared/particleFx.ts` | `getCircleTexture`/`getSparkleTexture` are private; games create local canvas textures |
 | `InputDispatcher` sends `pickResult: null` | `framework/InputDispatcher.ts` | Forces each game to call `scene.pick()` and do its own mesh-to-entity lookup |
 | No shared lighting rig factory | `shared/` | Camera + 2-3 light setup repeated across games; pattern hasn't stabilized enough to abstract |
 | No test coverage | `bubble-pop/` | Framework spec requires manifest, lifecycle, teardown, input, first-tap, and resize tests |

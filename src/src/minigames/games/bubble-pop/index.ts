@@ -1,4 +1,4 @@
-import { Scene, Vector3, type Mesh } from 'three';
+import { Scene, Vector3, type Mesh, type PerspectiveCamera } from 'three';
 import type { IMiniGame, MiniGameContext, MiniGameTapEvent, ViewportInfo, EntityPool } from '../../framework/types';
 import type { BubbleState, BubbleKind, EnvironmentObjects } from './types';
 import {
@@ -37,16 +37,7 @@ import {
   triggerWobbleChain,
   tapGiantBubble,
 } from './bubbles';
-import {
-  setupSceneLighting,
-  buildEnvironment,
-  updateEnvironment,
-  pulseNearbyStars,
-  decayStarPulses,
-  pulseMoon,
-  decayMoonPulse,
-  type SceneLightingRig,
-} from './environment';
+import { buildEnvironment, updateEnvironment, pulseNearbyStars, decayStarPulses, pulseMoon, decayMoonPulse } from './environment';
 import { disposeMeshDeep } from '@app/minigames/shared/disposal';
 import { tmpVec3 } from './tempPool';
 import { createSpatialHash, applySoftBodyRepulsion, applyPopPressureWave } from './physics';
@@ -74,7 +65,6 @@ import {
   pickBubbleKindBalanced,
   nextMilestoneScore,
 } from './balance';
-import { disposeGameRig } from '@app/minigames/shared/sceneSetup';
 
 /**
  * Factory function for the Bubble Pop mini-game.
@@ -84,7 +74,6 @@ import { disposeGameRig } from '@app/minigames/shared/sceneSetup';
 export function createGame(context: MiniGameContext): IMiniGame {
   const scene = context.scene as Scene;
 
-  let lighting: SceneLightingRig | null = null;
   let pool: EntityPool<BubbleState> | null = null;
   const activeBubbles: BubbleState[] = [];
 
@@ -243,12 +232,67 @@ export function createGame(context: MiniGameContext): IMiniGame {
   /** Initial bubble count for warm-up (starts low, ramps up). */
   const WARMUP_INITIAL = 3;
 
+  /**
+   * Screen-space forgiveness radius in CSS pixels. Small bubbles are precision
+   * targets on a phone; when the raycast misses, the nearest bubble within
+   * this radius still pops (same pattern as the fireflies hit test).
+   */
+  const TAP_FORGIVENESS_PX = 70;
+
+  /**
+   * Finds the active bubble whose screen-space projection is nearest to the
+   * tap point, within the forgiveness radius.
+   *
+   * @param screenX - Tap X in CSS pixels (page coordinates).
+   * @param screenY - Tap Y in CSS pixels (page coordinates).
+   * @returns The nearest bubble within range, or null when none qualifies.
+   */
+  function findNearestBubbleOnScreen(screenX: number, screenY: number): BubbleState | null {
+    const cam = context.camera as PerspectiveCamera;
+    const rect = context.canvas.getBoundingClientRect();
+
+    let nearest: BubbleState | null = null;
+    let nearestDist = TAP_FORGIVENESS_PX;
+
+    for (let i = 0; i < activeBubbles.length; i++) {
+      const bubble = activeBubbles[i];
+      if (!bubble.active || bubble.spawning) continue;
+
+      const projected = tmpVec3(5).copy(bubble.mesh.position).project(cam);
+      if (projected.z > 1) continue;
+      const sx = (projected.x * 0.5 + 0.5) * rect.width + rect.left;
+      const sy = (-projected.y * 0.5 + 0.5) * rect.height + rect.top;
+
+      const dx = sx - screenX;
+      const dy = sy - screenY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = bubble;
+      }
+    }
+    return nearest;
+  }
+
+  /**
+   * Applies a successful tap to a bubble: chips a giant or pops it outright.
+   *
+   * @param bubble - The bubble that was tapped.
+   * @param event - The originating tap event (for celebration placement).
+   */
+  function tapBubble(bubble: BubbleState, event: MiniGameTapEvent): void {
+    if (bubble.kind === 'giant' && bubble.tapsRemaining > 1) {
+      tapGiantBubble(bubble);
+      context.audio.playSound('sfx_bubble_pop_pop_large');
+    } else {
+      popBubble(bubble, event.screenX, event.screenY);
+    }
+  }
+
   const game: IMiniGame = {
     id: 'bubble-pop',
 
     async setup(): Promise<void> {
-      lighting = setupSceneLighting(scene);
-
       pool = context.createPool<BubbleState>({
         create: () => createBubble(scene),
         reset: (bubble) => resetBubble(scene, bubble),
@@ -257,7 +301,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
       });
       pool.prewarm(MAX_BUBBLES);
 
-      env = buildEnvironment(scene);
+      env = buildEnvironment(scene, context.camera as PerspectiveCamera);
     },
 
     start(): void {
@@ -305,8 +349,6 @@ export function createGame(context: MiniGameContext): IMiniGame {
           context.celebration.milestone(halfW, halfH, 'large');
         }
       });
-
-      context.audio.playMusic('mus_bubble_pop_background');
     },
 
     update(deltaTime: number): void {
@@ -438,17 +480,11 @@ export function createGame(context: MiniGameContext): IMiniGame {
         env = null;
       }
 
-      if (lighting) {
-        disposeGameRig(lighting.camera, lighting.lights);
-        lighting = null;
-      }
-
       context.audio.stopMusic();
     },
 
     onResize(_viewport: ViewportInfo): void {
-      if (!lighting) return;
-      // Camera resize handled by camera system
+      // Camera + projection are owned by the shell.
     },
 
     onTap(event: MiniGameTapEvent): void {
@@ -474,14 +510,19 @@ export function createGame(context: MiniGameContext): IMiniGame {
           const bubble = activeBubbles[i];
           if (bubble.active && !bubble.spawning && (bubble.mesh === pickedMesh || pickedMesh.parent === bubble.mesh)) {
             hitBubble = true;
-            if (bubble.kind === 'giant' && bubble.tapsRemaining > 1) {
-              tapGiantBubble(bubble);
-              context.audio.playSound('sfx_bubble_pop_pop_large');
-            } else {
-              popBubble(bubble, event.screenX, event.screenY);
-            }
+            tapBubble(bubble, event);
             break;
           }
+        }
+      }
+
+      // Tap forgiveness — when the raycast missed, pop the nearest bubble
+      // within a small screen-space radius (young fingers, small bubbles).
+      if (!hitBubble) {
+        const nearBubble = findNearestBubbleOnScreen(event.screenX, event.screenY);
+        if (nearBubble) {
+          hitBubble = true;
+          tapBubble(nearBubble, event);
         }
       }
 

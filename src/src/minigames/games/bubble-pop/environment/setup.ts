@@ -1,89 +1,69 @@
-import { Scene, Color, Vector3, type Object3D } from 'three';
-import { createGameCamera, createGameLighting } from '@app/minigames/shared/sceneSetup';
-import type { GameCamera, GameLights } from '@app/minigames/shared/sceneSetup';
-import { buildSkyGradient } from '@app/minigames/shared/meshBuilders';
+import { Color, type Scene, type Object3D, type PerspectiveCamera } from 'three';
+import { createGradientSkydome, createCelestialBody, projectToView } from '@app/utils/skyRig';
 import type { EnvironmentObjects, StarMesh } from '../types';
-import { buildMoon, buildStar } from './scenery';
-import type { MeshStandardMaterial } from 'three';
+import { buildStar } from './scenery';
 
 /**
- * Scene-level setup: camera + lighting rig and night sky assembly.
+ * Scene-level setup: night sky assembly. The camera is the default fixed shell
+ * view (no manifest camera descriptor); the previous `createGameCamera` here
+ * built a twilight camera that was never applied to the shell — dead code, now
+ * removed. See architecture-standards.md#cameradescriptor.
  */
 
-/** Lighting rig returned by setupSceneLighting for teardown disposal. */
-export interface SceneLightingRig {
-  camera: GameCamera;
-  lights: GameLights;
-}
-
 /**
- * Creates the twilight camera and lighting rig for the bubble-pop scene.
- * @param _scene - The Three.js scene.
- * @returns The camera and light objects for later disposal.
- */
-export function setupSceneLighting(_scene: Scene): SceneLightingRig {
-  const camera = createGameCamera({
-    name: 'bubblePop',
-    radius: 10.0,
-    beta: 1.4,
-    fov: 0.9,
-    target: new Vector3(0, 2, 0),
-  });
-
-  const lights = createGameLighting({
-    name: 'bubblePop',
-    direction: new Vector3(0.3, -1, -0.3).normalize(),
-    directionalIntensity: 0.25,
-    hemisphericIntensity: 0.35,
-  });
-
-  return { camera, lights };
-}
-
-/**
- * Assembles the night sky dreamscape: twilight gradient, crescent moon,
- * and twinkling stars.
+ * Assembles the night sky dreamscape: a gradient skydome, a glowing moon, and
+ * twinkling stars — all placed in screen space against the shell camera via
+ * the shared sky rig (see `utils/skyRig`), so nothing depends on hand-guessed
+ * world coordinates.
+ *
  * @param scene - The Three.js scene.
+ * @param camera - The active shell camera (used for screen-space placement).
  * @returns Environment objects for per-frame update and disposal.
  */
-export function buildEnvironment(scene: Scene): EnvironmentObjects {
+export function buildEnvironment(scene: Scene, camera: PerspectiveCamera): EnvironmentObjects {
   const meshes: Object3D[] = [];
   const stars: StarMesh[] = [];
 
-  // Twilight sky gradient — disable raycasting so it doesn't intercept bubble taps
-  const sky = buildSkyGradient(new Color(0.04, 0.06, 0.12), new Color(0.12, 0.06, 0.18), 28);
+  // Night skydome centred on the camera — always fills the background.
+  const sky = createGradientSkydome({
+    radius: 40,
+    center: camera.position.clone(),
+    topColor: new Color(0.015, 0.02, 0.07),
+    horizonColor: new Color(0.06, 0.05, 0.15),
+    bottomColor: new Color(0.02, 0.02, 0.06),
+    horizonSharpness: 1.1,
+  });
   scene.add(sky);
-  sky.position.z = 10;
-  sky.raycast = () => {};
   meshes.push(sky);
 
-  // Crescent moon — disable raycasting on moon and its children
-  const moon = buildMoon(scene);
-  moon.position.set(4.5, 7.5, 8);
-  moon.traverse((child) => {
-    child.raycast = () => {};
+  // Moon — upper-left of frame, clear of the HUD buttons, behind the bubbles.
+  const moonBody = createCelestialBody({
+    radius: 1.05,
+    color: new Color(0.96, 0.9, 0.74),
+    emissive: new Color(0.6, 0.55, 0.35),
+    emissiveIntensity: 0.55,
+    haloScale: 1.9,
+    haloColor: new Color(1.0, 0.92, 0.66),
+    haloOpacity: 0.22,
   });
-  meshes.push(moon);
+  moonBody.root.position.copy(projectToView(camera, 0.26, 0.28, 15));
+  scene.add(moonBody.root);
+  meshes.push(moonBody.root);
 
-  // Get the moon material from the first child
-  let moonMat: MeshStandardMaterial | null = null;
-  moon.traverse((child) => {
-    if (child.name === 'moonFull' && (child as import('three').Mesh).material) {
-      moonMat = (child as import('three').Mesh).material as MeshStandardMaterial;
-    }
-  });
-
-  // Stars — disable raycasting so they don't intercept bubble taps
-  for (let i = 0; i < 20; i++) {
+  // Stars — scattered across the upper sky in screen space, behind the bubbles.
+  for (let i = 0; i < 48; i++) {
     const star = buildStar(scene, i);
-    star.mesh.position.set(-7 + Math.random() * 14, 3 + Math.random() * 8, 7 + Math.random() * 3);
-    if (star.mesh.position.x > 3 && star.mesh.position.y > 6) {
-      star.mesh.position.x -= 4;
+    let sx = Math.random();
+    const sy = Math.random() * 0.62;
+    // Keep the moon's corner (~0.26, 0.28) clear of clutter.
+    if (sx > 0.12 && sx < 0.4 && sy > 0.14 && sy < 0.42) {
+      sx += 0.42;
     }
+    star.mesh.position.copy(projectToView(camera, sx, sy, 14 + Math.random() * 6));
     star.mesh.raycast = () => {};
     meshes.push(star.mesh);
     stars.push(star);
   }
 
-  return { meshes, stars, moon, moonMat };
+  return { meshes, stars, moon: moonBody.root, moonMat: moonBody.coreMaterial };
 }

@@ -3,6 +3,7 @@ import { createOwlCompanion, type OwlCompanion } from '@app/entities/owl';
 import type { NavigationActions, SceneId } from '@app/types/scenes';
 import { createSceneCamera, type CameraHandle } from '@app/utils/cameraPresets';
 import { clearMaterialCache } from '@app/utils/materialFactory';
+import { createDisposalScope } from '@app/utils/disposal';
 import {
   createSceneLighting,
   disposeSceneResources,
@@ -128,7 +129,10 @@ export function createRoomScene(existingScene: Scene, canvas: HTMLCanvasElement,
 
   const cameraHandle = createSceneCamera(canvas, config.sceneId);
   const dispatcher = createWorldTapDispatcher(canvas, cameraHandle.camera);
-  const lighting = createSceneLighting(scene, config.lighting);
+  // Lighting owned by a local scope disposed on teardown (frees the shadow map).
+  // See architecture-standards.md#lightingrig.
+  const lightingScope = createDisposalScope();
+  const lighting = createSceneLighting(scene, config.lighting, lightingScope);
   const owl = createOwlCompanion(scene, config.floorTap.owlPosition, {
     restFacingY: config.floorTap.owlFacingY,
     flightBounds: config.floorTap.flightBounds,
@@ -145,6 +149,7 @@ export function createRoomScene(existingScene: Scene, canvas: HTMLCanvasElement,
     owl.dispose();
     dispatcher.dispose();
     cameraHandle.dispose();
+    lightingScope.dispose();
     disposeSceneResources(scene);
     clearMaterialCache();
   };

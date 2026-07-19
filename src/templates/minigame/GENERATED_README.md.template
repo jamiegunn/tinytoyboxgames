@@ -1,0 +1,70 @@
+# __GAME_DISPLAY_NAME__
+
+Minigame generated from the canonical minigame template.
+
+## How This Minigame Was Created
+
+This folder was produced by the minigame generator:
+
+```bash
+npm run create:minigame
+```
+
+The generator copies the template, replaces every placeholder token, and
+registers the game in `src/minigames/framework/MiniGameManifest.ts`. The
+manifest is the single registration surface: id, display name, icon, input
+modes, and the lazy `load()` import all live there. If you rename or remove
+this game, update `MiniGameManifest.ts` in the same change.
+
+## How To Test In The Browser
+
+Start the frontend dev server from `src/`:
+
+```bash
+npm run dev
+```
+
+Then open the game through its host scene hash route:
+
+`http://localhost:5173/#/nature/__GAME_ID__`
+
+Expected result:
+
+- the environment rig renders (camera pose, lights, floor, backdrop)
+- tappable targets spawn on an interval and drift gently
+- tapping a target scores a hit; tapping empty space shows a miss pulse
+- leaving the game disposes every mesh, material, and registration
+
+## Folder Structure
+
+- `index.ts`: lifecycle orchestration boundary consumed by `MiniGameShell`
+- `types.ts`: shared state and config types for this game
+- `helpers.ts`: small pure utilities (randomness, miss-point approximation)
+- `environment/`: authored scene shell — camera, lights, floor, ambience
+- `entities/`: target construction, pooling lifecycle, and local effects
+- `rules/`: gameplay glue — scoring, spawning cadence, difficulty response
+
+## Extension Guidance
+
+1. Replace the sample target visuals in `entities/` with real game entities
+2. Tune spawn cadence and difficulty response in `rules/spawning.ts`
+3. Keep scoring decisions in `rules/scoring.ts`, not in entity code
+4. Keep `index.ts` thin — it wires modules together and owns teardown
+
+Once real gameplay exists, delete the sample target family and this section.
+The template baseline is a teaching scaffold, not a shipping game.
+
+## What Not To Do
+
+- Do not bypass `MiniGameShell` lifecycle hooks with ad-hoc listeners
+- Do not create meshes inside `rules/` or score inside `entities/`
+- Do not leak pooled entities — every spawn path must have a recycle path
+- Do not register the game anywhere except `MiniGameManifest.ts`
+
+## Music
+
+Every game ships its own music bed (see `docs/ai-guidance/audio-standards.md`).
+The generated manifest entry uses the shared default (`mus_shared_music_box`);
+composing a bespoke three-layer track and registering it in
+`src/assets/audio/index.ts` is part of finishing the game, the same way
+replacing sample entities is. The shell starts the bed automatically.

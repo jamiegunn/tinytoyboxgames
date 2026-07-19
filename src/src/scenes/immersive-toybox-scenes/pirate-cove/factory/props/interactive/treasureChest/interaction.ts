@@ -5,31 +5,15 @@
  * closes slowly. Plays a cheerful chime sound.
  */
 
-import { Color, Scene, Vector3 } from 'three';
+import { Scene, Vector3 } from 'three';
 import { triggerSound } from '@app/assets/audio/sceneBridge';
 import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
 import { createTapInteraction } from '@app/utils/tapInteraction';
 import { playAnimation } from '@app/utils/animationHelpers';
-import { createBurstEffect, type BurstConfig } from '@app/utils/particleFactory';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import type { TreasureChestCreateResult } from './create';
 import { ANIMATION_FPS, LID_OPEN_ANGLE } from './constants';
-
-/** Golden sparkle burst when the chest opens. */
-const GOLD_SPARKLE_BURST: BurstConfig = {
-  capacity: 35,
-  emitCount: 25,
-  lifetime: [0.5, 1.2],
-  size: [0.015, 0.05],
-  color1: new Color(1, 0.9, 0.4),
-  alpha1: 0.9,
-  color2: new Color(0.9, 0.75, 0.2),
-  alpha2: 0.4,
-  gravity: new Vector3(0, 0.2, 0),
-  direction1: new Vector3(-0.5, 0.5, -0.5),
-  direction2: new Vector3(0.5, 1.2, 0.5),
-  emitPower: [0.2, 0.6],
-  blendMode: 'additive',
-};
 
 /**
  * Registers tap behavior for the treasure chest.
@@ -46,7 +30,9 @@ export function setupTreasureChestTap(scene: Scene, dispatcher: WorldTapDispatch
     if (isAnimating) return;
     isAnimating = true;
 
-    triggerSound('sfx_shared_tap_fallback');
+    // A treasure-reveal chime (not the generic tap fallback) so the chest reads
+    // as its own delightful reward, distinct from the game-portal toyboxes.
+    triggerSound('sfx_shared_chime');
 
     // Open the lid, hold, then close slowly
     playAnimation(
@@ -69,6 +55,6 @@ export function setupTreasureChestTap(scene: Scene, dispatcher: WorldTapDispatch
     // Golden sparkle burst from the chest opening
     const burstOrigin = chest.root.getWorldPosition(new Vector3());
     burstOrigin.y += 0.6;
-    createBurstEffect(scene, burstOrigin, GOLD_SPARKLE_BURST);
+    getParticleEngine(scene).emit(PARTICLES.treasureGold, burstOrigin);
   });
 }

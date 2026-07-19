@@ -14,7 +14,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
     "precommit:check": "node scripts/precommit-check.cjs",
     "preview": "vite preview",
-    "test": "node --test tests/template/*.test.mjs tests/room/*.test.mjs tests/room-template/*.test.mjs tests/minigame-template/*.test.mjs",
+    "test": "node --test tests/template/*.test.mjs tests/room/*.test.mjs tests/room-template/*.test.mjs tests/minigame-template/*.test.mjs tests/audio/*.test.mjs tests/particles/*.test.mjs tests/framework/*.test.mjs",
     "test:minigame-template": "node --test tests/minigame-template/*.test.mjs",
     "test:room": "node --test tests/room/*.test.mjs",
     "test:template": "node --test tests/template/*.test.mjs",

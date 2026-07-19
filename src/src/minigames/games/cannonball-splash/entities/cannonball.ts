@@ -30,7 +30,10 @@ const trailMat = new MeshStandardMaterial({
 });
 trailMat.name = 'trail_smoke';
 
-/** Creates a cannonball mesh (poolable). */
+/**
+ * Creates a cannonball mesh (poolable).
+ * @returns A hidden iron sphere mesh ready for pooling.
+ */
 export function createCannonballMesh(): Mesh {
   const mesh = new Mesh(new SphereGeometry(0.12, 8, 6), cannonballMat);
   mesh.name = 'cs_cannonball';
@@ -39,7 +42,10 @@ export function createCannonballMesh(): Mesh {
   return mesh;
 }
 
-/** Creates a shadow disc projected on the water surface. */
+/**
+ * Creates a shadow disc projected on the water surface.
+ * @returns A hidden horizontal circle mesh used as the ball's drop shadow.
+ */
 export function createCannonballShadow(): Mesh {
   const mesh = new Mesh(new CircleGeometry(0.15, 12), shadowMat);
   mesh.name = 'cs_cannonball_shadow';
@@ -51,6 +57,9 @@ export function createCannonballShadow(): Mesh {
 /**
  * Updates a cannonball's position along its arc.
  * Returns true when the flight is complete (t >= 1).
+ * @param ball - The in-flight cannonball to advance.
+ * @param dt - Frame delta time in seconds.
+ * @returns True once the ball has reached the end of its arc.
  */
 export function updateCannonball(ball: Cannonball, dt: number): boolean {
   ball.elapsed += dt;
@@ -75,7 +84,10 @@ export function updateCannonball(ball: Cannonball, dt: number): boolean {
   return t >= 1;
 }
 
-/** Creates a trail particle mesh (poolable). */
+/**
+ * Creates a trail particle mesh (poolable).
+ * @returns A hidden smoke-puff sphere mesh with its own cloned material.
+ */
 export function createTrailParticle(): Mesh {
   const mesh = new Mesh(new SphereGeometry(0.05, 4, 3), trailMat.clone());
   mesh.name = 'cs_trail';

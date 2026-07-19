@@ -9,6 +9,10 @@ interface MiniGameHUDProps {
   /** Progress value from 0 to 1 for round-based games. */
   progress: number;
   onExit: () => void;
+  /** Whether audio is globally muted. */
+  isMuted: boolean;
+  /** Toggles the global mute state. */
+  onToggleMute: () => void;
 }
 
 /** CSS keyframes injected once for HUD animations. */
@@ -41,7 +45,7 @@ function ensureStyles(): void {
  * @param props - HUD configuration and callbacks.
  * @returns The HUD overlay element.
  */
-export function MiniGameHUD({ score, streak, showScore, showProgressBar, progress, onExit }: MiniGameHUDProps) {
+export function MiniGameHUD({ score, streak, showScore, showProgressBar, progress, onExit, isMuted, onToggleMute }: MiniGameHUDProps) {
   const [isFlashing, setIsFlashing] = useState(false);
   const isFirstRender = useRef(true);
 
@@ -85,8 +89,8 @@ export function MiniGameHUD({ score, streak, showScore, showProgressBar, progres
         style={{
           pointerEvents: 'auto',
           position: 'absolute',
-          top: 16,
-          left: 16,
+          top: 'calc(16px + env(safe-area-inset-top, 0px))',
+          left: 'calc(16px + env(safe-area-inset-left, 0px))',
           width: 56,
           height: 56,
           borderRadius: '50%',
@@ -105,13 +109,40 @@ export function MiniGameHUD({ score, streak, showScore, showProgressBar, progres
         &#8592;
       </button>
 
+      {/* Mute button -- next to exit, so parents can silence a game without leaving it */}
+      <button
+        onClick={onToggleMute}
+        aria-label={isMuted ? 'Unmute sound' : 'Mute sound'}
+        aria-pressed={isMuted}
+        style={{
+          pointerEvents: 'auto',
+          position: 'absolute',
+          top: 'calc(20px + env(safe-area-inset-top, 0px))',
+          left: 'calc(88px + env(safe-area-inset-left, 0px))',
+          width: 48,
+          height: 48,
+          borderRadius: '50%',
+          border: 'none',
+          background: 'rgba(255, 255, 255, 0.7)',
+          color: '#5a4a3a',
+          fontSize: 20,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+        }}
+      >
+        {isMuted ? <span>&#128263;</span> : <span>&#128266;</span>}
+      </button>
+
       {/* Score display -- top-right, shown only when showScore is true */}
       {showScore && (
         <div
           style={{
             position: 'absolute',
-            top: 16,
-            right: 16,
+            top: 'calc(16px + env(safe-area-inset-top, 0px))',
+            right: 'calc(16px + env(safe-area-inset-right, 0px))',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-end',

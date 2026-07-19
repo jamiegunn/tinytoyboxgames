@@ -32,12 +32,12 @@ export function applySuccessfulTap(context: MiniGameContext, target: TemplateTar
 /**
  * Applies the shared-system response for a missed tap.
  *
- * The template intentionally breaks combo on a miss so the generated baseline
- * demonstrates interaction with both the score manager and the combo tracker.
+ * A miss is never punished — combos decay naturally via their time window.
+ * Every tap still answers with a gentle sound so young players always get
+ * feedback (a dead tap is a broken promise).
  *
  * @param context - Shell-provided minigame context.
  */
 export function applyMissTap(context: MiniGameContext): void {
-  context.combo.breakCombo();
   context.audio.playSound('sfx_shared_tap_fallback');
 }

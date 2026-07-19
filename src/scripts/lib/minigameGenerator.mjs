@@ -54,6 +54,7 @@ export function addMiniGameManifestEntry(source, { gameId, displayName }) {
     `    inputModes: ['tap'],`,
     `    themeColor: '#8FD3FF',`,
     `    iconAssetId: '${toSnakeCase(gameId)}_icon',`,
+    `    musicId: 'mus_shared_music_box',`,
     '    comboWindowSeconds: 3,',
     '    hasSpecialItems: false,',
     `    mode: 'endless',`,
@@ -101,7 +102,10 @@ export async function generateMiniGame({ packageRoot, gameId, displayName }) {
   };
 
   const createdFiles = [];
-  await copyTemplateDirectory(templateDir, outputDir, replacements, createdFiles);
+  await copyTemplateDirectory(templateDir, outputDir, replacements, createdFiles, {
+    skipFiles: ['README.md'],
+    renameMap: { 'GENERATED_README.md.template': 'README.md' },
+  });
 
   const currentMiniGameManifest = await fs.readFile(miniGameManifestPath, 'utf8');
   const nextMiniGameManifest = addMiniGameManifestEntry(currentMiniGameManifest, { gameId, displayName });

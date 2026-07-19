@@ -2,6 +2,7 @@ import { BoxGeometry, Color, CylinderGeometry, Group, Mesh, SphereGeometry, Toru
 import { createGlossyPaintMaterial, createPlasticMaterial, createWoodMaterial } from '@app/utils/materialFactory';
 import { triggerSound } from '@app/assets/audio/sceneBridge';
 import gsap from 'gsap';
+import { getIdleAnimator } from '@app/utils/idle/registry';
 
 /** Track radius — hugs the rug edge (rug radius = 3.8). */
 const TRACK_RADIUS = 3.95;
@@ -168,13 +169,9 @@ export function createToyTrain(scene: Scene, _keyLight: DirectionalLight): void 
     loco.add(conn);
   });
 
-  // ── Orbit animation — train goes around the track (clockwise when viewed from above) ──
-  gsap.to(orbitPivot.rotation, {
-    y: -Math.PI * 2,
-    duration: 30,
-    repeat: -1,
-    ease: 'none',
-  });
+  // ── Orbit animation — train goes around the track (clockwise from above) ──
+  // Registered idle spin, killed on scene teardown. See architecture-standards.md#idleanimator.
+  getIdleAnimator(scene).spin(orbitPivot, { axis: 'y', direction: -1, period: 30 });
 
   // ── Smoke puffs — recycling pool of small spheres ──
   const smokeMat = createPlasticMaterial('hub_trainSmokeMat', new Color(0.9, 0.9, 0.92));

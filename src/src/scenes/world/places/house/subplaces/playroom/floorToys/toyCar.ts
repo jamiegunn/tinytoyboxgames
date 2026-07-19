@@ -2,6 +2,7 @@ import { BoxGeometry, Color, CylinderGeometry, Group, Mesh, MeshBasicMaterial, S
 import { createGlossyPaintMaterial, createPlasticMaterial } from '@app/utils/materialFactory';
 import { triggerSound } from '@app/assets/audio/sceneBridge';
 import gsap from 'gsap';
+import { getIdleAnimator } from '@app/utils/idle/registry';
 
 /** Track radius — matches the train track. */
 const TRACK_RADIUS = 3.95;
@@ -163,7 +164,10 @@ export function createToyCar(scene: Scene, _keyLight: DirectionalLight): void {
     });
   };
 
-  const exhaustTimer = gsap.to({}, { duration: 0.5, repeat: -1, paused: true, onRepeat: emitPuff, onStart: emitPuff });
+  // Registered so every looping tween is killed on scene teardown (createToyCar
+  // returns void, so these would otherwise leak). See architecture-standards.md#idleanimator.
+  const idle = getIdleAnimator(scene);
+  const exhaustTimer = idle.register(gsap.to({}, { duration: 0.5, repeat: -1, paused: true, onRepeat: emitPuff, onStart: emitPuff }));
 
   // Invisible hitbox for easy clicking
   const hitbox = new Mesh(new BoxGeometry(0.45, 0.25, 0.25), new MeshBasicMaterial({ visible: false }));
@@ -172,13 +176,15 @@ export function createToyCar(scene: Scene, _keyLight: DirectionalLight): void {
   root.add(hitbox);
 
   // Rocking idle animation
-  const rockTween = gsap.to(root.rotation, {
-    z: 0.02,
-    duration: 3.75,
-    repeat: -1,
-    yoyo: true,
-    ease: 'sine.inOut',
-  });
+  const rockTween = idle.register(
+    gsap.to(root.rotation, {
+      z: 0.02,
+      duration: 3.75,
+      repeat: -1,
+      yoyo: true,
+      ease: 'sine.inOut',
+    }),
+  );
 
   // ── Click interaction — hop onto tracks and chase the train ──
   let driving = false;
@@ -254,12 +260,14 @@ export function createToyCar(scene: Scene, _keyLight: DirectionalLight): void {
       carOrbitPivot.add(root);
 
       // Chase the train — orbit at slightly faster speed (28s vs train's 30s)
-      gsap.to(carOrbitPivot.rotation, {
-        y: carOrbitPivot.rotation.y - Math.PI * 2,
-        duration: 28,
-        repeat: -1,
-        ease: 'none',
-      });
+      idle.register(
+        gsap.to(carOrbitPivot.rotation, {
+          y: carOrbitPivot.rotation.y - Math.PI * 2,
+          duration: 28,
+          repeat: -1,
+          ease: 'none',
+        }),
+      );
     });
   };
 

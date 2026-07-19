@@ -16,7 +16,11 @@
 
 /** Camera preset data stored as plain values so the catalog stays serializable. */
 export interface SceneCameraPresetDefinition {
-  /** Azimuthal angle in radians around the scene target. */
+  /**
+   * Azimuth θ, radians, in the native three.js `Spherical` convention
+   * (θ=0 → +Z, θ=π → −Z) — the same convention as CameraDescriptor. `π` is the
+   * −Z front view these scenes use. See architecture-standards.md#cameradescriptor.
+   */
   azimuth: number;
   /** Polar angle in radians from the camera target. */
   polar: number;
@@ -56,7 +60,8 @@ export function getGamesForScene(sceneId: SceneId): readonly string[] {
  * @returns True when the game is registered under this scene.
  */
 export function isGameInScene(sceneId: SceneId, gameId: string): boolean {
-  return (SCENE_CATALOG[sceneId].games ?? []).includes(gameId);
+  const games: readonly string[] = SCENE_CATALOG[sceneId].games ?? [];
+  return games.includes(gameId);
 }
 
 /** Optional scene-level music and ambient bed identifiers. */
@@ -68,13 +73,13 @@ export interface SceneAudioDefinition {
 }
 
 /**
- * Registration record for one navigable scene.
+ * Shared registration fields for one navigable scene.
  *
  * The lazy loader is intentionally typed loosely here. The runtime validates
  * the loaded module at the call site in `SceneFrame`, which avoids a circular
  * type dependency between the catalog and the navigation/runtime contracts.
  */
-export interface SceneDefinition {
+interface SceneDefinitionBase {
   /** Human-readable label used in docs, tooling, and generated comments. */
   displayName: string;
   /** Semantic role of the scene within the world hierarchy. */
@@ -87,6 +92,29 @@ export interface SceneDefinition {
   audio: SceneAudioDefinition | null;
   /** Mini-game ids this scene is allowed to launch. Empty or omitted means none. */
   games?: readonly string[];
+}
+
+/** Registration record for one navigable scene. */
+export interface SceneDefinition extends SceneDefinitionBase {
+  /**
+   * Scene the HUD back button returns to. Omitted means the default
+   * (`playroom`), so only scenes that sit deeper in the house hierarchy need
+   * to declare it.
+   */
+  backTarget?: SceneId;
+}
+
+/**
+ * Authoring-time entry shape used by the catalog's `satisfies` check.
+ *
+ * `backTarget` stays a plain string here because `SceneId` derives from the
+ * catalog itself, which would make `SceneDefinition` circular at this point.
+ * The `_sceneDefinitionContract` check below the catalog re-validates every
+ * entry as a full `SceneDefinition` with a registered `backTarget`.
+ */
+interface SceneCatalogEntryInput extends SceneDefinitionBase {
+  /** Scene the HUD back button returns to (validated as a `SceneId` below). */
+  backTarget?: string;
 }
 
 /**
@@ -102,22 +130,33 @@ export const SCENE_CATALOG = {
     displayName: 'Playroom',
     kind: 'landing',
     loader: () => import('@app/scenes/world/places/house/subplaces/playroom'),
-    cameraPreset: { azimuth: 0, polar: 1.19, distance: 14, target: [0, 0.5, 0] },
-    audio: { musicId: '', ambientId: '' },
+    cameraPreset: { azimuth: Math.PI, polar: 1.19, distance: 14, target: [0, 0.5, 0] },
+    audio: { musicId: 'mus_hub_background', ambientId: 'amb_hub_room_tone' },
+    games: [],
   },
   kitchen: {
     displayName: 'Kitchen',
     kind: 'landing',
     loader: () => import('@app/scenes/world/places/house/subplaces/kitchen'),
-    cameraPreset: { azimuth: 0, polar: 1.19, distance: 14, target: [0, 0.5, 0] },
-    audio: { musicId: '', ambientId: '' },
+    cameraPreset: { azimuth: Math.PI, polar: 1.19, distance: 14, target: [0, 0.5, 0] },
+    audio: { musicId: 'mus_kitchen_background', ambientId: 'amb_hub_room_tone' },
+    games: [],
+    backTarget: 'living-room',
+  },
+  'living-room': {
+    displayName: 'Living Room',
+    kind: 'landing',
+    loader: () => import('@app/scenes/world/places/house/subplaces/living-room'),
+    cameraPreset: { azimuth: Math.PI, polar: 1.19, distance: 14, target: [0, 0.5, 0] },
+    audio: { musicId: 'mus_living_room_background', ambientId: 'amb_hub_room_tone' },
+    games: [],
   },
   // __ROOM_SCENE_GENERATOR_ENTRY_MARKER__
   nature: {
     displayName: 'Nature',
     kind: 'immersive-toybox',
     loader: () => import('@app/scenes/immersive-toybox-scenes/naturescene'),
-    cameraPreset: { azimuth: 0, polar: 1.2, distance: 10, target: [0, 0.3, 0] },
+    cameraPreset: { azimuth: Math.PI, polar: 1.2, distance: 10, target: [0, 0.3, 0] },
     audio: { musicId: 'mus_nature_background', ambientId: 'amb_nature_stream' },
     games: ['bubble-pop', 'fireflies', 'little-shark', 'star-catcher'],
   },
@@ -126,7 +165,7 @@ export const SCENE_CATALOG = {
     kind: 'immersive-toybox',
     loader: () => import('@app/scenes/immersive-toybox-scenes/pirate-cove'),
     cameraPreset: {
-      azimuth: 0,
+      azimuth: Math.PI,
       polar: 1.2,
       distance: 10,
       target: [0, 0.3, 0],
@@ -142,14 +181,21 @@ export const SCENE_CATALOG = {
         ceilingY: 4.8,
       },
     },
-    audio: null,
+    audio: { musicId: 'mus_pirate_cove_background', ambientId: 'amb_pirate_cove_shore' },
     games: ['cannonball-splash'],
   },
   // __IMMERSIVE_SCENE_GENERATOR_ENTRY_MARKER__
-} as const satisfies Record<string, SceneDefinition>;
+} as const satisfies Record<string, SceneCatalogEntryInput>;
 
 /** Scene identifier union derived directly from the canonical catalog. */
 export type SceneId = keyof typeof SCENE_CATALOG;
+
+/**
+ * Compile-time contract: every catalog entry is a full `SceneDefinition`,
+ * including that every declared `backTarget` is a registered scene id.
+ */
+const _sceneDefinitionContract: Record<SceneId, SceneDefinition> = SCENE_CATALOG;
+void _sceneDefinitionContract;
 
 /** Default scene loaded when a route is absent or invalid. */
 export const DEFAULT_SCENE_ID: SceneId = 'playroom';

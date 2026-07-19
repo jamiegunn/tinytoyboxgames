@@ -8,6 +8,7 @@ import { getSpawnCapacity, getSpawnInterval, randomRange, selectTargetKind, rand
 
 /**
  * Picks a spawn position (left or right edge) and a random z depth.
+ * @returns The world-space spawn position and which edge it is on.
  */
 export function pickSpawnPosition(): { position: Vector3; side: 'left' | 'right' } {
   const side = Math.random() < 0.5 ? 'left' : 'right';
@@ -21,6 +22,8 @@ export function pickSpawnPosition(): { position: Vector3; side: 'left' | 'right'
 
 /**
  * Determines whether a special target should be spawned.
+ * @param difficulty - Normalized difficulty in [0, 1].
+ * @returns True once difficulty reaches 0.3 (timing is handled by the scheduler).
  */
 export function shouldSpawnSpecial(difficulty: number): boolean {
   if (difficulty < 0.3) return false;
@@ -29,6 +32,8 @@ export function shouldSpawnSpecial(difficulty: number): boolean {
 
 /**
  * Selects a special target kind based on difficulty.
+ * @param difficulty - Normalized difficulty in [0, 1].
+ * @returns 'golden-barrel' below 0.5 difficulty, otherwise a coin flip with 'rainbow-bottle'.
  */
 export function selectSpecialKind(difficulty: number): TargetKind {
   if (difficulty < 0.5) return 'golden-barrel';
@@ -37,6 +42,8 @@ export function selectSpecialKind(difficulty: number): TargetKind {
 
 /**
  * Coarse spawn band for scheduler re-registration.
+ * @param difficulty - Normalized difficulty in [0, 1].
+ * @returns Band index 0-4 (higher difficulty maps to a higher band).
  */
 export function getSpawnBand(difficulty: number): number {
   if (difficulty >= 0.8) return 4;

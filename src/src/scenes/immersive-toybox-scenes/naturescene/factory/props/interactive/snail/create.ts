@@ -1,4 +1,4 @@
-﻿import { Scene, Mesh, Group, CylinderGeometry, SphereGeometry, TorusGeometry, type Material } from 'three';
+import { Scene, Mesh, Group, CylinderGeometry, SphereGeometry, TorusGeometry, type Material } from 'three';
 import { createGlossyPaintMaterial, getOrCreateMaterial } from '@app/utils/materialFactory';
 import { createEntityRoot, type EntityPlacement } from '@scenes/immersive-toybox-scenes/naturescene/types';
 import { startEyeStalkSway, startCrawlLoop } from './animation';

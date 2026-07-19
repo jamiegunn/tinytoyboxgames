@@ -1,8 +1,10 @@
 import { BoxGeometry, Color, CylinderGeometry, Mesh, Vector3, type DirectionalLight, type Scene } from 'three';
 import { createPlasticMaterial, createToyMetalMaterial } from '@app/utils/materialFactory';
-import { createSparkleBurst } from '@app/utils/particles';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import { triggerSound, triggerMusic, triggerStopMusic } from '@app/assets/audio/sceneBridge';
 import gsap from 'gsap';
+import { getIdleAnimator } from '@app/utils/idle/registry';
 
 /**
  * Creates an interactive toy music player with spinning disc.
@@ -28,13 +30,17 @@ export function createMusicPlayer(scene: Scene, _keyLight: DirectionalLight): vo
   arm.rotation.y = 0.3;
   body.add(arm);
 
-  // Spin animation
-  gsap.to(disc.rotation, {
-    y: Math.PI * 2,
-    duration: 10,
-    repeat: -1,
-    ease: 'none',
-  });
+  // Spin animation — registered so every looping disc spin (here and in the
+  // toggle below) is killed on scene teardown. See architecture-standards.md#idleanimator.
+  const idle = getIdleAnimator(scene);
+  idle.register(
+    gsap.to(disc.rotation, {
+      y: Math.PI * 2,
+      duration: 10,
+      repeat: -1,
+      ease: 'none',
+    }),
+  );
 
   // Click interaction — toggles background music on/off
   let musicPlaying = false;
@@ -45,26 +51,30 @@ export function createMusicPlayer(scene: Scene, _keyLight: DirectionalLight): vo
     if (musicPlaying) {
       // Speed up disc and start music
       gsap.killTweensOf(disc.rotation);
-      gsap.to(disc.rotation, {
-        y: disc.rotation.y + Math.PI * 2,
-        duration: 3,
-        repeat: -1,
-        ease: 'none',
-      });
+      idle.register(
+        gsap.to(disc.rotation, {
+          y: disc.rotation.y + Math.PI * 2,
+          duration: 3,
+          repeat: -1,
+          ease: 'none',
+        }),
+      );
       triggerMusic('mus_hub_background');
     } else {
       // Slow down disc and stop music
       gsap.killTweensOf(disc.rotation);
-      gsap.to(disc.rotation, {
-        y: disc.rotation.y + Math.PI * 2,
-        duration: 10,
-        repeat: -1,
-        ease: 'none',
-      });
+      idle.register(
+        gsap.to(disc.rotation, {
+          y: disc.rotation.y + Math.PI * 2,
+          duration: 10,
+          repeat: -1,
+          ease: 'none',
+        }),
+      );
       triggerStopMusic();
     }
 
-    createSparkleBurst(scene, new Vector3(body.position.x, body.position.y + 0.4, body.position.z));
+    getParticleEngine(scene).emit(PARTICLES.sceneSparkle, new Vector3(body.position.x, body.position.y + 0.4, body.position.z));
     setTimeout(() => triggerSound('sfx_hub_music_player_tune'), 300);
   };
 }

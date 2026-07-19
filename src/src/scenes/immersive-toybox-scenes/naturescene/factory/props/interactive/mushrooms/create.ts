@@ -1,4 +1,4 @@
-﻿import { Group, Mesh, SphereGeometry, CylinderGeometry, type Material, type Scene } from 'three';
+import { Group, Mesh, SphereGeometry, CylinderGeometry, type Material, type Scene } from 'three';
 import { createGlossyPaintMaterial, getOrCreateMaterial } from '@app/utils/materialFactory';
 import { createEntityRoot, type EntityPlacement } from '@scenes/immersive-toybox-scenes/naturescene/types';
 import type { MushroomBuildOptions, MushroomConfig, MushroomCreateResult } from './types';

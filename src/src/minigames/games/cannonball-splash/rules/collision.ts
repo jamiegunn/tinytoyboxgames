@@ -21,6 +21,11 @@ export interface TapResolution {
  * 1. Check pick result for direct target mesh hit
  * 2. If no direct hit, check grace radius (1.0 unit)
  * 3. If still no hit, use the ocean plane intersection as miss point
+ * @param event - The framework tap event with screen coordinates and pick result.
+ * @param targets - The pool of targets to test against.
+ * @param camera - Camera used for the ocean-plane raycast.
+ * @param canvas - Canvas element used to normalize screen coordinates.
+ * @returns The hit target (or null on a miss) and the resolved world point.
  */
 export function resolveTap(event: MiniGameTapEvent, targets: Target[], camera: PerspectiveCamera, canvas: HTMLCanvasElement): TapResolution {
   // Direct mesh hit check
@@ -63,6 +68,9 @@ export function resolveTap(event: MiniGameTapEvent, targets: Target[], camera: P
 /**
  * Resolves chain reaction targets for a rainbow bottle hit.
  * Returns an array of { target, delay } sorted by distance.
+ * @param source - The rainbow bottle target that triggered the chain.
+ * @param targets - The pool of targets to search for chain candidates.
+ * @returns Chained targets with staggered delays, nearest first.
  */
 export function resolveChainReaction(source: Target, targets: Target[]): Array<{ target: Target; delay: number }> {
   const sourcePos = source.root.position;

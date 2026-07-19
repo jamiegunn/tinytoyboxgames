@@ -15,6 +15,7 @@ import {
   midiToFreq,
   pentatonicScale,
 } from '@app/assets/audio/utils/synthHelpers';
+import { startAudioLoop } from '@app/assets/audio/utils/loopScheduler';
 
 /** Minimum fade-in time in seconds to avoid clicks. */
 const MIN_ATTACK_S = 0.005;
@@ -33,44 +34,45 @@ const D_PENTA = pentatonicScale(62);
 export function playMusNatureBackground(ctx: AudioContext, dest: AudioNode): () => void {
   const bpm = 60;
   const beatDur = 60 / bpm;
-  const loopDuration = 16;
 
-  // Gentle, flowing pentatonic melody (scale degree indices)
-  const melodyPattern = [0, 2, 4, 3, 1, 0, 3, 2, 4, 1, 0, 2, 3, 4, 2, 0];
-  // Long, legato rhythm
-  const rhythmPattern = [1.5, 1, 1, 1.5, 1, 1.5, 1, 1, 1.5, 1, 1.5, 1, 1, 1.5, 1, 1.5];
+  // Two-bar motif stated, then varied — repetition young ears can hold onto.
+  const motif = [0, 2, 4, 3, 2, 0];
+  const motifRhythm = [1.5, 1, 1.5, 1, 1.5, 2.5];
+  const variation = [4, 3, 2, 4, 1, 0];
+  const variationRhythm = [1.5, 1, 1.5, 1, 1.5, 2.5];
 
-  let intervalId: ReturnType<typeof setInterval> | null = null;
-  let stopped = false;
+  const phrases: Array<{ degrees: number[]; rhythm: number[] }> = [
+    { degrees: motif, rhythm: motifRhythm },
+    { degrees: variation, rhythm: variationRhythm },
+  ];
 
-  const playLoop = () => {
-    if (stopped) return;
-    const now = ctx.currentTime;
+  // Cycle length derived from the actual scheduled content so the loop seam
+  // is exact — the previous version overlapped itself every 16 seconds.
+  const cycleSeconds = phrases.reduce((sum, p) => sum + p.rhythm.reduce((s, r) => s + r * beatDur, 0), 0);
+
+  const scheduleCycle = (startTime: number) => {
+    // Soft root-and-fifth drone under the whole cycle — the cheapest and most
+    // idiomatic harmony for a pentatonic forest melody.
+    const droneRoot = midiToFreq(D_PENTA[0] - 12);
+    playTone(ctx, dest, 'sine', droneRoot, 1.2, cycleSeconds - 1.2, 0.05, startTime);
+    playTone(ctx, dest, 'sine', droneRoot * 1.5, 1.6, cycleSeconds - 2.0, 0.03, startTime + 0.4);
+
     let offset = 0;
-    for (let i = 0; i < melodyPattern.length; i++) {
-      if (stopped) break;
-      const noteTime = now + offset;
-      const scaleIndex = melodyPattern[i];
-      const freq = midiToFreq(D_PENTA[scaleIndex % D_PENTA.length]);
-      const noteDur = beatDur * rhythmPattern[i];
-      // Sine fundamental — flute body
-      playTone(ctx, dest, 'sine', freq, 0.02, noteDur * 0.8, 0.12, noteTime);
-      // Soft overtone for breathy quality
-      playTone(ctx, dest, 'sine', freq * 2, 0.03, noteDur * 0.4, 0.03, noteTime);
-      offset += noteDur;
+    for (const phrase of phrases) {
+      for (let i = 0; i < phrase.degrees.length; i++) {
+        const noteTime = startTime + offset;
+        const freq = midiToFreq(D_PENTA[phrase.degrees[i] % D_PENTA.length]);
+        const noteDur = beatDur * phrase.rhythm[i];
+        // Sine fundamental — flute body
+        playTone(ctx, dest, 'sine', freq, 0.02, noteDur * 0.8, 0.12, noteTime);
+        // Soft overtone for breathy quality
+        playTone(ctx, dest, 'sine', freq * 2, 0.03, noteDur * 0.4, 0.03, noteTime);
+        offset += noteDur;
+      }
     }
   };
 
-  playLoop();
-  intervalId = setInterval(playLoop, loopDuration * 1000);
-
-  return () => {
-    stopped = true;
-    if (intervalId !== null) {
-      clearInterval(intervalId);
-      intervalId = null;
-    }
-  };
+  return startAudioLoop(ctx, cycleSeconds, scheduleCycle);
 }
 
 /**

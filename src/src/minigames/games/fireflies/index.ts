@@ -7,14 +7,14 @@ import {
   type Object3D,
   SpriteMaterial,
   Sprite,
-  PointLight,
   AdditiveBlending,
   CanvasTexture,
   Color,
 } from 'three';
 import type { IMiniGame, MiniGameContext, MiniGameTapEvent } from '../../framework/types';
-import { createGameCamera, createGameLighting, disposeGameRig, type GameLightingRig } from '@app/minigames/shared/sceneSetup';
-import { createSparkleBurst, createStarCollect } from '@app/minigames/shared/particleFx';
+import { createGameLighting, type GameLightingRig } from '@app/minigames/shared/sceneSetup';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import type { FireflyData } from './types';
 import {
   JAR_POS,
@@ -47,7 +47,6 @@ import type { Points } from 'three';
 interface JarOrbitFirefly {
   sprite: Sprite;
   material: SpriteMaterial;
-  light: PointLight;
   angle: number;
   height: number;
   orbitRadius: number;
@@ -87,6 +86,9 @@ const JAR_ORBIT_RADIUS_MAX = JAR_SCALED_RADIUS * 0.75;
 
 /**
  * Creates a small glowing sprite that orbits the jar permanently.
+ * The additive sprite alone carries the glow — the jar's interior PointLight
+ * (driven by the illumination controller) provides the aggregate local light,
+ * so captured fireflies add zero dynamic lights.
  * @param scene - The Three.js scene.
  * @param color - The firefly color to use.
  * @returns A JarOrbitFirefly ready for animation.
@@ -105,10 +107,6 @@ function createJarOrbitFirefly(scene: Scene, color: Color): JarOrbitFirefly {
   sprite.name = 'jar_orbit_firefly';
   scene.add(sprite);
 
-  const light = new PointLight(color.clone(), 0.15, 1.5);
-  light.name = 'jar_orbit_light';
-  scene.add(light);
-
   const angle = Math.random() * Math.PI * 2;
   // Keep inside jar body: from just above base to shoulder
   const height = JAR_POS.y + 0.1 * JAR_SCALE + Math.random() * (JAR_SCALED_HEIGHT * 0.6);
@@ -118,9 +116,8 @@ function createJarOrbitFirefly(scene: Scene, color: Color): JarOrbitFirefly {
 
   // Set initial position
   sprite.position.set(JAR_POS.x + Math.cos(angle) * orbitRadius, height, JAR_POS.z + Math.sin(angle) * orbitRadius);
-  light.position.copy(sprite.position);
 
-  return { sprite, material: mat, light, angle, height, orbitRadius, speed, bobPhase };
+  return { sprite, material: mat, angle, height, orbitRadius, speed, bobPhase };
 }
 
 /**
@@ -140,7 +137,6 @@ export function createGame(context: MiniGameContext): IMiniGame {
   let elapsedTime = 0;
 
   const fireflies: FireflyData[] = [];
-  let camera: ReturnType<typeof createGameCamera> | null = null;
   let lights: GameLightingRig | null = null;
   let groundMesh: Mesh | null = null;
   let jarBody: Mesh | null = null;
@@ -186,11 +182,9 @@ export function createGame(context: MiniGameContext): IMiniGame {
       fireflies.push(goldenFd);
     }
 
-    resetFirefly(goldenFd, scene);
+    resetFirefly(goldenFd);
     goldenFd.isGolden = true;
     goldenFd.spriteMaterial.color.copy(GOLDEN_COLOR);
-    goldenFd.light.color.copy(GOLDEN_COLOR);
-    goldenFd.light.intensity = 0.6;
     goldenActive = true;
   }
 
@@ -198,22 +192,21 @@ export function createGame(context: MiniGameContext): IMiniGame {
     id: 'fireflies',
 
     async setup(): Promise<void> {
-      // Camera & lights — intensities set to Tier 0 (dark); illumination controller will drive them
-      camera = createGameCamera({
-        name: 'fireflies',
-        beta: 1.3,
-        radius: 9.0,
-        target: new Vector3(0, 1.5, 0),
-        fov: 0.9,
-      });
-      lights = createGameLighting({
-        name: 'fireflies',
-        direction: new Vector3(-0.5, -1, 0.5),
-        directionalIntensity: 0.04,
-        hemisphericIntensity: 0.02,
-        pointPosition: new Vector3(0, 4, 0),
-        pointIntensity: 0.4,
-      });
+      // Lights — intensities set to Tier 0 (dark); illumination controller drives
+      // them. The camera is the default fixed shell view (the old createGameCamera
+      // here was never applied — dead code, removed). See #cameradescriptor.
+      lights = createGameLighting(
+        scene,
+        {
+          name: 'fireflies',
+          direction: new Vector3(-0.5, -1, 0.5),
+          directionalIntensity: 0.04,
+          hemisphericIntensity: 0.02,
+          pointPosition: new Vector3(0, 4, 0),
+          pointIntensity: 0.4,
+        },
+        context.disposal,
+      );
 
       // Environment
       const env = createEnvironment(scene);
@@ -314,7 +307,6 @@ export function createGame(context: MiniGameContext): IMiniGame {
         orb.angle += orb.speed * deltaTime;
         const bob = Math.sin(elapsedTime * 1.5 + orb.bobPhase) * 0.03;
         orb.sprite.position.set(JAR_POS.x + Math.cos(orb.angle) * orb.orbitRadius, orb.height + bob, JAR_POS.z + Math.sin(orb.angle) * orb.orbitRadius);
-        orb.light.position.copy(orb.sprite.position);
         // Gentle pulse
         orb.material.opacity = 0.6 + 0.3 * Math.sin(elapsedTime * 2 + orb.bobPhase);
       }
@@ -339,7 +331,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
         for (const fd of fireflies) {
           if (!fd.active && !fd.isGolden) {
             fd.respawnTimer = 0;
-            resetFirefly(fd, scene);
+            resetFirefly(fd);
             activeCount++;
             if (activeCount >= 5) break;
           }
@@ -356,7 +348,6 @@ export function createGame(context: MiniGameContext): IMiniGame {
           if (fd.active && !fd.catching && fd.sprite.position.z < FOREGROUND_Z) {
             const pos = foregroundSpawnPos();
             fd.sprite.position.copy(pos);
-            fd.light.position.copy(pos);
             fd.behaviorCenter.copy(pos);
             foregroundCount++;
             if (foregroundCount >= 2) break;
@@ -370,7 +361,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
           if (fd.respawnTimer > 0) {
             fd.respawnTimer -= deltaTime;
             if (fd.respawnTimer <= 0) {
-              resetFirefly(fd, scene);
+              resetFirefly(fd);
             }
           }
           continue;
@@ -397,29 +388,27 @@ export function createGame(context: MiniGameContext): IMiniGame {
               const gold = 0.85 + 0.15 * Math.sin(flashT * Math.PI * 2);
               fd.spriteMaterial.color.setRGB(1, 0.95 * gold, 0.7 * gold);
             }
-            // Warm flash — brighten sprite and light
+            // Warm flash — brighten sprite
             fd.spriteMaterial.opacity = 1.0;
-            fd.light.intensity = 1.5;
             continue;
           }
 
           // Boost glow trail during arc for a comet-like effect
-          fd.glowTrail.configure({ emitRate: 20 });
+          fd.glowTrail.setRate(20);
 
           // Arc to jar animation
           fd.catchProgress += deltaTime / ARC_DURATION;
           if (fd.catchProgress >= 1.0) {
             // Sparkle burst at jar mouth on arrival
             const jarMouth = JAR_POS.clone().add(new Vector3(0, JAR_SCALED_HEIGHT, 0));
-            createStarCollect(scene, jarMouth);
+            getParticleEngine(scene).emit(PARTICLES.starCollect, jarMouth);
 
             // Spawn a permanent orbiting firefly around the jar
             const orbColor = fd.isGolden ? GOLDEN_COLOR : FIREFLY_COLOR;
             jarOrbitFireflies.push(createJarOrbitFirefly(scene, orbColor));
 
             fd.sprite.visible = false;
-            fd.light.visible = false;
-            fd.glowTrail.configure({ emitRate: 4 }); // restore normal rate
+            fd.glowTrail.setRate(4); // restore normal rate
             fd.glowTrail.stop();
             fd.active = false;
             fd.catching = false;
@@ -453,26 +442,19 @@ export function createGame(context: MiniGameContext): IMiniGame {
           lerpPos.z += Math.cos(t * Math.PI * 3) * wobble;
 
           fd.sprite.position.copy(lerpPos);
-          fd.light.position.copy(lerpPos);
 
           // Shrink from 1.0x to 0.3x base scale during arc
           const arcScale = baseScale * (1.0 - rawT * 0.7);
           fd.sprite.scale.setScalar(arcScale);
 
-          // Fade during arc
+          // Fade during arc, with a slight shimmer pulse on the sprite
           const fade = 1.0 - rawT * 0.7;
-          fd.spriteMaterial.opacity = 0.85 * fade;
-          // Light intensity with slight pulse
-          const baseLightIntensity = (fd.isGolden ? 0.6 : 0.35) * fade;
-          fd.light.intensity = baseLightIntensity + Math.sin(rawT * Math.PI * 4) * 0.1;
+          fd.spriteMaterial.opacity = Math.min(1, 0.85 * fade + Math.abs(Math.sin(rawT * Math.PI * 4)) * 0.1);
           continue;
         }
 
         // Behavior-driven movement (drift / circle / zigzag)
         updateFireflyBehavior(fd, deltaTime, speedMult);
-
-        // Keep point light in sync
-        fd.light.position.copy(fd.sprite.position);
 
         // Glow pulse animation
         let pulseVal: number;
@@ -506,14 +488,12 @@ export function createGame(context: MiniGameContext): IMiniGame {
         const baseColor = fd.isGolden ? GOLDEN_COLOR : FIREFLY_COLOR;
         fd.spriteMaterial.opacity = fd.isGolden ? 0.4 + 0.6 * pulseVal : 0.25 + 0.65 * pulseVal;
         fd.spriteMaterial.color.copy(baseColor);
-        fd.light.intensity = (fd.isGolden ? 0.8 : 0.35) * (0.15 + 0.85 * pulseVal);
 
         // Out-of-bounds check
         const pos = fd.sprite.position;
         if (pos.x < BOUNDS.xMin || pos.x > BOUNDS.xMax || pos.y < BOUNDS.yMin || pos.y > BOUNDS.yMax) {
           const newPos = randomSpawnPos();
           fd.sprite.position.copy(newPos);
-          fd.light.position.copy(newPos);
           fd.time = Math.random() * 100;
         }
       }
@@ -548,11 +528,11 @@ export function createGame(context: MiniGameContext): IMiniGame {
     },
 
     teardown(): void {
-      // Dispose firefly sprites, lights, and particle trails
+      // Dispose firefly sprites and particle trails
       for (const fd of fireflies) {
+        // Stop the stream; the shared glow batch is freed by the shell's
+        // disposal scope after teardown. See architecture-standards.md#particleengine.
         fd.glowTrail.stop();
-        fd.glowTrail.dispose();
-        fd.light.removeFromParent();
         fd.spriteMaterial.dispose();
         fd.sprite.removeFromParent();
       }
@@ -595,12 +575,10 @@ export function createGame(context: MiniGameContext): IMiniGame {
       for (const orb of jarOrbitFireflies) {
         orb.sprite.removeFromParent();
         orb.material.dispose();
-        orb.light.removeFromParent();
       }
       jarOrbitFireflies.length = 0;
 
-      disposeGameRig(camera, lights);
-      camera = null;
+      // Lights are freed by the shell's disposal scope; the camera is the shell's.
       lights = null;
       groundMesh = null;
       jarBody = null;
@@ -646,7 +624,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
       }
 
       const catchColor = nearestFd.isGolden ? GOLDEN_COLOR : FIREFLY_COLOR;
-      createSparkleBurst(scene, nearestFd.sprite.position.clone(), catchColor, 15);
+      getParticleEngine(scene).emit(PARTICLES.sparkle, nearestFd.sprite.position.clone(), { colors: [catchColor], count: 15 });
 
       if (nearestFd.isGolden) {
         audio?.playGoldenCatch();

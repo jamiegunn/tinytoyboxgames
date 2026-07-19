@@ -10,18 +10,18 @@
  * - ADR-0013: the template, generator, and tests must stay aligned
  */
 
-import { BoxGeometry, Color, type Camera, Mesh, MeshStandardMaterial, Shape, ShapeGeometry, type Scene } from 'three';
+import { BoxGeometry, Color, Fog, type Camera, Mesh, MeshStandardMaterial, type PerspectiveCamera, Shape, ShapeGeometry, Vector3, type Scene } from 'three';
 import type { NavigationActions } from '@app/types/scenes';
 import { createWorldScene } from '@app/utils/worldSceneFactory';
 import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
 import { createDisposeCollector } from '@app/utils/sceneHelpers';
 import { createWoodMaterial } from '@app/utils/materialFactory';
+import { createGradientSkydome, createCelestialBody, createCloudPuff, projectToView } from '@app/utils/skyRig';
 import { PIRATE_COVE_ENVIRONMENT } from './environment';
 import { createPirateCoveMaterials } from './materials';
 import type { ComposeContext } from './types';
 import type { DisposeFn } from './factory/composeHelpers';
 import { createSceneShell } from './factory/scaffold/sceneShell';
-import { createSkyBackdrop } from './factory/scaffold/skyBackdrop';
 import { composeBarrels } from './factory/props/simple/barrels';
 import { composeAnchor } from './factory/props/simple/anchor';
 import { composeRopeCoils } from './factory/props/simple/ropeCoils';
@@ -78,14 +78,43 @@ export function createScene(scene: Scene, canvas: HTMLCanvasElement, nav: Naviga
         materials,
       });
 
-      // Sunset sky backdrop
-      createSkyBackdrop(sc, {
-        width: 28,
-        height: 12,
-        y: 5,
-        z: -8,
-        material: materials.skyBackdrop,
+      // Sky rig: a gradient skydome (afternoon blue → warm horizon → sea),
+      // a warm sun, and drifting clouds — all placed in screen space against
+      // the scene camera via the shared rig (see utils/skyRig).
+      const skyCam = cam as PerspectiveCamera;
+      const skydome = createGradientSkydome({
+        radius: 60,
+        center: new Vector3(0, 0, 0),
+        topColor: new Color(0.26, 0.48, 0.82),
+        horizonColor: new Color(0.66, 0.82, 0.93),
+        bottomColor: new Color(0.13, 0.36, 0.48),
+        horizonSharpness: 1.5,
       });
+      sc.add(skydome);
+
+      const sun = createCelestialBody({
+        radius: 2.0,
+        color: new Color(1.0, 0.96, 0.82),
+        emissive: new Color(1.0, 0.9, 0.62),
+        emissiveIntensity: 1.2,
+        haloScale: 1.6,
+        haloColor: new Color(1.0, 0.86, 0.52),
+        haloOpacity: 0.22,
+      });
+      sun.root.position.copy(projectToView(skyCam, 0.76, 0.14, 34));
+      sc.add(sun.root);
+
+      const cloudColor = new Color(0.99, 0.98, 0.96);
+      const cloudSpots: Array<[number, number, number, number]> = [
+        [0.24, 0.2, 30, 1.8],
+        [0.5, 0.1, 33, 2.2],
+        [0.9, 0.3, 27, 1.5],
+      ];
+      for (const [sx, sy, dist, scl] of cloudSpots) {
+        const cloud = createCloudPuff({ color: cloudColor, opacity: 0.92, scale: scl });
+        cloud.position.copy(projectToView(skyCam, sx, sy, dist));
+        sc.add(cloud);
+      }
 
       // Ship deck floor — hull-shaped wood plane matching the railing outline.
       // Shape draws in x/y; after rotateX(-PI/2) shape-y maps to world -z,
@@ -184,9 +213,17 @@ export function createScene(scene: Scene, canvas: HTMLCanvasElement, nav: Naviga
     },
   });
 
+  // Gentle depth fog matched to the clear colour: the camera orbits ~10 units
+  // out, so fog starts beyond the ship deck and only softens the sunset
+  // backdrop (~18 units away) into the ocean haze.
+  scene.fog = new Fog(PIRATE_COVE_ENVIRONMENT.clearColor.clone(), 14, 32);
+
   return {
     cameraHandle: result.cameraHandle,
     dispose: () => {
+      // SceneFrame reuses one Scene object across scene switches — clear the
+      // fog here so it never bleeds into the next scene.
+      scene.fog = null;
       disposer.disposeAll();
       result.dispose();
     },

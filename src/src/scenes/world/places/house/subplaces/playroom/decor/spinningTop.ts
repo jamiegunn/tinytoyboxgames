@@ -1,6 +1,6 @@
 import { Color, CylinderGeometry, Mesh, SphereGeometry, TorusGeometry, type DirectionalLight, type Scene } from 'three';
 import { createGlossyPaintMaterial, createToyMetalMaterial } from '@app/utils/materialFactory';
-import gsap from 'gsap';
+import { getIdleAnimator } from '@app/utils/idle/registry';
 
 /**
  * Creates a striped spinning top with a metal tip, knob handle, and wobble animation.
@@ -35,13 +35,8 @@ export function createSpinningTop(scene: Scene, _keyLight: DirectionalLight): vo
   knob.position.y = 0.12;
   topBody.add(knob);
 
-  // Wobble animation
-  gsap.to(topBody.rotation, {
-    z: -0.05,
-    duration: 4,
-    repeat: -1,
-    yoyo: true,
-    ease: 'sine.inOut',
-  });
+  // Gentle wobble between ±0.05 rad on z. Base set first so the seeded phase
+  // renders from the right start. See architecture-standards.md#idleanimator.
   topBody.rotation.z = 0.05;
+  getIdleAnimator(scene).sway(topBody, { amplitude: -0.1, period: 8 });
 }

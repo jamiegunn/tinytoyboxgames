@@ -26,6 +26,8 @@ import { spawnCannonball } from './entities/lifecycle';
 
 /**
  * Creates the Cannonball Splash minigame.
+ * @param context - Framework-provided scene, camera, difficulty and services.
+ * @returns An IMiniGame object literal whose methods the framework calls through the game lifecycle.
  */
 export function createGame(context: MiniGameContext): IMiniGame {
   const scene = context.scene as Scene;

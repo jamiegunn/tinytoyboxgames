@@ -1,5 +1,5 @@
-import { type PointLight, type Sprite, type SpriteMaterial, Vector3, Color } from 'three';
-import type { SimpleParticleSystem } from '@app/utils/particles';
+import { type Sprite, type SpriteMaterial, Vector3, Color } from 'three';
+import type { StreamHandle } from '@app/utils/particles/engine';
 
 /** Behavior type that determines how a firefly moves. */
 export type FireflyBehavior = 'drift' | 'circle' | 'zigzag';
@@ -10,10 +10,8 @@ export interface FireflyData {
   sprite: Sprite;
   /** Sprite material for color/opacity animation. */
   spriteMaterial: SpriteMaterial;
-  /** Per-firefly point light for glow illumination. */
-  light: PointLight;
-  /** Continuous glow particle trail attached to this firefly. */
-  glowTrail: SimpleParticleSystem;
+  /** Continuous glow particle stream attached to this firefly. */
+  glowTrail: StreamHandle;
   speed: number;
   glowPhase: number;
   driftOffsetX: number;

@@ -11,6 +11,7 @@ import {
   type SceneLighting,
 } from '@app/utils/sceneHelpers';
 import { clearMaterialCache } from '@app/utils/materialFactory';
+import { createDisposalScope } from '@app/utils/disposal';
 import { createWorldTapDispatcher, type WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
 
 /**
@@ -76,8 +77,10 @@ export function createWorldScene(existingScene: Scene, canvas: HTMLCanvasElement
   // Centralized tap dispatcher — one listener, one raycast per event
   const dispatcher = createWorldTapDispatcher(canvas, cameraHandle.camera);
 
-  // Lighting
-  const lighting = createSceneLighting(scene, config.lighting);
+  // Lighting — owned by a local scope disposed in dispose() below, so the
+  // directional shadow map is freed on scene switch. See architecture-standards.md#lightingrig.
+  const lightingScope = createDisposalScope();
+  const lighting = createSceneLighting(scene, config.lighting, lightingScope);
 
   // World-specific content — builder returns the ground mesh for floor-tap wiring
   const groundMesh = config.buildContents(scene, canvas, cameraHandle.camera, lighting.keyLight, dispatcher);
@@ -109,9 +112,11 @@ export function createWorldScene(existingScene: Scene, canvas: HTMLCanvasElement
 
   const dispose = () => {
     portalCleanups.forEach((fn) => fn());
+    portalResults.forEach((portal) => portal.dispose());
     owlCleanup();
     dispatcher.dispose();
     cameraHandle.dispose();
+    lightingScope.dispose();
     disposeSceneResources(scene);
     clearMaterialCache();
   };

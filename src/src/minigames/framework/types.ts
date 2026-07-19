@@ -1,4 +1,7 @@
 import type { MiniGameId } from '@app/types/scenes';
+import type { FrameClock } from '@app/utils/frameClock';
+import type { DisposalScope } from '@app/utils/disposal';
+import type { CameraDescriptor } from '@app/utils/camera/cameraDescriptor';
 
 /** Viewport information provided to mini-games for responsive layout. */
 export interface ViewportInfo {
@@ -52,6 +55,20 @@ export interface MiniGameManifestEntry {
   inputModes: Array<'tap' | 'drag'>;
   themeColor: string;
   iconAssetId: string;
+  /**
+   * Background music bed for this game (required — every game ships its own
+   * music, per docs/ai-guidance/audio-standards.md). Must be a key in
+   * MUSIC_REGISTRY; the shell starts it automatically when the game starts
+   * and the scene's music resumes on exit.
+   */
+  musicId: string;
+  /**
+   * Camera for this game, built and applied to the shell camera at mount.
+   * Omit for the default fixed shell view at (0,2,5). Games that then drive the
+   * camera per-frame (e.g. a follow cam) read this as their initial pose.
+   * See architecture-standards.md#cameradescriptor.
+   */
+  camera?: CameraDescriptor;
   comboWindowSeconds: number;
   hasSpecialItems: boolean;
   mode: 'endless' | 'round-based' | 'auto-runner';
@@ -127,6 +144,19 @@ export interface MiniGameContext {
   audio: AudioBridge;
   difficulty: DifficultyController;
   spawner: SpawnScheduler;
+
+  /**
+   * Per-frame clock driven by the shell's render loop. Subscribe instead of
+   * starting a private requestAnimationFrame. See architecture-standards.md#frameclock.
+   */
+  clock: FrameClock;
+
+  /**
+   * Teardown registry for this game instance. Register tweens, Object3D
+   * subtrees, listeners; they are disposed when the game exits.
+   * See architecture-standards.md#disposalscope.
+   */
+  disposal: DisposalScope;
 
   /**
    * Creates a typed entity pool for object recycling.

@@ -1,5 +1,6 @@
-import { Scene, Color, Mesh, Group, PlaneGeometry, SphereGeometry } from 'three';
+import { Scene, Color, Mesh, Group, SphereGeometry, Vector3 } from 'three';
 import { createPlasticMaterial } from '@app/utils/materialFactory';
+import { createGradientSkydome } from '@app/utils/skyRig';
 import { seededRng } from '@app/utils/seededRng';
 import { animateCloudDrift } from './animation';
 
@@ -21,11 +22,18 @@ export function createSkyBackdrop(scene: Scene): SkyBackdropCreateResult {
   root.name = 'sky_backdrop_root';
   scene.add(root);
 
-  const skyMat = createPlasticMaterial('natureSkyMat', new Color(0.35, 0.55, 0.7));
-  skyMat.emissive = new Color(0.12, 0.2, 0.28);
-  const sky = new Mesh(new PlaneGeometry(28, 12), skyMat);
+  // Gradient skydome via the shared sky rig (retires the old flat sky plane).
+  // Origin-centred for the orbit scene camera; radius comfortably exceeds the
+  // ~14u camera distance. See scene-rendering-standards.md and #scenedescriptor.
+  const sky = createGradientSkydome({
+    radius: 40,
+    center: new Vector3(0, 0, 0),
+    topColor: new Color(0.28, 0.48, 0.68),
+    horizonColor: new Color(0.4, 0.6, 0.72),
+    bottomColor: new Color(0.35, 0.5, 0.62),
+    horizonSharpness: 1.0,
+  });
   sky.name = 'skyBackdrop';
-  sky.position.set(0, 5, -6);
   root.add(sky);
 
   // Soft clouds

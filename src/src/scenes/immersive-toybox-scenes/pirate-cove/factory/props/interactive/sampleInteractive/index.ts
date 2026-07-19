@@ -1,1 +1,0 @@
-export { composeSampleInteractiveProps } from './compose';

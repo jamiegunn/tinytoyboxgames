@@ -1,4 +1,4 @@
-﻿import { Group, type Mesh, type Scene } from 'three';
+import { Group, type Mesh, type Scene } from 'three';
 import { createEntityRoot, type EntityPlacement } from '@scenes/immersive-toybox-scenes/naturescene/types';
 import { createStreamContext } from './shared/context';
 import { addStreamBanks } from './stream-bank';
@@ -24,7 +24,7 @@ export function createStream(scene: Scene, placement: EntityPlacement): StreamCr
   const context = createStreamContext();
 
   createStreamBed(root, context);
-  const { mesh: water, killAnimation } = createWaterSurface(root, context);
+  const { mesh: water, killAnimation } = createWaterSurface(root, context, scene);
   addStreamBanks(root, context.getFrame);
   addStreamRocks(root, context);
 

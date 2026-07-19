@@ -1,4 +1,5 @@
-import { Color, DoubleSide, Mesh, ShaderMaterial } from 'three';
+import { Color, DoubleSide, Mesh, ShaderMaterial, type Scene } from 'three';
+import { getSceneClock } from '@app/utils/sceneRuntime';
 import waterVert from '../shaders/stream.vert.glsl?raw';
 import waterFrag from '../shaders/stream.frag.glsl?raw';
 import { createRibbonGeometry } from '../shared/ribbon';
@@ -13,9 +14,10 @@ export interface WaterSurfaceResult {
  * Builds the animated water surface mesh with a custom shader and adds it to the parent.
  * @param parent - The parent object to attach the water mesh to
  * @param context - The stream context providing curve and width data
+ * @param scene - The scene, used to reach the shared FrameClock for shader time.
  * @returns The water surface mesh and a cleanup function for the animation loop.
  */
-export function createWaterSurface(parent: StreamParent, context: StreamContext): WaterSurfaceResult {
+export function createWaterSurface(parent: StreamParent, context: StreamContext, scene: Scene): WaterSurfaceResult {
   const waterUniforms = {
     uTime: { value: 0.0 },
     uDeepColor: { value: new Color(0.05, 0.14, 0.17) },
@@ -50,15 +52,17 @@ export function createWaterSurface(parent: StreamParent, context: StreamContext)
   water.receiveShadow = true;
   parent.add(water);
 
-  let animFrame = 0;
-  const tick = () => {
-    animFrame = requestAnimationFrame(tick);
-    waterUniforms.uTime.value = performance.now() * 0.001;
-  };
-  tick();
+  // Shader time is driven by the scene's shared FrameClock (no private rAF).
+  // See architecture-standards.md#frameclock.
+  const clock = getSceneClock(scene);
+  const unsubscribe = clock
+    ? clock.subscribe((_dt, elapsed) => {
+        waterUniforms.uTime.value = elapsed;
+      })
+    : () => {};
 
   return {
     mesh: water,
-    killAnimation: () => cancelAnimationFrame(animFrame),
+    killAnimation: unsubscribe,
   };
 }

@@ -27,6 +27,8 @@ export interface GamePortalConfig {
 export interface GamePortalResult {
   root: Group;
   tappableMeshes: Object3D[];
+  /** Kills the portal's infinite GSAP tweens. Must be called on scene disposal. */
+  dispose: () => void;
 }
 
 // ── Helper: create a colored MeshStandardMaterial ──
@@ -570,7 +572,14 @@ export function buildGamePortal(scene: Scene, config: GamePortalConfig, nav: Nav
 
   scene.add(root);
 
-  return { root, tappableMeshes };
+  // The float and rotation tweens above are repeat: -1 — without an explicit
+  // kill they outlive the scene and animate detached objects forever.
+  const dispose = () => {
+    gsap.killTweensOf(icon.position);
+    gsap.killTweensOf(icon.rotation);
+  };
+
+  return { root, tappableMeshes, dispose };
 }
 
 /**

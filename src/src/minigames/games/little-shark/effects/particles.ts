@@ -1,4 +1,5 @@
 import { Color, Vector3, SphereGeometry, CylinderGeometry, MeshStandardMaterial, Mesh, type Scene, type Object3D } from 'three';
+import { getSceneClock, getSceneDisposal } from '@app/utils/sceneRuntime';
 
 // ---------------------------------------------------------------------------
 // Return type interfaces
@@ -280,47 +281,57 @@ export function createCatchExplosion(scene: Scene, pos: Vector3, fishColor: Colo
     });
   }
 
-  // Self-updating animation via requestAnimationFrame
-  let lastTime = performance.now();
+  /**
+   * Disposes a particle's mesh and marks it dead.
+   *
+   * @param p - The particle to dispose.
+   */
+  const kill = (p: ExplosionParticle): void => {
+    p.alive = false;
+    scene.remove(p.mesh);
+    (p.mesh.material as MeshStandardMaterial).dispose();
+  };
 
-  function tick(): void {
-    const now = performance.now();
-    const dt = (now - lastTime) / 1000;
-    lastTime = now;
-
-    let anyAlive = false;
-
-    for (const p of particles) {
-      if (!p.alive) continue;
-
-      p.age += dt;
-      if (p.age >= p.lifespan) {
-        p.alive = false;
-        scene.remove(p.mesh);
-        (p.mesh.material as MeshStandardMaterial).dispose();
-        continue;
-      }
-
-      anyAlive = true;
-      const t = p.age / p.lifespan;
-
-      // Apply gravity to sparkles, slight upward bias for bubbles
-      if (!p.isBubble) {
-        p.velocity.addScaledVector(gravity, dt);
-      }
-      p.velocity.multiplyScalar(drag);
-      p.mesh.position.addScaledVector(p.velocity, dt);
-
-      // Fade out
-      (p.mesh.material as MeshStandardMaterial).opacity = (1.0 - t) * (p.isBubble ? 0.7 : 1.0);
-    }
-
-    if (anyAlive) {
-      requestAnimationFrame(tick);
-    }
+  // Driven by the scene's shared FrameClock (no private rAF), and killed on
+  // scene teardown so a burst can never touch removed objects.
+  // See architecture-standards.md#frameclock.
+  const clock = getSceneClock(scene);
+  const scope = getSceneDisposal(scene);
+  if (!clock || !scope) {
+    // No scene runtime (should not happen inside a mini-game) — fail safe by
+    // disposing immediately rather than leaking undriven meshes.
+    for (const p of particles) kill(p);
+    return;
   }
 
-  requestAnimationFrame(tick);
+  let unsubscribe = (): void => {};
+  const step = (dt: number): void => {
+    let anyAlive = false;
+    for (const p of particles) {
+      if (!p.alive) continue;
+      p.age += dt;
+      if (p.age >= p.lifespan) {
+        kill(p);
+        continue;
+      }
+      anyAlive = true;
+      const t = p.age / p.lifespan;
+      if (!p.isBubble) p.velocity.addScaledVector(gravity, dt);
+      p.velocity.multiplyScalar(drag);
+      p.mesh.position.addScaledVector(p.velocity, dt);
+      (p.mesh.material as MeshStandardMaterial).opacity = (1.0 - t) * (p.isBubble ? 0.7 : 1.0);
+    }
+    if (!anyAlive) unsubscribe();
+  };
+
+  unsubscribe = clock.subscribe(step);
+  // On teardown mid-burst: dispose any still-alive particles, then unsubscribe.
+  scope.add(() => {
+    for (const p of particles) {
+      if (p.alive) kill(p);
+    }
+    unsubscribe();
+  });
 }
 
 // ---------------------------------------------------------------------------

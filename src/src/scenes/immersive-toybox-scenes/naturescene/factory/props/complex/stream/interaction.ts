@@ -1,6 +1,7 @@
 import { Vector3, type Mesh, type Scene } from 'three';
 import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
-import { createBurstEffect, WATER_RIPPLE } from '@app/utils/particleFactory';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import { createTapInteraction } from '@app/utils/tapInteraction';
 
 /**
@@ -12,6 +13,6 @@ import { createTapInteraction } from '@app/utils/tapInteraction';
  */
 export function setupStreamTap(scene: Scene, dispatcher: WorldTapDispatcher, tapTarget: Mesh): () => void {
   return createTapInteraction(dispatcher, tapTarget, () => {
-    createBurstEffect(scene, tapTarget.getWorldPosition(new Vector3()), WATER_RIPPLE);
+    getParticleEngine(scene).emit(PARTICLES.waterRipple, tapTarget.getWorldPosition(new Vector3()));
   });
 }

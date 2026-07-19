@@ -6,7 +6,11 @@ import type { MiniGameContext } from '../../../framework/types';
 import type { Target, GameState, TargetKind } from '../types';
 import { C } from '../types';
 
-/** Sound mapping for target kinds. */
+/**
+ * Sound mapping for target kinds.
+ * @param kind - The target kind that was hit.
+ * @returns The celebration sound name to play for that kind.
+ */
 function hitSoundForKind(kind: TargetKind): 'pop' | 'chime' | 'fanfare' | 'whoosh' | 'splash' {
   switch (kind) {
     case 'barrel':
@@ -24,6 +28,12 @@ function hitSoundForKind(kind: TargetKind): 'pop' | 'chime' | 'fanfare' | 'whoos
 
 /**
  * Handles a target hit — awards score, registers combo, triggers celebration.
+ * @param target
+ * @param screenX
+ * @param screenY
+ * @param state
+ * @param context
+ * @param _isChainHit
  */
 export function handleTargetHit(
   target: Target,
@@ -64,6 +74,7 @@ export function handleTargetHit(
 
 /**
  * Handles a water miss (no score penalty per spec).
+ * @param context
  */
 export function handleWaterMiss(context: MiniGameContext): void {
   context.celebration.celebrationSound('splash');
@@ -72,6 +83,11 @@ export function handleWaterMiss(context: MiniGameContext): void {
 
 /**
  * Checks and triggers score milestones.
+ * @param score
+ * @param milestoneScores
+ * @param context
+ * @param screenX
+ * @param screenY
  */
 export function checkMilestones(score: number, milestoneScores: Set<number>, context: MiniGameContext, screenX: number, screenY: number): void {
   // First hit

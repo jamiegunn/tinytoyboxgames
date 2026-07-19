@@ -6,7 +6,7 @@
  * can stay explicit without duplicating shape definitions.
  */
 
-import type { Mesh, PerspectiveCamera, Object3D } from 'three';
+import type { Mesh, Object3D } from 'three';
 import type { GameLightingRig } from '@app/minigames/shared/sceneSetup';
 
 /** The baseline template supports a normal target and a higher-value bonus target. */
@@ -48,7 +48,6 @@ export interface TransientPulseState {
 
 /** Environment objects created during setup and reused for update / teardown. */
 export interface TemplateEnvironmentRig {
-  authoredCamera: PerspectiveCamera;
   lights: GameLightingRig;
   floor: Mesh;
   backdrop: Mesh;

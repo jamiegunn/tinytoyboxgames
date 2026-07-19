@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Creates a richly detailed fallen log with layered bark, longitudinal
  * ridges, circumferential rings, knots, a hollow opening with a dark
  * interior, moss and lichen growth, shelf fungi, visible end-grain,

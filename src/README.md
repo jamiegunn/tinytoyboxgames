@@ -1,73 +1,63 @@
-# React + TypeScript + Vite
+# Tiny Toybox Games — App Package
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the application package for Tiny Toybox Games (React + Three.js, built with Vite).
+For product overview and documentation, see the [root README](../README.md) and [`../docs/`](../docs/).
 
-Currently, two official plugins are available:
+## Getting started
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Bun is the primary workflow:
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+bun install
+bun run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Then open `http://localhost:5173`. npm equivalents (`npm install`, `npm run dev`) also work.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Scripts
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+| Script | What it does |
+|---|---|
+| `dev` | Start the Vite dev server with HMR |
+| `build` | Type-check (`tsc -b`) then produce a production build |
+| `preview` | Serve the production build locally |
+| `lint` | Run ESLint over the package |
+| `format` | Prettier-write `src/**/*.{ts,tsx}` |
+| `format:check` | Prettier check without writing |
+| `test` | Run the full contract test suite (see below) |
+| `precommit:check` | Run the pre-commit quality checks |
+| `create:immersive-scene` | Scaffold a new immersive toybox scene |
+| `create:room-scene` | Scaffold a new room scene |
+| `create:minigame` | Scaffold a new minigame |
+
+Generator examples:
+
+```bash
+npm run create:immersive-scene -- --scene-id coral-reef --display-name "Coral Reef"
+npm run create:room-scene -- --scene-id bedroom --display-name "Bedroom"
+npm run create:minigame -- --game-id star-catcher --display-name "Star Catcher"
 ```
+
+Each generator copies a governed template from `templates/`, replaces placeholder
+tokens, registers the result in the appropriate manifest or catalog, and prints
+next steps.
+
+## Tests
+
+`npm test` runs `node --test` contract tests (no extra test framework) over the
+templates and generators:
+
+- `tests/template/` — immersive-scene template contract
+- `tests/room/` — Playroom room-scene runtime contract
+- `tests/room-template/` — room-scene template contract
+- `tests/minigame-template/` — minigame template contract
+
+The template suites generate scaffolding into a temp fixture and assert
+structure, naming, registration, docs, and compile-safety; the room suite
+checks the real Playroom implementation. They protect the generator and scene
+contracts rather than runtime gameplay.
+
+## Type checking
+
+`npm run build` runs `tsc -b` before `vite build`, so every production build is
+fully type-checked. To type-check without bundling, run `npx tsc -b`.

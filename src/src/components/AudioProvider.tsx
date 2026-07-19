@@ -6,6 +6,8 @@ import {
   getSfxGain,
   crossfadeMusic,
   crossfadeAmbient,
+  fadeOutMusic,
+  fadeOutAmbient,
   stopCategory,
   registerSound,
   unregisterSound,
@@ -54,31 +56,68 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const musicStopRef = useRef<(() => void) | null>(null);
   const ambientStopRef = useRef<(() => void) | null>(null);
 
-  // Unlock audio context on first user gesture and initialize engine
+  // Unlock audio context on user gesture and initialize engine.
+  // Listeners stay armed until the context is genuinely running (a one-shot
+  // listener would leave audio permanently dead if the first resume failed),
+  // and re-arm after iOS interruptions (phone call, Siri, app switch) so the
+  // next tap recovers sound.
   useEffect(() => {
-    const unlock = () => {
-      if (audioCtxRef.current) return;
+    let disposed = false;
+
+    const disarm = () => {
+      window.removeEventListener('pointerdown', tryUnlock);
+      window.removeEventListener('keydown', tryUnlock);
+    };
+
+    const arm = () => {
+      disarm();
+      window.addEventListener('pointerdown', tryUnlock);
+      window.addEventListener('keydown', tryUnlock);
+    };
+
+    const handleStateChange = () => {
+      const webAudioCtx = audioCtxRef.current;
+      if (!disposed && webAudioCtx && webAudioCtx.state !== 'running') {
+        arm();
+      }
+    };
+
+    const tryUnlock = () => {
+      if (disposed) return;
       try {
-        const webAudioCtx = new AudioContext();
-        audioCtxRef.current = webAudioCtx;
-        initEngine(webAudioCtx);
-        if (webAudioCtx.state === 'suspended') {
-          webAudioCtx.resume().then(() => setIsAudioUnlocked(true));
-        } else {
-          setIsAudioUnlocked(true);
+        if (!audioCtxRef.current) {
+          const webAudioCtx = new AudioContext();
+          audioCtxRef.current = webAudioCtx;
+          initEngine(webAudioCtx);
+          webAudioCtx.addEventListener('statechange', handleStateChange);
         }
+        const webAudioCtx = audioCtxRef.current;
+        if (webAudioCtx.state === 'running') {
+          setIsAudioUnlocked(true);
+          disarm();
+          return;
+        }
+        webAudioCtx
+          .resume()
+          .then(() => {
+            if (!disposed && webAudioCtx.state === 'running') {
+              setIsAudioUnlocked(true);
+              disarm();
+            }
+          })
+          .catch(() => {
+            // Keep listeners armed — the next gesture retries.
+          });
       } catch {
         // Audio not available — app remains playable
       }
-      window.removeEventListener('pointerdown', unlock);
-      window.removeEventListener('keydown', unlock);
     };
 
-    window.addEventListener('pointerdown', unlock, { once: true });
-    window.addEventListener('keydown', unlock, { once: true });
+    arm();
     return () => {
-      window.removeEventListener('pointerdown', unlock);
-      window.removeEventListener('keydown', unlock);
+      disposed = true;
+      disarm();
+      audioCtxRef.current?.removeEventListener('statechange', handleStateChange);
       disposeEngine();
     };
   }, []);
@@ -97,7 +136,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     if (!ctx || !dest) return;
 
     const synthFn = SFX_REGISTRY[soundId];
-    if (!synthFn) return;
+    if (!synthFn) {
+      if (import.meta.env.DEV) console.warn('[audio] Unknown SFX id (add it to SFX_REGISTRY):', soundId);
+      return;
+    }
 
     const stopFn = () => {};
     registerSound(soundId, 'sfx', stopFn);
@@ -121,7 +163,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     }
 
     const synthFn = MUSIC_REGISTRY[soundId];
-    if (!synthFn) return;
+    if (!synthFn) {
+      if (import.meta.env.DEV && soundId) console.warn('[audio] Unknown music id (add it to MUSIC_REGISTRY):', soundId);
+      return;
+    }
 
     const fadeGain = crossfadeMusic();
     if (!fadeGain) return;
@@ -141,6 +186,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       musicStopRef.current = null;
     }
     stopCategory('music');
+    // Loops schedule a full cycle ahead — fade the bed out so already-queued
+    // notes don't keep ringing for seconds after "stop".
+    fadeOutMusic();
   }, []);
 
   const playAmbient = useCallback((soundId: string) => {
@@ -153,7 +201,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     }
 
     const synthFn = AMBIENT_REGISTRY[soundId];
-    if (!synthFn) return;
+    if (!synthFn) {
+      if (import.meta.env.DEV && soundId) console.warn('[audio] Unknown ambient id (add it to AMBIENT_REGISTRY):', soundId);
+      return;
+    }
 
     const fadeGain = crossfadeAmbient();
     if (!fadeGain) return;
@@ -173,6 +224,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       ambientStopRef.current = null;
     }
     stopCategory('ambient');
+    fadeOutAmbient();
   }, []);
 
   const startSceneAudio = useCallback(

@@ -1,6 +1,8 @@
 import { Scene, Color, Vector3, type Mesh, type MeshStandardMaterial, type Object3D } from 'three';
 import { buildShark as buildSharkMesh, buildFish as buildFishMesh } from '@app/minigames/shared/animalBuilder';
-import { createGlowTrail } from '@app/minigames/shared/particleFx';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES, GLOW_TRAIL_RATE } from '@app/utils/particles/presets';
+import type { StreamHandle } from '@app/utils/particles/engine';
 import { disposeMeshDeep } from '@app/minigames/shared/disposal';
 import type { FishState, FishKind } from '../types';
 import { FISH_COLORS, GOLDEN_COLOR, GOLDEN_SCALE, FISH_BASE_SPEED_MIN, FISH_BASE_SPEED_MAX, MIN_SPAWN_DISTANCE } from '../types';
@@ -17,7 +19,7 @@ let meshIndex = 0;
 export interface SharkComponents {
   sharkRoot: Mesh;
   sharkBody: Object3D | null;
-  sharkGlowTrail: ReturnType<typeof createGlowTrail>;
+  sharkGlowTrail: StreamHandle;
   /** Tail fin meshes (for wag animation). */
   tailFins: Object3D[];
   /** Eye white meshes (for blink animation). */
@@ -44,7 +46,9 @@ export function buildSharkEntity(scene: Scene, sharkPos: Vector3): SharkComponen
     if (child.name.includes('eyeWhite')) eyes.push(child);
   });
 
-  const sharkGlowTrail = createGlowTrail(scene, sharkRoot, new Color(0.3, 0.6, 1.0), 25);
+  const sharkGlowTrail = getParticleEngine(scene).stream(PARTICLES.glowTrail, sharkRoot, GLOW_TRAIL_RATE, {
+    colors: [new Color(0.3, 0.6, 1.0)],
+  });
 
   return { sharkRoot, sharkBody, sharkGlowTrail, tailFins, eyes };
 }

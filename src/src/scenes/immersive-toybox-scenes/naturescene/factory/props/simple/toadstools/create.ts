@@ -1,4 +1,4 @@
-﻿import { Group, Mesh, CylinderGeometry, SphereGeometry, type Scene } from 'three';
+import { Group, Mesh, CylinderGeometry, SphereGeometry, type Scene } from 'three';
 import { createFeltMaterial, getOrCreateMaterial } from '@app/utils/materialFactory';
 import { seededRng, placementSeed } from '@app/utils/seededRng';
 import { createEntityRoot, type EntityPlacement } from '@scenes/immersive-toybox-scenes/naturescene/types';

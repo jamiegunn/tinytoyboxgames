@@ -1,39 +1,16 @@
-import { Box3, Color, DirectionalLight, AmbientLight, PointLight, Vector3, Mesh, PlaneGeometry, type Scene } from 'three';
+import { Box3, Color, DirectionalLight, AmbientLight, HemisphereLight, Light, PointLight, Vector3, Mesh, PlaneGeometry, type Scene } from 'three';
 import { createFeltMaterial, createPlasticMaterial, createWoodMaterial } from './materialFactory';
-import { createSparkleBurst } from './particles';
+import { getParticleEngine } from './particles/registry';
+import { PARTICLES } from './particles/presets';
+import { createLightingRig, type LightingDescriptor } from './lighting/lightingRig';
+import { createDisposalScope, type DisposalScope } from './disposal';
 import { createOwlCompanion, type OwlCompanion } from '@app/entities/owl';
 import { triggerSound } from '@app/assets/audio/sceneBridge';
 import type { OwlFlightBounds } from '@app/entities/owl/types';
 import type { WorldTapDispatcher } from './worldTapDispatcher';
 
-// ── Shadow Configuration ──────────────────────────────────────────────────────
-
-/** Configuration for shadow mapping on a directional light. */
-export interface ShadowConfig {
-  /** Shadow map resolution. @default 1024 */
-  mapSize?: number;
-  /** Shadow bias to prevent acne. @default -0.001 */
-  bias?: number;
-}
-
-/**
- * Configures shadow mapping on a directional light with project-standard defaults.
- *
- * @param keyLight - The directional light that casts shadows.
- * @param config - Optional overrides for map size and bias.
- */
-export function configureShadows(keyLight: DirectionalLight, config?: ShadowConfig): void {
-  const mapSize = config?.mapSize ?? 1024;
-  keyLight.castShadow = true;
-  keyLight.shadow.mapSize.set(mapSize, mapSize);
-  keyLight.shadow.bias = config?.bias ?? -0.001;
-  keyLight.shadow.camera.near = 0.1;
-  keyLight.shadow.camera.far = 50;
-  keyLight.shadow.camera.left = -10;
-  keyLight.shadow.camera.right = 10;
-  keyLight.shadow.camera.top = 10;
-  keyLight.shadow.camera.bottom = -10;
-}
+// Shadow configuration now lives in the unified lighting rig
+// (utils/lighting/lightingRig.ts — see architecture-standards.md#lightingrig).
 
 // ── Scene Lighting ────────────────────────────────────────────────────────────
 
@@ -77,51 +54,50 @@ export interface LightingConfig {
 /** The lighting objects returned by createSceneLighting. */
 export interface SceneLighting {
   keyLight: DirectionalLight;
-  fillLight: AmbientLight;
+  fillLight: AmbientLight | HemisphereLight;
   accentLight: PointLight | null;
   extraLights: PointLight[];
 }
 
 /**
- * Creates a complete lighting rig (directional key + ambient fill + point accent)
- * and configures shadows on the key light.
+ * Creates a scene's lighting by mapping the legacy {@link LightingConfig} onto
+ * the unified {@link createLightingRig} (see architecture-standards.md#lightingrig).
+ * This is a thin vocabulary adapter — the actual light/shadow construction lives
+ * in the one rig. A flat fill (no `fillGroundColor`) becomes a hemisphere with
+ * `sky === ground`, which is visually identical to the old AmbientLight.
  *
  * @param scene - The Three.js scene to add lights to.
  * @param config - Colour, intensity, and position values for each light.
- * @param shadowConfig - Optional overrides for the shadow configuration.
- * @returns The lighting objects.
+ * @param scope - Disposal scope that frees the lights (and shadow maps) on teardown.
+ * @returns The lighting objects (only `keyLight` is consumed downstream).
  */
-export function createSceneLighting(scene: Scene, config: LightingConfig, shadowConfig?: ShadowConfig): SceneLighting {
-  const keyLight = new DirectionalLight(config.keyColor, config.keyIntensity);
-  keyLight.position.copy(config.keyDirection.clone().negate().multiplyScalar(10));
-  keyLight.target.position.set(0, 0, 0);
-  scene.add(keyLight);
-  scene.add(keyLight.target);
-  configureShadows(keyLight, shadowConfig);
-
-  const fillLight = new AmbientLight(config.fillColor, config.fillIntensity);
-  scene.add(fillLight);
-
-  let accentLight: PointLight | null = null;
+export function createSceneLighting(scene: Scene, config: LightingConfig, scope: DisposalScope): SceneLighting {
+  const accents: LightingDescriptor['accents'] = [];
   if (config.accentPosition) {
-    accentLight = new PointLight(config.accentColor ?? new Color(1, 1, 1), config.accentIntensity ?? 0.15);
-    accentLight.position.copy(config.accentPosition);
-    scene.add(accentLight);
+    accents.push({ position: config.accentPosition, intensity: config.accentIntensity ?? 0.15, color: config.accentColor ?? new Color(1, 1, 1) });
+  }
+  const extraStart = accents.length;
+  for (const l of config.extraPointLights ?? []) {
+    accents.push({ position: l.position, intensity: l.intensity, color: l.color, distance: l.distance });
   }
 
-  const extraLights =
-    config.extraPointLights?.map((lightConfig, index) => {
-      const extraLight = new PointLight(lightConfig.color, lightConfig.intensity);
-      extraLight.name = `sceneExtraLight${index}`;
-      extraLight.position.copy(lightConfig.position);
-      if (lightConfig.distance !== undefined) {
-        extraLight.distance = lightConfig.distance;
-      }
-      scene.add(extraLight);
-      return extraLight;
-    }) ?? [];
+  const rig = createLightingRig(
+    scene,
+    {
+      key: { direction: config.keyDirection, intensity: config.keyIntensity, color: config.keyColor },
+      // No ground colour → sky === ground → a flat fill identical to the old AmbientLight.
+      fill: { skyColor: config.fillColor, groundColor: config.fillGroundColor ?? config.fillColor, intensity: config.fillIntensity },
+      accents,
+    },
+    scope,
+  );
 
-  return { keyLight, fillLight, accentLight, extraLights };
+  return {
+    keyLight: rig.key,
+    fillLight: rig.fill,
+    accentLight: config.accentPosition ? rig.accents[0] : null,
+    extraLights: rig.accents.slice(extraStart),
+  };
 }
 
 // ── Scene Base (ground + sky) ─────────────────────────────────────────────────
@@ -198,7 +174,7 @@ export interface FloorTapConfig {
   firstTapSoundId?: string;
   /** Optional sound played on subsequent floor taps. */
   repeatTapSoundId?: string;
-  /** Particle effect to play on first tap. @default createSparkleBurst */
+  /** Particle effect to play on first tap. @default a sceneSparkle burst via getParticleEngine */
   particleFn?: (scene: Scene, point: Vector3) => void;
 }
 
@@ -246,7 +222,7 @@ export function wireFloorTap(
       restFacingY: config.owlFacingY,
       flightBounds,
     });
-  const emitParticle = config.particleFn ?? createSparkleBurst;
+  const emitParticle = config.particleFn ?? ((s: Scene, position: Vector3) => getParticleEngine(s).emit(PARTICLES.sceneSparkle, position));
 
   let firstTapHandled = false;
 
@@ -289,6 +265,10 @@ export function disposeSceneResources(scene: Scene): void {
       } else {
         obj.material?.dispose();
       }
+    } else if (obj instanceof Light) {
+      // Frees shadow-map render targets — the hub renderer persists across
+      // scene switches, so undisposed lights leaked one depth target each.
+      obj.dispose();
     }
   });
 }
@@ -310,19 +290,14 @@ export function createDisposeCollector(): {
   add: (...items: Disposable[]) => void;
   disposeAll: () => void;
 } {
-  const items: Disposable[] = [];
-
-  const disposeAll = () => {
-    for (const item of items) {
-      item.dispose();
-    }
-    items.length = 0;
-  };
-
+  // Delegates to the canonical DisposalScope so this legacy collector shares its
+  // semantics — LIFO teardown, idempotent disposeAll, and exception isolation
+  // (one throwing cleanup no longer aborts the rest). See #disposalscope.
+  const scope = createDisposalScope();
   return {
-    add: (...newItems: Disposable[]) => {
-      items.push(...newItems);
+    add: (...items: Disposable[]) => {
+      for (const item of items) scope.add(() => item.dispose());
     },
-    disposeAll,
+    disposeAll: () => scope.dispose(),
   };
 }
