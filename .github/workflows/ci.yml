@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    name: Typecheck, lint, test, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bunx tsc -b
+
+      - name: Lint
+        run: bunx eslint . --max-warnings 0
+
+      - name: Contract tests
+        run: node --test tests/template/*.test.mjs tests/room/*.test.mjs tests/room-template/*.test.mjs tests/minigame-template/*.test.mjs tests/audio/*.test.mjs
+
+      - name: Build
+        run: bunx vite build

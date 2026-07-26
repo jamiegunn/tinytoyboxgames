@@ -28,13 +28,16 @@ contract.
 
 ## Required References
 
-Before editing, align with:
+Before editing, align with the template itself and its tests:
 
-- `/docs/adr/ADR-0014-adopt-a-canonical-minigame-template.md`
-- `/docs/adr/ADR-0015-provide-generator-prompt-and-template-only-tests-for-minigame-scaffolding.md`
-- `/docs/specs/phase-3/15-minigame-template-spec.md`
-- `/docs/specs/phase-3/16-minigame-template-generator-and-test-plan.md`
-- `/docs/specs/phase-3/09-minigame-framework-spec.md`
+- `/src/templates/minigame/` (including `GENERATED_README.md.template`)
+- `/src/tests/minigame-template/`
+- `/src/src/minigames/framework/types.ts`
+
+The ADR and spec documents that originally governed this template (ADR-0014,
+ADR-0015, the minigame template spec, its generator/test plan, and the minigame
+framework spec) are historical — they were removed from the repo and are cited
+here for provenance only.
 
 ## Extension Rules
 
@@ -71,3 +74,10 @@ Generated code should be:
 - structurally consistent with the canonical template
 - free of template-name leakage
 - easy to compare with other generated minigames later
+
+## Audio Rule
+
+Every minigame declares a `musicId` in its manifest entry, registered in
+`MUSIC_REGISTRY`, meeting the quality bar in `docs/ai-guidance/audio-standards.md`
+(three layers, phrase structure with a cadence, humanized timbre, lookahead
+scheduling). The music-coverage contract test enforces coverage.

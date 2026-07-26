@@ -64,23 +64,23 @@ function createOutdoorView(scene: Scene, cx: number, cy: number, cz: number, w: 
   const trunkH = h * 0.55;
   const trunk = new Mesh(new PlaneGeometry(trunkW, trunkH), trunkMat);
   trunk.name = 'windowTrunk';
-  trunk.position.set(cx + w * 0.15 * Math.cos(faceRotY), cy - h * 0.1, cz - 0.008 * Math.cos(faceRotY));
+  // Centred under the canopy (the old +0.15w offset made the trunk look crooked).
+  trunk.position.set(cx, cy - h * 0.08, cz - 0.008 * Math.cos(faceRotY));
   trunk.rotation.y = faceRotY;
   if (Math.abs(faceRotY) > 1) {
     trunk.position.x = cx - 0.008 * Math.sign(faceRotY);
-    trunk.position.z = cz + w * 0.15 * Math.sign(faceRotY) * -1;
+    trunk.position.z = cz;
   }
   scene.add(trunk);
 
-  // Tree canopy — overlapping green circles
+  // Tree canopy — a symmetric rounded crown of green circles centred on the trunk.
   const canopyMat = createPlasticMaterial('hub_winCanopyMat', new Color(0.2, 0.55, 0.15));
   canopyMat.emissive = new Color(0.03, 0.08, 0.02);
   const canopyPuffs = [
-    { dx: 0, dy: 0.3, r: 0.35 },
-    { dx: -0.25, dy: 0.2, r: 0.28 },
-    { dx: 0.22, dy: 0.25, r: 0.3 },
-    { dx: -0.1, dy: 0.45, r: 0.22 },
-    { dx: 0.15, dy: 0.42, r: 0.2 },
+    { dx: 0, dy: 0.3, r: 0.42 },
+    { dx: -0.24, dy: 0.26, r: 0.28 },
+    { dx: 0.24, dy: 0.26, r: 0.28 },
+    { dx: 0, dy: 0.46, r: 0.26 },
   ];
   for (let pi = 0; pi < canopyPuffs.length; pi++) {
     const p = canopyPuffs[pi];

@@ -1,7 +1,7 @@
 # Tiny Toybox Games
 
 Tiny Toybox Games is a browser-based 3D play experience for ages 3-6.
-The current repo contains a playable Playroom and Kitchen, two toybox immersive scenes (Nature and Pirate Cove), five registered minigames, and shared runtime scaffolding for procedural art, procedural audio, and memory-only browser play.
+The current repo contains a playable Playroom, Living Room, and Kitchen, two toybox immersive scenes (Nature and Pirate Cove), five registered minigames, and shared runtime scaffolding for procedural art, procedural audio, and memory-only browser play.
 
 **Play it now: [tinytoyboxgames.com](https://www.tinytoyboxgames.com/)**
 
@@ -17,12 +17,15 @@ This repository includes a real playable slice of the larger architecture.
 
 ### Current scenes
 
-The current scene catalog registers four navigable scenes:
+The current scene catalog registers five navigable scenes:
 
 - **Playroom** (`playroom`) — landing scene
+- **Living Room** (`living-room`) — landing scene
 - **Kitchen** (`kitchen`) — landing scene
 - **Nature** (`nature`) — immersive toybox scene
 - **Pirate Cove** (`pirate-cove`) — immersive toybox scene
+
+The house rooms are connected by tappable doorways: the Playroom's door opens into the Living Room, and the Living Room has doorways back to the Playroom, into the Kitchen, and to "outside" (currently the Nature scene).
 
 ### Current toybox destinations
 
@@ -33,6 +36,13 @@ The Playroom currently contains three visible toybox-like destinations:
 - **Adventure** → opens **Pirate Cove** (active)
 - **Animals** → opens **Nature** (active)
 - **Creative** → present but **inactive** (destination is `null`)
+
+#### Living Room
+
+The Living Room currently contains two active toyboxes:
+
+- **Living Room Nature** → opens **Nature** (active)
+- **Living Room Pirate Cove** → opens **Pirate Cove** (active)
 
 #### Kitchen
 
@@ -56,10 +66,8 @@ The current minigame manifest registers five games:
 
 A normal player can currently reach these minigames through in-scene portals:
 
-- From **Nature**: Bubble Pop, Little Shark, Fireflies
+- From **Nature**: Bubble Pop, Little Shark, Fireflies, Star Catcher
 - From **Pirate Cove**: Cannonball Splash
-
-`Star Catcher` is registered in the manifest and deep-link launchable, but not yet surfaced through Nature's portal layout.
 
 ---
 
@@ -164,15 +172,13 @@ src/
     bootstrap/      # Storage guard bootstrap and early app boot
     components/     # React shell, router, canvas lifecycle, overlays
     entities/       # Shared entities such as the owl companion
-    hooks/          # Custom hooks and shell helpers
     minigames/      # Minigame framework + game implementations
     scenes/         # Scene catalog, room scenes, immersive scenes
     types/          # TypeScript type definitions
     utils/          # Shared utilities
 docs/
-  adr/             # Architecture decisions
   ai-guidance/     # AI collaborator context
-  specs/           # Product and technical specs
+  reviews/         # Historical game reviews and remediation plans
   status/          # Canonical current-state documentation
   controlled-terminology.md
   readme-assets/
@@ -207,11 +213,6 @@ Start here:
 - [`docs/ai-guidance/CLAUDE.md`](docs/ai-guidance/CLAUDE.md) — internal LLM operating guidance
 - [`docs/controlled-terminology.md`](docs/controlled-terminology.md) — canonical naming and state vocabulary
 - [`docs/ai-guidance/agents.md`](docs/ai-guidance/agents.md) — AI collaboration model
-
-For architecture and specs:
-
-- [Recursive Scene Hierarchy Spec](docs/specs/phase-3/11-recursive-scene-hierarchy-spec.md)
-- [Migration Plan](docs/specs/phase-3/12-recursive-scene-hierarchy-migration-plan.md)
 
 ---
 

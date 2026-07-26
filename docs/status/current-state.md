@@ -25,8 +25,24 @@ Current scene routes:
 |---|---|---|---|
 | `playroom` | Playroom | landing | implemented |
 | `kitchen` | Kitchen | landing | implemented |
+| `living-room` | Living Room | landing | implemented |
 | `nature` | Nature | immersive-toybox | implemented |
 | `pirate-cove` | Pirate Cove | immersive-toybox | implemented |
+
+## Scene audio
+
+Per `src/src/scenes/sceneCatalog.ts`, every registered scene now has scene-level audio.
+Every minigame also declares its own `musicId` in `MiniGameManifest.ts`, auto-started
+by the shell (see `docs/ai-guidance/audio-standards.md`; enforced by
+`src/tests/audio/music-coverage.test.mjs`):
+
+| Scene ID | Music | Ambient |
+|---|---|---|
+| `playroom` | `mus_hub_background` | `amb_hub_room_tone` |
+| `kitchen` | `mus_kitchen_background` | `amb_hub_room_tone` |
+| `living-room` | `mus_living_room_background` | `amb_hub_room_tone` |
+| `nature` | `mus_nature_background` | `amb_nature_stream` |
+| `pirate-cove` | `mus_pirate_cove_background` | `amb_pirate_cove_shore` |
 
 ## Active room destinations
 
@@ -44,6 +60,29 @@ Current scene routes:
 |---|---|---|
 | `kitchen-nature` | `nature` | active |
 
+### Living Room toyboxes
+
+| Toybox ID | Destination | Status |
+|---|---|---|
+| `living-room-nature` | `nature` | active |
+| `living-room-pirate-cove` | `pirate-cove` | active |
+
+### Doorway connections
+
+Rooms are also connected by tappable doorways (shared builder in
+`src/src/scenes/world/places/house/shared/interactiveDoorway.ts`):
+
+| From | Doorway leads to | Notes |
+|---|---|---|
+| `playroom` | `living-room` | right-wall door |
+| `living-room` | `playroom` | left-wall door |
+| `living-room` | `kitchen` | right-wall door |
+| `living-room` | `nature` | back-wall "outside" door; the forest is outside until a dedicated backyard scene exists |
+| `kitchen` | `living-room` | left-wall door |
+
+The HUD back button follows each scene's catalog `backTarget` (default
+`playroom`); `kitchen` declares `backTarget: 'living-room'`.
+
 ## Registered minigames
 
 | Game ID | Display name | Launchable from | Status |
@@ -51,7 +90,7 @@ Current scene routes:
 | `bubble-pop` | Bubble Pop | `nature` | registered |
 | `fireflies` | Fireflies | `nature` | registered |
 | `little-shark` | Little Shark | `nature` | registered |
-| `star-catcher` | Star Catcher | `nature` | registered |
+| `star-catcher` | Star Catcher | `nature` | registered + discoverable |
 | `cannonball-splash` | Cannonball Splash | `pirate-cove` | registered |
 
 ## Discoverable minigames
@@ -63,14 +102,11 @@ These are the minigames currently surfaced through in-scene portals:
 - `bubble-pop`
 - `little-shark`
 - `fireflies`
+- `star-catcher`
 
 ### Pirate Cove
 
 - `cannonball-splash`
-
-### Important nuance
-
-`star-catcher` is currently **registered** for `nature`, but it is **not currently surfaced** through Nature's in-scene portal list.
 
 ## Shared runtime truths
 
@@ -89,8 +125,7 @@ The current repo safely supports these claims:
 
 ## Known current-state gaps
 
-- The Playroom `creative` toybox is visible but inactive (destination is `null`)
-- `star-catcher` is registered but not discoverable through current scene UI
+- The Playroom `creative` toybox is visible but inactive (destination is `null`); it now responds to taps with a wiggle, sparkle, and sound instead of a dead tap
 - Public marketing copy must not claim four worlds or twelve mini-games
 - Some internal AI docs may lag behind current route and minigame reality if this file is not kept updated
 

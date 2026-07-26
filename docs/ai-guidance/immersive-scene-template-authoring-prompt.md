@@ -34,14 +34,15 @@ architecture ceremony.
 
 ## Required References
 
-Before editing, align with:
+Before editing, align with the template itself and its tests:
 
-- `/docs/adr/ADR-0012-adopt-a-canonical-immersive-scene-template.md`
-- `/docs/adr/ADR-0013-provide-generator-prompt-and-template-only-tests-for-immersive-scene-scaffolding.md`
-- `/docs/adr/ADR-0011-make-the-owl-a-shared-companion-in-all-navigable-scenes.md`
-- `/docs/adr/ADR-0010-keep-minigames-as-play-modes-with-hybrid-scene-ownership.md`
-- `/docs/specs/phase-3/13-immersive-scene-template-spec.md`
-- `/docs/specs/phase-3/14-immersive-scene-template-generator-and-test-plan.md`
+- `/src/templates/immersive-scene/` (including `GENERATED_README.md.template`)
+- `/src/tests/template/`
+
+The ADR and spec documents that originally governed this template (ADR-0010
+through ADR-0013, the immersive scene template spec, and its generator/test
+plan) are historical — they were removed from the repo and are cited here for
+provenance only.
 
 ## Extension Rules
 

@@ -36,9 +36,12 @@ function deformCanopy(geo: IcosahedronGeometry, seed: number, radius: number): v
     const nx = x / dist;
     const ny = y / dist;
     const nz = z / dist;
-    const lumps = simplex3(nx * 2.5 + seed, ny * 2.5 + seed * 0.6, nz * 2.5 + seed * 1.2) * 0.35;
-    const bumps = fbm3(nx * 5 + seed, ny * 5, nz * 5, 3) * 0.15;
-    const rough = simplex3(nx * 12 + seed, ny * 12, nz * 12) * 0.06;
+    // Gentler deformation than before: the canopies were spiky/angular and read
+    // as "weird". Softer amplitudes keep an organic wobble but a rounded, leafy
+    // silhouette.
+    const lumps = simplex3(nx * 2.5 + seed, ny * 2.5 + seed * 0.6, nz * 2.5 + seed * 1.2) * 0.17;
+    const bumps = fbm3(nx * 5 + seed, ny * 5, nz * 5, 3) * 0.08;
+    const rough = simplex3(nx * 12 + seed, ny * 12, nz * 12) * 0.03;
     const flattenBottom = ny < -0.3 ? (ny + 0.3) * 0.3 : 0;
     const newDist = radius * (1 + lumps + bumps + rough) + flattenBottom;
 

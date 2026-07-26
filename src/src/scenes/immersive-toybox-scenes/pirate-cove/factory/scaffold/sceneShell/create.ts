@@ -6,7 +6,7 @@
  * (camera looks in from there).
  */
 
-import { BoxGeometry, CylinderGeometry, Group, Mesh, SphereGeometry, type Scene } from 'three';
+import { BoxGeometry, Color, CylinderGeometry, DoubleSide, Group, Mesh, MeshStandardMaterial, PlaneGeometry, SphereGeometry, type Scene } from 'three';
 import type { PirateCoveMaterials } from '../../../materials';
 
 /** Options controlling the ship shell dimensions and materials. */
@@ -153,6 +153,54 @@ export function createSceneShell(scene: Scene, options: SceneShellBuildOptions):
   yardarm.rotation.z = Math.PI / 2;
   yardarm.castShadow = true;
   root.add(yardarm);
+
+  // ── Main sail — a billowed canvas sheet hung from the yardarm. The single
+  // strongest "this is a sailing ship" cue; a warm cream canvas with a red band.
+  const sailMat = new MeshStandardMaterial({ color: new Color(0.95, 0.91, 0.82), roughness: 0.92, metalness: 0, side: DoubleSide });
+  sailMat.name = 'ship_sailMat';
+  const sailW = 2.7;
+  const sailH = 2.9;
+  const sailGeo = new PlaneGeometry(sailW, sailH, 12, 6);
+  const sp = sailGeo.attributes.position;
+  for (let i = 0; i < sp.count; i += 1) {
+    const x = sp.getX(i);
+    // Billow: bulge the belly of the sail toward the open front (−z local face).
+    sp.setZ(i, -Math.cos((x / (sailW / 2)) * (Math.PI / 2)) * 0.45);
+  }
+  sp.needsUpdate = true;
+  sailGeo.computeVertexNormals();
+  const sail = new Mesh(sailGeo, sailMat);
+  sail.name = 'ship_mainsail';
+  sail.position.set(0, mastHeight * 0.65 - sailH / 2 - 0.05, halfD * 0.6 - 0.12);
+  sail.castShadow = true;
+  root.add(sail);
+
+  // A red band across the sail — the classic toy-pirate look.
+  const bandMat = new MeshStandardMaterial({ color: new Color(0.82, 0.24, 0.2), roughness: 0.9, metalness: 0, side: DoubleSide });
+  bandMat.name = 'ship_sailBandMat';
+  const bandGeo = new PlaneGeometry(sailW, sailH * 0.26, 12, 2);
+  const bp = bandGeo.attributes.position;
+  for (let i = 0; i < bp.count; i += 1) {
+    const x = bp.getX(i);
+    bp.setZ(i, -Math.cos((x / (sailW / 2)) * (Math.PI / 2)) * 0.45 - 0.01);
+  }
+  bp.needsUpdate = true;
+  bandGeo.computeVertexNormals();
+  const band = new Mesh(bandGeo, bandMat);
+  band.name = 'ship_sailBand';
+  band.position.set(0, mastHeight * 0.65 - sailH / 2 - 0.05, halfD * 0.6 - 0.12);
+  root.add(band);
+
+  // ── Ocean — a wide sea plane below deck level so the ship reads as *at sea*
+  // instead of a wooden patio floating in the sky.
+  const oceanMat = new MeshStandardMaterial({ color: new Color(0.16, 0.42, 0.56), roughness: 0.5, metalness: 0.12 });
+  oceanMat.name = 'ship_oceanMat';
+  const ocean = new Mesh(new PlaneGeometry(400, 400), oceanMat);
+  ocean.name = 'ship_ocean';
+  ocean.rotation.x = -Math.PI / 2;
+  ocean.position.y = -0.6;
+  ocean.receiveShadow = true;
+  root.add(ocean);
 
   scene.add(root);
   return root;

@@ -1,4 +1,5 @@
-import { Scene, Color, Mesh, SphereGeometry, CircleGeometry, MeshStandardMaterial, DoubleSide, Group } from 'three';
+import { Scene, Color, Mesh, SphereGeometry, MeshStandardMaterial } from 'three';
+import { createCelestialBody } from '@app/utils/skyRig';
 import type { StarMesh } from '../types';
 
 /**
@@ -7,59 +8,26 @@ import type { StarMesh } from '../types';
  */
 
 /**
- * Builds a crescent moon from overlapping spheres with a soft halo.
+ * Builds a soft glowing full moon using the shared sky rig — an emissive core
+ * sphere with a soft additive halo (replaces the old flat halo disc + broken
+ * crescent carve, which read as a hard pancake).
+ *
  * @param scene - The Three.js scene.
- * @returns The moon group mesh.
+ * @returns The moon group (typed as Mesh for the existing caller contract).
  */
 export function buildMoon(scene: Scene): Mesh {
-  const parent = new Group();
-  parent.name = 'bubble_pop_mesh_moon';
-
-  const mat = new MeshStandardMaterial({
-    color: new Color(1.0, 0.97, 0.85),
-    metalness: 0,
-    roughness: 0.3,
-    emissive: new Color(0.6, 0.55, 0.35),
+  const { root } = createCelestialBody({
+    radius: 0.9,
+    color: new Color(1.0, 0.97, 0.86),
+    emissive: new Color(1.0, 0.95, 0.72),
+    emissiveIntensity: 1.5,
+    haloScale: 2.0,
+    haloColor: new Color(1.0, 0.93, 0.72),
+    haloOpacity: 0.2,
   });
-  mat.name = 'moonMat';
-
-  // Full moon sphere
-  const fullGeo = new SphereGeometry(0.9, 24, 24);
-  const full = new Mesh(fullGeo, mat);
-  full.name = 'moonFull';
-  parent.add(full);
-
-  // Shadow sphere to carve the crescent shape
-  const shadowMat = new MeshStandardMaterial({
-    color: new Color(0.04, 0.06, 0.12),
-    metalness: 0,
-    roughness: 1,
-    emissive: new Color(0.02, 0.03, 0.06),
-  });
-  shadowMat.name = 'moonShadowMat';
-  const shadowGeo = new SphereGeometry(0.8, 24, 24);
-  const shadow = new Mesh(shadowGeo, shadowMat);
-  shadow.name = 'moonShadow';
-  shadow.position.set(0.5, 0.3, -0.2);
-  parent.add(shadow);
-
-  // Soft glow halo
-  const haloGeo = new CircleGeometry(1.5, 32);
-  const haloMat = new MeshStandardMaterial({
-    color: new Color(1.0, 0.95, 0.7),
-    emissive: new Color(0.3, 0.28, 0.15),
-    opacity: 0.12,
-    transparent: true,
-    side: DoubleSide,
-  });
-  haloMat.name = 'moonHaloMat';
-  const halo = new Mesh(haloGeo, haloMat);
-  halo.name = 'moonHalo';
-  halo.position.z = 0.1;
-  parent.add(halo);
-
-  scene.add(parent);
-  return parent as unknown as Mesh;
+  root.name = 'bubble_pop_mesh_moon';
+  scene.add(root);
+  return root as unknown as Mesh;
 }
 
 /**

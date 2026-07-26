@@ -35,7 +35,7 @@ Review these areas together:
 
 At minimum, review:
 
-- `/src/templates/minigame/README.md`
+- `/src/templates/minigame/GENERATED_README.md.template` (README scaffolding emitted as the generated game's `README.md`)
 - `/src/templates/minigame/index.ts`
 - `/src/templates/minigame/types.ts`
 - `/src/templates/minigame/helpers.ts`

@@ -218,15 +218,16 @@ function buildBubblesIcon(id: string): Group {
   const root = new Group();
   root.name = `${id}_bubbles`;
   const bubbleMat = mat(`${id}_bubMat`, new Color(0.7, 0.9, 1), new Color(0.15, 0.25, 0.35));
-  bubbleMat.opacity = 0.7;
+  bubbleMat.opacity = 0.6;
   bubbleMat.transparent = true;
-  // Cluster of 5 bubbles at varied sizes and positions
+  // A tighter, smaller bubble cluster — the old one read as giant orbs floating
+  // in the air. Kept compact so it reads as a neat bubble bunch portal icon.
   const bubbles = [
-    { pos: new Vector3(0, 0.05, 0), size: 0.4 },
-    { pos: new Vector3(0.22, 0.25, 0.1), size: 0.28 },
-    { pos: new Vector3(-0.2, 0.2, -0.05), size: 0.32 },
-    { pos: new Vector3(0.1, -0.15, 0.15), size: 0.22 },
-    { pos: new Vector3(-0.1, 0.4, 0.08), size: 0.18 },
+    { pos: new Vector3(0, 0.04, 0), size: 0.26 },
+    { pos: new Vector3(0.15, 0.18, 0.06), size: 0.18 },
+    { pos: new Vector3(-0.13, 0.15, -0.04), size: 0.2 },
+    { pos: new Vector3(0.07, -0.09, 0.09), size: 0.14 },
+    { pos: new Vector3(-0.06, 0.28, 0.05), size: 0.12 },
   ];
   for (let i = 0; i < bubbles.length; i++) {
     const b = createSphere(`${id}_b${i}`, bubbles[i].size, 10);

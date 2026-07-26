@@ -35,7 +35,7 @@ const PARAMS: Record<SurfaceKind, SurfaceParams> = {
   // Tuned to read as tactile grain/nap/weave, not as a noise texture: you
   // should have to look to see it, but it breaks flatness and catches the key.
   wood: { pattern: 1, freq: 0.7, albedo: 0.1, rough: 0.09, bump: 0.16 },
-  felt: { pattern: 2, freq: 2.3, albedo: 0.06, rough: 0.06, bump: 0.1 },
+  felt: { pattern: 2, freq: 2.6, albedo: 0.045, rough: 0.05, bump: 0.03 },
   woven: { pattern: 3, freq: 1.9, albedo: 0.1, rough: 0.08, bump: 0.22 },
   paper: { pattern: 4, freq: 1.2, albedo: 0.07, rough: 0.05, bump: 0.11 },
   plastic: { pattern: 5, freq: 1.0, albedo: 0.03, rough: 0.03, bump: 0.05 },

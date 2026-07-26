@@ -47,3 +47,11 @@ vite.config.ts.timestamp-*
 
 # Test coverage
 coverage/
+
+# local review capture harnesses (container-specific)
+src/tools/
+
+# GitHub Pages build output + root tooling deps
+/_site/
+/node_modules/
+/package-lock.json

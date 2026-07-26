@@ -1,4 +1,4 @@
-import { BoxGeometry, Color, Mesh, MeshStandardMaterial, PlaneGeometry, type Scene } from 'three';
+import { BoxGeometry, Color, CylinderGeometry, Mesh, MeshStandardMaterial, PlaneGeometry, type Scene } from 'three';
 import { createFeltMaterial, createWoodMaterial, getOrCreateMaterial } from '@app/utils/materialFactory';
 import { BACK_WALL_FACE_Z, WINDOW_BOTTOM_Y, WINDOW_HEIGHT, WINDOW_WIDTH, WINDOW_X } from '../layout';
 
@@ -61,12 +61,22 @@ export function createWindowFrame(scene: Scene): void {
   mullionV.position.set(WINDOW_X, centerY, paneZ - 0.02);
   scene.add(mullionV);
 
-  // Curtains hanging on either side.
+  // Curtains — pleated drapes. A flat slab never reads as fabric, so each side
+  // is a set of rounded vertical folds (fuller in the middle, alternating depth
+  // for a soft ripple) that catch the key light like gathered cloth.
+  const curtainHeight = WINDOW_HEIGHT + 0.7;
+  const FOLDS = 4;
+  const FOLD_W = 0.12;
   [-1, 1].forEach((side, index) => {
-    const curtain = new Mesh(new BoxGeometry(0.45, WINDOW_HEIGHT + 0.7, 0.08), curtainMat);
-    curtain.name = `livingRoom_curtain${index}`;
-    curtain.position.set(WINDOW_X + side * (WINDOW_WIDTH / 2 + 0.35), centerY + 0.1, paneZ - 0.08);
-    curtain.rotation.y = side * 0.06;
-    scene.add(curtain);
+    const baseX = WINDOW_X + side * (WINDOW_WIDTH / 2 + 0.3);
+    for (let f = 0; f < FOLDS; f++) {
+      const t = FOLDS > 1 ? f / (FOLDS - 1) : 0.5;
+      const r = 0.07 + Math.sin(t * Math.PI) * 0.02;
+      const fold = new Mesh(new CylinderGeometry(r * 0.85, r, curtainHeight, 12), curtainMat);
+      fold.name = `livingRoom_curtain${index}_fold${f}`;
+      fold.position.set(baseX + side * (f - (FOLDS - 1) / 2) * FOLD_W, centerY + 0.1, paneZ - 0.09 + (f % 2 === 0 ? 0.02 : -0.02));
+      fold.castShadow = true;
+      scene.add(fold);
+    }
   });
 }

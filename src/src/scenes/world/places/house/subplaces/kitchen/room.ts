@@ -7,6 +7,7 @@ import { createCeiling } from './room/ceiling';
 import { createFloor } from './room/floor';
 import { createWalls } from './room/walls';
 import { createKitchenDecor } from './decor';
+import { createKitchenFloorToys } from './decor/floorToys';
 import { createSampleCounter } from './decor/sampleCounter';
 import { LEFT_WALL_FACE_X, LIVING_ROOM_DOOR_Z } from './layout';
 import { ROOM_TOYBOXES } from './toyboxes/manifest';
@@ -31,6 +32,8 @@ export function buildRoomContents(context: RoomBuildContext): RoomContentResult 
 
   const decor = createKitchenDecor(scene, dispatcher);
   disposer.add({ dispose: decor.cleanup });
+
+  createKitchenFloorToys(scene);
 
   // Doorway back to the Living Room, on the left wall (interior faces -X).
   disposer.add(

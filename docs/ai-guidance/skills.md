@@ -2,6 +2,8 @@
 
 This file defines reusable skills (prompt templates) for the Whimsical Toybox World project.
 
+> **Historical note:** the ADR, spec, feature, and plan documents (`docs/adr/`, `docs/specs/`, `docs/features/`, `docs/plans/`) referenced by some skills were removed from the repo. Steps marked "(historical — not in repo)" cannot be executed as written; verify current behavior against `docs/status/current-state.md` and the code.
+
 ---
 
 ## /create-feature
@@ -13,19 +15,19 @@ This file defines reusable skills (prompt templates) for the Whimsical Toybox Wo
 **Steps:**
 
 1. Identify the feature being documented. If `[feature-name]` is not provided, ask what was just built.
-2. Read the feature template at `docs/features/TEMPLATE.md`.
+2. Read the feature template at `docs/features/TEMPLATE.md` (historical — not in repo).
 3. Determine the correct phase, category, and short name for the filename.
 4. Read the relevant source files to extract:
    - Key implementation files and their roles
    - Tuned parameter values (roughness, animation durations, particle counts, camera angles, colors, etc.)
    - Runtime behavior (what happens on load, tap, hover, transition)
-5. Identify which spec sections the feature satisfies by checking:
+5. Identify which spec sections the feature satisfies by checking (historical — not in repo):
    - `docs/specs/phase-1/` for product requirements
    - `docs/specs/phase-3/` for technical requirements
    - `docs/specs/phase-3/games/` for mini-game requirements
 6. Run the soul alignment checklist from the template.
-7. Create the feature file at `docs/features/{phase}-{category}-{short-name}.md`.
-8. Update the index in `docs/features/README.md` with a link to the new file.
+7. Create the feature file at `docs/features/{phase}-{category}-{short-name}.md` (historical — `docs/features/` is not in repo).
+8. Update the index in `docs/features/README.md` with a link to the new file (historical — not in repo).
 
 **Output:** A completed feature document and an updated index.
 
@@ -42,7 +44,7 @@ This file defines reusable skills (prompt templates) for the Whimsical Toybox Wo
 1. Scan the source tree for all files modified or created in the given phase.
 2. Group changes into logical features.
 3. Run `/create-feature` for each identified feature.
-4. Update the index in `docs/features/README.md` with all new entries.
+4. Update the index in `docs/features/README.md` with all new entries (historical — not in repo).
 
 ---
 
@@ -117,7 +119,7 @@ This file defines reusable skills (prompt templates) for the Whimsical Toybox Wo
 
 **Steps:**
 
-1. Read the recursive hierarchy docs first:
+1. Read the recursive hierarchy docs first (historical — not in repo):
    - `docs/specs/phase-3/11-recursive-scene-hierarchy-spec.md`
    - `docs/specs/phase-3/12-recursive-scene-hierarchy-migration-plan.md`
 2. Read the current Nature implementation as the reference for an immersive toybox scene.
@@ -143,7 +145,7 @@ This file defines reusable skills (prompt templates) for the Whimsical Toybox Wo
 
 **Steps:**
 
-1. Read the spike scope from `docs/plans/phase-4/01-spike.md` section 4 (Capture Notes).
+1. Read the spike scope from `docs/plans/phase-4/01-spike.md` section 4 (Capture Notes) (historical — not in repo).
 2. Walk through each checklist category (Visual Quality, Lighting, Composition, Interaction, Mobile, Transition).
 3. For each item, check the current implementation and record observations.
 4. Write the notes to `docs/spike-notes.md`.

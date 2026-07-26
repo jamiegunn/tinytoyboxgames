@@ -36,7 +36,7 @@ Review these areas together, not in isolation:
 
 At minimum, review:
 
-- `/src/templates/room-scene/README.md`
+- `/src/templates/room-scene/GENERATED_README.md.template` (README scaffolding emitted as the generated room's `README.md`)
 - `/src/templates/room-scene/index.ts`
 - `/src/templates/room-scene/environment.ts`
 - `/src/templates/room-scene/layout.ts`

@@ -22,9 +22,10 @@ Use these terms consistently across specs, prompts, ADRs, reviews, and implement
 
 ## Canonical Terms
 
+Product naming terms (**Tiny Toybox Games**, **Whimsical Toybox World**) are defined once in the Product Naming table above.
+
 | Canonical term                     | Definition                                                                                                                             | Replace / avoid                                            |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| **Whimsical Toybox World**         | The overall product and documentation program.                                                                                         | shelf product, shipped shelf baseline                      |
 | **World scene**                    | The top-level navigable scene that links to major places such as House, Backyard, and Park.                                            | app root scene, top menu scene                             |
 | **Place scene**                    | A major navigable destination under the World scene, such as House, Backyard, or Park.                                                 | world when a place is meant                                |
 | **Sub-place scene**                | An optional navigable scene nested inside a place, such as Playroom, Kitchen, or Jungle Gym.                                           | local hub, room hub                                        |
@@ -60,7 +61,7 @@ Use these mappings whenever older docs or code paths must be referenced:
 4. Use **shared owl companion** when describing owl behavior across scenes.
 5. Use **procedural asset module** and **procedural audio module** when describing asset delivery.
 6. Use **storage guard bootstrap module** when describing persistence enforcement.
-7. Use **Phase 1** and **Phase 3** for canonical spec layers. Treat **Phase 0** and **Phase 2** as prompt scaffolding unless explicitly discussing history.
+7. (Historical) **Phase 1** and **Phase 3** referred to canonical spec layers in the now-removed `docs/specs/`. Treat all Phase labels as historical references; no spec layer currently exists in the repo.
 
 ## Enforcement Rule
 

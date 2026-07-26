@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code when working with code in this repository.
 
+**Audio rule:** every scene and every minigame ships its own registered music bed at the quality bar in `docs/ai-guidance/audio-standards.md`; the music-coverage contract test enforces coverage.
+
 ## Product Naming
 
 - **Public product name:** Tiny Toybox Games
@@ -219,19 +221,17 @@ Read these before making structural changes:
 1. `docs/status/current-state.md`
 2. `docs/ai-guidance/vision.md`
 3. `docs/controlled-terminology.md`
-4. `docs/specs/README.md`
-5. `docs/adr/ADR-0009-adopt-a-recursive-scene-hierarchy-for-navigable-world-content.md`
-6. `docs/adr/ADR-0010-keep-minigames-as-play-modes-with-hybrid-scene-ownership.md`
-7. `docs/adr/ADR-0011-make-the-owl-a-shared-companion-in-all-navigable-scenes.md`
-8. `docs/specs/phase-3/11-recursive-scene-hierarchy-spec.md`
-9. `docs/specs/phase-3/12-recursive-scene-hierarchy-migration-plan.md`
+4. `docs/ai-guidance/soul.md`
+5. `docs/ai-guidance/agents.md`
 
-For lower-level implementation detail, then read:
+For lower-level implementation detail, then read the code directly:
 
-- `docs/specs/phase-3/05-app-architecture-spec.md`
-- `docs/specs/phase-3/06-scene-implementation-spec.md`
-- `docs/specs/phase-3/09-minigame-framework-spec.md`
-- `docs/specs/phase-3/10-age-appropriate-ux-spec.md`
+- `src/src/scenes/sceneCatalog.ts`
+- `src/src/minigames/framework/MiniGameManifest.ts`
+- `src/src/utils/roomSceneFactory.ts` and `src/src/utils/worldSceneFactory.ts`
+- the relevant scene or minigame folder under `src/src/`
+
+Note: the historical ADR and spec documents (`docs/adr/`, `docs/specs/`) were removed from the repo; ADR numbers cited in code comments are historical references.
 
 ## JSDoc Standard
 
@@ -245,4 +245,4 @@ If you are changing docs or public copy:
 2. update `docs/status/current-state.md`
 3. then update README / landing page / guidance docs
 
-If you are changing scene structure, routing, scene ids, or toybox ownership, read the recursive hierarchy ADRs and specs first. The current target model is defined by those documents.
+If you are changing scene structure, routing, scene ids, or toybox ownership, read `docs/status/current-state.md` and the scene catalog / manifests in code first. The recursive hierarchy ADRs and specs that once defined the target model are historical and no longer in the repo.

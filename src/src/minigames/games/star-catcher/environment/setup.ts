@@ -222,10 +222,13 @@ export function setupTemplateEnvironment(scene: Scene, scope: DisposalScope): Te
     metalness: 0.02,
   });
   floorMaterial.name = 'star-catcher_floorMat';
-  const floor = new Mesh(new PlaneGeometry(11, 9), floorMaterial);
+  // A big rounded hilltop (a large sphere whose crown is the play surface) so
+  // the ground curves gently down on every side and fills the frame — the old
+  // flat 11x9 plane read as a slab floating in the sky with hard drop-off edges.
+  const HILL_RADIUS = 30;
+  const floor = new Mesh(new SphereGeometry(HILL_RADIUS, 64, 40), floorMaterial);
   floor.name = 'star-catcher_floor';
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.y = -0.01;
+  floor.position.y = -HILL_RADIUS;
   floor.receiveShadow = true;
   scene.add(floor);
 

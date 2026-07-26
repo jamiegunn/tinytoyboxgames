@@ -4,6 +4,8 @@ This document defines the specialized AI agent roles that collaborate on Tiny To
 
 No agent may override the canonical specs. All agents operate within the source-of-truth hierarchy defined in the [README](../../README.md) and enforced by the [controlled terminology](../controlled-terminology.md).
 
+> **Historical note:** the ADR and spec documents (`docs/adr/`, `docs/specs/`) referenced below were removed from the repo. Entries marked "(historical — not in repo)" are kept for context only; verify current behavior against `docs/status/current-state.md` and the code.
+
 > **Agents must not promote roadmap or target-architecture items into current-state documentation or marketing copy.**
 > When counts or availability are described, agents must verify them against `docs/status/current-state.md` and the code manifests/catalogs.
 
@@ -39,8 +41,8 @@ No agent may override the canonical specs. All agents operate within the source-
 - `docs/status/current-state.md`
 - `vision.md`
 - `docs/controlled-terminology.md`
-- `docs/specs/README.md`
-- All ADRs
+- `docs/specs/README.md` (historical — not in repo)
+- All ADRs (historical — not in repo)
 
 **Does not do:**
 
@@ -56,7 +58,7 @@ No agent may override the canonical specs. All agents operate within the source-
 
 **Authority:**
 
-- Owns the application architecture defined in [05-app-architecture-spec.md](docs/specs/phase-3/05-app-architecture-spec.md)
+- Owns the application architecture defined in the App Architecture Spec (historical — not in repo)
 - Implements the storage guard bootstrap module
 - Implements the `SceneRouter`, `SceneFrame`, `ResponsiveProvider`, and `AudioProvider`
 - Manages scene transitions across the recursive hierarchy (`world` / `place` / `sub-place` / immersive scene) plus minigame launch and exit
@@ -65,10 +67,10 @@ No agent may override the canonical specs. All agents operate within the source-
 **Reads first:**
 
 - `docs/status/current-state.md`
-- [App Architecture Spec](docs/specs/phase-3/05-app-architecture-spec.md)
-- [Scene Implementation Spec](docs/specs/phase-3/06-scene-implementation-spec.md)
-- [Build & Deploy Spec](docs/specs/phase-3/07-build-and-deploy-spec.md)
-- [Technical Constraints](docs/specs/phase-1/04-technical-constraints-and-non-goals.md)
+- App Architecture Spec (historical — not in repo)
+- Scene Implementation Spec (historical — not in repo)
+- Build & Deploy Spec (historical — not in repo)
+- Technical Constraints (historical — not in repo)
 
 **Key rules:**
 
@@ -94,10 +96,10 @@ No agent may override the canonical specs. All agents operate within the source-
 
 **Reads first:**
 
-- [Art Direction & Scene Design](docs/specs/phase-1/02-art-direction-and-scene-design.md)
-- [Art Asset Inventory](docs/specs/phase-3/01-art-asset-inventory.md)
-- [Art Production Specs](docs/specs/phase-3/02-art-production-specs.md)
-- [Scene Implementation Spec](docs/specs/phase-3/06-scene-implementation-spec.md)
+- Art Direction & Scene Design (historical — not in repo)
+- Art Asset Inventory (historical — not in repo)
+- Art Production Specs (historical — not in repo)
+- Scene Implementation Spec (historical — not in repo)
 
 **Key rules:**
 
@@ -124,9 +126,9 @@ No agent may override the canonical specs. All agents operate within the source-
 
 **Reads first:**
 
-- [Sound Design Inventory](docs/specs/phase-3/03-sound-design-inventory.md)
-- [Sound Production Specs](docs/specs/phase-3/04-sound-production-specs.md)
-- [Product & UX Spec — Audio Model](docs/specs/phase-1/01-product-and-ux-spec.md)
+- Sound Design Inventory (historical — not in repo)
+- Sound Production Specs (historical — not in repo)
+- Product & UX Spec — Audio Model (historical — not in repo)
 
 **Key rules:**
 
@@ -144,7 +146,7 @@ No agent may override the canonical specs. All agents operate within the source-
 
 **Authority:**
 
-- Owns the mini-game framework defined in [09-minigame-framework-spec.md](docs/specs/phase-3/09-minigame-framework-spec.md)
+- Owns the mini-game framework defined in the Mini-Game Framework Spec (historical — not in repo)
 - Implements the `IMiniGame` interface for each game
 - Implements shared systems: `ScoreManager`, `ComboTracker`, `DifficultyController`, `SpawnScheduler`, `CelebrationSystem`, `InputDispatcher`, `EntityPool`
 - Implements the `MiniGameRouter`, `MiniGameShell`, and `MiniGameHUD`
@@ -153,9 +155,9 @@ No agent may override the canonical specs. All agents operate within the source-
 **Reads first:**
 
 - `docs/status/current-state.md`
-- [Mini-Game Framework Spec](docs/specs/phase-3/09-minigame-framework-spec.md)
-- [Age-Appropriate UX Spec](docs/specs/phase-3/10-age-appropriate-ux-spec.md)
-- [Per-Game Specs](docs/specs/phase-3/games/README.md)
+- Mini-Game Framework Spec (historical — not in repo)
+- Age-Appropriate UX Spec (historical — not in repo)
+- Per-Game Specs (historical — not in repo)
 
 **Key rules:**
 
@@ -183,10 +185,10 @@ No agent may override the canonical specs. All agents operate within the source-
 
 **Reads first:**
 
-- [Age-Appropriate UX Spec](docs/specs/phase-3/10-age-appropriate-ux-spec.md)
-- [Product & UX Spec](docs/specs/phase-1/01-product-and-ux-spec.md)
-- [Toybox Activities & Rewards](docs/specs/phase-1/03-toybox-activities-and-rewards.md)
-- [Acceptance Criteria](docs/specs/phase-1/05-acceptance-criteria.md)
+- Age-Appropriate UX Spec (historical — not in repo)
+- Product & UX Spec (historical — not in repo)
+- Toybox Activities & Rewards (historical — not in repo)
+- Acceptance Criteria (historical — not in repo)
 
 **Key rules:**
 
@@ -205,7 +207,7 @@ No agent may override the canonical specs. All agents operate within the source-
 
 **Authority:**
 
-- Validates implementation against the acceptance criteria in [05-acceptance-criteria.md](docs/specs/phase-1/05-acceptance-criteria.md) and [08-phase-3-acceptance-criteria.md](docs/specs/phase-3/08-phase-3-acceptance-criteria.md)
+- Validates implementation against the historical acceptance-criteria documents (not in repo)
 - Runs performance profiling on the official validation device matrix
 - Verifies storage guard behavior across the browser test matrix
 - Tests orientation changes during transitions
@@ -215,9 +217,9 @@ No agent may override the canonical specs. All agents operate within the source-
 **Reads first:**
 
 - `docs/status/current-state.md`
-- [Acceptance Criteria](docs/specs/phase-1/05-acceptance-criteria.md)
-- [Phase 3 Acceptance Criteria](docs/specs/phase-3/08-phase-3-acceptance-criteria.md)
-- [Technical Constraints](docs/specs/phase-1/04-technical-constraints-and-non-goals.md)
+- Acceptance Criteria (historical — not in repo)
+- Phase 3 Acceptance Criteria (historical — not in repo)
+- Technical Constraints (historical — not in repo)
 
 **Key rules:**
 
