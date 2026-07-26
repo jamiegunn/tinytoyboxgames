@@ -287,6 +287,59 @@ export const OWL_LANDING: ParticlePreset = {
   opacity: [0.3, 0.8],
 };
 
+// ── Celebration effects (the visual half of CelebrationSystem) ───────────────
+
+/**
+ * Celebration confetti — the falling-fleck layer of `CelebrationSystem`.
+ *
+ * Deliberately slower and much longer-lived than {@link SPARKLE} (0.15–0.35s):
+ * a three-year-old needs the reward to still be on screen when their eyes get
+ * back to it. Normal blending plus a saturated six-colour palette keeps the
+ * flecks readable against both bubble-pop's near-black sky and pirate-cove's
+ * bright noon, where an additive burst would wash out completely.
+ */
+export const CELEBRATION_CONFETTI: ParticlePreset = {
+  texture: 'circle',
+  blending: 'normal',
+  count: 22,
+  capacity: 360, // milestone showers overlap several bursts in one frame
+  lifetime: [0.7, 1.4],
+  speed: [1.4, 3.2],
+  cone: [0, 1.9], // wide fan, still upward-biased so it arcs rather than sprays
+  gravity: 3.4, // rises, tips over, falls — reads as "thrown", not "exploded"
+  drag: 0.9,
+  size: SIZE,
+  colors: [
+    new Color(1, 0.35, 0.45),
+    new Color(1, 0.72, 0.25),
+    new Color(1, 0.93, 0.4),
+    new Color(0.45, 0.82, 0.45),
+    new Color(0.35, 0.68, 1),
+    new Color(0.78, 0.5, 0.95),
+  ],
+  opacity: [0.9, 1],
+};
+
+/**
+ * Celebration flash — the additive pop layered *under* the confetti so the
+ * moment of success has an instant bright accent before the slower flecks
+ * take over. Heavy drag makes it bloom outward and stop, like a firework head.
+ */
+export const CELEBRATION_FLASH: ParticlePreset = {
+  texture: 'star',
+  blending: 'additive',
+  count: 10,
+  capacity: 220,
+  lifetime: [0.25, 0.55],
+  speed: [2.2, 4.5],
+  cone: [0, Math.PI], // full sphere — a radial pop centred on the tap
+  gravity: 0,
+  drag: 2.4,
+  size: SIZE,
+  colors: [new Color(1, 1, 0.86), new Color(1, 0.9, 0.55)],
+  opacity: [0.7, 1],
+};
+
 /** Named registry of all presets (see architecture-standards.md#particleengine). */
 export const PARTICLES = {
   sceneSparkle: SCENE_SPARKLE,
@@ -305,4 +358,6 @@ export const PARTICLES = {
   owlAlert: OWL_ALERT,
   owlTrail: OWL_TRAIL,
   owlLanding: OWL_LANDING,
+  celebrationConfetti: CELEBRATION_CONFETTI,
+  celebrationFlash: CELEBRATION_FLASH,
 } as const;

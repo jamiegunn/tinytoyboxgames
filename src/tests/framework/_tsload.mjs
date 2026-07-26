@@ -8,8 +8,10 @@
  * written under `.tstest-tmp/` *inside the package* so its own imports (e.g.
  * `three` in disposal.ts) resolve against the project's node_modules.
  *
- * Only use this for files whose imports are either none or real npm packages —
- * files importing the `@app/*` alias or sibling `.ts` would not resolve here.
+ * Only use `loadTs` for files whose imports are either none or real npm
+ * packages. For a module that imports the `@app/*` alias or sibling `.ts`
+ * files, use `bundleTs`, which resolves the alias exactly as vite.config.ts
+ * does and inlines the dependency graph.
  */
 
 import esbuild from 'esbuild';
@@ -33,5 +35,36 @@ export async function loadTs(relPath) {
   const outName = relPath.replace(/[\\/]/g, '_').replace(/\.ts$/, '.mjs');
   const outPath = path.join(tmpDir, outName);
   writeFileSync(outPath, code);
+  return import(pathToFileURL(outPath).href);
+}
+
+/**
+ * Bundles and imports a TypeScript module along with its local dependency
+ * graph, resolving `@app/*` to `src/*` exactly as `vite.config.ts` does.
+ *
+ * `three` is left external so the bundle and the test share one module
+ * instance — otherwise `instanceof Vector3` checks across the boundary fail.
+ * Use this for framework modules that are pure logic but import siblings or
+ * the alias (e.g. CelebrationSystem, which reaches the particle presets).
+ *
+ * @param relPath - Path relative to the package root, e.g.
+ *   `src/minigames/framework/CelebrationSystem.ts`.
+ * @returns The loaded module namespace.
+ */
+export async function bundleTs(relPath) {
+  mkdirSync(tmpDir, { recursive: true });
+  const outName = relPath.replace(/[\\/]/g, '_').replace(/\.ts$/, '.bundle.mjs');
+  const outPath = path.join(tmpDir, outName);
+  await esbuild.build({
+    entryPoints: [path.join(packageRoot, relPath)],
+    outfile: outPath,
+    bundle: true,
+    format: 'esm',
+    target: 'es2022',
+    platform: 'neutral',
+    external: ['three'],
+    alias: { '@app': path.join(packageRoot, 'src') },
+    logLevel: 'silent',
+  });
   return import(pathToFileURL(outPath).href);
 }

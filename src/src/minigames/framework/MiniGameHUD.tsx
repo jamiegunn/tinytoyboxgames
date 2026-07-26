@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
+import { BADGES_PER_CROWN, MAX_CROWNS, PIPS_PER_BADGE, tallyScore } from './scoreDisplay';
 
 /** Props for the in-game HUD overlay. */
 interface MiniGameHUDProps {
   score: number;
   streak: number;
+  /**
+   * The game's `difficultyRamp.start`, used to size one pip. Passed rather than
+   * the whole manifest so the HUD stays a dumb presentational component.
+   */
+  rampStart: number;
   showScore: boolean;
   showProgressBar: boolean;
   /** Progress value from 0 to 1 for round-based games. */
@@ -33,8 +39,55 @@ function ensureStyles(): void {
       50% { opacity: 1; }
       100% { opacity: 0.7; }
     }
+    @keyframes hud-pip-pop {
+      0% { transform: scale(0.2); opacity: 0; }
+      60% { transform: scale(1.35); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
   `;
   document.head.appendChild(style);
+}
+
+/** Palette for the counting display — warm, high-contrast on any game sky. */
+const PIP_FILLED = '#FFD34D';
+const PIP_EMPTY = 'rgba(255, 255, 255, 0.28)';
+const PIP_STROKE = 'rgba(90, 74, 58, 0.85)';
+
+/**
+ * Draws one tier of the counting display: `filled` of `slots` round tokens.
+ *
+ * Tokens are circles, not glyphs — nothing here requires reading. The most
+ * recently filled token pops so the child's eye is drawn to the change.
+ *
+ * @param props - Tier geometry and fill state.
+ * @returns A row of tokens.
+ */
+function TokenRow({ slots, filled, size, popKey }: { slots: number; filled: number; size: number; popKey: number }) {
+  return (
+    <div style={{ display: 'flex', gap: Math.max(2, size * 0.22), justifyContent: 'flex-end' }}>
+      {Array.from({ length: slots }, (_, i) => {
+        const isFilled = i < filled;
+        const isNewest = isFilled && i === filled - 1;
+        return (
+          <span
+            // Remounting the newest token on every score change restarts the
+            // pop animation; a stable key would play it only once.
+            key={isNewest ? `${i}-${popKey}` : i}
+            style={{
+              display: 'inline-block',
+              width: size,
+              height: size,
+              borderRadius: '50%',
+              background: isFilled ? PIP_FILLED : PIP_EMPTY,
+              border: `2px solid ${PIP_STROKE}`,
+              boxShadow: isFilled ? `0 0 ${size * 0.4}px rgba(255, 211, 77, 0.85)` : 'none',
+              animation: isNewest ? 'hud-pip-pop 260ms ease-out' : undefined,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
 }
 
 /**
@@ -45,9 +98,10 @@ function ensureStyles(): void {
  * @param props - HUD configuration and callbacks.
  * @returns The HUD overlay element.
  */
-export function MiniGameHUD({ score, streak, showScore, showProgressBar, progress, onExit, isMuted, onToggleMute }: MiniGameHUDProps) {
+export function MiniGameHUD({ score, streak, rampStart, showScore, showProgressBar, progress, onExit, isMuted, onToggleMute }: MiniGameHUDProps) {
   const [isFlashing, setIsFlashing] = useState(false);
   const isFirstRender = useRef(true);
+  const tally = tallyScore(score, rampStart);
 
   useEffect(() => {
     ensureStyles();
@@ -149,24 +203,28 @@ export function MiniGameHUD({ score, streak, showScore, showProgressBar, progres
             gap: 4,
           }}
         >
+          {/*
+            The counting display. No numerals: the player is three or four and
+            cannot read them, so the score is told in tokens that fill a row —
+            pips collapse into badges, badges into crowns. See scoreDisplay.ts.
+          */}
           <div
+            aria-label={`Score ${score}`}
             style={{
               background: 'rgba(255, 255, 255, 0.7)',
               borderRadius: 16,
-              padding: '8px 16px',
+              padding: '8px 12px',
               display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              color: '#5a4a3a',
-              fontSize: 22,
-              fontWeight: 'bold',
-              fontFamily: 'sans-serif',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              gap: 5,
               transition: 'opacity 0.3s ease',
-              opacity: isFlashing ? 1 : 0.7,
+              opacity: isFlashing ? 1 : 0.82,
             }}
           >
-            <span style={{ fontSize: 20 }}>&#9733;</span>
-            <span>{score}</span>
+            {tally.crowns > 0 && <TokenRow slots={Math.min(MAX_CROWNS, Math.max(1, tally.crowns))} filled={tally.crowns} size={18} popKey={score} />}
+            {(tally.crowns > 0 || tally.badges > 0) && <TokenRow slots={BADGES_PER_CROWN} filled={tally.badges} size={12} popKey={score} />}
+            <TokenRow slots={PIPS_PER_BADGE} filled={tally.pips} size={16} popKey={score} />
           </div>
 
           {/* Combo indicator -- shown below score when streak >= 3 */}

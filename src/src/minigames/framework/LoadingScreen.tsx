@@ -56,18 +56,37 @@ export function LoadingScreen({ displayName, themeColor, visible }: LoadingScree
         transition: 'opacity 300ms ease',
       }}
     >
+      {/*
+        The game's emblem, not its name. This card used to render `displayName`
+        at 28px bold — text held in front of a child who cannot read, in a
+        product whose whole premise is that nothing requires reading. The name
+        survives as the accessible label; the child gets a shape and a colour.
+      */}
       <div
+        role="img"
+        aria-label={displayName}
         style={{
-          color: 'rgba(255, 255, 255, 0.95)',
-          fontSize: 28,
-          fontWeight: 'bold',
-          fontFamily: 'sans-serif',
+          width: 108,
+          height: 108,
           marginBottom: 32,
-          textAlign: 'center',
-          padding: '0 24px',
+          borderRadius: 28,
+          background: 'rgba(255, 255, 255, 0.9)',
+          boxShadow: `0 6px 26px rgba(0, 0, 0, 0.3), inset 0 0 0 5px ${themeColor}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          animation: 'loading-bounce 1.6s ease-in-out infinite',
         }}
       >
-        {displayName}
+        <div
+          style={{
+            width: 58,
+            height: 58,
+            borderRadius: '50%',
+            background: themeColor,
+            boxShadow: `0 0 22px ${themeColor}`,
+          }}
+        />
       </div>
 
       {/* Bouncing dots indicator */}

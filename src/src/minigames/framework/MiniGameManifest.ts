@@ -13,10 +13,16 @@ const manifest: MiniGameManifestEntry[] = [
     themeColor: '#A8E0FF',
     iconAssetId: 'bubble_pop_icon',
     musicId: 'mus_bubble_pop_background',
-    comboWindowSeconds: 0,
+    // Was 0, which made ComboTracker's multiplier permanently 1x — the combo
+    // dots in the HUD could never appear. 2.5s is a comfortable toddler cadence.
+    comboWindowSeconds: 2.5,
     hasSpecialItems: false,
+    // 10 points a normal pop, 100 a giant: 60 is about six pops in, 600 a long sitting.
+    difficultyRamp: { start: 60, end: 600 },
     mode: 'endless',
-    showScore: false,
+    // Was false: with the score rendered as a bare numeral there was nothing
+    // worth showing a pre-reader. The counting display is legible, so show it.
+    showScore: true,
     showProgressBar: false,
     load: () => import('@app/minigames/games/bubble-pop'),
   },
@@ -31,6 +37,9 @@ const manifest: MiniGameManifestEntry[] = [
     musicId: 'mus_fireflies_background',
     comboWindowSeconds: 3.5,
     hasSpecialItems: true,
+    // 1 point a catch, 5 for a golden. Five catches to warm up, forty-five for a full session.
+    difficultyRamp: { start: 5, end: 45 },
+    specialItemScore: 10,
     mode: 'endless',
     showScore: true,
     showProgressBar: false,
@@ -50,6 +59,9 @@ const manifest: MiniGameManifestEntry[] = [
     camera: { kind: 'orbit', target: new Vector3(0, 0.5, 0), azimuth: Math.PI, polar: 0.95, distance: 10.0, fov: fovRadiansToDegrees(0.85) },
     comboWindowSeconds: 2.5,
     hasSpecialItems: true,
+    // 1 point a fish, 5 for a golden — the same shape as fireflies.
+    difficultyRamp: { start: 4, end: 40 },
+    specialItemScore: 12,
     mode: 'endless',
     showScore: true,
     showProgressBar: false,
@@ -68,6 +80,8 @@ const manifest: MiniGameManifestEntry[] = [
     camera: { kind: 'orbit', target: new Vector3(0, 0.65, 0), azimuth: Math.PI, polar: 1.16, distance: 7.4, fov: fovRadiansToDegrees(0.9) },
     comboWindowSeconds: 3,
     hasSpecialItems: false,
+    // 1 point a star. The spawn bands at level 0.35/0.7 now land at 17 and 29 stars.
+    difficultyRamp: { start: 4, end: 40 },
     mode: 'endless',
     showScore: true,
     showProgressBar: false,
@@ -84,6 +98,9 @@ const manifest: MiniGameManifestEntry[] = [
     musicId: 'mus_cannonball_splash_background',
     comboWindowSeconds: 3,
     hasSpecialItems: true,
+    // 10-20 a hit: six hits to warm up. specialItemScore matches the golden barrel's own unlock.
+    difficultyRamp: { start: 60, end: 600 },
+    specialItemScore: 180,
     mode: 'endless',
     showScore: true,
     showProgressBar: false,

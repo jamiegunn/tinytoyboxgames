@@ -135,7 +135,10 @@ export function createCelebrationQueue(): CelebrationQueue {
           context.audio.playSound('golden-catch');
         });
         scheduleEffect(0.6, () => {
-          context.celebration.milestone(0, 0, 'large');
+          // Centre of the view, not (0, 0) — the follow camera keeps the shark
+          // there, and now that celebrations render, a corner burst would be
+          // half off-screen.
+          context.celebration.milestone(context.viewport.width / 2, context.viewport.height / 2, 'large');
         });
       }
 

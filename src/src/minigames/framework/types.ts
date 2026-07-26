@@ -1,3 +1,4 @@
+import type { Vector3 } from 'three';
 import type { MiniGameId } from '@app/types/scenes';
 import type { FrameClock } from '@app/utils/frameClock';
 import type { DisposalScope } from '@app/utils/disposal';
@@ -71,6 +72,21 @@ export interface MiniGameManifestEntry {
   camera?: CameraDescriptor;
   comboWindowSeconds: number;
   hasSpecialItems: boolean;
+  /**
+   * Score range over which `difficulty.level` ramps 0 → 1, in this game's own
+   * points. Required, because the point economies differ by an order of
+   * magnitude: bubble-pop pays 10 a pop while fireflies pays 1 a catch, so the
+   * old hard-coded 50 → 500 shared ramp left three of five games permanently
+   * pinned at level 0 — every difficulty curve in them was dead code. Pick
+   * `start` as roughly the number of successes that makes a child feel warmed
+   * up, and `end` as a good long session.
+   */
+  difficultyRamp: { start: number; end: number };
+  /**
+   * Score at which `difficulty.thresholds.specialItemsUnlocked` flips. Only
+   * meaningful when `hasSpecialItems` is true; same units as difficultyRamp.
+   */
+  specialItemScore?: number;
   mode: 'endless' | 'round-based' | 'auto-runner';
   showScore: boolean;
   showProgressBar: boolean;
@@ -219,6 +235,16 @@ export interface CelebrationSystem {
    * @param intensity - Effect intensity level.
    */
   confetti(screenX: number, screenY: number, intensity?: CelebrationIntensity): void;
+
+  /**
+   * Spawns the same burst at an exact world position, skipping the screen →
+   * world unprojection. Prefer this whenever the call site already knows where
+   * the thing that succeeded actually is (a popped bubble, a caught star, a
+   * hit target) — it is exact, and it stays correct under a moving camera.
+   * @param worldPosition - World-space origin for the burst.
+   * @param intensity - Effect intensity level.
+   */
+  burstAt(worldPosition: Vector3, intensity?: CelebrationIntensity): void;
 
   /**
    * Plays a celebration sound effect.

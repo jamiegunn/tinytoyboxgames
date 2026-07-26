@@ -427,8 +427,10 @@ export function createGame(context: MiniGameContext): IMiniGame {
       const gx = sharkPos.x - goldenFish.root.position.x;
       const gz = sharkPos.z - goldenFish.root.position.z;
       if (Math.sqrt(gx * gx + gz * gz) < GOLDEN_HIT_RADIUS) {
+        // `eatFishAction` → `playCatchCelebration` already fires the golden
+        // milestone (see celebrations.ts). Firing a second one here made every
+        // golden catch play the fanfare twice.
         eatFishAction(goldenFish);
-        context.celebration.milestone(0, 0, 'large');
       }
     }
   }
@@ -525,17 +527,22 @@ export function createGame(context: MiniGameContext): IMiniGame {
 
       let lastMilestoneScore = 0;
       const maxScheduled = MILESTONE_SCHEDULE.length > 0 ? MILESTONE_SCHEDULE[MILESTONE_SCHEDULE.length - 1].score : 0;
+      // Score milestones belong to no single fish, so they play at the middle
+      // of the view. They used to pass (0, 0) — now that celebrations actually
+      // render, that would have fired every burst off in the top-left corner.
+      const midX = (): number => context.viewport.width / 2;
+      const midY = (): number => context.viewport.height / 2;
       unsubScore = context.score.onScoreChanged((newScore: number) => {
         for (const ms of MILESTONE_SCHEDULE) {
           if (newScore >= ms.score && lastMilestoneScore < ms.score) {
-            context.celebration.milestone(0, 0, ms.size);
+            context.celebration.milestone(midX(), midY(), ms.size);
             lastMilestoneScore = ms.score;
           }
         }
         if (newScore > maxScheduled) {
           const rm = maxScheduled + Math.floor((newScore - maxScheduled) / MILESTONE_REPEAT_INTERVAL) * MILESTONE_REPEAT_INTERVAL;
           if (rm > lastMilestoneScore) {
-            context.celebration.milestone(0, 0, 'medium');
+            context.celebration.milestone(midX(), midY(), 'medium');
             lastMilestoneScore = rm;
           }
         }

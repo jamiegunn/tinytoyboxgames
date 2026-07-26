@@ -33,11 +33,20 @@ interface InputManifest {
 const DRAG_THRESHOLD = DRAG_THRESHOLD_PX;
 const WOBBLE_TAP_TOLERANCE = WOBBLE_TAP_TOLERANCE_PX;
 
-/** Minimum milliseconds between taps at the same position. */
-const TAP_COOLDOWN_MS = 120;
-
-/** Maximum pixel distance for two taps to be considered "same position". */
-const TAP_PROXIMITY = 8;
+// There is deliberately no tap cooldown here any more.
+//
+// This module used to discard any tap landing within 120ms and 8px of the
+// previous one. That window sits squarely inside the interval of an excited
+// three-year-old hammering the same bubble, so every second tap was swallowed
+// with no sound, no particle, no acknowledgement of any kind — while
+// star-catcher's own scoring.ts carries the comment "a dead tap is a broken
+// promise". The stated purpose was to suppress duplicated events, but nothing
+// duplicates: we listen only to Pointer Events, which the browser already
+// unifies across mouse and touch, and the one real double-delivery risk (a
+// gesture answered on both `pointerdown` and `pointerup`) is closed
+// structurally by the `tapFiredOnDown` flag below rather than by a timer.
+// A time-based guard could therefore only ever eat genuine input, so it is
+// gone. See docs/reviews/minigame-teardown.md (defect 0.3).
 
 /**
  * Creates an input dispatcher that translates pointer events into game-level tap and drag events.
@@ -64,11 +73,8 @@ export function createInputDispatcher(canvas: HTMLCanvasElement, scene: unknown,
   let lastY = 0;
   let totalDistance = 0;
   let isDragging = false;
-
-  // Tap cooldown state
-  let lastTapX = -9999;
-  let lastTapY = -9999;
-  let lastTapTime = 0;
+  /** True when this gesture already delivered its tap on pointerdown. */
+  let tapFiredOnDown = false;
 
   const supportsTap = manifest.inputModes.includes('tap');
   const supportsDrag = manifest.inputModes.includes('drag');
@@ -104,13 +110,9 @@ export function createInputDispatcher(canvas: HTMLCanvasElement, scene: unknown,
     return { hit: false };
   }
 
-  // Checks whether a tap at the given position is within the cooldown window.
-  function isTapOnCooldown(x: number, y: number): boolean {
-    const now = Date.now();
-    const dx = x - lastTapX;
-    const dy = y - lastTapY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    return dist < TAP_PROXIMITY && now - lastTapTime < TAP_COOLDOWN_MS;
+  // Delivers a tap to the game. Every press reaches here; nothing filters.
+  function emitTap(x: number, y: number): void {
+    tapHandler?.({ screenX: x, screenY: y, pickResult: performPick(x, y) });
   }
 
   function handlePointerDown(e: PointerEvent): void {
@@ -120,6 +122,17 @@ export function createInputDispatcher(canvas: HTMLCanvasElement, scene: unknown,
     lastY = e.clientY;
     totalDistance = 0;
     isDragging = false;
+    tapFiredOnDown = false;
+
+    // In a tap-only game there is nothing to wait for: the gesture cannot turn
+    // into a drag, so holding the response until pointerup only adds however
+    // long the child keeps their finger down — routinely 150-300ms for a
+    // toddler, which reads as "the game ignored me" and provokes a re-tap.
+    // Games that also accept drags must still classify on release.
+    if (!supportsDrag && supportsTap && tapHandler) {
+      emitTap(e.clientX, e.clientY);
+      tapFiredOnDown = true;
+    }
   }
 
   function handlePointerMove(e: PointerEvent): void {
@@ -169,20 +182,15 @@ export function createInputDispatcher(canvas: HTMLCanvasElement, scene: unknown,
       });
     }
 
-    if ((!isDragging || isWobblyTap) && supportsTap && tapHandler && !isTapOnCooldown(e.clientX, e.clientY)) {
-      lastTapX = e.clientX;
-      lastTapY = e.clientY;
-      lastTapTime = Date.now();
-
-      tapHandler({
-        screenX: e.clientX,
-        screenY: e.clientY,
-        pickResult: performPick(e.clientX, e.clientY),
-      });
+    // `tapFiredOnDown` guards the tap-only fast path above: that gesture has
+    // already been answered, so releasing must not answer it a second time.
+    if (!tapFiredOnDown && (!isDragging || isWobblyTap) && supportsTap && tapHandler) {
+      emitTap(e.clientX, e.clientY);
     }
 
     isDragging = false;
     totalDistance = 0;
+    tapFiredOnDown = false;
   }
 
   /** Resets gesture state when the browser cancels a pointer (e.g. iPadOS system gesture). */
@@ -190,6 +198,7 @@ export function createInputDispatcher(canvas: HTMLCanvasElement, scene: unknown,
     isDown = false;
     isDragging = false;
     totalDistance = 0;
+    tapFiredOnDown = false;
   }
 
   canvas.addEventListener('pointerdown', handlePointerDown);

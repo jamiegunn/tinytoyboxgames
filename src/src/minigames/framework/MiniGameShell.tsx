@@ -119,13 +119,24 @@ export function MiniGameShell({ gameId, manifest, onExit }: MiniGameShellProps) 
     // Build shared systems
     const combo = createComboTracker(manifest.comboWindowSeconds);
     const scoreManager = createScoreManager(combo);
+    // The ramp is per-game, not shared: point economies differ by an order of
+    // magnitude, so one hard-coded 50 → 500 range meant fireflies, little-shark
+    // and star-catcher never left difficulty level 0. See MiniGameManifest.
     const difficulty = createDifficultyController({
-      rampStart: 50,
-      rampEnd: 500,
-      specialItemThreshold: manifest.hasSpecialItems ? 200 : undefined,
+      rampStart: manifest.difficultyRamp.start,
+      rampEnd: manifest.difficultyRamp.end,
+      specialItemThreshold: manifest.hasSpecialItems ? manifest.specialItemScore : undefined,
     });
     const spawner = createSpawnScheduler();
-    const celebration = createCelebrationSystem((id: string) => triggerSound(id));
+    // Celebration bursts draw through the scene's ParticleEngine, registered a
+    // few lines below; `getParticleEngine` resolves lazily per call, so the
+    // creation order here is not load-bearing.
+    const celebration = createCelebrationSystem({
+      scene,
+      camera,
+      canvas,
+      playSound: (id: string) => triggerSound(id),
+    });
 
     // Per-frame clock + teardown registry for this game instance (foundation
     // for the particle/animation standards). See architecture-standards.md.
@@ -342,6 +353,7 @@ export function MiniGameShell({ gameId, manifest, onExit }: MiniGameShellProps) 
         <MiniGameHUD
           score={score}
           streak={streak}
+          rampStart={manifest.difficultyRamp.start}
           showScore={manifest.showScore}
           showProgressBar={manifest.showProgressBar}
           progress={progress}
