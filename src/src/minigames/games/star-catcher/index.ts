@@ -14,17 +14,27 @@
  * - this file orchestrates those pieces
  */
 
-import { Scene, Vector3 } from 'three';
-import type { EntityPool, IMiniGame, MiniGameContext, MiniGameDragEndEvent, MiniGameDragEvent, MiniGameTapEvent, ViewportInfo } from '../../framework/types';
-import { approximateMissWorldPoint } from './helpers';
-import { setupTemplateEnvironment, teardownTemplateEnvironment, updateTemplateEnvironment } from './environment';
-import { createTarget, disposeTarget, resetTarget } from './entities';
-import { createMissPulse, disposeTransientPulses, updateTransientPulses } from './entities/effects';
+import { Vector3, type PerspectiveCamera, type Scene } from 'three';
+import type { EntityPool, IMiniGame, MiniGameContext, MiniGameTapEvent, ViewportInfo } from '../../framework/types';
+import { unprojectTapToPlane } from './helpers';
+import { findTappedTwinklePoint, setupTemplateEnvironment, teardownTemplateEnvironment, updateTemplateEnvironment } from './environment';
+import { beginCatch, createTarget, disposeTarget, resetTarget } from './entities';
+import {
+  createMissPulse,
+  createTransientEffects,
+  disposeTransientEffects,
+  emitTwinkle,
+  releaseTransientPulses,
+  updateTransientPulses,
+} from './entities/effects';
 import { recycleTargetAtIndex } from './entities/lifecycle';
 import { applyMissTap, applySuccessfulTap } from './rules/scoring';
-import { findTappedTargetIndex, spawnNextTarget, updateActiveTargets } from './rules';
-import { computeMaxActiveTargets, computeSpawnIntervalSeconds, getSpawnBand, TEMPLATE_SPAWN_BOUNDS } from './rules/spawning';
-import type { RuntimeViewportSnapshot, TemplateEnvironmentRig, TemplateTargetState, TransientPulseState } from './types';
+import { findNearestCatchableTargetIndex, findTappedTargetIndex, spawnNextTarget, updateActiveTargets } from './rules';
+import { computeMaxActiveTargets, computeSpawnIntervalSeconds, getSpawnBand, PLAY_PLANE_Z, TEMPLATE_SPAWN_BOUNDS } from './rules/spawning';
+import type { TemplateEnvironmentRig, TemplateTargetState, TransientEffectRig } from './types';
+
+/** Sound used to acknowledge a tap on the moon or the background starfield. */
+const AMBIENT_TWINKLE_SOUND = 'sfx_shared_star_chime';
 
 /**
  * Creates the generated Star Catcher minigame.
@@ -34,21 +44,21 @@ import type { RuntimeViewportSnapshot, TemplateEnvironmentRig, TemplateTargetSta
  */
 export function createGame(context: MiniGameContext): IMiniGame {
   const scene = context.scene as Scene;
+  const camera = context.camera as PerspectiveCamera;
 
   let environment: TemplateEnvironmentRig | null = null;
+  let effects: TransientEffectRig | null = null;
   let targetPool: EntityPool<TemplateTargetState> | null = null;
   const activeTargets: TemplateTargetState[] = [];
-  const missPulses: TransientPulseState[] = [];
+
+  /** Scratch vector for the miss-pulse world point, so taps allocate nothing. */
+  const missPoint = new Vector3();
 
   let paused = false;
   let elapsedTime = 0;
   let successfulHits = 0;
   let spawnRegistrationId: string | null = null;
   let spawnBand = getSpawnBand(context.difficulty.level);
-  let viewportSnapshot: RuntimeViewportSnapshot = {
-    width: context.viewport.width,
-    height: context.viewport.height,
-  };
 
   /** Returns every active target to the pool so restarts stay clean. */
   function releaseAllActiveTargets(): void {
@@ -99,6 +109,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
 
     async setup(): Promise<void> {
       environment = setupTemplateEnvironment(scene, context.disposal);
+      effects = createTransientEffects();
 
       targetPool = context.createPool<TemplateTargetState>({
         create: () => createTarget(scene),
@@ -114,17 +125,16 @@ export function createGame(context: MiniGameContext): IMiniGame {
       elapsedTime = 0;
       successfulHits = 0;
       spawnBand = getSpawnBand(context.difficulty.level);
-      viewportSnapshot = {
-        width: context.viewport.width,
-        height: context.viewport.height,
-      };
 
       context.score.reset();
       context.combo.reset();
       context.spawner.clearAll();
       spawnRegistrationId = null;
       releaseAllActiveTargets();
-      disposeTransientPulses(missPulses);
+
+      if (effects) {
+        releaseTransientPulses(effects);
+      }
 
       if (targetPool) {
         for (let count = 0; count < 3; count += 1) {
@@ -136,14 +146,16 @@ export function createGame(context: MiniGameContext): IMiniGame {
     },
 
     update(deltaTime: number): void {
-      if (paused || !targetPool || !environment) return;
+      if (paused || !targetPool || !environment || !effects) return;
 
       elapsedTime += deltaTime;
       ensureSpawnerRegistration();
 
       updateTemplateEnvironment(environment, elapsedTime);
+      // Targets are recycled here, once their catch or fade animation has
+      // finished playing — not on the frame they are tapped (defect 2).
       updateActiveTargets(targetPool, activeTargets, elapsedTime, deltaTime);
-      updateTransientPulses(missPulses, deltaTime);
+      updateTransientPulses(effects, deltaTime);
     },
 
     pause(): void {
@@ -163,7 +175,8 @@ export function createGame(context: MiniGameContext): IMiniGame {
       }
       context.spawner.clearAll();
 
-      disposeTransientPulses(missPulses);
+      disposeTransientEffects(effects);
+      effects = null;
       releaseAllActiveTargets();
 
       if (targetPool) {
@@ -175,57 +188,66 @@ export function createGame(context: MiniGameContext): IMiniGame {
       environment = null;
     },
 
-    onResize(viewport: ViewportInfo): void {
-      viewportSnapshot = {
-        width: viewport.width,
-        height: viewport.height,
-      };
+    /**
+     * Resize needs no work in this game.
+     *
+     * Nothing here is authored in viewport units: the shell owns the camera
+     * aspect, and every screen-space test (catch forgiveness, the night-sky
+     * twinkle, the miss pulse) reads the canvas rectangle at tap time, so a
+     * cached size could never go stale. The hook stays because the lifecycle
+     * contract requires it.
+     *
+     * @param _viewport - Unused; the game holds no viewport-derived state.
+     */
+    onResize(_viewport: ViewportInfo): void {
+      // Intentionally empty — see the note above.
     },
 
     onTap(event: MiniGameTapEvent): void {
-      if (paused || !targetPool) return;
+      if (paused || !targetPool || !environment || !effects) return;
 
-      const targetIndex = event.pickResult?.hit && event.pickResult.pickedMesh ? findTappedTargetIndex(activeTargets, event.pickResult.pickedMesh) : -1;
+      // Read fresh rather than cached: the canvas can move (layout, scroll)
+      // without a resize ever firing, and every test below is in pixels.
+      const rect = context.canvas.getBoundingClientRect();
+
+      let targetIndex = event.pickResult?.hit && event.pickResult.pickedMesh ? findTappedTargetIndex(activeTargets, event.pickResult.pickedMesh) : -1;
+
+      // Defect 3: an exact-mesh raycast on a falling, tumbling 0.68-unit star is
+      // far finer aim than a 3-year-old has. When the ray missed — or landed on
+      // scenery — fall back to the nearest star within a generous screen radius
+      // so a tap that *looks* like a catch scores like one.
+      if (targetIndex === -1) {
+        targetIndex = findNearestCatchableTargetIndex(activeTargets, camera, rect, event.screenX, event.screenY);
+      }
 
       if (targetIndex !== -1) {
         const target = activeTargets[targetIndex];
-        applySuccessfulTap(context, target, event.screenX, event.screenY, successfulHits);
+        // `milestone` places its shower in canvas space, so hand it canvas-relative
+        // coordinates rather than the raw client pixels the shell reports.
+        applySuccessfulTap(context, target, event.screenX - rect.left, event.screenY - rect.top, successfulHits);
         successfulHits += 1;
-        recycleTargetAtIndex(targetPool, activeTargets, targetIndex);
+        // Defect 2: the star used to be hidden and teleported to (0, -10, 0) on
+        // this very frame, so the reward for the one action the game asks for was
+        // the star vanishing. It now plays a short pop-spin-rise instead and is
+        // recycled by `updateActiveTargets` when that finishes.
+        beginCatch(target);
+        return;
+      }
+
+      // Defect 4: the moon and the 110-instance starfield are decorative props in
+      // a game called Star Catcher, so a tap on them used to do nothing at all.
+      // They now twinkle and chime — friendly, but deliberately scoreless and
+      // visually distinct from a real catch.
+      const twinkle = findTappedTwinklePoint(environment, camera, rect, event.screenX, event.screenY);
+      if (twinkle) {
+        emitTwinkle(scene, twinkle.position, twinkle.sparkleCount);
+        context.audio.playSound(AMBIENT_TWINKLE_SOUND);
         return;
       }
 
       applyMissTap(context);
-
-      const effectPoint =
-        event.pickResult?.hit && event.pickResult.pickedPoint
-          ? new Vector3(event.pickResult.pickedPoint.x, TEMPLATE_SPAWN_BOUNDS.y, event.pickResult.pickedPoint.z)
-          : approximateMissWorldPoint(event.screenX, event.screenY, viewportSnapshot, TEMPLATE_SPAWN_BOUNDS);
-
-      createMissPulse(scene, effectPoint, missPulses);
-    },
-
-    /**
-     * Drag is intentionally dormant in the baseline template.
-     *
-     * The shell lifecycle supports it, and future generated games may turn it
-     * on by changing the manifest entry to include `'drag'`. Keeping the method
-     * here makes that future extension obvious without forcing the default game
-     * to simulate drag behavior it does not need yet.
-     *
-     * @param _event - Unused drag event preserved to keep the lifecycle shape explicit.
-     */
-    onDrag(_event: MiniGameDragEvent): void {
-      // Intentionally unused in the default tap-first generated baseline.
-    },
-
-    /**
-     * Complements the dormant drag hook with an equally explicit end handler.
-     *
-     * @param _event - Unused drag-end event preserved for future drag-capable games.
-     */
-    onDragEnd(_event: MiniGameDragEndEvent): void {
-      // Intentionally unused in the default tap-first generated baseline.
+      unprojectTapToPlane(camera, rect, event.screenX, event.screenY, PLAY_PLANE_Z, missPoint);
+      createMissPulse(scene, effects, missPoint, camera);
     },
   };
 

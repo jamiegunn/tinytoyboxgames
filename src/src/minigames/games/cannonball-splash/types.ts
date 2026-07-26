@@ -4,7 +4,7 @@
  * All game-specific contracts shared across modules live here.
  */
 
-import type { Group, Mesh, Vector3 } from 'three';
+import type { Group, Mesh, MeshStandardMaterial, Vector3 } from 'three';
 
 // ── Target types ────────────────────────────────────────────────────────────
 
@@ -23,6 +23,18 @@ export interface Target {
   driftVz: number;
   baseY: number;
   scoreValue: number;
+  /**
+   * Materials owned by this instance (never shared with another target), so the
+   * edge warning can tint one target without repainting the whole scene and so
+   * recycling can dispose them safely.
+   */
+  materials: MeshStandardMaterial[];
+  /**
+   * False until the target has drifted in past the edge-warning threshold.
+   * Targets spawn outside it, so without this every new target would flash the
+   * "I'm leaving" warning for its first few seconds of life.
+   */
+  hasEnteredPlay: boolean;
 }
 
 // ── Cannonball ──────────────────────────────────────────────────────────────
@@ -30,12 +42,13 @@ export interface Target {
 export interface Cannonball {
   mesh: Mesh;
   shadow: Mesh;
+  /** Launch position (barrel mouth) at the moment of firing. */
   startPos: Vector3;
-  endPos: Vector3;
+  /** Launch velocity in world units per second; gravity does the rest. */
+  velocity: Vector3;
+  /** Time at which the ball is expected to reach the water. */
   flightDuration: number;
   elapsed: number;
-  arcHeight: number;
-  target: Target | null;
   trailTimer: number;
 }
 
@@ -90,13 +103,12 @@ export interface GameState {
   fragments: Fragment[];
   coins: BonusCoin[];
   cannon: CannonRig | null;
-  lastFireTime: number;
   elapsedTime: number;
   milestoneScores: Set<number>;
   pendingChainHits: Array<{ target: Target; delay: number }>;
-  oceanMesh: Mesh | null;
   cameraShakeTimer: number;
-  cameraShakeOffset: { x: number; y: number };
+  /** Unit-ish direction the current shake oscillates along, re-rolled per shot. */
+  cameraShakeDir: { x: number; y: number };
 }
 
 // ── Environment ─────────────────────────────────────────────────────────────
@@ -109,8 +121,8 @@ export interface EnvironmentRig {
   foamStrips: Mesh[];
   waveBands: Mesh[];
   islands: Group[];
-  deckFloor: Mesh;
-  railing: Group;
+  /** Hull, deck, bulwarks and bowsprit — the ship the child is standing on. */
+  ship: Group;
   cannon: CannonRig;
   dispose: () => void;
 }
@@ -118,42 +130,53 @@ export interface EnvironmentRig {
 // ── Constants ───────────────────────────────────────────────────────────────
 
 export const C = {
-  FIRE_COOLDOWN: 0.5,
-  FLIGHT_DURATION_NEAR: 0.6,
-  FLIGHT_DURATION_FAR: 1.0,
-  ARC_HEIGHT_NEAR: 1.5,
-  ARC_HEIGHT_FAR: 4.0,
+  // Flight times. Longer than the old 0.6–1.0s because the ball now falls under
+  // real gravity: a short flight is a flat, fast line, and the lob is what makes
+  // the shot read as a cannonball. Immediate feedback still comes from the
+  // muzzle flash, boom, recoil and shake at t = 0.
+  FLIGHT_DURATION_NEAR: 0.8,
+  FLIGHT_DURATION_FAR: 1.4,
+  /**
+   * Horizontal distance from the ball's splashdown point within which a target
+   * counts as hit. 1.6 units ≈ two barrel widths: a target is ~0.8 wide, and it
+   * drifts up to ~1.0 units sideways during the longest (1.4s) flight, so a
+   * well-aimed shot always connects while a tap that lands more than two barrel
+   * widths off genuinely splashes in the water. Three-year-olds get the benefit
+   * of every doubt.
+   */
+  HIT_RADIUS: 1.6,
   GRACE_RADIUS: 1.0,
   CHAIN_RADIUS: 3.0,
   CHAIN_STAGGER: 0.15,
-  COMBO_WINDOW: 3.0,
   PLAY_X_MIN: -8,
   PLAY_X_MAX: 8,
   PLAY_Z_MIN: -18,
   PLAY_Z_MAX: -3,
-  OCEAN_Y: 0,
   SPAWN_X_EDGE: 9,
   SPAWN_Z_NEAR: -4,
   SPAWN_Z_FAR: -16,
+  /** |x| beyond which a target is warned as about to drift out of play. */
+  EDGE_WARN_X: 7,
   SPAWN_ANIM_DURATION: 0.4,
   HIT_ANIM_DURATION: 0.3,
   BOB_AMPLITUDE: 0.06,
   ROLL_AMPLITUDE: 0.04,
   DRIFT_SPEED_MIN: 0.3,
-  DRIFT_SPEED_MAX: 0.7,
-  SPAWN_INTERVAL_MIN: 1.0,
+  DRIFT_SPEED_MAX: 0.75,
+  SPAWN_INTERVAL_MIN: 0.85,
   SPAWN_INTERVAL_MAX: 2.5,
   MAX_TARGETS_MIN: 3,
   MAX_TARGETS_MAX: 8,
-  TARGET_SCALE_MIN: 1.1,
-  TARGET_SCALE_MAX: 1.35,
-  RAMP_START: 50,
-  RAMP_END: 500,
-  GOLDEN_UNLOCK: 150,
-  RAINBOW_UNLOCK: 275,
-  CAMERA_SHAKE_MAGNITUDE: 0.06,
-  CAMERA_SHAKE_FRAMES: 6,
-  CAMERA_SHAKE_DURATION: 0.2,
+  /**
+   * One target size at every difficulty. Targets used to shrink 1.35 → 1.10 as
+   * difficulty rose, which asks a three-year-old for finer aim exactly as the
+   * game speeds up; escalation now lives entirely in drift speed and spawn rate.
+   */
+  TARGET_SCALE: 1.35,
+  CAMERA_SHAKE_MAGNITUDE: 0.05,
+  /** Shake oscillation rate in radians/sec (~9 Hz — a jolt, not a slide). */
+  CAMERA_SHAKE_FREQUENCY: 58,
+  CAMERA_SHAKE_DURATION: 0.28,
   MUZZLE_FLASH_COUNT: 10,
   EXPLOSION_FRAGMENT_COUNT: 10,
   SPLASH_PARTICLE_COUNT: 7,
@@ -175,15 +198,23 @@ export const C = {
   CAMERA_LOOK_Y: 1.1,
   CAMERA_LOOK_Z: -10,
 
-  // Cannon position
+  // Cannon position. Pulled forward from z = 0 onto the bow: with the camera at
+  // z = 2.8 and a 55° vertical FOV, the water plane only enters frame at about
+  // z = -1.3, so a cannon at the origin sat almost entirely below the bottom of
+  // the screen — the child could not see the barrel swing or the recoil. y puts
+  // the carriage wheels on the deck (deck top is y = 0.30).
   CANNON_X: 0,
-  CANNON_Y: 0.6,
-  CANNON_Z: 0,
+  CANNON_Y: 0.9,
+  CANNON_Z: -1.4,
 
-  // Cannon aim constraints
-  AIM_MAX_YAW: Math.PI / 3,
-  AIM_MIN_PITCH: -0.1,
-  AIM_MAX_PITCH: -0.7,
+  // Cannon aim constraints. Yaw is generous (81°) because the play area reaches
+  // x = ±8 as close as z = -4, which needs ~65° of swing; the old 60° clamp
+  // pinned the barrel sideways for a large slice of legal taps.
+  AIM_MAX_YAW: Math.PI * 0.45,
+  // Pitch is positive-up in the barrel's YXZ frame: always at least a little
+  // above horizontal, never past ~54°.
+  AIM_MIN_PITCH: 0.04,
+  AIM_MAX_PITCH: 0.95,
 
   // Score values
   SCORE_BARREL: 10,

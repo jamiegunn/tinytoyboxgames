@@ -21,3 +21,5 @@ export {
 } from './effects';
 
 export { triggerChainPop, triggerWobbleChain, tapGiantBubble } from './rules';
+
+export { createBubbleMaterial, BUBBLE_ALPHA_NORMAL, BUBBLE_ALPHA_GIANT } from './bubbleMaterial';

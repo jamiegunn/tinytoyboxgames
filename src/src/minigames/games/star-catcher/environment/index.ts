@@ -5,4 +5,4 @@
  * read while preserving a stable place for environment-specific ownership.
  */
 
-export { setupTemplateEnvironment, teardownTemplateEnvironment, updateTemplateEnvironment } from './setup';
+export { findTappedTwinklePoint, setupTemplateEnvironment, teardownTemplateEnvironment, updateTemplateEnvironment } from './setup';

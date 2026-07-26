@@ -47,6 +47,8 @@ export interface FirefliesAudio {
   playGoldenCatch(): void;
   /** Play a soft sparkle for tapping empty space. */
   playTapSparkle(): void;
+  /** Play a friendly two-note answer when a piece of scenery is tapped. */
+  playWorldPoke(): void;
   /** Play ascending chime when illumination tier changes. */
   playTierTransition(newTier: number): void;
   /** Update ambient soundscape for current tier (call each frame). */
@@ -168,9 +170,26 @@ export function createFirefliesAudio(isMuted: () => boolean): FirefliesAudio {
       if (!c || !d || isMuted()) return;
 
       const t = c.currentTime;
-      // Soft crystalline tink — high sine with very short decay
-      playTone(c, d, 'sine', rand(2800, 3500), 0.005, 0.12, 0.06, t);
-      playTone(c, d, 'sine', rand(3500, 4200), 0.005, 0.08, 0.03, t + 0.02);
+      // Soft crystalline tink — high sine with very short decay.
+      // Volumes raised from 0.06/0.03: a miss is the one moment a child needs
+      // reassurance that the game heard them, and at 0.06 over the ambient bed
+      // this was effectively inaudible. Still well under the catch chime (0.12)
+      // so success stays the louder, more rewarding sound.
+      playTone(c, d, 'sine', rand(2800, 3500), 0.005, 0.14, 0.1, t);
+      playTone(c, d, 'sine', rand(3500, 4200), 0.005, 0.1, 0.05, t + 0.02);
+    },
+
+    playWorldPoke(): void {
+      const c = ctx();
+      const d = dest();
+      if (!c || !d || isMuted()) return;
+
+      const t = c.currentTime;
+      // Two notes a fourth apart — a friendly "hello back" from the moon,
+      // Saturn or a shooting star. Deliberately lower than a catch chime so
+      // poking scenery never competes with actually catching a firefly.
+      playBellChime(CHIME_FREQS[1], 0.09, t);
+      playBellChime(CHIME_FREQS[3], 0.07, t + 0.09);
     },
 
     playTierTransition(newTier: number): void {

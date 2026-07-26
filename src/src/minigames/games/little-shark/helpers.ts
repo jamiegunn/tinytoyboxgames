@@ -1,5 +1,5 @@
 import { randomRange, clamp, wrapAngle } from '@app/minigames/shared/mathUtils';
-import { BOUNDS, MIN_FISH_COUNT, MAX_FISH_COUNT, MIN_SPEED_MULTIPLIER, MAX_SPEED_MULTIPLIER } from './types';
+import { BOUNDS, MIN_FISH_COUNT, MAX_FISH_COUNT, MIN_SPEED_MULTIPLIER, MAX_SPEED_MULTIPLIER, MIN_EVASIVENESS, MAX_EVASIVENESS } from './types';
 
 export { randomRange, clamp, wrapAngle };
 
@@ -42,4 +42,18 @@ export function getTargetFishCount(difficultyLevel: number): number {
  */
 export function getSpeedMultiplier(difficultyLevel: number): number {
   return MIN_SPEED_MULTIPLIER + (MAX_SPEED_MULTIPLIER - MIN_SPEED_MULTIPLIER) * difficultyLevel;
+}
+
+/**
+ * Returns the normalized fish evasiveness for a given difficulty level.
+ *
+ * Defect 3: fish evasion never scaled. Consumers in fish/effects.ts widen the
+ * startle radius, sharpen the startle burst, and give the golden fish more (and
+ * quicker) dodges as this rises.
+ *
+ * @param difficultyLevel - Normalized difficulty (0–1).
+ * @returns Evasiveness in [0, 1].
+ */
+export function getFishEvasiveness(difficultyLevel: number): number {
+  return MIN_EVASIVENESS + (MAX_EVASIVENESS - MIN_EVASIVENESS) * clamp(difficultyLevel, 0, 1);
 }

@@ -1,9 +1,10 @@
 /**
  * Scene construction for Cannonball Splash.
  *
- * Builds the ocean, sky, clouds, sun, islands, deck, railing, cannon, and
- * lighting. The sky and ocean are unlit vertex-colored gradient planes so the
- * scene reads as a sunny toy seaside diorama under ACES tone mapping.
+ * Builds the ocean, sky, clouds, sun, islands, ship, cannon, and lighting. The
+ * sky is an unlit vertex-colored gradient plane and the ocean is a lit gradient
+ * plane whose vertices actually move, so the scene reads as a sunny toy seaside
+ * diorama under ACES tone mapping.
  */
 
 import {
@@ -13,16 +14,19 @@ import {
   Color,
   CylinderGeometry,
   DirectionalLight,
+  ExtrudeGeometry,
   Float32BufferAttribute,
   Group,
   HemisphereLight,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
+  Object3D,
   PerspectiveCamera,
   PlaneGeometry,
   PointLight,
   Scene,
+  Shape,
   SphereGeometry,
   Sprite,
   SpriteMaterial,
@@ -51,6 +55,41 @@ function mat(
   }
   m.name = name;
   return m;
+}
+
+// ── Ocean surface ───────────────────────────────────────────────────────────
+
+/** World z the ocean plane is centred on (its local +y runs toward -z). */
+const OCEAN_CENTER_Z = -21;
+
+/**
+ * Height of the water surface at a world point.
+ *
+ * The "waves" used to be the whole rigid plane sliding up and down in y, which
+ * moves every drop of water in lockstep and reads as a lift, not a sea. Three
+ * summed swells rolling toward the camera give the surface real shape. The
+ * z-terms carry most of the amplitude and the x-term is deliberately small, so
+ * the long foam and wave-band strips can ride the surface without clipping
+ * through it along their width.
+ * @param x - World x coordinate.
+ * @param z - World z coordinate.
+ * @param t - Elapsed time in seconds.
+ * @returns Water height in world units.
+ */
+export function sampleOceanHeight(x: number, z: number, t: number): number {
+  return 0.09 * Math.sin(0.55 * z + 1.1 * t) + 0.05 * Math.sin(0.31 * z - 0.7 * t + 1.3) + 0.03 * Math.sin(0.23 * x + 0.8 * t);
+}
+
+// Pushes the wave heights into the ocean plane's vertices. The plane is rotated
+// -90° about x, so its local +z displaces world +y and its local +y runs toward
+// world -z.
+function updateOceanSurface(ocean: Mesh, t: number): void {
+  const pos = ocean.geometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    pos.setZ(i, sampleOceanHeight(pos.getX(i), OCEAN_CENTER_Z - pos.getY(i), t));
+  }
+  pos.needsUpdate = true;
+  ocean.geometry.computeVertexNormals();
 }
 
 // ── Gradient helpers ────────────────────────────────────────────────────────
@@ -173,6 +212,109 @@ function createPalmTree(trunkMat: MeshStandardMaterial, canopyMat: MeshStandardM
   return palm;
 }
 
+// ── Ship builder ────────────────────────────────────────────────────────────
+
+// Deck outline, in the extrusion shape's local frame: sx is world x and sy is
+// world -z, so the bow tip at sy = 3 sits at z = -3, out in front of the child,
+// and the stern is behind the camera.
+const SHIP_OUTLINE: Array<[number, number]> = [
+  [0, 3.0],
+  [1.1, 2.2],
+  [1.9, 1.0],
+  [2.3, -0.6],
+  [2.2, -2.4],
+  [-2.2, -2.4],
+  [-2.3, -0.6],
+  [-1.9, 1.0],
+  [-1.1, 2.2],
+];
+
+// Builds the deck outline as a Shape, optionally shrunk toward the centreline
+// to give the bulwark its inner edge.
+function shipOutlineShape(scale: number): Shape {
+  const shape = new Shape();
+  for (let i = 0; i < SHIP_OUTLINE.length; i++) {
+    const [sx, sy] = SHIP_OUTLINE[i];
+    if (i === 0) shape.moveTo(sx * scale, sy * scale);
+    else shape.lineTo(sx * scale, sy * scale);
+  }
+  shape.closePath();
+  return shape;
+}
+
+// Makes an object and all its descendants invisible to the raycaster.
+//
+// The framework picks with intersectObjects(scene.children, true), so any mesh
+// between the camera and the water can swallow a tap. The old railing's nine
+// posts sat right across the child's view and did exactly that: taps that
+// landed on a post produced no shot at all. Scenery must never eat a tap.
+function makeNonPickable(object: Object3D): void {
+  object.traverse((child) => {
+    child.raycast = () => {};
+  });
+}
+
+/**
+ * Builds the ship the child is standing on: a pointed hull, a planked deck and
+ * a bulwark to lean over.
+ *
+ * The "ship" was previously a flat 18x5 rectangle at z = 1.5 — behind the
+ * camera's near framing and with no silhouette at all, so nothing on screen
+ * said where the cannon was firing from. An extruded hull with a bow gives the
+ * lower third of the frame a boat.
+ * @param materials - Deck, hull and rail materials (shared, disposed with the rig).
+ * @param materials.deck - Planking on the deck's top face.
+ * @param materials.hull - Painted hull sides.
+ * @param materials.rail - Cap along the top of the bulwark.
+ * @param materials.seam - Darker plank seams.
+ * @returns The ship group, already excluded from raycasts.
+ */
+function createShip(materials: { deck: MeshStandardMaterial; hull: MeshStandardMaterial; rail: MeshStandardMaterial; seam: MeshStandardMaterial }): Group {
+  const ship = new Group();
+  ship.name = 'cs_ship';
+
+  // Hull: extruded straight up, so ExtrudeGeometry's cap group (0) is the deck
+  // and its side group (1) is the painted hull.
+  const hullGeo = new ExtrudeGeometry(shipOutlineShape(1), { depth: 0.68, bevelEnabled: false, curveSegments: 2 });
+  const hull = new Mesh(hullGeo, [materials.deck, materials.hull]);
+  hull.name = 'cs_hull';
+  hull.rotation.x = -Math.PI / 2;
+  hull.position.y = -0.38; // deck top lands at y = 0.30, hull bottom at -0.38
+  hull.receiveShadow = true;
+  hull.castShadow = true;
+  ship.add(hull);
+
+  // Bulwark: the same outline with a shrunken copy punched out of it.
+  const bulwarkShape = shipOutlineShape(1);
+  bulwarkShape.holes.push(shipOutlineShape(0.87));
+  const bulwarkGeo = new ExtrudeGeometry(bulwarkShape, { depth: 0.36, bevelEnabled: false, curveSegments: 2 });
+  const bulwark = new Mesh(bulwarkGeo, [materials.rail, materials.hull]);
+  bulwark.name = 'cs_bulwark';
+  bulwark.rotation.x = -Math.PI / 2;
+  bulwark.position.y = 0.3;
+  bulwark.castShadow = true;
+  ship.add(bulwark);
+
+  // Plank seams, fore-and-aft, kept short enough to stay inside the bow taper.
+  const seams = [
+    { x: 0, length: 3.6, z: -0.4 },
+    { x: -0.55, length: 3.4, z: -0.5 },
+    { x: 0.55, length: 3.4, z: -0.5 },
+    { x: -1.5, length: 2.2, z: 0 },
+    { x: 1.5, length: 2.2, z: 0 },
+  ];
+  for (let i = 0; i < seams.length; i++) {
+    const s = seams[i];
+    const seam = new Mesh(new BoxGeometry(0.05, 0.012, s.length), materials.seam);
+    seam.name = `cs_seam_${i}`;
+    seam.position.set(s.x, 0.303, s.z);
+    ship.add(seam);
+  }
+
+  makeNonPickable(ship);
+  return ship;
+}
+
 // ── Cannon builder ──────────────────────────────────────────────────────────
 
 function createCannon(): CannonRig {
@@ -196,6 +338,10 @@ function createCannon(): CannonRig {
   const barrelGroup = new Group();
   barrelGroup.name = 'cannon_barrel_group';
   barrelGroup.position.y = 0.1;
+  // Turret order: swing left/right first, then tip up. With the default XYZ the
+  // pitch tilts the yaw axis and the barrel rolls as it traverses, which is why
+  // computeCannonAim solves yaw/pitch in this frame.
+  barrelGroup.rotation.order = 'YXZ';
 
   const barrelBody = new Mesh(new CylinderGeometry(0.25, 0.28, 1.4, 14), bronzeMat);
   barrelBody.name = 'barrel_body';
@@ -350,7 +496,9 @@ export function createGameEnvironment(scene: Scene, camera: PerspectiveCamera): 
   }
 
   // ── Ocean: vertex-gradient plane, deep near → bright aqua at horizon ──
-  const oceanGeo = new PlaneGeometry(130, 50, 1, 12);
+  // Segmented enough (about nine vertices per swell) that the wave displacement
+  // in updateOceanSurface reads as rolling water rather than folded paper.
+  const oceanGeo = new PlaneGeometry(130, 50, 26, 40);
   applyVerticalGradient(oceanGeo, [
     [0, new Color(0.1, 0.36, 0.58)],
     [0.55, new Color(0.2, 0.55, 0.72)],
@@ -361,7 +509,7 @@ export function createGameEnvironment(scene: Scene, camera: PerspectiveCamera): 
   const ocean = new Mesh(oceanGeo, oceanMat);
   ocean.name = 'cs_ocean';
   ocean.rotation.x = -Math.PI / 2;
-  ocean.position.set(0, 0, -21);
+  ocean.position.set(0, 0, OCEAN_CENTER_Z);
   ocean.receiveShadow = true;
   scene.add(ocean);
 
@@ -443,56 +591,20 @@ export function createGameEnvironment(scene: Scene, camera: PerspectiveCamera): 
   scene.add(island2);
   islands.push(island2);
 
-  // ── Deck floor ──
-  const deckMat = mat('deck_plank', [0.66, 0.45, 0.26], { roughness: 0.7 });
-  const deckFloor = new Mesh(new PlaneGeometry(18, 5), deckMat);
-  deckFloor.name = 'cs_deck';
-  deckFloor.rotation.x = -Math.PI / 2;
-  deckFloor.position.set(0, -0.01, 1.5);
-  deckFloor.receiveShadow = true;
-  scene.add(deckFloor);
-
-  // Plank seams
-  const seamMat = mat('plank_seam', [0.38, 0.25, 0.13], { roughness: 0.8 });
-  for (let i = 0; i < 3; i++) {
-    const seam = new Mesh(new BoxGeometry(16, 0.005, 0.03), seamMat);
-    seam.name = `cs_seam_${i}`;
-    seam.position.set(0, 0.001, 0.5 + i * 1.2);
-    scene.add(seam);
-  }
-
-  // ── Railing ──
-  const railingGroup = new Group();
-  railingGroup.name = 'cs_railing';
-  const railMat = mat('railing_wood', [0.6, 0.41, 0.23], { roughness: 0.7 });
-  const trimMat = mat('railing_trim', [0.5, 0.33, 0.17], { roughness: 0.6 });
-
-  // Horizontal top rail
-  const topRail = new Mesh(new CylinderGeometry(0.06, 0.06, 18, 8), trimMat);
-  topRail.name = 'cs_topRail';
-  topRail.rotation.z = Math.PI / 2;
-  topRail.position.set(0, 0.8, -0.8);
-  topRail.castShadow = true;
-  railingGroup.add(topRail);
-
-  // Horizontal lower rail
-  const lowerRail = new Mesh(new BoxGeometry(18, 0.08, 0.06), railMat);
-  lowerRail.name = 'cs_lowerRail';
-  lowerRail.position.set(0, 0.35, -0.8);
-  railingGroup.add(lowerRail);
-
-  // Vertical posts
-  for (let i = -4; i <= 4; i++) {
-    const post = new Mesh(new CylinderGeometry(0.04, 0.04, 0.85, 6), railMat);
-    post.name = `cs_post_${i}`;
-    post.position.set(i * 2, 0.4, -0.8);
-    post.castShadow = true;
-    railingGroup.add(post);
-  }
-  scene.add(railingGroup);
+  // ── Ship ──
+  const ship = createShip({
+    deck: mat('deck_plank', [0.66, 0.45, 0.26], { roughness: 0.7 }),
+    hull: mat('hull_paint', [0.55, 0.22, 0.18], { roughness: 0.55 }),
+    rail: mat('rail_cap', [0.5, 0.33, 0.17], { roughness: 0.6 }),
+    seam: mat('plank_seam', [0.38, 0.25, 0.13], { roughness: 0.8 }),
+  });
+  scene.add(ship);
 
   // ── Cannon ──
   const cannon = createCannon();
+  // Scenery must never swallow a tap (see makeNonPickable): the cannon sits at
+  // the bottom of the frame, right where small fingers land.
+  makeNonPickable(cannon.root);
   scene.add(cannon.root);
 
   // ── Dispose function ──
@@ -511,18 +623,10 @@ export function createGameEnvironment(scene: Scene, camera: PerspectiveCamera): 
     sun.removeFromParent();
     for (const c of clouds) disposeMeshDeep(c);
     for (const isl of islands) disposeMeshDeep(isl);
-    disposeMeshDeep(deckFloor);
-    disposeMeshDeep(railingGroup);
+    // The seams live under the ship group now, so a deep dispose reaches them;
+    // this used to need a scene-wide traverse looking for stray meshes by name.
+    disposeMeshDeep(ship);
     disposeMeshDeep(cannon.root);
-
-    // Dispose seams and any remaining children
-    scene.traverse((child) => {
-      if (child.name.startsWith('cs_seam') || child.name.startsWith('plank_seam')) {
-        const m = child as Mesh;
-        if (m.geometry) m.geometry.dispose();
-        if (m.material) (m.material as MeshStandardMaterial).dispose();
-      }
-    });
   }
 
   return {
@@ -533,41 +637,43 @@ export function createGameEnvironment(scene: Scene, camera: PerspectiveCamera): 
     foamStrips,
     waveBands,
     islands,
-    deckFloor,
-    railing: railingGroup,
+    ship,
     cannon,
     dispose,
   };
 }
 
 /**
- * Updates per-frame environment animations: ocean wave, cloud drift, foam
+ * Updates per-frame environment animations: ocean waves, cloud drift, foam
  * drift, and wave-band shimmer.
- * @param rig
- * @param elapsedTime
+ * @param rig - The environment rig to animate.
+ * @param elapsedTime - Total elapsed game time in seconds.
+ * @param dt - Frame delta time in seconds.
  */
-export function updateEnvironment(rig: EnvironmentRig, elapsedTime: number): void {
-  // Ocean wave
-  const primaryWave = 0.08 * Math.sin(elapsedTime * 0.8);
-  const secondaryWave = 0.04 * Math.sin(elapsedTime * 1.3 + 2.0);
-  rig.ocean.position.y = primaryWave + secondaryWave;
+export function updateEnvironment(rig: EnvironmentRig, elapsedTime: number, dt: number): void {
+  updateOceanSurface(rig.ocean, elapsedTime);
 
-  // Cloud drift with wrapping
+  // Cloud drift, in units per *second*. This was multiplied by a hardcoded 1/60
+  // regardless of the real frame time, so the sky crawled on a 30Hz phone and
+  // raced on a 120Hz one.
   for (let i = 0; i < rig.clouds.length; i++) {
-    rig.clouds[i].position.x -= 0.05 * (1 / 60); // ~0.05 units/sec
+    rig.clouds[i].position.x -= 0.05 * dt;
     if (rig.clouds[i].position.x < -30) {
       rig.clouds[i].position.x = 30;
     }
   }
 
-  // Foam drift
+  // Foam drift — sways sideways and rides the swell it is painted on.
   for (let i = 0; i < rig.foamStrips.length; i++) {
-    const offset = Math.sin(elapsedTime * 0.3 + i * 1.5) * 2;
-    rig.foamStrips[i].position.x = offset;
+    const strip = rig.foamStrips[i];
+    strip.position.x = Math.sin(elapsedTime * 0.3 + i * 1.5) * 2;
+    strip.position.y = sampleOceanHeight(strip.position.x, strip.position.z, elapsedTime) + 0.05;
   }
 
-  // Wave-band shimmer: gentle sideways sway, phase-offset per band
+  // Wave-band shimmer: gentle sideways sway, phase-offset per band.
   for (let i = 0; i < rig.waveBands.length; i++) {
-    rig.waveBands[i].position.x = Math.sin(elapsedTime * 0.45 + i * 1.3) * (0.8 + i * 0.15);
+    const band = rig.waveBands[i];
+    band.position.x = Math.sin(elapsedTime * 0.45 + i * 1.3) * (0.8 + i * 0.15);
+    band.position.y = sampleOceanHeight(band.position.x, band.position.z, elapsedTime) + 0.035;
   }
 }

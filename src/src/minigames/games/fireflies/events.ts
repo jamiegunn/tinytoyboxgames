@@ -1,4 +1,4 @@
-import { type Scene, Vector3, Sprite, SpriteMaterial, AdditiveBlending, CanvasTexture, Color } from 'three';
+import { type Scene, Vector3, Sprite, SpriteMaterial, AdditiveBlending, CanvasTexture, Color, type PerspectiveCamera } from 'three';
 import { getParticleEngine } from '@app/utils/particles/registry';
 import { PARTICLES } from '@app/utils/particles/presets';
 
@@ -15,9 +15,26 @@ interface ShootingStar {
 }
 
 // ── Surprise Event Controller ────────────────────────────────────────────────
+//
+// This module owns the scene's non-firefly feedback: the shooting stars that
+// cross the sky, and the ripple that answers a tap which did not land on a
+// firefly.
 
 export interface SurpriseEventController {
   update(deltaTime: number, tier: number): void;
+  /**
+   * Screen-space tap test against the shooting stars currently streaking.
+   * A hit bursts the star into sparkles immediately, so a child who manages to
+   * swat one gets an answer instead of watching it sail on.
+   *
+   * @param camera - The active camera, used to project star positions.
+   * @param rect - The canvas bounding rect in CSS pixels.
+   * @param screenX - Tap X in CSS pixels.
+   * @param screenY - Tap Y in CSS pixels.
+   * @param radiusPx - Hit radius in CSS pixels.
+   * @returns The world position of the star that was hit, or null.
+   */
+  tryTap(camera: PerspectiveCamera, rect: DOMRect, screenX: number, screenY: number, radiusPx: number): Vector3 | null;
   dispose(): void;
 }
 
@@ -105,6 +122,15 @@ export function createSurpriseEvents(scene: Scene): SurpriseEventController {
     star.sprite.material.rotation = angle;
   }
 
+  // Ends a star early and pays out its sparkle burst at wherever it currently is.
+  function burstStar(star: ShootingStar): Vector3 {
+    const where = star.sprite.position.clone();
+    star.active = false;
+    star.sprite.visible = false;
+    getParticleEngine(scene).emit(PARTICLES.starCollect, where, { colors: [new Color(0.9, 0.92, 1.0)], count: 16 });
+    return where;
+  }
+
   return {
     update(deltaTime: number, tier: number): void {
       if (disposed) return;
@@ -146,6 +172,21 @@ export function createSurpriseEvents(scene: Scene): SurpriseEventController {
       }
     },
 
+    tryTap(camera: PerspectiveCamera, rect: DOMRect, screenX: number, screenY: number, radiusPx: number): Vector3 | null {
+      if (disposed) return null;
+      for (const star of stars) {
+        if (!star.active) continue;
+        const projected = star.sprite.position.clone().project(camera);
+        if (projected.z > 1) continue;
+        const sx = (projected.x * 0.5 + 0.5) * rect.width + rect.left;
+        const sy = (-projected.y * 0.5 + 0.5) * rect.height + rect.top;
+        const dx = sx - screenX;
+        const dy = sy - screenY;
+        if (dx * dx + dy * dy <= radiusPx * radiusPx) return burstStar(star);
+      }
+      return null;
+    },
+
     dispose(): void {
       disposed = true;
       for (const star of stars) {
@@ -153,6 +194,127 @@ export function createSurpriseEvents(scene: Scene): SurpriseEventController {
         star.material.dispose();
       }
       stars.length = 0;
+    },
+  };
+}
+
+// ── Tap ripple (miss acknowledgement) ────────────────────────────────────────
+
+/** Pool of expanding rings played where a tap did not find a firefly. */
+export interface TapRipplePool {
+  /** Play a ripple at a world position. */
+  play(position: Vector3, color: Color): void;
+  update(deltaTime: number): void;
+  dispose(): void;
+}
+
+interface Ripple {
+  sprite: Sprite;
+  material: SpriteMaterial;
+  age: number;
+  active: boolean;
+}
+
+/** How many ripples can overlap. Toddlers tap fast; four is plenty. */
+const RIPPLE_POOL_SIZE = 4;
+
+/** Seconds a ripple takes to expand and fade. */
+const RIPPLE_DURATION = 0.55;
+
+/** Cached soft ring texture for the ripple. */
+let rippleTexture: CanvasTexture | null = null;
+
+function getRippleTexture(): CanvasTexture {
+  if (rippleTexture) return rippleTexture;
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const c = size / 2;
+  // A soft annulus: bright at the ring, transparent at the centre and rim.
+  const grad = ctx.createRadialGradient(c, c, 0, c, c, c);
+  grad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+  grad.addColorStop(0.55, 'rgba(255, 255, 255, 0)');
+  grad.addColorStop(0.75, 'rgba(255, 255, 255, 0.85)');
+  grad.addColorStop(0.9, 'rgba(255, 255, 255, 0.25)');
+  grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  rippleTexture = new CanvasTexture(canvas);
+  return rippleTexture;
+}
+
+/**
+ * Creates the tap ripple pool.
+ *
+ * A missed tap used to produce no visual whatsoever and a single sound at 0.06
+ * volume, which on a quiet tablet is indistinguishable from a broken game. A
+ * ripple is a *non-punishing* acknowledgement: the world answers every tap, it
+ * just does not award a firefly.
+ *
+ * @param scene - The Three.js scene.
+ * @returns A TapRipplePool with play, update, and dispose methods.
+ */
+export function createTapRipples(scene: Scene): TapRipplePool {
+  const ripples: Ripple[] = [];
+  for (let i = 0; i < RIPPLE_POOL_SIZE; i++) {
+    const material = new SpriteMaterial({
+      map: getRippleTexture(),
+      color: new Color(1, 1, 1),
+      transparent: true,
+      opacity: 0,
+      blending: AdditiveBlending,
+      depthWrite: false,
+    });
+    const sprite = new Sprite(material);
+    sprite.name = `fireflies_tap_ripple_${i}`;
+    sprite.visible = false;
+    sprite.raycast = () => {};
+    scene.add(sprite);
+    ripples.push({ sprite, material, age: 0, active: false });
+  }
+
+  return {
+    play(position: Vector3, color: Color): void {
+      // Reuse the oldest ripple when all four are busy — never drop a tap.
+      let slot = ripples.find((r) => !r.active);
+      if (!slot) {
+        slot = ripples.reduce((a, b) => (a.age >= b.age ? a : b));
+      }
+      slot.active = true;
+      slot.age = 0;
+      slot.sprite.position.copy(position);
+      slot.sprite.visible = true;
+      slot.sprite.scale.setScalar(0.2);
+      slot.material.color.copy(color);
+      slot.material.opacity = 0.7;
+    },
+
+    update(deltaTime: number): void {
+      for (const r of ripples) {
+        if (!r.active) continue;
+        r.age += deltaTime;
+        const t = r.age / RIPPLE_DURATION;
+        if (t >= 1) {
+          r.active = false;
+          r.sprite.visible = false;
+          r.material.opacity = 0;
+          continue;
+        }
+        // easeOutCubic expansion with a linear-ish fade — a soft "bloop".
+        const eased = 1 - (1 - t) * (1 - t) * (1 - t);
+        r.sprite.scale.setScalar(0.2 + eased * 1.15);
+        r.material.opacity = 0.7 * (1 - t) * (1 - t);
+      }
+    },
+
+    dispose(): void {
+      for (const r of ripples) {
+        r.sprite.removeFromParent();
+        r.material.dispose();
+      }
+      ripples.length = 0;
     },
   };
 }

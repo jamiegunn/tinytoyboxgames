@@ -4,11 +4,22 @@
  * Implements IMiniGame lifecycle. Wires environment, entities, and rules.
  */
 
-import { PerspectiveCamera, Scene } from 'three';
+import { PerspectiveCamera, Scene, Vector3 } from 'three';
 import type { IMiniGame, MiniGameContext, MiniGameDragEndEvent, MiniGameDragEvent, MiniGameTapEvent, ViewportInfo } from '../../framework/types';
 import { C, type EnvironmentRig, type GameState } from './types';
 import { createGameEnvironment } from './environment';
-import { aimCannon, fireCannonAnimation, getCannonMouthPosition, spawnMuzzleFlash, spawnTarget } from './entities';
+import {
+  aimCannon,
+  aimCannonAlong,
+  disposeCannonballMaterials,
+  disposeEffectMaterials,
+  disposeTargetMaterials,
+  fireCannonAnimation,
+  getCannonMouthPosition,
+  recycleTarget,
+  spawnMuzzleFlash,
+  spawnTarget,
+} from './entities';
 import {
   updateGameFrame,
   resolveTap,
@@ -21,7 +32,7 @@ import {
   getSpawnInterval,
   randomDriftVector,
 } from './rules';
-import { computeFlightDuration, computeArcHeight, randomRange } from './helpers';
+import { computeFlightDuration, solveBallisticVelocity } from './helpers';
 import { spawnCannonball } from './entities/lifecycle';
 
 /**
@@ -46,14 +57,15 @@ export function createGame(context: MiniGameContext): IMiniGame {
     fragments: [],
     coins: [],
     cannon: null,
-    lastFireTime: -C.FIRE_COOLDOWN,
     elapsedTime: 0,
     milestoneScores: new Set(),
     pendingChainHits: [],
-    oceanMesh: null,
     cameraShakeTimer: 0,
-    cameraShakeOffset: { x: 0, y: 0 },
+    cameraShakeDir: { x: 0, y: 0 },
   };
+
+  // Reused by onTap so firing never allocates.
+  const launchVelocity = new Vector3();
 
   /** Spawns a single standard target. */
   function spawnStandardTarget(): void {
@@ -64,12 +76,12 @@ export function createGame(context: MiniGameContext): IMiniGame {
     const kind = selectTargetKind(context.difficulty.level);
     const { position, side } = pickSpawnPosition();
     const drift = randomDriftVector(side, context.difficulty.level);
-    spawnTarget(kind, position, drift.vx, drift.vz, scene, state.targets, context.difficulty.level);
+    spawnTarget(kind, position, drift.vx, drift.vz, scene, state.targets);
   }
 
   /** Spawns a special target if conditions are met. */
   function spawnSpecialTarget(): void {
-    if (!shouldSpawnSpecial(context.difficulty.level)) return;
+    if (!shouldSpawnSpecial(context.difficulty.thresholds)) return;
     // Only one special active at a time
     const hasSpecial = state.targets.some((t) => (t.kind === 'golden-barrel' || t.kind === 'rainbow-bottle') && t.state !== 'hit');
     if (hasSpecial) return;
@@ -77,7 +89,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
     const kind = selectSpecialKind(context.difficulty.level);
     const { position, side } = pickSpawnPosition();
     const drift = randomDriftVector(side, context.difficulty.level);
-    spawnTarget(kind, position, drift.vx, drift.vz, scene, state.targets, context.difficulty.level);
+    spawnTarget(kind, position, drift.vx, drift.vz, scene, state.targets);
     context.celebration.celebrationSound('chime');
   }
 
@@ -119,17 +131,15 @@ export function createGame(context: MiniGameContext): IMiniGame {
     async setup(): Promise<void> {
       env = createGameEnvironment(scene, camera);
       state.cannon = env.cannon;
-      state.oceanMesh = env.ocean;
     },
 
     start(): void {
       paused = false;
       state.elapsedTime = 0;
-      state.lastFireTime = -C.FIRE_COOLDOWN;
       state.milestoneScores.clear();
       state.pendingChainHits.length = 0;
       state.cameraShakeTimer = 0;
-      state.cameraShakeOffset = { x: 0, y: 0 };
+      state.cameraShakeDir = { x: 0, y: 0 };
 
       context.score.reset();
       context.combo.reset();
@@ -177,21 +187,11 @@ export function createGame(context: MiniGameContext): IMiniGame {
       }
       context.spawner.clearAll();
 
-      // Clean up active entities
+      // Clean up active entities. recycleTarget owns the "what does a target
+      // own?" rule (its geometry and its cloned materials); duplicating that
+      // walk here is how shared materials got freed twice in the first place.
       for (let i = state.targets.length - 1; i >= 0; i--) {
-        const t = state.targets[i];
-        t.root.traverse((child) => {
-          const mesh = child as import('three').Mesh;
-          if (mesh.geometry) mesh.geometry.dispose();
-          if (mesh.material) {
-            if (Array.isArray(mesh.material)) {
-              mesh.material.forEach((m) => m.dispose());
-            } else {
-              (mesh.material as import('three').MeshStandardMaterial).dispose();
-            }
-          }
-        });
-        t.root.removeFromParent();
+        recycleTarget(state.targets, i);
       }
       state.targets.length = 0;
 
@@ -230,6 +230,12 @@ export function createGame(context: MiniGameContext): IMiniGame {
 
       state.pendingChainHits.length = 0;
 
+      // Shared material templates are disposed exactly once, here, after every
+      // instance that borrowed a clone of them is gone.
+      disposeTargetMaterials();
+      disposeCannonballMaterials();
+      disposeEffectMaterials();
+
       // Dispose environment
       if (env) {
         env.dispose();
@@ -237,7 +243,6 @@ export function createGame(context: MiniGameContext): IMiniGame {
       }
 
       state.cannon = null;
-      state.oceanMesh = null;
     },
 
     onResize(viewport: ViewportInfo): void {
@@ -245,41 +250,43 @@ export function createGame(context: MiniGameContext): IMiniGame {
       camera.updateProjectionMatrix();
     },
 
+    // Every tap fires. There used to be a silent 0.5s cooldown here that simply
+    // discarded taps arriving too soon, with no cannon movement, no sound and no
+    // spark — a three-year-old taps faster than that and learns the game is
+    // broken. There is nothing to protect: balls are cheap, targets can't be
+    // over-hit (a hit target leaves the 'active' set immediately), and the
+    // recoil animation already paces the firing visually.
     onTap(event: MiniGameTapEvent): void {
       if (paused || !state.cannon) return;
 
-      // Fire cooldown
-      const now = state.elapsedTime;
-      if (now - state.lastFireTime < C.FIRE_COOLDOWN) return;
-      state.lastFireTime = now;
+      const rig = state.cannon;
+      const aimPoint = resolveTap(event, state.targets, camera, context.canvas);
+      const flightDuration = computeFlightDuration(aimPoint.z);
 
-      // Resolve tap
-      const resolution = resolveTap(event, state.targets, camera, context.canvas);
+      // Two passes, because the barrel must point along the ball's *launch*
+      // direction, not along the straight line to the aim point — under gravity
+      // those differ by the launch angle. Pass 1 swings the barrel roughly on
+      // target so the muzzle is in the right place; pass 2 re-aims along the
+      // solved velocity and re-solves from the corrected muzzle, so the ball
+      // really does leave the mouth of the barrel the child can see.
+      aimCannon(rig, aimPoint);
+      solveBallisticVelocity(getCannonMouthPosition(rig), aimPoint, flightDuration, launchVelocity);
+      aimCannonAlong(rig, launchVelocity);
+      const mouthPos = getCannonMouthPosition(rig);
+      solveBallisticVelocity(mouthPos, aimPoint, flightDuration, launchVelocity);
 
-      // Aim cannon
-      aimCannon(state.cannon, resolution.worldPoint);
+      fireCannonAnimation(rig);
 
-      // Fire animation
-      fireCannonAnimation(state.cannon);
-
-      // Camera shake
+      // Camera shake — a fresh wobble direction per shot.
       state.cameraShakeTimer = C.CAMERA_SHAKE_DURATION;
-      state.cameraShakeOffset = {
-        x: randomRange(-C.CAMERA_SHAKE_MAGNITUDE, C.CAMERA_SHAKE_MAGNITUDE),
-        y: randomRange(-C.CAMERA_SHAKE_MAGNITUDE, C.CAMERA_SHAKE_MAGNITUDE),
-      };
+      const shakeAngle = Math.random() * Math.PI * 2;
+      state.cameraShakeDir = { x: Math.cos(shakeAngle), y: Math.sin(shakeAngle) };
 
-      // Muzzle flash
-      const mouthPos = getCannonMouthPosition(state.cannon);
-      const fireDir = resolution.worldPoint.clone().sub(mouthPos).normalize();
+      // Muzzle flash, blown out along the barrel.
+      const fireDir = launchVelocity.clone().normalize();
       spawnMuzzleFlash(scene, mouthPos, fireDir, state.splashParticles);
 
-      // Spawn cannonball
-      const targetZ = resolution.worldPoint.z;
-      const flightDuration = computeFlightDuration(targetZ);
-      const arcHeight = computeArcHeight(targetZ);
-
-      spawnCannonball(mouthPos, resolution.worldPoint, flightDuration, arcHeight, resolution.target, scene, state.cannonballs);
+      spawnCannonball(mouthPos, launchVelocity, flightDuration, scene, state.cannonballs);
 
       // Play fire sound
       context.audio.playSound('sfx_cannonball_fire');

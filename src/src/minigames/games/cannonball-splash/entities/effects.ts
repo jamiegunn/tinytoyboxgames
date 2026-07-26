@@ -26,6 +26,10 @@ function makeMat(
     m.opacity = opts.opacity ?? 1;
   }
   m.name = name;
+  // The particle fade multiplies by userData.startOpacity, which nothing ever
+  // wrote — so every transparent particle silently fell back to 0.5 and popped
+  // to half-brightness on its first frame. Record the real starting opacity.
+  m.userData.startOpacity = m.opacity;
   return m;
 }
 
@@ -103,7 +107,10 @@ export function spawnTargetExplosion(scene: Scene, position: Vector3, kind: Targ
  */
 export function spawnWaterSplash(scene: Scene, position: Vector3, splashParticles: SplashParticle[]): void {
   for (let i = 0; i < C.SPLASH_PARTICLE_COUNT; i++) {
-    const mesh = new Mesh(new SphereGeometry(randomRange(0.05, 0.12), 4, 3), splashMat);
+    // Cloned, not shared: each droplet fades on its own schedule, and the
+    // particle recycler disposes whatever material it is handed — pointing that
+    // at the shared template freed it for every future splash too.
+    const mesh = new Mesh(new SphereGeometry(randomRange(0.05, 0.12), 4, 3), splashMat.clone());
     mesh.name = `cs_splash_${i}`;
     mesh.position.copy(position);
     mesh.position.y = 0.05;
@@ -347,16 +354,22 @@ const scoreIndicatorMat = makeMat('score_indicator', [1.0, 0.85, 0.3], {
 });
 
 /**
- * Spawns a small gold emissive mesh at hit position to indicate points earned.
- * Drifts upward and fades over 0.8s.
- * @param scene
- * @param position
- * @param splashParticles
+ * Pops a spinning gold coin out of a destroyed target to show points earned.
+ *
+ * This used to be a blank gold box: a 0.2 x 0.12 rectangle that read as nothing
+ * at all. A three-year-old cannot read a score, so the reward has to be a
+ * *thing* — a coin flipping up out of the splash, matching the bonus coins the
+ * golden barrel already showers out, so the two reward moments rhyme.
+ * @param scene - Scene to add the coin to.
+ * @param position - World position of the hit.
+ * @param splashParticles - Particle list the coin is pushed onto.
  */
 export function spawnScoreIndicator(scene: Scene, position: Vector3, splashParticles: SplashParticle[]): void {
   const indicatorMat = scoreIndicatorMat.clone();
-  const mesh = new Mesh(new BoxGeometry(0.2, 0.12, 0.02), indicatorMat);
+  const mesh = new Mesh(new CylinderGeometry(0.18, 0.18, 0.04, 14), indicatorMat);
   mesh.name = 'cs_scoreIndicator';
+  // Cylinder axis is +Y; tip it to +Z so the coin's face points at the camera.
+  mesh.rotation.x = Math.PI / 2;
   mesh.position.set(position.x, position.y + 0.5, position.z);
   scene.add(mesh);
 
@@ -368,6 +381,19 @@ export function spawnScoreIndicator(scene: Scene, position: Vector3, splashParti
     lifetime: 0.8,
     elapsed: 0,
   });
+}
+
+// ── Teardown ────────────────────────────────────────────────────────────────
+
+/**
+ * Disposes the shared effect material templates. Call once, at teardown — the
+ * per-particle clones are freed as each particle expires; these templates are
+ * the source every clone comes from and must outlive all of them.
+ */
+export function disposeEffectMaterials(): void {
+  for (const m of [splashMat, splashRingMat, muzzleMat, sparkleMat, coinMat, goldenSparkMat, scoreIndicatorMat]) {
+    m.dispose();
+  }
 }
 
 // ── Particle Update ─────────────────────────────────────────────────────────
@@ -404,10 +430,12 @@ export function updateParticles(particles: SplashParticle[], dt: number): void {
       const t = progress < 0.5 ? progress * 2 : (1 - progress) * 2;
       p.mesh.scale.setScalar((t * 0.05) / 0.03);
     } else if (p.mesh.name === 'cs_scoreIndicator') {
-      // Score indicator: drift up (handled by vy), fade out, slight scale pulse
+      // Reward coin: drifts up, flips twice, swells then fades. The flip is what
+      // makes a flat disc read as a coin rather than a smear of gold.
       p.mesh.position.y += p.vy * dt;
+      p.mesh.rotation.x = Math.PI / 2 + progress * Math.PI * 4;
       const mat = p.mesh.material as MeshStandardMaterial;
-      mat.opacity = 0.9 * (1 - progress);
+      mat.opacity = 0.9 * (1 - progress * progress);
       const scalePulse = 1 + 0.3 * Math.sin(progress * Math.PI);
       p.mesh.scale.setScalar(scalePulse);
     } else if (p.mesh.name === 'cs_trail') {
@@ -504,7 +532,7 @@ export function updateCoins(coins: BonusCoin[], dt: number, scene: Scene, splash
       const pos = c.mesh.position.clone();
       pos.y = 0;
       // Spawn a single small splash particle
-      const splashMesh = new Mesh(new SphereGeometry(0.04, 4, 3), splashMat);
+      const splashMesh = new Mesh(new SphereGeometry(0.04, 4, 3), splashMat.clone());
       splashMesh.name = 'cs_coinSplash';
       splashMesh.position.copy(pos);
       scene.add(splashMesh);

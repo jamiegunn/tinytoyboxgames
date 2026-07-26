@@ -1,4 +1,4 @@
-import { MeshStandardMaterial, ShaderMaterial, Color, DoubleSide } from 'three';
+import { MeshStandardMaterial, Color, DoubleSide } from 'three';
 
 // Re-export all base material factories for convenience
 export {
@@ -49,100 +49,13 @@ export function createGlassMaterial(name: string, color: Color, alpha = 0.35): M
   });
 }
 
-/** Vertex shader for soap-bubble material — passes view-space normal and direction to fragment. */
-const BUBBLE_VERT = /* glsl */ `
-  varying vec3 vNormal;
-  varying vec3 vViewDir;
-  varying vec3 vWorldPos;
-
-  void main() {
-    vec4 worldPos = modelMatrix * vec4(position, 1.0);
-    vWorldPos = worldPos.xyz;
-    vNormal = normalize(normalMatrix * normal);
-    vViewDir = normalize(cameraPosition - worldPos.xyz);
-    gl_Position = projectionMatrix * viewMatrix * worldPos;
-  }
-`;
-
-/** Fragment shader for soap-bubble material — Fresnel rim, thin-film iridescence, specular. */
-const BUBBLE_FRAG = /* glsl */ `
-  uniform vec3 uColor;
-  uniform float uAlpha;
-  uniform float uTime;
-  uniform float uPhase;
-
-  varying vec3 vNormal;
-  varying vec3 vViewDir;
-  varying vec3 vWorldPos;
-
-  // Attempt thin-film iridescence via simple cosine palette
-  vec3 iridescence(float cosTheta, float phase) {
-    float t = (1.0 - cosTheta) * 3.0 + phase;
-    return vec3(
-      0.5 + 0.5 * cos(6.2832 * (t * 1.0 + 0.0)),
-      0.5 + 0.5 * cos(6.2832 * (t * 1.0 + 0.33)),
-      0.5 + 0.5 * cos(6.2832 * (t * 1.0 + 0.67))
-    );
-  }
-
-  void main() {
-    vec3 normal = normalize(vNormal);
-    vec3 viewDir = normalize(vViewDir);
-
-    // Fresnel: gentle falloff — softer rim, no hard edge
-    float cosTheta = abs(dot(normal, viewDir));
-    float fresnel = pow(1.0 - cosTheta, 1.8);
-
-    // Thin-film iridescent color
-    vec3 iriColor = iridescence(cosTheta, uPhase + uTime * 0.3);
-
-    // Blend base tint with iridescence — iridescence strongest at rim
-    vec3 baseColor = mix(uColor, iriColor, 0.3 + 0.4 * fresnel);
-
-    // Specular highlight (fake point light from above-right)
-    vec3 lightDir = normalize(vec3(0.4, 1.0, 0.6));
-    vec3 halfDir = normalize(viewDir + lightDir);
-    float spec = pow(max(dot(normal, halfDir), 0.0), 64.0);
-
-    // Compose: soft rim glow + base + specular
-    vec3 rimGlow = iriColor * fresnel * 0.35;
-    vec3 finalColor = baseColor * 0.4 + rimGlow + vec3(spec * 0.9);
-
-    // Opacity: soft gradient from center to rim — no hard border
-    float opacity = uAlpha * (0.1 + 0.5 * fresnel);
-
-    // Add specular to opacity so highlights pop
-    opacity = min(1.0, opacity + spec * 0.4);
-
-    gl_FragColor = vec4(finalColor, opacity);
-  }
-`;
-
-/**
- * Creates a custom ShaderMaterial simulating a soap bubble with Fresnel rim,
- * thin-film iridescence, and specular highlights.
- *
- * @param name - Unique material identifier.
- * @param color - Base color tint for the bubble surface.
- * @param alpha - Peak opacity (rim opacity). Defaults to 0.5.
- * @returns A ShaderMaterial that looks like a real soap bubble.
- */
-export function createBubbleMaterial(name: string, color: Color, alpha = 0.5): ShaderMaterial {
-  return new ShaderMaterial({
-    name,
-    vertexShader: BUBBLE_VERT,
-    fragmentShader: BUBBLE_FRAG,
-    uniforms: {
-      uColor: { value: color.clone() },
-      uAlpha: { value: alpha },
-      uTime: { value: 0 },
-      uPhase: { value: Math.random() * Math.PI * 2 },
-    },
-    transparent: true,
-    side: DoubleSide,
-    depthWrite: false,
-  });
-}
+// The soap-bubble shader used to live here. It had exactly one consumer,
+// bubble-pop, and its opacity term (`uAlpha * (0.1 + 0.5 * fresnel)`) made
+// bubbles 5-30% opaque against a near-black sky — the game's own subject
+// matter was close to invisible. The corrected shader now lives with its
+// only caller at minigames/games/bubble-pop/bubbles/bubbleMaterial.ts.
+// Keeping a second copy here would only create the trap where someone
+// fixes "the" bubble material and sees nothing change on screen.
 
 /**
  * Creates a MeshStandardMaterial simulating a water surface with slight reflectivity.

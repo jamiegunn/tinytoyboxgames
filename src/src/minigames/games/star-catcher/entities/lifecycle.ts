@@ -8,6 +8,7 @@
 
 import type { EntityPool } from '../../../framework/types';
 import { randomRange } from '../helpers';
+import { SPAWN_ALTITUDE_JITTER } from '../rules/spawning';
 import type { SpawnBounds, TemplateTargetKind, TemplateTargetState } from '../types';
 import { activateTarget } from './index';
 
@@ -28,7 +29,11 @@ export function spawnTargetFromPool(
   bounds: SpawnBounds,
 ): TemplateTargetState {
   const target = pool.acquire();
-  activateTarget(target, kind, randomRange(bounds.minX, bounds.maxX), bounds.y, randomRange(bounds.minZ, bounds.maxZ));
+  // `bounds.y` is above the top of the frame (defect 1), so the small random
+  // extra altitude only staggers *when* each star enters view — it never risks
+  // one appearing inside the frame.
+  const spawnY = bounds.y + randomRange(0, SPAWN_ALTITUDE_JITTER);
+  activateTarget(target, kind, randomRange(bounds.minX, bounds.maxX), spawnY, randomRange(bounds.minZ, bounds.maxZ));
   activeTargets.push(target);
   return target;
 }

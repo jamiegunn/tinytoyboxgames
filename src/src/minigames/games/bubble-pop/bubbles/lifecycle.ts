@@ -1,6 +1,5 @@
 import { Scene, Mesh, MeshStandardMaterial, Color, Vector3, SphereGeometry, type Material } from 'three';
-import { createBubbleMaterial } from '@app/minigames/shared/materials';
-import type { BubbleState, BubbleKind } from '../types';
+import type { BubbleState, BubbleKind, SpawnBand } from '../types';
 import type { EntityPool } from '../../../framework/types';
 import {
   BUBBLE_COLORS,
@@ -11,11 +10,9 @@ import {
   MAX_BUBBLES,
   MIN_FLOAT_SPEED,
   MAX_FLOAT_SPEED,
-  SPAWN_X_MIN,
-  SPAWN_X_MAX,
+  SPEED_VARIATION_MIN,
+  SPEED_VARIATION_MAX,
   SPAWN_Y_BOTTOM,
-  SPAWN_X_LEFT_EDGE,
-  SPAWN_X_RIGHT_EDGE,
   SPAWN_SIDE_Y_MIN,
   SPAWN_SIDE_Y_MAX,
   SPAWN_BOTTOM_CHANCE,
@@ -23,6 +20,7 @@ import {
   WOBBLE_SPEED_MAX,
 } from '../types';
 import { randomRange } from '../helpers';
+import { createBubbleMaterial, BUBBLE_ALPHA_NORMAL, BUBBLE_ALPHA_GIANT } from './bubbleMaterial';
 
 /**
  * Bubble entity lifecycle — creation, material assignment, spawn placement,
@@ -62,7 +60,9 @@ export function applyBubbleMaterial(_scene: Scene, mesh: Mesh, kind: BubbleKind)
     baseColor = BUBBLE_COLORS[colorIndex];
   }
 
-  const alpha = kind === 'giant' ? 0.6 : 0.5;
+  // Was 0.6 / 0.5, which the old shader then multiplied down to a 5% opaque
+  // centre against a near-black sky. See bubbleMaterial.ts for the arithmetic.
+  const alpha = kind === 'giant' ? BUBBLE_ALPHA_GIANT : BUBBLE_ALPHA_NORMAL;
   const mat = createBubbleMaterial(`bubbleMat_${mesh.name}`, baseColor, alpha);
   mesh.material = mat;
 
@@ -72,29 +72,46 @@ export function applyBubbleMaterial(_scene: Scene, mesh: Mesh, kind: BubbleKind)
 /**
  * Positions a bubble at an off-screen edge — bottom (70%) or left/right side (30%).
  * Starts at zero scale with spawning=true for the entrance animation.
+ *
+ * The caller must have already set `kind`, `sizeVariant` and the
+ * difficulty-scaled `speed`; this function only varies and places them.
+ *
  * @param bubble - The bubble state to reposition.
+ * @param band - Camera-derived horizontal spawn extents for the current viewport.
  */
-export function positionBubbleAtSpawn(bubble: BubbleState): void {
+export function positionBubbleAtSpawn(bubble: BubbleState, band: SpawnBand): void {
   if (Math.random() < SPAWN_BOTTOM_CHANCE) {
-    // Spawn from bottom edge
-    bubble.mesh.position.x = randomRange(SPAWN_X_MIN, SPAWN_X_MAX);
+    // Spawn from bottom edge, inside the band the camera can actually frame.
+    bubble.mesh.position.x = randomRange(-band.halfWidth, band.halfWidth);
     bubble.mesh.position.y = SPAWN_Y_BOTTOM + randomRange(-0.5, 0);
   } else {
     // Spawn from a side edge
     const fromLeft = Math.random() < 0.5;
-    bubble.mesh.position.x = fromLeft ? SPAWN_X_LEFT_EDGE : SPAWN_X_RIGHT_EDGE;
+    bubble.mesh.position.x = fromLeft ? -band.edgeX : band.edgeX;
     bubble.mesh.position.y = randomRange(SPAWN_SIDE_Y_MIN, SPAWN_SIDE_Y_MAX);
   }
   bubble.mesh.position.z = randomRange(-1, 1.5);
-  bubble.speed = randomRange(MIN_FLOAT_SPEED, MAX_FLOAT_SPEED);
+  // Vary the difficulty-scaled rise speed instead of replacing it. This line
+  // used to be `randomRange(MIN_FLOAT_SPEED, MAX_FLOAT_SPEED)`, which threw
+  // away the speed the caller had just derived from effective difficulty.
+  bubble.speed = clampSpeed(bubble.speed * randomRange(SPEED_VARIATION_MIN, SPEED_VARIATION_MAX));
   bubble.phase = Math.random() * Math.PI * 2;
   bubble.wobblePhase = Math.random() * Math.PI * 2;
   bubble.wobbleSpeed = randomRange(WOBBLE_SPEED_MIN, WOBBLE_SPEED_MAX);
   bubble.active = true;
   bubble.age = 0;
   bubble.spawning = true;
+  // Newly placed bubbles start at their true size — only a tapped giant eases.
+  bubble.targetSize = SIZE_VARIANTS[bubble.sizeVariant] ?? SIZE_VARIANTS[0];
+  bubble.displaySize = bubble.targetSize;
   bubble.mesh.visible = true;
   bubble.mesh.scale.setScalar(0);
+}
+
+// Keeps the varied rise speed inside the range the motion code assumes, so a
+// low roll can never stall a bubble mid-screen where a child waits on it.
+function clampSpeed(speed: number): number {
+  return Math.min(MAX_FLOAT_SPEED, Math.max(MIN_FLOAT_SPEED, speed));
 }
 
 /**
@@ -128,6 +145,8 @@ export function createBubble(scene: Scene): BubbleState {
     colorIndex,
     kind: 'normal',
     tapsRemaining: 0,
+    targetSize: SIZE_VARIANTS[sizeVariant],
+    displaySize: SIZE_VARIANTS[sizeVariant],
     wobblePhase: Math.random() * Math.PI * 2,
     wobbleSpeed: randomRange(WOBBLE_SPEED_MIN, WOBBLE_SPEED_MAX),
     age: 0,
@@ -148,6 +167,9 @@ export function resetBubble(_scene: Scene, bubble: BubbleState): void {
   bubble.mesh.scale.setScalar(1);
   bubble.kind = 'normal';
   bubble.tapsRemaining = 0;
+  // Clear any deflation a giant picked up before it was released to the pool.
+  bubble.targetSize = SIZE_VARIANTS[bubble.sizeVariant] ?? SIZE_VARIANTS[0];
+  bubble.displaySize = bubble.targetSize;
   bubble.age = 0;
 }
 
@@ -165,6 +187,8 @@ export function spawnGoldenBurst(scene: Scene, pool: EntityPool<BubbleState>, ac
     const bubble = pool.acquire();
     bubble.kind = 'normal';
     bubble.sizeVariant = 0;
+    bubble.targetSize = SIZE_VARIANTS[0];
+    bubble.displaySize = SIZE_VARIANTS[0];
     bubble.tapsRemaining = 1;
 
     const { baseColor, colorIndex } = applyBubbleMaterial(scene, bubble.mesh, 'normal');

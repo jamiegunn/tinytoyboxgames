@@ -33,14 +33,33 @@ export const FISH_BASE_SPEED_MIN = 1.0;
 export const FISH_BASE_SPEED_MAX = 1.8;
 
 // ── Fish count (MIN/MAX bounds, interpolated by difficulty) ─────────
+//
+// Defect 3: nothing read these — the spawner hard-coded 2 nearby fish forever.
+// They are now the on-screen fish budget the spawner maintains, ramping with
+// `difficulty.level` (manifest ramp {start: 4, end: 40}, so 4 catches to leave
+// the floor and 40 to reach the ceiling).
 
-export const MIN_FISH_COUNT = 5;
-export const MAX_FISH_COUNT = 10;
+export const MIN_FISH_COUNT = 3;
+export const MAX_FISH_COUNT = 8;
 
 // ── Speed multiplier (MIN/MAX bounds, interpolated by difficulty) ───
+//
+// Defect 3: the old 1.0→1.4 band was then multiplied by 0.5 at the call site,
+// so fish crawled at 0.5–0.7x and the ramp was imperceptible. The 0.5 is gone
+// and the band is widened: a beginner's fish is slightly slower than before,
+// and a veteran's is roughly twice as quick.
 
-export const MIN_SPEED_MULTIPLIER = 1.0;
-export const MAX_SPEED_MULTIPLIER = 1.4;
+export const MIN_SPEED_MULTIPLIER = 0.55;
+export const MAX_SPEED_MULTIPLIER = 1.45;
+
+// ── Evasiveness (MIN/MAX bounds, interpolated by difficulty) ────────
+//
+// Defect 3: fish evasion was fixed — a 1.5-unit startle radius and exactly two
+// golden dodges, no matter how good the child got. Normalized 0–1; see
+// `getFishEvasiveness` and its consumers in fish/effects.ts.
+
+export const MIN_EVASIVENESS = 0.0;
+export const MAX_EVASIVENESS = 1.0;
 
 // ── Golden fish ─────────────────────────────────────────────────────
 

@@ -4,12 +4,12 @@
  * Called once per frame from the root game update.
  */
 
-import { type Scene, type PerspectiveCamera, type MeshStandardMaterial } from 'three';
+import { type Scene, type PerspectiveCamera } from 'three';
 import type { MiniGameContext } from '../../../framework/types';
-import type { GameState, EnvironmentRig } from '../types';
+import type { GameState, Target, EnvironmentRig } from '../types';
 import { C } from '../types';
-import { lerp } from '../helpers';
-import { updateEnvironment } from '../environment';
+import { lerp, nearestTarget } from '../helpers';
+import { updateEnvironment, sampleOceanHeight } from '../environment';
 import {
   updateCannonball,
   updateCannonIdle,
@@ -35,22 +35,22 @@ let oceanSparkleTimer = 0;
 
 /**
  * Main per-frame update orchestrator.
- * @param state
- * @param dt
- * @param context
- * @param env
- * @param scene
- * @param camera
+ * @param state - Mutable game state.
+ * @param dt - Frame delta time in seconds.
+ * @param context - Framework services.
+ * @param env - The environment rig.
+ * @param scene - The scene entities live in.
+ * @param camera - The game camera.
  */
 export function updateGameFrame(state: GameState, dt: number, context: MiniGameContext, env: EnvironmentRig, scene: Scene, camera: PerspectiveCamera): void {
   state.elapsedTime += dt;
   const time = state.elapsedTime;
 
   // 1. Update environment animations
-  updateEnvironment(env, time);
+  updateEnvironment(env, time, dt);
 
   // 2. Update target positions + state machines
-  updateTargets(state, dt, time, scene, context.difficulty.level, env.ocean.position.y);
+  updateTargets(state, dt, time, context.difficulty.level);
 
   // 3. Update cannonball arcs + arrival checks
   updateCannonballs(state, dt, scene, context, camera);
@@ -81,29 +81,47 @@ export function updateGameFrame(state: GameState, dt: number, context: MiniGameC
   }
 }
 
+// Paints (or clears) a target's own "I'm about to drift away" warning.
+//
+// The warning used to traverse the meshes and write emissive on whatever
+// material it found — which were module-level singletons, so one barrel nearing
+// the edge turned every barrel, bottle and duck in the scene red. It now writes
+// only to the materials this target owns, and every material restores the
+// baseEmissive it was built with, including the golden barrel's glow (which had
+// no reset branch at all and stayed red forever once warned).
+function applyEdgeWarning(target: Target, warning: boolean, time: number): void {
+  const pulse = 0.7 + 0.3 * Math.sin(time * 8);
+  for (const m of target.materials) {
+    if (warning) {
+      m.emissive.setRGB(pulse, 0, 0);
+    } else {
+      m.emissive.setHex((m.userData.baseEmissive as number | undefined) ?? 0);
+    }
+  }
+}
+
 /**
  * Updates all active targets — spawning animation, bob/drift, boundary recycling.
- * @param state
- * @param dt
- * @param time
- * @param _scene
- * @param difficulty
- * @param oceanY
+ * @param state - Mutable game state.
+ * @param dt - Frame delta time in seconds.
+ * @param time - Total elapsed game time in seconds.
+ * @param difficulty - Normalized difficulty in [0, 1].
  */
-function updateTargets(state: GameState, dt: number, time: number, _scene: Scene, difficulty: number, oceanY: number = 0): void {
+function updateTargets(state: GameState, dt: number, time: number, difficulty: number): void {
   // Difficulty-scaled bob amplitude
   const bobAmplitude = lerp(0.06, 0.08, difficulty);
 
   for (let i = state.targets.length - 1; i >= 0; i--) {
     const t = state.targets[i];
     t.stateTimer += dt;
+    // Targets ride the actual water surface under them, not one global offset.
+    const waterY = sampleOceanHeight(t.root.position.x, t.root.position.z, time);
 
     if (t.state === 'spawning') {
       const progress = Math.min(1, t.stateTimer / C.SPAWN_ANIM_DURATION);
       const easeOut = 1 - (1 - progress) * (1 - progress);
-      const targetScale = t.root.userData.targetScale ?? 1;
-      t.root.scale.setScalar(easeOut * targetScale);
-      t.root.position.y = oceanY + t.baseY + (1 - easeOut) * -0.3;
+      t.root.scale.setScalar(easeOut * C.TARGET_SCALE);
+      t.root.position.y = waterY + t.baseY + (1 - easeOut) * -0.3;
 
       if (progress >= 1) {
         t.state = 'active';
@@ -114,8 +132,7 @@ function updateTargets(state: GameState, dt: number, time: number, _scene: Scene
 
     if (t.state === 'hit') {
       const progress = Math.min(1, t.stateTimer / C.HIT_ANIM_DURATION);
-      const targetScale = t.root.userData.targetScale ?? 1;
-      t.root.scale.setScalar(targetScale * (1 - progress));
+      t.root.scale.setScalar(C.TARGET_SCALE * (1 - progress));
 
       if (progress >= 1) {
         recycleTarget(state.targets, i);
@@ -128,8 +145,8 @@ function updateTargets(state: GameState, dt: number, time: number, _scene: Scene
       t.root.position.x += t.driftVx * dt;
       t.root.position.z += t.driftVz * dt;
 
-      // Bob — difficulty-scaled amplitude + ocean surface offset
-      t.root.position.y = oceanY + t.baseY + bobAmplitude * Math.sin(time * t.bobSpeed + t.bobPhase);
+      // Bob — difficulty-scaled amplitude on top of the swell
+      t.root.position.y = waterY + t.baseY + bobAmplitude * Math.sin(time * t.bobSpeed + t.bobPhase);
       t.root.rotation.z = C.ROLL_AMPLITUDE * Math.sin(time * t.bobSpeed * 0.7 + t.bobPhase + 1.0);
 
       // Special target visuals
@@ -137,23 +154,13 @@ function updateTargets(state: GameState, dt: number, time: number, _scene: Scene
         updateSpecialTargetVisuals(t.root, t.kind, time);
       }
 
-      // Edge warning — pulse emissive red when nearing boundary
-      if (Math.abs(t.root.position.x) > 7) {
-        t.root.traverse((child) => {
-          const mesh = child as import('three').Mesh;
-          if (mesh.material && (mesh.material as MeshStandardMaterial).emissive) {
-            const pulse = 0.5 + 0.5 * Math.sin(time * 8);
-            (mesh.material as MeshStandardMaterial).emissive.setRGB(pulse, 0, 0);
-          }
-        });
-      } else if (t.kind !== 'golden-barrel' && t.kind !== 'rainbow-bottle') {
-        t.root.traverse((child) => {
-          const mesh = child as import('three').Mesh;
-          if (mesh.material && (mesh.material as MeshStandardMaterial).emissive) {
-            (mesh.material as MeshStandardMaterial).emissive.setRGB(0, 0, 0);
-          }
-        });
-      }
+      // Edge warning — pulse red only once the target has actually been inside
+      // the play area. Targets spawn at |x| = 9, outside the |x| > 7 warning
+      // band, so without this gate every new target arrived already flashing
+      // "I'm leaving" and the warning meant nothing.
+      const outsideWarnBand = Math.abs(t.root.position.x) > C.EDGE_WARN_X;
+      if (!outsideWarnBand) t.hasEnteredPlay = true;
+      applyEdgeWarning(t, t.hasEnteredPlay && outsideWarnBand, time);
 
       // Boundary check
       if (Math.abs(t.root.position.x) > C.SPAWN_X_EDGE) {
@@ -165,12 +172,12 @@ function updateTargets(state: GameState, dt: number, time: number, _scene: Scene
 }
 
 /**
- * Updates cannonball arcs and handles arrival (hit or miss effects).
- * @param state
- * @param dt
- * @param scene
- * @param context
- * @param _camera
+ * Updates cannonball flight and handles splashdown (hit or miss effects).
+ * @param state - Mutable game state.
+ * @param dt - Frame delta time in seconds.
+ * @param scene - The scene entities live in.
+ * @param context - Framework services.
+ * @param _camera - Unused; kept for signature symmetry with the other passes.
  */
 function updateCannonballs(state: GameState, dt: number, scene: Scene, context: MiniGameContext, _camera: PerspectiveCamera): void {
   for (let i = state.cannonballs.length - 1; i >= 0; i--) {
@@ -185,13 +192,22 @@ function updateCannonballs(state: GameState, dt: number, scene: Scene, context: 
     }
 
     if (arrived) {
-      const impactPos = ball.mesh.position.clone();
-      const target = ball.target;
+      const splashPos = ball.mesh.position.clone();
 
-      if (target !== null && target.state === 'active') {
-        // Target hit
+      // Hits are decided here, by where the ball came down — not by a target
+      // reference captured at fire time. A target that drifted away in the
+      // meantime is genuinely missed, and a shot into empty water splashes.
+      const hitIndex = nearestTarget(state.targets, splashPos, C.HIT_RADIUS);
+      const target = hitIndex !== null ? state.targets[hitIndex] : null;
+
+      if (target !== null) {
         target.state = 'hit';
         target.stateTimer = 0;
+
+        // The explosion plays where the target actually is. It used to play at
+        // the frozen aim point sampled when the child tapped, so a drifting
+        // barrel burst up to a body-width away from itself.
+        const impactPos = target.root.position.clone();
 
         const screenX = context.viewport.width / 2;
         const screenY = context.viewport.height / 2;
@@ -216,9 +232,9 @@ function updateCannonballs(state: GameState, dt: number, scene: Scene, context: 
           }
         }
       } else {
-        // Water miss (target gone or no target)
+        // Nothing in range — a real miss, with a real splash where it landed.
         handleWaterMiss(context);
-        spawnWaterSplash(scene, impactPos, state.splashParticles);
+        spawnWaterSplash(scene, splashPos, state.splashParticles);
       }
 
       recycleCannonball(state.cannonballs, i);
@@ -264,26 +280,34 @@ function processChainHits(state: GameState, dt: number, scene: Scene, context: M
 
 /**
  * Updates camera shake after cannon fire.
- * @param state
- * @param dt
- * @param camera
+ *
+ * The shake used to be one random offset that decayed back to zero — a single
+ * lurch and a slow slide home, which reads as the camera being nudged rather
+ * than the boom hitting it. It is now a real oscillation: a decaying wobble at
+ * ~9Hz along a direction re-rolled per shot, always settling into the idle sway.
+ * @param state - Mutable game state.
+ * @param dt - Frame delta time in seconds.
+ * @param camera - The game camera.
  */
 function updateCameraShake(state: GameState, dt: number, camera: PerspectiveCamera): void {
-  if (state.cameraShakeTimer > 0) {
-    state.cameraShakeTimer -= dt;
-    const progress = Math.max(0, state.cameraShakeTimer / C.CAMERA_SHAKE_DURATION);
+  const time = state.elapsedTime;
 
-    // Apply shake offset
-    camera.position.x = C.CAMERA_POS_X + state.cameraShakeOffset.x * progress;
-    camera.position.y = C.CAMERA_POS_Y + state.cameraShakeOffset.y * progress;
-  } else {
-    // Idle sway — ship breathing
-    const time = state.elapsedTime;
-    camera.position.x = C.CAMERA_POS_X + 0.02 * Math.sin(time * 0.4);
-    camera.position.y = C.CAMERA_POS_Y + 0.015 * Math.sin(time * 0.55 + 1.2);
-    state.cameraShakeOffset.x = 0;
-    state.cameraShakeOffset.y = 0;
+  // Idle sway — the ship breathing on the swell.
+  let x = C.CAMERA_POS_X + 0.02 * Math.sin(time * 0.4);
+  let y = C.CAMERA_POS_Y + 0.015 * Math.sin(time * 0.55 + 1.2);
+
+  if (state.cameraShakeTimer > 0) {
+    state.cameraShakeTimer = Math.max(0, state.cameraShakeTimer - dt);
+    const remaining = state.cameraShakeTimer / C.CAMERA_SHAKE_DURATION;
+    const elapsed = C.CAMERA_SHAKE_DURATION - state.cameraShakeTimer;
+    // Amplitude falls off quadratically so the last wobble lands softly.
+    const wobble = C.CAMERA_SHAKE_MAGNITUDE * remaining * remaining * Math.sin(elapsed * C.CAMERA_SHAKE_FREQUENCY);
+    x += state.cameraShakeDir.x * wobble;
+    y += state.cameraShakeDir.y * wobble;
   }
+
+  camera.position.x = x;
+  camera.position.y = y;
 }
 
 export { resolveTap, resolveChainReaction } from './collision';

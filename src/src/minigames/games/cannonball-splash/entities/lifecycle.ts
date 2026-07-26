@@ -2,9 +2,9 @@
  * Pool integration and spawn/recycle helpers for Cannonball Splash.
  */
 
-import { Scene, Vector3 } from 'three';
+import { Mesh, Scene, Vector3 } from 'three';
 import type { Cannonball, Target, TargetKind } from '../types';
-import { randomRange, scoreForKind, getTargetScale } from '../helpers';
+import { randomRange, scoreForKind } from '../helpers';
 import { createTargetByKind, collectTargetMeshes } from './targets';
 import { createCannonballMesh, createCannonballShadow } from './cannonball';
 
@@ -16,19 +16,10 @@ import { createCannonballMesh, createCannonballShadow } from './cannonball';
  * @param driftVz - Initial drift velocity along z.
  * @param scene - Scene to add the target's root to.
  * @param activeTargets - Active-target list the new target is pushed onto.
- * @param difficulty - Normalized difficulty in [0, 1], used for target scale.
  * @returns The newly created target state (in 'spawning' state).
  */
-export function spawnTarget(
-  kind: TargetKind,
-  position: Vector3,
-  driftVx: number,
-  driftVz: number,
-  scene: Scene,
-  activeTargets: Target[],
-  difficulty: number = 0,
-): Target {
-  const root = createTargetByKind(kind);
+export function spawnTarget(kind: TargetKind, position: Vector3, driftVx: number, driftVz: number, scene: Scene, activeTargets: Target[]): Target {
+  const { root, materials } = createTargetByKind(kind);
   root.position.copy(position);
   root.visible = true;
   scene.add(root);
@@ -44,10 +35,13 @@ export function spawnTarget(
     driftVz,
     baseY: position.y,
     scoreValue: scoreForKind(kind),
+    materials,
+    // Targets spawn at |x| = SPAWN_X_EDGE, outside the edge-warning band, so the
+    // warning stays suppressed until the target has drifted properly into play.
+    hasEnteredPlay: false,
   };
 
-  // Apply difficulty-scaled target size, then start spawning animation (scale from 0)
-  root.userData.targetScale = getTargetScale(difficulty);
+  // Every target is the same size at every difficulty; start the pop-in from 0.
   root.scale.setScalar(0);
 
   activeTargets.push(target);
@@ -56,23 +50,19 @@ export function spawnTarget(
 
 /**
  * Recycles a target at the given index using swap-remove.
- * @param activeTargets
- * @param index
+ * @param activeTargets - The active-target list to remove from.
+ * @param index - Index of the target to recycle.
  */
 export function recycleTarget(activeTargets: Target[], index: number): void {
   const target = activeTargets[index];
-  // Dispose geometry and materials
+  // Geometry is per-instance, so it is disposed here. Materials are disposed
+  // from the target's own `materials` list rather than by walking the meshes:
+  // walking used to hit shared module-level materials and free them out from
+  // under every other target still on screen.
   target.root.traverse((child) => {
-    const mesh = child as import('three').Mesh;
-    if (mesh.geometry) mesh.geometry.dispose();
-    if (mesh.material) {
-      if (Array.isArray(mesh.material)) {
-        mesh.material.forEach((m) => m.dispose());
-      } else {
-        (mesh.material as import('three').MeshStandardMaterial).dispose();
-      }
-    }
+    if (child instanceof Mesh) child.geometry.dispose();
   });
+  for (const m of target.materials) m.dispose();
   target.root.removeFromParent();
 
   const last = activeTargets.length - 1;
@@ -82,24 +72,17 @@ export function recycleTarget(activeTargets: Target[], index: number): void {
 
 /**
  * Spawns a cannonball and adds it to the scene and active list.
+ * The ball no longer carries a reference to a "locked-on" target: it is given a
+ * launch velocity and flies. Whether it hits anything is decided by where it
+ * actually lands, so a badly aimed tap really does splash into the water.
  * @param startPos - World-space launch position (cannon mouth).
- * @param endPos - World-space impact position.
- * @param flightDuration - Total flight time in seconds.
- * @param arcHeight - Peak height of the flight arc.
- * @param target - The locked-on target, or null for a water shot.
+ * @param velocity - World-space launch velocity in units per second.
+ * @param flightDuration - Expected time to reach the water, in seconds.
  * @param scene - Scene to add the ball and shadow meshes to.
  * @param activeCannonballs - Active-cannonball list the new ball is pushed onto.
  * @returns The newly created cannonball state.
  */
-export function spawnCannonball(
-  startPos: Vector3,
-  endPos: Vector3,
-  flightDuration: number,
-  arcHeight: number,
-  target: Target | null,
-  scene: Scene,
-  activeCannonballs: Cannonball[],
-): Cannonball {
+export function spawnCannonball(startPos: Vector3, velocity: Vector3, flightDuration: number, scene: Scene, activeCannonballs: Cannonball[]): Cannonball {
   const mesh = createCannonballMesh();
   mesh.position.copy(startPos);
   mesh.visible = true;
@@ -114,11 +97,9 @@ export function spawnCannonball(
     mesh,
     shadow,
     startPos: startPos.clone(),
-    endPos: endPos.clone(),
+    velocity: velocity.clone(),
     flightDuration,
     elapsed: 0,
-    arcHeight,
-    target,
     trailTimer: 0,
   };
 
@@ -128,8 +109,8 @@ export function spawnCannonball(
 
 /**
  * Recycles a cannonball at the given index using swap-remove.
- * @param activeCannonballs
- * @param index
+ * @param activeCannonballs - The active-cannonball list to remove from.
+ * @param index - Index of the ball to recycle.
  */
 export function recycleCannonball(activeCannonballs: Cannonball[], index: number): void {
   const ball = activeCannonballs[index];

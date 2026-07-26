@@ -7,23 +7,43 @@
 import { Vector3 } from 'three';
 import type { CannonRig } from '../types';
 import { C } from '../types';
-import { computeCannonAim, lerp } from '../helpers';
+import { computeCannonAim } from '../helpers';
+
+const aimScratch = new Vector3();
 
 /**
- * Aim the cannon barrel toward a world point (sets target for smooth lerp).
- * @param rig
- * @param targetWorldPos
+ * Points the barrel along a world-space direction, immediately.
+ *
+ * The aim used to be written to `aimYaw`/`aimPitch` and lerped onto the barrel a
+ * frame later, while the fire code read the muzzle position on the same frame —
+ * so every ball left the barrel's *previous* orientation and visibly squirted
+ * out of the cannon's side. Applying the rotation (and refreshing the world
+ * matrix) here means `getCannonMouthPosition` returns the mouth of the barrel
+ * the child is actually looking at. Snapping also reads as more responsive than
+ * a lerp for a three-year-old: the cannon points where they touched, at once.
+ * @param rig - The cannon rig to aim.
+ * @param direction - World-space direction the barrel should point.
+ */
+export function aimCannonAlong(rig: CannonRig, direction: Vector3): void {
+  const { yaw, pitch } = computeCannonAim(direction);
+  rig.aimYaw = yaw;
+  rig.aimPitch = pitch;
+  rig.barrelGroup.rotation.set(pitch, yaw, 0);
+  rig.barrelGroup.updateMatrixWorld(true);
+}
+
+/**
+ * Points the barrel at a world position.
+ * @param rig - The cannon rig to aim.
+ * @param targetWorldPos - The world point to aim at.
  */
 export function aimCannon(rig: CannonRig, targetWorldPos: Vector3): void {
-  const cannonPos = new Vector3(C.CANNON_X, C.CANNON_Y, C.CANNON_Z);
-  const { rotY, rotX } = computeCannonAim(cannonPos, targetWorldPos);
-  rig.aimYaw = rotY;
-  rig.aimPitch = rotX;
+  aimCannonAlong(rig, aimScratch.copy(targetWorldPos).sub(rig.root.position));
 }
 
 /**
  * Triggers the fire recoil animation.
- * @param rig
+ * @param rig - The cannon rig to recoil.
  */
 export function fireCannonAnimation(rig: CannonRig): void {
   rig.recoilTimer = C.RECOIL_DURATION;
@@ -31,17 +51,18 @@ export function fireCannonAnimation(rig: CannonRig): void {
 
 /**
  * Updates the cannon's idle breathing and recoil recovery.
- * @param rig
- * @param dt
- * @param elapsedTime
+ * @param rig - The cannon rig to animate.
+ * @param dt - Frame delta time in seconds.
+ * @param elapsedTime - Total elapsed game time in seconds.
  */
 export function updateCannonIdle(rig: CannonRig, dt: number, elapsedTime: number): void {
   rig.idlePhase = elapsedTime;
 
-  // Smooth lerp toward aim targets
-  const lerpRate = Math.min(1, 15 * dt);
-  rig.barrelGroup.rotation.y = lerp(rig.barrelGroup.rotation.y, rig.aimYaw, lerpRate);
-  rig.barrelGroup.rotation.x = lerp(rig.barrelGroup.rotation.x, rig.aimPitch, lerpRate);
+  // Breathing is applied *relative to the stored aim* rather than to whatever
+  // rotation.x currently holds, so the offset cannot accumulate frame over frame
+  // and drift the barrel away from where it was aimed.
+  rig.barrelGroup.rotation.y = rig.aimYaw;
+  rig.barrelGroup.rotation.x = rig.aimPitch;
 
   // Recoil animation
   if (rig.recoilTimer > 0) {
@@ -72,13 +93,7 @@ export function updateCannonIdle(rig: CannonRig, dt: number, elapsedTime: number
     rig.barrelGroup.position.z = offsetZ;
   } else {
     rig.barrelGroup.position.z = 0;
-  }
-
-  // Idle breathing
-  const baseRotX = rig.barrelGroup.rotation.x;
-  // Only apply breathing if not in recoil
-  if (rig.recoilTimer <= 0) {
-    rig.barrelGroup.rotation.x = baseRotX + 0.01 * Math.sin(elapsedTime * 1.5);
+    rig.barrelGroup.rotation.x = rig.aimPitch + 0.01 * Math.sin(elapsedTime * 1.5);
   }
 }
 

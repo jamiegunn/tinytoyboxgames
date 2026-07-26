@@ -24,6 +24,11 @@ export interface CameraState {
   shakeTimer: number;
   /** Screen shake intensity. */
   shakeIntensity: number;
+  /** Smoothed world-space point the camera is aiming at. */
+  lookAtX: number;
+  lookAtZ: number;
+  /** False until the first frame has snapped the look target onto the shark. */
+  lookInitialized: boolean;
 }
 
 /** Dead zone radius — camera ignores shark movement within this distance. */
@@ -53,6 +58,19 @@ const FOV_DAMPING = 2.0 * Math.sqrt(FOV_STIFFNESS);
 /** Threshold below which FOV changes skip the projection matrix update. */
 const FOV_EPSILON = 0.01;
 
+// ── Look-at ─────────────────────────────────────────────────────────
+//
+// Defect 2: `updateFollowCamera` moved the camera every frame but never called
+// `lookAt`, so the view direction was frozen at whatever the manifest camera
+// descriptor produced at mount. The shark could swim to the edge of a ±50 unit
+// reef and the camera would still be staring at the origin.
+
+/** Exponential smoothing rate for the aim point (1/seconds). Higher = tighter. */
+const LOOK_SMOOTH_RATE = 5.0;
+
+/** Height above the reef floor the camera aims at — roughly the shark's back. */
+const LOOK_TARGET_Y = 0.35;
+
 /**
  * Create an initial camera state by capturing the camera's current position and FOV.
  *
@@ -74,6 +92,9 @@ export function createCameraState(camera: PerspectiveCamera): CameraState {
     baseFov: camera.fov,
     shakeTimer: 0,
     shakeIntensity: 0,
+    lookAtX: 0,
+    lookAtZ: 0,
+    lookInitialized: false,
   };
 }
 
@@ -140,6 +161,22 @@ export function updateFollowCamera(state: CameraState, camera: PerspectiveCamera
 
   camera.position.set(posX, posY, posZ);
 
+  // --- Look-at (defect 2) ---
+  // Snap on the first frame so the session does not open with a whip pan, then
+  // ease toward the shark. The easing is frame-rate independent, and it is
+  // applied to the *aim point* rather than the camera rotation so a screen shake
+  // jitters the eye without smearing where the child is looking.
+  if (!state.lookInitialized) {
+    state.lookAtX = sharkPosX;
+    state.lookAtZ = sharkPosZ;
+    state.lookInitialized = true;
+  } else {
+    const t = 1 - Math.exp(-LOOK_SMOOTH_RATE * dt);
+    state.lookAtX += (sharkPosX - state.lookAtX) * t;
+    state.lookAtZ += (sharkPosZ - state.lookAtZ) * t;
+  }
+  camera.lookAt(state.lookAtX, LOOK_TARGET_Y, state.lookAtZ);
+
   // --- FOV spring ---
   const prevFovOffset = state.fovOffset;
   const fovAccel = -FOV_STIFFNESS * state.fovOffset - FOV_DAMPING * state.fovVel;
@@ -202,8 +239,13 @@ export function resetCamera(state: CameraState, camera: PerspectiveCamera): void
   state.breathPhase = 0;
   state.shakeTimer = 0;
   state.shakeIntensity = 0;
+  state.lookAtX = 0;
+  state.lookAtZ = 0;
+  // Re-arm the snap so the next frame aims straight at the shark's start point.
+  state.lookInitialized = false;
 
   camera.position.set(state.basePosX, state.basePosY, state.basePosZ);
+  camera.lookAt(0, LOOK_TARGET_Y, 0);
   camera.fov = state.baseFov;
   camera.updateProjectionMatrix();
 }

@@ -1,6 +1,6 @@
 import { Scene, Vector3, type Mesh, type PerspectiveCamera } from 'three';
-import type { IMiniGame, MiniGameContext, MiniGameTapEvent, ViewportInfo, EntityPool } from '../../framework/types';
-import type { BubbleState, BubbleKind, EnvironmentObjects } from './types';
+import type { IMiniGame, MiniGameContext, MiniGameTapEvent, ViewportInfo, EntityPool, SpawnConfig } from '../../framework/types';
+import type { BubbleState, BubbleKind, EnvironmentObjects, GamePhase, SpawnBand } from './types';
 import {
   MAX_BUBBLES,
   RECYCLE_Y,
@@ -11,11 +11,13 @@ import {
   SCREEN_PROJECTION_SCALE,
   POP_SOUNDS,
   SIZE_VARIANTS,
+  SPAWN_CUE_MIN_INTERVAL,
+  FALLBACK_SPAWN_BAND,
   FALLBACK_X_EXTENT,
   FALLBACK_Y_EXTENT,
   FALLBACK_Y_OFFSET,
 } from './types';
-import { randomRange } from './helpers';
+import { randomRange, computeSpawnBand } from './helpers';
 import {
   applyBubbleMaterial,
   positionBubbleAtSpawn,
@@ -101,6 +103,28 @@ export function createGame(context: MiniGameContext): IMiniGame {
   let showerSpawnerId: string | null = null;
   let unsubScore: (() => void) | null = null;
 
+  /**
+   * The live config object handed to `context.spawner.register`. SpawnScheduler
+   * re-reads `intervalSeconds` off this object every time it schedules the next
+   * cycle, so mutating it in `update` is all it takes to make the spawn rate
+   * follow difficulty. It used to be evaluated once inside `start()`, when
+   * effectiveDifficulty is still 0, and then never again — the whole
+   * `spawnInterval` curve was frozen at its slowest value for the session.
+   */
+  let mainSpawnConfig: SpawnConfig | null = null;
+
+  /**
+   * Horizontal spawn extents measured from the shell camera. Re-measured on
+   * every resize because fov is vertical, so only the width follows the aspect.
+   */
+  let spawnBand: SpawnBand = FALLBACK_SPAWN_BAND;
+
+  /** Previous frame's phase — the crescendo shower is edge-triggered off this. */
+  let prevPhase: GamePhase = 'calm';
+
+  /** Elapsed time of the last spawn chime, for throttling the spawn cue. */
+  let lastSpawnCueTime = -Infinity;
+
   function worldToApproxScreen(pos: Vector3): { screenX: number; screenY: number } {
     const halfW = context.viewport.width / 2;
     const halfH = context.viewport.height / 2;
@@ -118,7 +142,9 @@ export function createGame(context: MiniGameContext): IMiniGame {
     // During warm-up, only normal bubbles
     const kind = sessionAct === 'warmup' ? 'normal' : (forceKind ?? pickBubbleKindBalanced(effectiveDifficulty, phase));
     bubble.kind = kind;
-    bubble.sizeVariant = Math.floor(Math.random() * SIZE_VARIANTS.length);
+    // A giant always starts at the largest variant: it should look giant, and
+    // it needs the headroom to deflate visibly on each of its up-to-five taps.
+    bubble.sizeVariant = kind === 'giant' ? SIZE_VARIANTS.length - 1 : Math.floor(Math.random() * SIZE_VARIANTS.length);
     bubble.tapsRemaining = kind === 'giant' ? giantTapsRequired(playerProfile.value) : 1;
 
     // Phase-aware speed range
@@ -133,10 +159,15 @@ export function createGame(context: MiniGameContext): IMiniGame {
     const { baseColor, colorIndex } = applyBubbleMaterial(scene, bubble.mesh, kind);
     bubble.baseColor = baseColor;
     bubble.colorIndex = colorIndex;
-    positionBubbleAtSpawn(bubble);
+    positionBubbleAtSpawn(bubble, spawnBand);
     activeBubbles.push(bubble);
 
-    context.audio.playSound('sfx_bubble_pop_appear');
+    // Every single spawn used to chime, at up to eight spawns a second during a
+    // shower. Throttled to an occasional cue so the pops stay the loudest thing.
+    if (elapsedTime - lastSpawnCueTime >= SPAWN_CUE_MIN_INTERVAL) {
+      lastSpawnCueTime = elapsedTime;
+      context.audio.playSound('sfx_bubble_pop_appear');
+    }
   }
 
   function spawnShower(): void {
@@ -190,6 +221,8 @@ export function createGame(context: MiniGameContext): IMiniGame {
     // Use tmpVec3 to avoid per-pop allocation
     const popPos = tmpVec3(3).copy(bubble.mesh.position);
 
+    // Golden and rainbow keep their one flourish — they are rare enough that
+    // the accent still reads as "something special happened".
     if (bubble.kind === 'golden' && pool) {
       spawnGoldenBurst(scene, pool, activeBubbles, popPos);
       context.celebration.celebrationSound('whoosh');
@@ -212,6 +245,9 @@ export function createGame(context: MiniGameContext): IMiniGame {
       }
     });
 
+    // One pop sound per pop. This used to be followed by
+    // `celebration.celebrationSound('pop')` as well, and chain-popped bubbles
+    // added a third on top — three overlapping sounds for a single tap.
     context.audio.playSound(POP_SOUNDS[bubble.sizeVariant] ?? POP_SOUNDS[1]);
 
     if (env) {
@@ -226,7 +262,6 @@ export function createGame(context: MiniGameContext): IMiniGame {
     }
 
     context.celebration.confetti(screenX, screenY);
-    context.celebration.celebrationSound('pop');
   }
 
   /** Initial bubble count for warm-up (starts low, ramps up). */
@@ -301,7 +336,9 @@ export function createGame(context: MiniGameContext): IMiniGame {
       });
       pool.prewarm(MAX_BUBBLES);
 
-      env = buildEnvironment(scene, context.camera as PerspectiveCamera);
+      const camera = context.camera as PerspectiveCamera;
+      spawnBand = computeSpawnBand(camera);
+      env = buildEnvironment(scene, camera);
     },
 
     start(): void {
@@ -314,7 +351,9 @@ export function createGame(context: MiniGameContext): IMiniGame {
       milestoneIndex = 0;
       lastMilestoneScore = 0;
       lastTapTime = 0;
+      lastSpawnCueTime = -Infinity;
       sessionAct = 'warmup';
+      prevPhase = 'calm';
 
       // Reset adaptive systems
       Object.assign(playerProfile, createPlayerProfile());
@@ -329,14 +368,16 @@ export function createGame(context: MiniGameContext): IMiniGame {
         spawnBubble('normal');
       }
 
-      // Register main spawn loop with dynamic interval
-      context.spawner.register({
+      // Register main spawn loop. `intervalSeconds` is re-derived every frame in
+      // update() by mutating this same object — see mainSpawnConfig.
+      mainSpawnConfig = {
         spawn: () => spawnBubble(),
         intervalSeconds: spawnInterval(effectiveDifficulty),
         jitterSeconds: SPAWN_JITTER,
         maxCount: MAX_BUBBLES,
         activeCount: () => activeBubbles.length,
-      });
+      };
+      context.spawner.register(mainSpawnConfig);
 
       // Escalating milestone schedule
       unsubScore = context.score.onScoreChanged((newScore) => {
@@ -360,6 +401,14 @@ export function createGame(context: MiniGameContext): IMiniGame {
       updatePlayerProfile(playerProfile, elapsedTime);
       effectiveDifficulty = computeEffectiveDifficulty(context.difficulty.level, playerProfile.value);
       updatePhaseEnergy(phaseState, deltaTime, effectiveDifficulty);
+
+      // Feed the new difficulty back into the running spawn loop. SpawnScheduler
+      // reads intervalSeconds off this object each time it arms the next timer,
+      // so the rate now tightens as the session heats up instead of staying
+      // pinned at the difficulty-0 value sampled in start().
+      if (mainSpawnConfig) {
+        mainSpawnConfig.intervalSeconds = spawnInterval(effectiveDifficulty);
+      }
 
       // Session act transitions
       if (sessionAct === 'warmup' && elapsedTime > WARMUP_DURATION) {
@@ -385,7 +434,8 @@ export function createGame(context: MiniGameContext): IMiniGame {
           chainPopQueue[i] = chainPopQueue[chainPopQueue.length - 1];
           chainPopQueue.pop();
           if (bubble.active) {
-            context.audio.playSound('sfx_bubble_pop_chain_pop');
+            // popBubble already plays this bubble's pop sound; the extra
+            // `sfx_bubble_pop_chain_pop` here doubled up on every chain link.
             const { screenX, screenY } = worldToApproxScreen(bubble.mesh.position);
             popBubble(bubble, screenX, screenY);
           }
@@ -436,11 +486,15 @@ export function createGame(context: MiniGameContext): IMiniGame {
         decayMoonPulse(env, deltaTime);
       }
 
-      // Crescendo events
-      if (phase === 'crescendo') {
+      // Crescendo events — edge-triggered on entering the phase. This ran every
+      // frame, and spawnShower() cancels the previous shower spawner on entry,
+      // so the shower was destroyed ~16ms after being armed and never survived
+      // long enough to spawn a single bubble. The moon pulsed every frame too.
+      if (phase === 'crescendo' && prevPhase !== 'crescendo') {
         spawnShower();
         if (env) pulseMoon(env);
       }
+      prevPhase = phase;
     },
 
     pause(): void {
@@ -459,6 +513,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
 
       context.spawner.clearAll();
       showerSpawnerId = null;
+      mainSpawnConfig = null;
 
       activeBubbles.length = 0;
       chainPopQueue.length = 0;
@@ -484,7 +539,10 @@ export function createGame(context: MiniGameContext): IMiniGame {
     },
 
     onResize(_viewport: ViewportInfo): void {
-      // Camera + projection are owned by the shell.
+      // Camera + projection are still owned by the shell — we only re-measure
+      // how wide the frame is now, so bubbles keep spawning where a child can
+      // see them. Portrait frames barely a third of the old fixed spawn band.
+      spawnBand = computeSpawnBand(context.camera as PerspectiveCamera);
     },
 
     onTap(event: MiniGameTapEvent): void {

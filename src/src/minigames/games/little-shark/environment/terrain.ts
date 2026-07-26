@@ -10,14 +10,44 @@ import { Scene, Mesh, PlaneGeometry, MeshStandardMaterial, Color } from 'three';
 /** Default terrain radius — large enough for an effectively infinite reef. */
 const DEFAULT_RADIUS = 60.0;
 
-/** Maximum vertex displacement height (gentle hills). */
-const MAX_HEIGHT = 0.4;
+// ── Relief and tessellation (defect 11) ─────────────────────────────
+//
+// This was a 120x120 plane at 128x128 segments — 16,641 vertices — displaced by
+// at most ±0.4 units. At a grid cell of 0.94 units it was spending sixteen
+// thousand vertices to render something the eye read as a flat sheet of sand.
+//
+// Worse, the noise it sampled was unrepresentable at that tessellation. The
+// second FBM octave had a wavelength of 0.83 units and the "sand ripple" octave
+// 0.25 units, both at or below the 1.88-unit Nyquist limit of the grid, so they
+// contributed per-vertex hash noise rather than shape.
+//
+// Now: 64x64 segments (4,225 vertices, a 4x cut) at a 1.88-unit cell, with the
+// two surviving octaves retuned to 22-unit and 9-unit wavelengths — 12 and 5
+// cells respectively, comfortably resolvable — and real relief hung on them.
+
+/** Grid resolution for the terrain plane. */
+const SEGMENTS = 64;
+
+/**
+ * Peak height above the baseline plane.
+ *
+ * Deliberately small: the shark swims at y = 0 with no terrain collision, so a
+ * hill that crested above the baseline by more than this would swallow it.
+ */
+const MAX_RISE = 0.3;
+
+/**
+ * Depth of the basins below the baseline plane.
+ *
+ * All the real relief lives on this side, where nothing can be clipped through.
+ */
+const MAX_DROP = 1.8;
 
 /** Terrain Y position (slightly below water level). */
 const TERRAIN_Y = -0.5;
 
-/** Grid resolution for the terrain plane. */
-const SEGMENTS = 128;
+/** Fraction of the radius at which relief starts fading to a flat rim. */
+const EDGE_FADE_START = 0.72;
 
 // ── Noise primitives ────────────────────────────────────────────────
 
@@ -87,20 +117,29 @@ export function noise2D(x: number, y: number): number {
 // ── Terrain height computation ──────────────────────────────────────
 
 /**
- * Computes the 2-octave fractal Brownian motion height plus sand ripple
- * detail at the given world-space coordinates.
+ * Computes the 2-octave fractal Brownian motion height at the given
+ * world-space coordinates, with an asymmetric rise/drop envelope and a
+ * smooth falloff to a flat rim at the terrain edge.
  * @param x - World x position.
  * @param z - World z position.
- * @returns Height value in world units.
+ * @returns Height value in world units, relative to the baseline plane.
  */
 function computeHeight(x: number, z: number): number {
-  // 2-octave FBM
-  const fbm = noise2D(x * 0.5, z * 0.5) * 0.6 + noise2D(x * 1.2, z * 1.2) * 0.3;
+  // Octave wavelengths of 22 and 9 world units — both several grid cells wide
+  // at SEGMENTS = 64, so they survive tessellation as shape instead of noise.
+  const fbm = noise2D(x * 0.045, z * 0.045) * 0.72 + noise2D(x * 0.11, z * 0.11) * 0.28;
 
-  // Sand ripple detail
-  const ripple = noise2D(x * 4, z * 4) * 0.05;
+  // Gain then clamp, so the basins reach their full depth instead of hovering
+  // around the middle of the range the way a raw 2-octave sum does.
+  const shaped = Math.max(-1, Math.min(1, fbm * 1.35));
 
-  return (fbm + ripple) * MAX_HEIGHT;
+  // Asymmetric envelope: shallow hills, deep hollows. See MAX_RISE.
+  const h = shaped >= 0 ? shaped * MAX_RISE : shaped * MAX_DROP;
+
+  // Flatten toward the rim so the horizon does not end in a ragged sawtooth.
+  const dist = Math.sqrt(x * x + z * z);
+  const fade = 1 - smoothstep(DEFAULT_RADIUS * EDGE_FADE_START, DEFAULT_RADIUS, dist);
+  return h * fade;
 }
 
 // ── Public API ──────────────────────────────────────────────────────
@@ -126,7 +165,10 @@ export function getTerrainHeight(x: number, z: number): number {
  * responds correctly to the terrain shape.
  *
  * @param scene - The Three.js scene to add the terrain to.
- * @param radius - Terrain radius in world units (default 8.0).
+ * @param radius - Terrain radius in world units. The edge falloff inside
+ *   `computeHeight` is keyed to DEFAULT_RADIUS so that `getTerrainHeight` agrees
+ *   with the mesh without callers having to thread the radius through; pass
+ *   something other than the default and the rim fade will not line up.
  * @returns The reef terrain mesh.
  */
 export function buildReefTerrain(scene: Scene, radius: number = DEFAULT_RADIUS): Mesh {

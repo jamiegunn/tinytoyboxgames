@@ -1,16 +1,4 @@
-import {
-  Scene,
-  PerspectiveCamera,
-  MeshStandardMaterial,
-  Vector3,
-  type Mesh,
-  type Object3D,
-  SpriteMaterial,
-  Sprite,
-  AdditiveBlending,
-  CanvasTexture,
-  Color,
-} from 'three';
+import { Scene, PerspectiveCamera, MeshStandardMaterial, Vector3, Color, type Mesh, type Object3D, type Group } from 'three';
 import type { IMiniGame, MiniGameContext, MiniGameTapEvent } from '../../framework/types';
 import { createGameLighting, type GameLightingRig } from '@app/minigames/shared/sceneSetup';
 import { getParticleEngine } from '@app/utils/particles/registry';
@@ -31,94 +19,49 @@ import {
   MILESTONE_COUNT,
   FIREFLY_COLOR,
   GOLDEN_COLOR,
+  FIREFLY_SPRITE_SCALE,
+  GOLDEN_SPRITE_SCALE,
+  FIREFLY_FLAP_HZ,
+  GOLDEN_LIFETIME,
+  GOLDEN_FADE_DURATION,
 } from './types';
 import { getDifficultyTier, randomSpawnPos, foregroundSpawnPos, updateFireflyBehavior } from './helpers';
 import { createEnvironment } from './environment';
-import { createFirefly, resetFirefly } from './entities';
+import { createFirefly, resetFirefly, getFireflyCreatureTextures } from './entities';
 import { createIlluminationController, collectMaterials, type IlluminationController } from './illumination';
 import { createFirefliesAudio, type FirefliesAudio } from './audio';
-import { createSurpriseEvents, type SurpriseEventController } from './events';
+import { createSurpriseEvents, createTapRipples, type SurpriseEventController, type TapRipplePool } from './events';
 import { createTapHint, type TapHint } from './tapHint';
+import { createJarFill, type JarFillIndicator } from './jarFill';
 import type { Points } from 'three';
 
-// ── Jar orbit firefly system ──────────────────────────────────────────────────
+// ── Jar fill ──────────────────────────────────────────────────────────────────
+//
+// Captured fireflies are shown by `jarFill.ts`, not by the sprite-per-catch
+// "orbit" system that used to live here. That system added one unbounded
+// additive Sprite (scale 0.12) per catch into a jar interior about 0.55 units
+// across, so somewhere around a dozen catches the additive stack saturated and
+// the jar became a featureless white blob — the game's only progress indicator
+// erasing itself precisely when the child was doing best. `jarFill` is the
+// better-looking option on every count: it is capped at MAX_JAR_DOTS = 30 and
+// reveals dots with `setDrawRange`, so it can never saturate; it is one Points
+// draw call instead of N sprites; and its dot positions are pre-scattered
+// through the jar volume, which keeps individual dots countable ("look how many
+// I caught!") rather than merging into a single smear. The only thing lost is
+// per-dot orbiting, which was invisible inside a blown-out jar anyway; a gentle
+// bob plus an arrival flare reads better at this size.
 
-/** State for a captured firefly orbiting the jar. */
-interface JarOrbitFirefly {
-  sprite: Sprite;
-  material: SpriteMaterial;
-  angle: number;
-  height: number;
-  orbitRadius: number;
-  speed: number;
-  bobPhase: number;
-}
-
-/** Cached glow texture for orbit sprites. */
-let orbitGlowTex: CanvasTexture | null = null;
-
-/**
- * Returns a cached 32x32 soft glow texture for jar orbit sprites.
- * @returns The cached CanvasTexture for orbit glow.
- */
-function getOrbitGlowTexture(): CanvasTexture {
-  if (orbitGlowTex) return orbitGlowTex;
-  const s = 32;
-  const c = document.createElement('canvas');
-  c.width = s;
-  c.height = s;
-  const ctx = c.getContext('2d')!;
-  const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-  g.addColorStop(0, 'rgba(255, 255, 255, 1)');
-  g.addColorStop(0.3, 'rgba(255, 255, 255, 0.5)');
-  g.addColorStop(1, 'rgba(255, 255, 255, 0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, s, s);
-  orbitGlowTex = new CanvasTexture(c);
-  return orbitGlowTex;
-}
-
-/** Scaled jar dimensions for orbit placement (inside the jar). */
+/** Scaled jar height, used to aim the catch arc at the jar mouth. */
 const JAR_SCALED_HEIGHT = JAR_BODY_HEIGHT * JAR_SCALE;
-const JAR_SCALED_RADIUS = 0.55 * JAR_SCALE; // jar body max radius, scaled
-const JAR_ORBIT_RADIUS_MIN = 0.08;
-const JAR_ORBIT_RADIUS_MAX = JAR_SCALED_RADIUS * 0.75;
 
-/**
- * Creates a small glowing sprite that orbits the jar permanently.
- * The additive sprite alone carries the glow — the jar's interior PointLight
- * (driven by the illumination controller) provides the aggregate local light,
- * so captured fireflies add zero dynamic lights.
- * @param scene - The Three.js scene.
- * @param color - The firefly color to use.
- * @returns A JarOrbitFirefly ready for animation.
- */
-function createJarOrbitFirefly(scene: Scene, color: Color): JarOrbitFirefly {
-  const mat = new SpriteMaterial({
-    map: getOrbitGlowTexture(),
-    color: color.clone(),
-    transparent: true,
-    opacity: 0.8,
-    blending: AdditiveBlending,
-    depthWrite: false,
-  });
-  const sprite = new Sprite(mat);
-  sprite.scale.setScalar(0.12);
-  sprite.name = 'jar_orbit_firefly';
-  scene.add(sprite);
+/** Screen-space tap radius for scenery (moon, Saturn, shooting stars), CSS px. */
+const SCENERY_HIT_RADIUS_PX = 95;
 
-  const angle = Math.random() * Math.PI * 2;
-  // Keep inside jar body: from just above base to shoulder
-  const height = JAR_POS.y + 0.1 * JAR_SCALE + Math.random() * (JAR_SCALED_HEIGHT * 0.6);
-  const orbitRadius = JAR_ORBIT_RADIUS_MIN + Math.random() * (JAR_ORBIT_RADIUS_MAX - JAR_ORBIT_RADIUS_MIN);
-  const speed = 0.8 + Math.random() * 1.2;
-  const bobPhase = Math.random() * Math.PI * 2;
+/** World z-plane the miss ripple is placed on — between camera and play area. */
+const RIPPLE_PLANE_Z = 1.5;
 
-  // Set initial position
-  sprite.position.set(JAR_POS.x + Math.cos(angle) * orbitRadius, height, JAR_POS.z + Math.sin(angle) * orbitRadius);
-
-  return { sprite, material: mat, angle, height, orbitRadius, speed, bobPhase };
-}
+/** Seconds a poked piece of scenery spends bouncing. */
+const POKE_DURATION = 0.6;
 
 /**
  * Creates the Fireflies mini-game instance.
@@ -142,28 +85,42 @@ export function createGame(context: MiniGameContext): IMiniGame {
   let jarBody: Mesh | null = null;
   let jarCap: Mesh | null = null;
   let moonMesh: Mesh | null = null;
+  let saturnGroup: Group | null = null;
+  let saturnRing: Mesh | null = null;
   let skyMesh: Object3D | null = null;
   let illumination: IlluminationController | null = null;
   let audio: FirefliesAudio | null = null;
   let surpriseEvents: SurpriseEventController | null = null;
+  let tapRipples: TapRipplePool | null = null;
+  let jarFill: JarFillIndicator | null = null;
   let starField: Points | null = null;
   let starSizes: Float32Array | null = null;
   let starPhases: Float32Array | null = null;
   let tapHint: TapHint | null = null;
   let firstCatchDone = false;
-  const jarOrbitFireflies: JarOrbitFirefly[] = [];
   const environmentMeshes: Object3D[] = [];
   const allMaterials: MeshStandardMaterial[] = [];
   const flowerRoots: Object3D[] = [];
+  const treeRoots: Object3D[] = [];
+  const grassRoots: Object3D[] = [];
+
+  // Poke timers — a tapped piece of scenery bounces for POKE_DURATION seconds.
+  // Nothing in this garden used to react to a tap at all.
+  let moonPoke = 0;
+  let saturnPoke = 0;
+  let jarPoke = 0;
+
+  /** Reusable scratch vectors so per-frame/per-tap work allocates nothing. */
+  const _scratchA = new Vector3();
+  const _scratchB = new Vector3();
+  const _tapWorld = new Vector3();
 
   /**
    * Ensures the correct number of fireflies exist for the current difficulty tier.
+   * @param tierCount - Target firefly count for the current difficulty tier.
    */
-  function ensureFireflyCount(): void {
-    const tier = getDifficultyTier(context.score.score);
-    const targetCount = tier.maxFireflies;
-
-    while (fireflies.length < targetCount) {
+  function ensureFireflyCount(tierCount: number): void {
+    while (fireflies.length < tierCount) {
       const fd = createFirefly(scene, fireflies.length, false);
       fireflies.push(fd);
     }
@@ -185,7 +142,97 @@ export function createGame(context: MiniGameContext): IMiniGame {
     resetFirefly(goldenFd);
     goldenFd.isGolden = true;
     goldenFd.spriteMaterial.color.copy(GOLDEN_COLOR);
+    goldenFd.sprite.scale.setScalar(GOLDEN_SPRITE_SCALE);
+    // The golden now has a finite stay. `goldenActive` is a latch cleared only
+    // when the golden LEAVES play; before this timer existed the only exit was
+    // being caught, so one golden the child never tapped blocked every future
+    // golden for the rest of the session.
+    goldenFd.lifeTimer = GOLDEN_LIFETIME;
     goldenActive = true;
+  }
+
+  // Retires a golden that has run out its welcome, releasing the latch.
+  function retireGolden(fd: FireflyData): void {
+    fd.sprite.visible = false;
+    fd.active = false;
+    fd.catching = false;
+    fd.lifeTimer = -1;
+    fd.glowTrail.stop();
+    // Deliberately NOT RESPAWN_DELAY: the generic respawn timer would bring the
+    // golden straight back a half-second later with no lifetime, so it would
+    // become a permanent fixture. A golden only ever returns via trySpawnGolden,
+    // which is gated on GOLDEN_SPAWN_INTERVAL.
+    fd.respawnTimer = 0;
+    goldenActive = false;
+  }
+
+  // Converts a tap in CSS pixels to a world point on the RIPPLE_PLANE_Z plane.
+  function tapToWorld(cam: PerspectiveCamera, rect: DOMRect, screenX: number, screenY: number): Vector3 {
+    const ndcX = ((screenX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -((screenY - rect.top) / rect.height) * 2 + 1;
+    _scratchA.set(ndcX, ndcY, 0.5).unproject(cam);
+    _scratchB.copy(_scratchA).sub(cam.position).normalize();
+    // Guard the degenerate case of a ray parallel to the plane.
+    const dist = Math.abs(_scratchB.z) < 1e-4 ? 5 : (RIPPLE_PLANE_Z - cam.position.z) / _scratchB.z;
+    return _tapWorld.copy(cam.position).addScaledVector(_scratchB, dist);
+  }
+
+  // Decaying wobble factor for a poked object: 0 when the poke timer is spent,
+  // a springy overshoot while it runs. Returns a multiplier around 1.
+  function pokeScale(timer: number): number {
+    if (timer <= 0) return 1;
+    const k = timer / POKE_DURATION;
+    return 1 + Math.sin(k * Math.PI * 3) * 0.24 * k;
+  }
+
+  // Idle life for every non-firefly thing in the garden, plus the bounce that
+  // plays back when one of them is tapped. The whole world used to be static:
+  // nothing swayed, nothing spun, and nothing at all reacted to a tap.
+  function updateScenery(dt: number): void {
+    moonPoke = Math.max(0, moonPoke - dt);
+    saturnPoke = Math.max(0, saturnPoke - dt);
+    jarPoke = Math.max(0, jarPoke - dt);
+
+    if (moonMesh) {
+      moonMesh.position.y = 4 + Math.sin(elapsedTime * 0.22) * 0.14;
+      moonMesh.scale.setScalar(pokeScale(moonPoke));
+    }
+
+    if (saturnGroup) {
+      saturnGroup.position.y = 3.6 + Math.sin(elapsedTime * 0.17 + 1.2) * 0.16;
+      saturnGroup.rotation.y = Math.sin(elapsedTime * 0.12) * 0.25;
+      saturnGroup.scale.setScalar(pokeScale(saturnPoke));
+    }
+    if (saturnRing) {
+      // Nodding the ring tilt is the only Saturn motion that actually reads —
+      // spinning an untextured sphere or a symmetric ring looks like nothing.
+      saturnRing.rotation.x = -Math.PI * 0.35 + Math.sin(elapsedTime * 0.16) * 0.13;
+    }
+
+    // Breeze: big things move a little, small things move a lot.
+    for (let i = 0; i < treeRoots.length; i++) {
+      treeRoots[i].rotation.z = Math.sin(elapsedTime * 0.5 + i * 1.3) * 0.025;
+    }
+    for (let i = 0; i < grassRoots.length; i++) {
+      grassRoots[i].rotation.z = Math.sin(elapsedTime * 1.4 + i * 0.9) * 0.1;
+    }
+
+    // The jar bumps when a firefly drops in, so the deposit lands physically.
+    if (jarBody && jarCap) {
+      const s = JAR_SCALE * pokeScale(jarPoke);
+      jarBody.scale.setScalar(s);
+      jarCap.scale.setScalar(s);
+    }
+  }
+
+  // Screen-space distance in CSS pixels from a world point to a tap, or
+  // Infinity if the point is behind the camera.
+  function screenDistTo(worldPos: Vector3, cam: PerspectiveCamera, rect: DOMRect, screenX: number, screenY: number): number {
+    _scratchB.copy(worldPos).project(cam);
+    if (_scratchB.z > 1) return Infinity;
+    const sx = (_scratchB.x * 0.5 + 0.5) * rect.width + rect.left;
+    const sy = (-_scratchB.y * 0.5 + 0.5) * rect.height + rect.top;
+    return Math.hypot(sx - screenX, sy - screenY);
   }
 
   const game: IMiniGame = {
@@ -215,14 +262,18 @@ export function createGame(context: MiniGameContext): IMiniGame {
       jarBody = env.jarBody;
       jarCap = env.jarCap;
       moonMesh = env.moonMesh;
+      saturnGroup = env.saturnGroup;
+      saturnRing = env.saturnRing;
       starField = env.starField;
       starSizes = env.starSizes;
       starPhases = env.starPhases;
       environmentMeshes.push(...env.environmentMeshes);
       allMaterials.push(...env.allMaterials);
 
-      // Store flower refs for proximity interaction
+      // Store scenery refs for proximity interaction and idle breeze sway
       flowerRoots.push(...env.flowerMeshes);
+      treeRoots.push(...env.treeMeshes);
+      grassRoots.push(...env.grassMeshes);
 
       // Progressive illumination controller
       const flowerMaterials = collectMaterials(env.flowerMeshes);
@@ -241,8 +292,12 @@ export function createGame(context: MiniGameContext): IMiniGame {
       // Procedural audio
       audio = createFirefliesAudio(() => context.audio.isMuted);
 
-      // Surprise events (shooting stars, etc.)
+      // Surprise events (shooting stars, etc.) and miss-tap ripples
       surpriseEvents = createSurpriseEvents(scene);
+      tapRipples = createTapRipples(scene);
+
+      // Bounded jar fill indicator — see the module note at the top of this file
+      jarFill = createJarFill(scene, JAR_POS);
 
       // Onboarding tap hint
       tapHint = createTapHint(scene);
@@ -264,19 +319,28 @@ export function createGame(context: MiniGameContext): IMiniGame {
       context.combo.reset();
       audio?.start();
       firstCatchDone = false;
+      jarFill?.setCount(0);
+      moonPoke = 0;
+      saturnPoke = 0;
+      jarPoke = 0;
     },
 
     update(deltaTime: number): void {
       if (paused) return;
 
       elapsedTime += deltaTime;
-      const tier = getDifficultyTier(context.score.score);
+      // Read the shell's normalized difficulty (manifest ramp 5 → 45 points)
+      // rather than the raw score, so the escalation curve actually spans the
+      // session instead of topping out at the old hard-coded score-50 branch.
+      const tier = getDifficultyTier(context.difficulty.level);
 
       // Drive progressive scene illumination and ambient audio
       illumination?.update(collectedCount, deltaTime);
       const currentTier = illumination?.getCurrentTier() ?? 0;
       audio?.updateAmbient(currentTier, deltaTime);
       surpriseEvents?.update(deltaTime, currentTier);
+      tapRipples?.update(deltaTime);
+      jarFill?.update(deltaTime);
 
       // Star twinkling
       if (starField && starSizes && starPhases) {
@@ -296,20 +360,19 @@ export function createGame(context: MiniGameContext): IMiniGame {
 
       const speedMult = tier.speedMultiplier;
 
-      // Tap hint: track the nearest active firefly as a visual guide
-      if (tapHint && !firstCatchDone) {
-        const hintTarget = fireflies.find((fd) => fd.active && !fd.catching) ?? null;
+      // Tap hint: track the nearest active firefly as a visual guide.
+      // update() is called unconditionally — it used to be gated on
+      // `!firstCatchDone`, but dismiss() only raises a flag that update()
+      // consumes, so gating it meant the fade never ran and the hint froze on
+      // screen for the whole session. After the first catch we pass a null
+      // target so it fades in place.
+      if (tapHint) {
+        const hintTarget = firstCatchDone ? null : (fireflies.find((fd) => fd.active && !fd.catching) ?? null);
         tapHint.update(deltaTime, hintTarget?.sprite ?? null);
       }
 
-      // Animate captured fireflies orbiting inside the jar
-      for (const orb of jarOrbitFireflies) {
-        orb.angle += orb.speed * deltaTime;
-        const bob = Math.sin(elapsedTime * 1.5 + orb.bobPhase) * 0.03;
-        orb.sprite.position.set(JAR_POS.x + Math.cos(orb.angle) * orb.orbitRadius, orb.height + bob, JAR_POS.z + Math.sin(orb.angle) * orb.orbitRadius);
-        // Gentle pulse
-        orb.material.opacity = 0.6 + 0.3 * Math.sin(elapsedTime * 2 + orb.bobPhase);
-      }
+      // ── Living world: idle motion and tap acknowledgements ──
+      updateScenery(deltaTime);
 
       // Golden firefly spawn timer
       if (context.score.score >= GOLDEN_UNLOCK_SCORE) {
@@ -320,7 +383,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
         }
       }
 
-      ensureFireflyCount();
+      ensureFireflyCount(tier.maxFireflies);
 
       // Maintain minimum 5 active fireflies on screen at all times
       let activeCount = 0;
@@ -355,6 +418,9 @@ export function createGame(context: MiniGameContext): IMiniGame {
         }
       }
 
+      // Cached wing-flap frame pair, fetched once per frame for the whole flock.
+      const creatureTex = getFireflyCreatureTextures();
+
       for (const fd of fireflies) {
         // Handle respawn timers
         if (!fd.active && !fd.catching) {
@@ -369,7 +435,10 @@ export function createGame(context: MiniGameContext): IMiniGame {
 
         // Handle catch animation
         if (fd.catching) {
-          const baseScale = fd.isGolden ? 0.45 : 0.3;
+          // Derived from the shared sprite constants rather than re-hardcoded,
+          // so the catch animation cannot drift away from the resting size the
+          // creature billboard was authored against.
+          const baseScale = fd.isGolden ? GOLDEN_SPRITE_SCALE : FIREFLY_SPRITE_SCALE;
 
           if (fd.flashing) {
             fd.flashTimer -= deltaTime;
@@ -390,6 +459,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
             }
             // Warm flash — brighten sprite
             fd.spriteMaterial.opacity = 1.0;
+            fd.bodyMaterial.opacity = 0.95;
             continue;
           }
 
@@ -403,10 +473,6 @@ export function createGame(context: MiniGameContext): IMiniGame {
             const jarMouth = JAR_POS.clone().add(new Vector3(0, JAR_SCALED_HEIGHT, 0));
             getParticleEngine(scene).emit(PARTICLES.starCollect, jarMouth);
 
-            // Spawn a permanent orbiting firefly around the jar
-            const orbColor = fd.isGolden ? GOLDEN_COLOR : FIREFLY_COLOR;
-            jarOrbitFireflies.push(createJarOrbitFirefly(scene, orbColor));
-
             fd.sprite.visible = false;
             fd.glowTrail.setRate(4); // restore normal rate
             fd.glowTrail.stop();
@@ -418,8 +484,16 @@ export function createGame(context: MiniGameContext): IMiniGame {
               goldenActive = false;
             }
 
-            fd.respawnTimer = RESPAWN_DELAY;
+            // Same reasoning as retireGolden(): a caught golden must stay
+            // dormant until the spawn interval elapses, or the rare reward
+            // reappears every half second.
+            fd.respawnTimer = fd.isGolden ? 0 : RESPAWN_DELAY;
             collectedCount++;
+
+            // Show the catch in the jar via the bounded fill indicator, and
+            // bump the jar so the deposit lands with some weight.
+            jarFill?.setCount(collectedCount);
+            jarPoke = POKE_DURATION;
 
             if (collectedCount >= MILESTONE_COUNT && !milestoneTriggered) {
               milestoneTriggered = true;
@@ -450,11 +524,40 @@ export function createGame(context: MiniGameContext): IMiniGame {
           // Fade during arc, with a slight shimmer pulse on the sprite
           const fade = 1.0 - rawT * 0.7;
           fd.spriteMaterial.opacity = Math.min(1, 0.85 * fade + Math.abs(Math.sin(rawT * Math.PI * 4)) * 0.1);
+          // The creature rides its own halo, so it has to fade with it —
+          // otherwise a solid little bug is left hanging over a faded glow.
+          fd.bodyMaterial.opacity = 0.95 * fade;
           continue;
+        }
+
+        // Golden lifetime. `goldenActive` is a latch, and it used to be cleared
+        // only on a successful catch — so the first golden a child failed to tap
+        // permanently blocked every future golden. A golden now gives up and
+        // leaves, releasing the latch through retireGolden().
+        let lifeFade = 1;
+        if (fd.isGolden && fd.lifeTimer > 0) {
+          fd.lifeTimer -= deltaTime;
+          if (fd.lifeTimer <= 0) {
+            retireGolden(fd);
+            continue;
+          }
+          if (fd.lifeTimer < GOLDEN_FADE_DURATION) {
+            lifeFade = fd.lifeTimer / GOLDEN_FADE_DURATION;
+          }
         }
 
         // Behavior-driven movement (drift / circle / zigzag)
         updateFireflyBehavior(fd, deltaTime, speedMult);
+
+        // Two-frame wing flap. Both frames are cached module-level textures, so
+        // swapping the map costs nothing per firefly and is what sells the
+        // sprite as a living creature rather than a decal.
+        fd.flapPhase += deltaTime * FIREFLY_FLAP_HZ;
+        const flapTex = fd.flapPhase % 1 < 0.5 ? creatureTex.up : creatureTex.down;
+        if (fd.bodyMaterial.map !== flapTex) {
+          fd.bodyMaterial.map = flapTex;
+          fd.bodyMaterial.needsUpdate = true;
+        }
 
         // Glow pulse animation
         let pulseVal: number;
@@ -486,14 +589,30 @@ export function createGame(context: MiniGameContext): IMiniGame {
         }
 
         const baseColor = fd.isGolden ? GOLDEN_COLOR : FIREFLY_COLOR;
-        fd.spriteMaterial.opacity = fd.isGolden ? 0.4 + 0.6 * pulseVal : 0.25 + 0.65 * pulseVal;
+        fd.spriteMaterial.opacity = (fd.isGolden ? 0.4 + 0.6 * pulseVal : 0.25 + 0.65 * pulseVal) * lifeFade;
         fd.spriteMaterial.color.copy(baseColor);
+        // The creature keeps a high floor opacity so its silhouette stays
+        // readable at the dim end of the halo's pulse.
+        fd.bodyMaterial.opacity = (0.7 + 0.25 * pulseVal) * lifeFade;
 
-        // Out-of-bounds check
+        // Floor: nudge a sinking firefly back up rather than teleporting it.
+        // BOUNDS.yMin used to be -2, i.e. two units *under* the ground plane,
+        // so fireflies really did fly through the meadow. A clamp reads as the
+        // firefly skimming the grass; the old teleport read as a glitch.
         const pos = fd.sprite.position;
-        if (pos.x < BOUNDS.xMin || pos.x > BOUNDS.xMax || pos.y < BOUNDS.yMin || pos.y > BOUNDS.yMax) {
+        if (pos.y < BOUNDS.yMin) {
+          pos.y = BOUNDS.yMin;
+          // Circle orbits set Y absolutely from behaviorCenter, so clamping the
+          // sprite alone would be undone on the very next frame.
+          if (fd.behaviorCenter.y < BOUNDS.yMin + 0.4) fd.behaviorCenter.y = BOUNDS.yMin + 0.8;
+          fd.zigzagDir.y = Math.abs(fd.zigzagDir.y);
+        }
+
+        // Out-of-bounds check (horizontal escape or flying off the top)
+        if (pos.x < BOUNDS.xMin || pos.x > BOUNDS.xMax || pos.y > BOUNDS.yMax) {
           const newPos = randomSpawnPos();
           fd.sprite.position.copy(newPos);
+          fd.behaviorCenter.copy(newPos);
           fd.time = Math.random() * 100;
         }
       }
@@ -514,8 +633,14 @@ export function createGame(context: MiniGameContext): IMiniGame {
         }
         // Proximity factor: 1.0 when firefly is right on top, 0.0 when beyond radius
         const proximity = closestDistSq < PROXIMITY_SQ ? 1.0 - Math.sqrt(closestDistSq) / PROXIMITY_RADIUS : 0;
-        // Gently sway the flower when a firefly is near
-        flower.rotation.z = Math.sin(elapsedTime * 2 + fi) * 0.05 * proximity;
+        // Sway. This used to be `sin(...) * 0.05 * proximity`, which maxes out
+        // at 0.05 rad — under three degrees, and only ever when a firefly was
+        // already on top of the flower, so the meadow looked frozen. There is
+        // now an always-on breeze (~7 deg) that a nearby firefly boosts to a
+        // clear ~23 deg nod, which is what makes the flower feel noticed.
+        const breeze = Math.sin(elapsedTime * 1.1 + fi * 0.8) * 0.12;
+        const excited = Math.sin(elapsedTime * 3.5 + fi) * 0.28 * proximity;
+        flower.rotation.z = breeze + excited;
       }
     },
 
@@ -533,6 +658,8 @@ export function createGame(context: MiniGameContext): IMiniGame {
         // Stop the stream; the shared glow batch is freed by the shell's
         // disposal scope after teardown. See architecture-standards.md#particleengine.
         fd.glowTrail.stop();
+        fd.bodyMaterial.dispose();
+        fd.bodySprite.removeFromParent();
         fd.spriteMaterial.dispose();
         fd.sprite.removeFromParent();
       }
@@ -563,6 +690,12 @@ export function createGame(context: MiniGameContext): IMiniGame {
       surpriseEvents?.dispose();
       surpriseEvents = null;
 
+      tapRipples?.dispose();
+      tapRipples = null;
+
+      jarFill?.dispose();
+      jarFill = null;
+
       starField?.removeFromParent();
       starField = null;
       starSizes = null;
@@ -571,12 +704,9 @@ export function createGame(context: MiniGameContext): IMiniGame {
       tapHint?.dispose();
       tapHint = null;
 
-      // Dispose orbiting jar fireflies
-      for (const orb of jarOrbitFireflies) {
-        orb.sprite.removeFromParent();
-        orb.material.dispose();
-      }
-      jarOrbitFireflies.length = 0;
+      flowerRoots.length = 0;
+      treeRoots.length = 0;
+      grassRoots.length = 0;
 
       // Lights are freed by the shell's disposal scope; the camera is the shell's.
       lights = null;
@@ -584,6 +714,8 @@ export function createGame(context: MiniGameContext): IMiniGame {
       jarBody = null;
       jarCap = null;
       moonMesh = null;
+      saturnGroup = null;
+      saturnRing = null;
       skyMesh = null;
     },
 
@@ -619,6 +751,36 @@ export function createGame(context: MiniGameContext): IMiniGame {
       }
 
       if (!nearestFd) {
+        // A tap that missed every firefly used to produce a single near-silent
+        // tick and nothing at all on screen, which to a 3-year-old is
+        // indistinguishable from a broken game. Now the world always answers:
+        // first check whether something in the sky was poked, and otherwise
+        // ripple at the tap point. Neither path costs anything or punishes.
+        const engine = getParticleEngine(scene);
+
+        const moonDist = moonMesh ? screenDistTo(moonMesh.position, cam, rect, event.screenX, event.screenY) : Infinity;
+        const saturnDist = saturnGroup ? screenDistTo(saturnGroup.position, cam, rect, event.screenX, event.screenY) : Infinity;
+        const starHit = surpriseEvents?.tryTap(cam, rect, event.screenX, event.screenY, SCENERY_HIT_RADIUS_PX) ?? null;
+
+        if (starHit) {
+          audio?.playWorldPoke();
+          context.celebration.confetti(event.screenX, event.screenY, 'small');
+          return;
+        }
+        if (moonMesh && moonDist <= SCENERY_HIT_RADIUS_PX && moonDist <= saturnDist) {
+          moonPoke = POKE_DURATION;
+          engine.emit(PARTICLES.sparkle, moonMesh.position.clone(), { colors: [new Color(0.95, 0.95, 0.85)], count: 12 });
+          audio?.playWorldPoke();
+          return;
+        }
+        if (saturnGroup && saturnDist <= SCENERY_HIT_RADIUS_PX) {
+          saturnPoke = POKE_DURATION;
+          engine.emit(PARTICLES.sparkle, saturnGroup.position.clone(), { colors: [new Color(0.98, 0.85, 0.6)], count: 12 });
+          audio?.playWorldPoke();
+          return;
+        }
+
+        tapRipples?.play(tapToWorld(cam, rect, event.screenX, event.screenY), FIREFLY_COLOR);
         audio?.playTapSparkle();
         return;
       }

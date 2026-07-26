@@ -1,7 +1,7 @@
-import { Scene, Vector3, Color, PerspectiveCamera, type Object3D } from 'three';
+import { Scene, Vector3, Vector2, Color, Plane, Raycaster, PerspectiveCamera, type Object3D } from 'three';
 import type { Mesh } from 'three';
 import type { IMiniGame, MiniGameContext, MiniGameTapEvent, MiniGameDragEvent, MiniGameDragEndEvent, ViewportInfo } from '../../framework/types';
-import { clamp, getSpeedMultiplier } from './helpers';
+import { clamp, getSpeedMultiplier, getTargetFishCount, getFishEvasiveness } from './helpers';
 import {
   buildSharkEntity,
   createFish,
@@ -18,6 +18,7 @@ import {
   setupScene,
   teardownScene,
   updateCausticLights,
+  updateGodRays,
   updateSeaweedSway,
   updateAnemoneSway,
   updateEnvironmentReactions,
@@ -58,6 +59,9 @@ import {
   updateSwim,
   startLunge,
   updateRotation,
+  releaseDrag,
+  steerTowardAngle,
+  TURN_RATE_HUNT,
   getSpeed,
   applyToMesh,
   type SharkMoveState,
@@ -78,7 +82,15 @@ import {
   // Spline body — available for future use when integrated into shark mesh
   // createSplineBody, updateSplineBody, disposeSplineBody, type SplineBodyState,
 } from './shark';
-import { classifyPickedMesh, handleWaterTap, handleRockTap, handleSharkTap, createInteractionState, type InteractionState } from './interactions';
+import {
+  classifyPickedMesh,
+  handleWaterTap,
+  handleRockTap,
+  handleSharkTap,
+  handleMissedTap,
+  createInteractionState,
+  type InteractionState,
+} from './interactions';
 import { createCelebrationQueue } from './celebrations';
 import { createProximitySpawnState, updateProximitySpawning, notifyFishEaten, CAMERA_VIEW_RADIUS, CULL_DISTANCE, type ProximitySpawnState } from './waves';
 import { createSurpriseState, updateSurprises, type SurpriseState } from './surprises';
@@ -159,6 +171,23 @@ export function createGame(context: MiniGameContext): IMiniGame {
   let speedLineState: SpeedLineState | null = null;
   let colorFlashState: ColorFlashState | null = null;
   const activeBubbleTrails: BubbleTrail[] = [];
+
+  // Scratch objects for turning a missed tap into a world point (defect 5).
+  // Allocated once — onTap runs on every touch and must not churn the heap.
+  const tapRaycaster = new Raycaster();
+  const tapNdc = new Vector2();
+  const tapWorldPoint = new Vector3();
+  const swimPlane = new Plane(new Vector3(0, 1, 0), 0);
+
+  // Projects a client-space tap onto the shark's swim plane (y = 0). Only used
+  // when the pick hit nothing, so there is no pickedPoint to reuse.
+  function tapToWaterPoint(screenX: number, screenY: number): Vector3 | null {
+    const rect = context.canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    tapNdc.set(((screenX - rect.left) / rect.width) * 2 - 1, -(((screenY - rect.top) / rect.height) * 2 - 1));
+    tapRaycaster.setFromCamera(tapNdc, shellCam);
+    return tapRaycaster.ray.intersectPlane(swimPlane, tapWorldPoint);
+  }
 
   function eatFishAction(fish: FishState): void {
     fish.active = false;
@@ -244,9 +273,15 @@ export function createGame(context: MiniGameContext): IMiniGame {
           triggerBarrelRoll(sharkAnim);
         },
       });
-      // Face the direction of travel during hunt — fast rotation
+      // Face the direction of travel during the hunt.
+      //
+      // Defect 6: this used to snap rotY straight to the velocity heading — an
+      // effectively infinite turn rate, against 1.05 rad/s while idle and 7.85
+      // rad/s mid-lunge. The shark would pivot like a compass needle the instant
+      // a hunt began and then crawl around when it ended. All three now go
+      // through steerTowardAngle with the same two rates (see movement.ts).
       if (Math.abs(sharkMove.velX) > 0.01 || Math.abs(sharkMove.velZ) > 0.01) {
-        sharkMove.rotY = Math.atan2(-sharkMove.velZ, sharkMove.velX);
+        sharkMove.rotY = steerTowardAngle(sharkMove.rotY, Math.atan2(-sharkMove.velZ, sharkMove.velX), TURN_RATE_HUNT, dt);
       }
       // Apply position from hunt FSM
       if (sharkRoot) applyToMesh(sharkMove, sharkRoot);
@@ -325,31 +360,42 @@ export function createGame(context: MiniGameContext): IMiniGame {
   function updateSpawning(dt: number): void {
     if (!spawnState) return;
 
-    updateProximitySpawning(spawnState, dt, sharkPos.x, sharkPos.z, {
-      spawnFish: (edgeX: number, edgeZ: number, targetX: number, targetZ: number) => {
-        const fish = acquireFish('standard');
-        fish.root.position.set(edgeX, 0, edgeZ);
-        fish.spawning = true;
-        fish.spawnTimer = 1.5;
-        fish.spawnEdgeX = edgeX;
-        fish.spawnEdgeZ = edgeZ;
-        fish.driftCenterX = targetX;
-        fish.driftCenterZ = targetZ;
+    // Defect 3: the spawner used to hold a hard-coded 2 fish near the shark for
+    // the entire session. The reef now fills up as the child gets better.
+    const targetNearby = getTargetFishCount(context.difficulty.level);
+
+    updateProximitySpawning(
+      spawnState,
+      dt,
+      sharkPos.x,
+      sharkPos.z,
+      {
+        spawnFish: (edgeX: number, edgeZ: number, targetX: number, targetZ: number) => {
+          const fish = acquireFish('standard');
+          fish.root.position.set(edgeX, 0, edgeZ);
+          fish.spawning = true;
+          fish.spawnTimer = 1.5;
+          fish.spawnEdgeX = edgeX;
+          fish.spawnEdgeZ = edgeZ;
+          fish.driftCenterX = targetX;
+          fish.driftCenterZ = targetZ;
+        },
+        spawnGoldenFish: () => {
+          if (!goldenFish) goldenFish = createFish(scene, sharkPos, 'golden');
+        },
+        countNearbyFish: () => {
+          let count = 0;
+          for (const f of fishArray) {
+            if (!f.active || f.spawning) continue;
+            const dx = f.root.position.x - sharkPos.x;
+            const dz = f.root.position.z - sharkPos.z;
+            if (dx * dx + dz * dz < CAMERA_VIEW_RADIUS * CAMERA_VIEW_RADIUS) count++;
+          }
+          return count;
+        },
       },
-      spawnGoldenFish: () => {
-        if (!goldenFish) goldenFish = createFish(scene, sharkPos, 'golden');
-      },
-      countNearbyFish: () => {
-        let count = 0;
-        for (const f of fishArray) {
-          if (!f.active || f.spawning) continue;
-          const dx = f.root.position.x - sharkPos.x;
-          const dz = f.root.position.z - sharkPos.z;
-          if (dx * dx + dz * dz < CAMERA_VIEW_RADIUS * CAMERA_VIEW_RADIUS) count++;
-        }
-        return count;
-      },
-    });
+      targetNearby,
+    );
 
     // Silently cull fish that have drifted far from the shark
     for (const fish of fishArray) {
@@ -365,25 +411,33 @@ export function createGame(context: MiniGameContext): IMiniGame {
   /**
    * Updates all environment systems (caustics, sway, reactions, ambient, surprises).
    * @param dt - Frame delta time in seconds.
+   * @param seaweedBoosts - Tapped-seaweed boost timers from the interaction state.
    */
-  function updateEnvironmentSystems(dt: number): void {
+  function updateEnvironmentSystems(dt: number, seaweedBoosts: ReadonlyMap<Object3D, number>): void {
     if (env) {
-      updateCausticLights(env.causticLights, elapsedTime);
-      updateSeaweedSway(env.seaweeds, elapsedTime);
+      // Defect 10: caustics orbited the origin and the god rays never turned to
+      // face anything. Both now track the shark and the live camera.
+      updateCausticLights(env.causticLights, elapsedTime, sharkPos.x, sharkPos.z);
+      updateGodRays(env.waterSurface, shellCam);
+      // Defect 4: `seaweedBoosts` is the map that used to be discarded, so a
+      // tapped plant made a rustle and stood perfectly still.
+      updateSeaweedSway(env.seaweeds, elapsedTime, seaweedBoosts);
       updateAnemoneSway(env.anemones, elapsedTime);
       updateEnvironmentReactions(sharkPos.x, sharkPos.z, env, dt, elapsedTime);
       env.waterSurface.position.y = 2.5 + Math.sin(elapsedTime * 0.15) * 0.03;
     }
     if (ambientCreatures) updateAmbientCreatures(ambientCreatures, dt, elapsedTime, sharkPos.x, sharkPos.z);
-    if (surpriseState && env) updateSurprises(surpriseState, elapsedTime, dt, env, scene);
+    // Defect 9: surprises are staged around the shark, not the world origin.
+    if (surpriseState && env) updateSurprises(surpriseState, elapsedTime, dt, env, scene, sharkPos.x, sharkPos.z);
   }
 
   /**
    * Updates all fish (drift, dodge, spawn, despawn) and checks collisions.
    * @param dt - Frame delta time in seconds.
    * @param speedMultiplier - Difficulty-driven speed multiplier.
+   * @param evasiveness - Difficulty-driven fish evasion strength in [0, 1].
    */
-  function updateFishAndCollisions(dt: number, speedMultiplier: number): void {
+  function updateFishAndCollisions(dt: number, speedMultiplier: number, evasiveness: number): void {
     const allFish: FishState[] = [...fishArray];
     if (goldenFish) allFish.push(goldenFish);
     for (const fish of allFish) {
@@ -410,8 +464,8 @@ export function createGame(context: MiniGameContext): IMiniGame {
         if (fish.spawnTimer <= 0) fish.spawning = false;
         continue;
       }
-      updateFishDrift(fish, dt, speedMultiplier, sharkPos.x, sharkPos.z);
-      if (fish.kind === 'golden') updateGoldenDodge(fish, sharkPos.x, sharkPos.z, dt);
+      updateFishDrift(fish, dt, speedMultiplier, sharkPos.x, sharkPos.z, evasiveness);
+      if (fish.kind === 'golden') updateGoldenDodge(fish, sharkPos.x, sharkPos.z, dt, evasiveness);
     }
 
     // Collision detection — standard fish
@@ -553,17 +607,22 @@ export function createGame(context: MiniGameContext): IMiniGame {
       if (paused) return;
       const dt = deltaTime;
       elapsedTime += dt;
+      // Defect 3: `speedMultiplier` was halved right here, which cancelled most
+      // of the ramp; `evasiveness` did not exist at all. Both now reach the fish.
       const speedMultiplier = getSpeedMultiplier(context.difficulty.level);
+      const evasiveness = getFishEvasiveness(context.difficulty.level);
 
       if (eatAnimTimer > 0 && sharkBody) eatAnimTimer = updateEatAnimation(sharkBody, eatAnimTimer, dt);
 
       updateSharkMovement(dt);
       updateSharkAnimations(dt);
       updateSpawning(dt);
-      updateEnvironmentSystems(dt);
-      updateFishAndCollisions(dt, speedMultiplier * 0.5);
+      // Defect 4: tick interactions BEFORE the environment so the boost map is
+      // current for this frame's sway, and so the return value is actually used.
+      const seaweedBoosts = interactionState.update(dt);
+      updateEnvironmentSystems(dt, seaweedBoosts);
+      updateFishAndCollisions(dt, speedMultiplier, evasiveness);
       celebrations.update(dt);
-      interactionState.update(dt);
       updateCameraAndEffects(dt);
     },
 
@@ -638,6 +697,13 @@ export function createGame(context: MiniGameContext): IMiniGame {
       if (paused) return;
       const pick = event.pickResult;
       if (!pick || !pick.hit || !pick.pickedMesh) {
+        // Defect 5: this used to be a bare `return`. A tap that hits nothing now
+        // gets a bubble puff wherever the child actually touched, so the game
+        // never looks frozen.
+        const missPoint = tapToWaterPoint(event.screenX, event.screenY);
+        if (missPoint) {
+          handleMissedTap(scene, new Vector3(clamp(missPoint.x, -BOUNDS, BOUNDS), 0, clamp(missPoint.z, -BOUNDS, BOUNDS)), context.audio);
+        }
         return;
       }
       const pickedMesh = pick.pickedMesh as Object3D;
@@ -647,12 +713,14 @@ export function createGame(context: MiniGameContext): IMiniGame {
           const fish = fishArray.find((f) => f.active && !f.spawning && isDescendantOf(pickedMesh, f.root));
           if (fish) {
             fish.isTargeted = true;
-            // Use hunt FSM instead of direct lunge
-            if (getHuntPhase(huntState) === 'idle') {
-              triggerHunt(huntState, fish.root);
+            // Defect 1: triggerHunt used to refuse unless the FSM was fully
+            // idle, so every tap landing in the ~2.1s notice/strike/celebrate/
+            // recovery tail was silently dropped and the child had to tap again.
+            // It now re-targets from any interruptible phase and only declines
+            // mid-strike; the direct lunge covers that one remaining case.
+            if (triggerHunt(huntState, fish.root)) {
               setMood(expressionState, 'curious');
             } else {
-              // Fallback to direct lunge if already hunting
               startLunge(sharkMove, fish.root.position.x, fish.root.position.z, 6.0);
             }
           }
@@ -662,8 +730,8 @@ export function createGame(context: MiniGameContext): IMiniGame {
           if (goldenFish && goldenFish.active && !goldenFish.spawning) {
             if (isDescendantOf(pickedMesh, goldenFish.root)) {
               goldenFish.isTargeted = true;
-              if (getHuntPhase(huntState) === 'idle') {
-                triggerHunt(huntState, goldenFish.root);
+              // Same re-targeting fix as the standard fish case above.
+              if (triggerHunt(huntState, goldenFish.root)) {
                 setMood(expressionState, 'excited');
               } else {
                 startLunge(sharkMove, goldenFish.root.position.x, goldenFish.root.position.z, 6.0);
@@ -681,6 +749,12 @@ export function createGame(context: MiniGameContext): IMiniGame {
         }
         case 'coral': {
           interactionState.handleCoralTap(pickedMesh, scene, context.audio);
+          break;
+        }
+        case 'anemone': {
+          // Defect 8: anemones matched no prefix and fell through to 'water',
+          // so tapping one sent the shark diving at the seabed.
+          interactionState.handleAnemoneTap(pickedMesh, scene, context.audio);
           break;
         }
         case 'seaweed': {
@@ -732,7 +806,11 @@ export function createGame(context: MiniGameContext): IMiniGame {
     },
 
     onDragEnd(_event: MiniGameDragEndEvent): void {
-      sharkMove.isBeingDragged = false;
+      // Defect 7: this used to just clear the flag, so the shark stopped dead
+      // the instant a finger lifted. releaseDrag keeps (and slightly boosts) the
+      // velocity the drag built up and re-anchors idle drift ahead of the shark,
+      // so a flick coasts out instead of hitting a wall.
+      releaseDrag(sharkMove);
     },
   };
 

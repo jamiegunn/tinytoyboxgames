@@ -1,8 +1,8 @@
-import { type Scene, SpriteMaterial, Sprite, Vector3, AdditiveBlending, CanvasTexture } from 'three';
+import { type Scene, SpriteMaterial, Sprite, Vector3, AdditiveBlending, NormalBlending, CanvasTexture, Color } from 'three';
 import { getParticleEngine } from '@app/utils/particles/registry';
 import { PARTICLES, FIREFLY_GLOW_RATE } from '@app/utils/particles/presets';
 import type { FireflyData } from './types';
-import { FIREFLY_COLOR, GOLDEN_COLOR } from './types';
+import { FIREFLY_COLOR, GOLDEN_COLOR, FIREFLY_SPRITE_SCALE, GOLDEN_SPRITE_SCALE, FIREFLY_BODY_SCALE } from './types';
 import { randomRange } from '@app/minigames/shared/mathUtils';
 import { randomSpawnPos, randomBehavior } from './helpers';
 
@@ -35,11 +35,126 @@ function getGlowDotTexture(): CanvasTexture {
   return glowDotTexture;
 }
 
+// ── Cached firefly creature textures ────────────────────────────────────────
+
+// The game is named after fireflies, but a firefly used to be nothing but a
+// blurry radial gradient — no body, no wings, no eyes. These two cached
+// canvases draw a proper little creature (glowing abdomen, thorax, head, eyes,
+// antennae and a pair of translucent wings) in a wings-up and a wings-down
+// pose. Every firefly shares the same two textures and simply swaps which one
+// its material samples, so the whole flock costs two 64x64 textures total and
+// zero extra geometry — the glow halo underneath still carries the bloom that
+// makes them readable in the dark.
+
+/** Canvas size for the creature textures. */
+const CREATURE_TEX_SIZE = 64;
+
+/** Wing angles (radians, relative to the shoulder) for the two flap frames. */
+const WING_SPREAD_UP = -0.5;
+const WING_SPREAD_DOWN = 0.38;
+
+let creatureTexUp: CanvasTexture | null = null;
+let creatureTexDown: CanvasTexture | null = null;
+
+// Draws one flap frame of the firefly creature into a 2D context.
+// `spread` is the wing rotation at the shoulder; negative lifts the wings.
+function drawCreature(ctx: CanvasRenderingContext2D, spread: number): void {
+  const c = CREATURE_TEX_SIZE / 2;
+
+  // Wings first so the body overlaps them — translucent, faintly outlined.
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.translate(c + side * 4, c - 4);
+    ctx.rotate(side * spread);
+    ctx.beginPath();
+    ctx.ellipse(side * 11, 0, 13, 6, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(226, 240, 255, 0.3)';
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Glowing abdomen — the lantern, and the reason the halo sits where it does.
+  const glow = ctx.createRadialGradient(c, c + 12, 0, c, c + 12, 13);
+  glow.addColorStop(0, 'rgba(255, 250, 215, 1)');
+  glow.addColorStop(0.45, 'rgba(255, 208, 95, 0.95)');
+  glow.addColorStop(1, 'rgba(255, 170, 40, 0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(c, c + 12, 13, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Thorax
+  ctx.fillStyle = 'rgba(62, 45, 27, 0.95)';
+  ctx.beginPath();
+  ctx.ellipse(c, c + 1, 6.5, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Head
+  ctx.fillStyle = 'rgba(40, 29, 17, 1)';
+  ctx.beginPath();
+  ctx.arc(c, c - 11, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Antennae — two short curved strokes, the cheapest "this is alive" cue.
+  ctx.strokeStyle = 'rgba(40, 29, 17, 0.9)';
+  ctx.lineWidth = 1.4;
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(c + side * 3, c - 15);
+    ctx.quadraticCurveTo(c + side * 7, c - 21, c + side * 9.5, c - 19);
+    ctx.stroke();
+  }
+
+  // Eyes — big and friendly, with a highlight, per the toddler art direction.
+  for (const side of [-1, 1]) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+    ctx.beginPath();
+    ctx.arc(c + side * 2.7, c - 12, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(22, 15, 8, 1)';
+    ctx.beginPath();
+    ctx.arc(c + side * 2.9, c - 11.6, 1.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// Builds (once) and returns the two creature flap frames.
+function getCreatureTextures(): { up: CanvasTexture; down: CanvasTexture } {
+  if (creatureTexUp && creatureTexDown) return { up: creatureTexUp, down: creatureTexDown };
+
+  const make = (spread: number): CanvasTexture => {
+    const canvas = document.createElement('canvas');
+    canvas.width = CREATURE_TEX_SIZE;
+    canvas.height = CREATURE_TEX_SIZE;
+    const ctx = canvas.getContext('2d')!;
+    drawCreature(ctx, spread);
+    return new CanvasTexture(canvas);
+  };
+
+  creatureTexUp = make(WING_SPREAD_UP);
+  creatureTexDown = make(WING_SPREAD_DOWN);
+  return { up: creatureTexUp, down: creatureTexDown };
+}
+
 /**
- * Creates a firefly entity as a soft glowing additive sprite with a particle
- * trail. No 3D mesh and no per-firefly PointLight — the additive sprite IS
- * the glow, which keeps the fragment shaders cheap and avoids the shader
- * recompile hitch that adding/removing dynamic lights causes mid-scene.
+ * Returns the shared wings-up / wings-down creature textures.
+ * The per-frame flap in the game loop swaps between these two maps.
+ * @returns The two cached flap-frame textures.
+ */
+export function getFireflyCreatureTextures(): { up: CanvasTexture; down: CanvasTexture } {
+  return getCreatureTextures();
+}
+
+/**
+ * Creates a firefly entity: an additive glow halo billboard carrying the bloom,
+ * with a small creature billboard (body, head, eyes, flapping wings) parented
+ * inside it, plus a particle trail. No 3D mesh and no per-firefly PointLight —
+ * two billboards and two shared textures keep the fragment shaders cheap and
+ * avoid the shader recompile hitch that adding/removing dynamic lights causes
+ * mid-scene, while still looking like the animal the game is named after.
  *
  * @param scene - The Three.js scene.
  * @param index - Index for unique naming.
@@ -49,8 +164,8 @@ function getGlowDotTexture(): CanvasTexture {
 export function createFirefly(scene: Scene, index: number, isGolden: boolean): FireflyData {
   const baseColor = isGolden ? GOLDEN_COLOR : FIREFLY_COLOR;
 
-  // ── Sprite: the firefly IS a soft glowing dot ──
-  const spriteSize = isGolden ? 0.45 : 0.3;
+  // ── Glow halo: the bloom that makes a firefly readable in a dark meadow ──
+  const spriteSize = isGolden ? GOLDEN_SPRITE_SCALE : FIREFLY_SPRITE_SCALE;
   const spriteMaterial = new SpriteMaterial({
     map: getGlowDotTexture(),
     color: baseColor.clone(),
@@ -64,6 +179,25 @@ export function createFirefly(scene: Scene, index: number, isGolden: boolean): F
   sprite.name = `nature_firefly_${isGolden ? 'golden' : 'standard'}_${index}`;
   sprite.raycast = () => {}; // hit detection is screen-space, not raycaster
   scene.add(sprite);
+
+  // ── Creature: parented to the halo so it inherits position and catch pop ──
+  // NormalBlending (not additive) so the dark body and eyes actually read as
+  // shape rather than dissolving into the glow; renderOrder puts it in front.
+  const creature = getCreatureTextures();
+  const bodyMaterial = new SpriteMaterial({
+    map: creature.up,
+    color: isGolden ? new Color(1, 0.94, 0.72) : new Color(1, 1, 1),
+    transparent: true,
+    opacity: 0.95,
+    blending: NormalBlending,
+    depthWrite: false,
+  });
+  const bodySprite = new Sprite(bodyMaterial);
+  bodySprite.scale.setScalar(FIREFLY_BODY_SCALE);
+  bodySprite.renderOrder = 2;
+  bodySprite.name = `${sprite.name}_creature`;
+  bodySprite.raycast = () => {};
+  sprite.add(bodySprite);
 
   // ── Position ──
   const pos = randomSpawnPos();
@@ -80,6 +214,10 @@ export function createFirefly(scene: Scene, index: number, isGolden: boolean): F
   return {
     sprite,
     spriteMaterial,
+    bodySprite,
+    bodyMaterial,
+    flapPhase: Math.random(),
+    lifeTimer: -1,
     glowTrail,
     speed: randomRange(0.25, 0.55),
     glowPhase: Math.random() * Math.PI * 2,
@@ -132,5 +270,9 @@ export function resetFirefly(fd: FireflyData): void {
   fd.zigzagDir = new Vector3(randomRange(-1, 1), randomRange(-0.5, 0.5), randomRange(-0.5, 0.5)).normalize();
   fd.sprite.visible = true;
   fd.spriteMaterial.opacity = 0.85;
+  fd.bodyMaterial.opacity = 0.95;
+  fd.flapPhase = Math.random();
+  fd.lifeTimer = -1;
+  fd.sprite.scale.setScalar(fd.isGolden ? GOLDEN_SPRITE_SCALE : FIREFLY_SPRITE_SCALE);
   fd.glowTrail.start();
 }

@@ -1,5 +1,13 @@
 import type { BubbleState } from '../types';
-import { CHAIN_POP_RADIUS, WOBBLE_RADIUS, SIZE_VARIANTS, CHAIN_POP_INITIAL_DELAY, CHAIN_POP_STAGGER, WOBBLE_AUTO_POP_DELAY } from '../types';
+import {
+  CHAIN_POP_RADIUS,
+  WOBBLE_RADIUS,
+  CHAIN_POP_INITIAL_DELAY,
+  CHAIN_POP_STAGGER,
+  WOBBLE_AUTO_POP_DELAY,
+  GIANT_TAP_SHRINK,
+  MIN_DISPLAY_SIZE,
+} from '../types';
 import { randomRange } from '../helpers';
 
 /**
@@ -32,10 +40,12 @@ export function tapGiantBubble(bubble: BubbleState): void {
   // Wobble feedback — jolt
   bubble.wobblePhase = Math.random() * Math.PI * 2;
   bubble.wobbleSpeed *= 1.5;
-  // Shrink slightly to show progress
-  if (bubble.sizeVariant < SIZE_VARIANTS.length - 1) {
-    bubble.sizeVariant++;
-  }
+  // Shrink to show progress. This stepped sizeVariant *up*, and SIZE_VARIANTS
+  // ascends (0.2, 0.32, 0.45), so tapping a giant made it bigger — the exact
+  // opposite of the feedback a child needs. Shrink the target radius instead;
+  // updateBubbleWobble eases displaySize toward it, so the giant visibly
+  // deflates over ~0.2s rather than snapping.
+  bubble.targetSize = Math.max(MIN_DISPLAY_SIZE, bubble.targetSize * GIANT_TAP_SHRINK);
 }
 
 /**

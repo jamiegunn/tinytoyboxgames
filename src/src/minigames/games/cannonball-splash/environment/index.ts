@@ -1,1 +1,1 @@
-export { createGameEnvironment, updateEnvironment } from './setup';
+export { createGameEnvironment, updateEnvironment, sampleOceanHeight } from './setup';

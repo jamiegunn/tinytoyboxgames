@@ -15,7 +15,13 @@ const CAMERA_VIEW_RADIUS = 15;
 /** Fish spawn from this distance off-screen relative to the shark. */
 const SPAWN_DISTANCE = 18;
 
-/** Minimum nearby fish to maintain. */
+/**
+ * Fallback nearby-fish floor used when no difficulty-scaled target is supplied.
+ *
+ * Defect 3: this constant used to be the only answer — the reef held exactly two
+ * nearby fish from the first catch to the four-hundredth. Callers now pass
+ * `getTargetFishCount(difficulty.level)`.
+ */
 const MIN_NEARBY_FISH = 2;
 
 /** Delay in seconds before replacement fish appear after an eat. */
@@ -97,9 +103,18 @@ function spawnNearShark(sharkX: number, sharkZ: number, cb: SpawnCallbacks['spaw
  * @param sharkX - Current shark X position.
  * @param sharkZ - Current shark Z position.
  * @param callbacks - Entity creation callbacks.
+ * @param targetNearbyFish - Difficulty-scaled nearby-fish target. Defaults to MIN_NEARBY_FISH.
  */
-export function updateProximitySpawning(state: ProximitySpawnState, dt: number, sharkX: number, sharkZ: number, callbacks: SpawnCallbacks): void {
+export function updateProximitySpawning(
+  state: ProximitySpawnState,
+  dt: number,
+  sharkX: number,
+  sharkZ: number,
+  callbacks: SpawnCallbacks,
+  targetNearbyFish: number = MIN_NEARBY_FISH,
+): void {
   const nearbyCount = callbacks.countNearbyFish();
+  const target = Math.max(1, Math.round(targetNearbyFish));
 
   if (state.replenishTimer > 0) {
     // Post-eat grace period — don't force-fill the minimum
@@ -112,9 +127,9 @@ export function updateProximitySpawning(state: ProximitySpawnState, dt: number, 
       state.replenishTimer = -1;
     }
   } else {
-    // No replenish pending — guarantee minimum nearby
-    if (nearbyCount < MIN_NEARBY_FISH) {
-      const deficit = MIN_NEARBY_FISH - nearbyCount;
+    // No replenish pending — guarantee the difficulty-scaled target nearby
+    if (nearbyCount < target) {
+      const deficit = target - nearbyCount;
       for (let i = 0; i < deficit; i++) {
         spawnNearShark(sharkX, sharkZ, callbacks.spawnFish);
       }

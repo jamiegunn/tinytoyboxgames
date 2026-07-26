@@ -1,5 +1,5 @@
 import type { BubbleState } from '../types';
-import { SIZE_VARIANTS, GIANT_SCALE } from '../types';
+import { GIANT_SCALE, MAX_BUBBLE_RADIUS } from '../types';
 import type { SpatialHash } from './spatialHash';
 
 /**
@@ -16,12 +16,19 @@ const PRESSURE_WAVE_RADIUS = 3.0;
 
 /**
  * Returns the effective world-space radius of a bubble.
+ *
+ * The sphere geometry is authored at radius 0.5 and scaled by
+ * `displaySize / 0.5`, so the rendered radius is exactly `displaySize`. This
+ * used to halve that (`SIZE_VARIANTS[v] / 2`), which meant repulsion only
+ * kicked in once two bubbles were already visibly interpenetrating.
+ * Reading `displaySize` rather than `sizeVariant` also keeps the collision
+ * radius honest while a tapped giant is mid-deflation.
+ *
  * @param bubble - The bubble state to measure.
  * @returns The computed radius in world units.
  */
 function bubbleRadius(bubble: BubbleState): number {
-  const baseRadius = (SIZE_VARIANTS[bubble.sizeVariant] ?? 0.55) / 2;
-  return baseRadius * (bubble.kind === 'giant' ? GIANT_SCALE : 1);
+  return bubble.displaySize * (bubble.kind === 'giant' ? GIANT_SCALE : 1);
 }
 
 /**
@@ -32,8 +39,11 @@ function bubbleRadius(bubble: BubbleState): number {
  * @param deltaTime - Frame delta time in seconds.
  */
 export function applySoftBodyRepulsion(activeBubbles: readonly BubbleState[], hash: SpatialHash<BubbleState>, deltaTime: number): void {
-  const maxRadius = 0.8 * GIANT_SCALE; // largest possible bubble radius
-  const queryRadius = maxRadius * 2.5; // generous to catch all potential overlaps
+  // 0.45 * 1.6 = 0.72; the old 0.8 * GIANT_SCALE guessed at a variant radius
+  // that does not exist. Two touching giants are 2 * 0.72 apart, so 2.5x that
+  // radius still leaves generous headroom for the neighbour query.
+  const maxRadius = MAX_BUBBLE_RADIUS;
+  const queryRadius = maxRadius * 2.5;
 
   for (let i = 0; i < activeBubbles.length; i++) {
     const a = activeBubbles[i];

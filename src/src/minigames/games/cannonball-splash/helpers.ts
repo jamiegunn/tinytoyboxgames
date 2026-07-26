@@ -38,20 +38,8 @@ export function lerp(a: number, b: number, t: number): number {
 }
 
 /**
- * Evaluates the parametric arc position at time t ∈ [0, 1].
- * @param start - Arc start point (launch position).
- * @param end - Arc end point (impact position).
- * @param arcHeight - Peak height added at the midpoint of the arc.
- * @param t - Normalized flight time in [0, 1].
- * @returns A new world-space position along the arc at time t.
- */
-export function computeArcPosition(start: Vector3, end: Vector3, arcHeight: number, t: number): Vector3 {
-  return new Vector3(lerp(start.x, end.x, t), lerp(start.y, end.y, t) + arcHeight * 4 * t * (1 - t), lerp(start.z, end.z, t));
-}
-
-/**
  * Maps target z-depth to flight duration.
- * Near (z > -8) → 0.6s, Far (z < -14) → 1.0s, interpolated between.
+ * Near (z > -8) → FLIGHT_DURATION_NEAR, far (z < -14) → FLIGHT_DURATION_FAR.
  * @param targetZ - The target's world z coordinate.
  * @returns Flight duration in seconds.
  */
@@ -61,44 +49,62 @@ export function computeFlightDuration(targetZ: number): number {
 }
 
 /**
- * Maps target z-depth to arc height.
- * Near → 1.5, Far → 4.0.
- * @param targetZ - The target's world z coordinate.
- * @returns The arc peak height for a shot at that depth.
+ * Solves the launch velocity that carries a ball from `start` to `end` in
+ * exactly `duration` seconds under constant gravity.
+ *
+ * The ball used to travel a parametric quadratic with a hand-tuned "arc height"
+ * while GRAVITY existed but was spent only on particles, so the flight never
+ * read as physical. Horizontal speed is constant; the vertical component is
+ * whatever makes y(duration) land on the aim point.
+ * @param start - Launch position (barrel mouth).
+ * @param end - Desired impact position.
+ * @param duration - Time of flight in seconds.
+ * @param out - Vector to write the velocity into.
+ * @returns The `out` vector, holding world units per second.
  */
-export function computeArcHeight(targetZ: number): number {
-  const t = clamp01((targetZ - -8) / (-14 - -8));
-  return lerp(C.ARC_HEIGHT_NEAR, C.ARC_HEIGHT_FAR, t);
+export function solveBallisticVelocity(start: Vector3, end: Vector3, duration: number, out: Vector3): Vector3 {
+  const t = Math.max(0.05, duration);
+  out.x = (end.x - start.x) / t;
+  out.z = (end.z - start.z) / t;
+  out.y = (end.y - start.y - 0.5 * C.GRAVITY * t * t) / t;
+  return out;
 }
 
 /**
- * Computes cannon aim angles toward a world point, with clamping.
- * @param cannonPos - The cannon's world position.
- * @param targetPos - The world point to aim at.
- * @returns Clamped yaw (rotY) and pitch (rotX) angles in radians.
+ * Evaluates a ballistic trajectory at time t.
+ * @param start - Launch position.
+ * @param velocity - Launch velocity.
+ * @param t - Seconds since launch.
+ * @param out - Vector to write the position into.
+ * @returns The `out` vector, holding the world position at time t.
  */
-export function computeCannonAim(cannonPos: Vector3, targetPos: Vector3): { rotY: number; rotX: number } {
-  const dx = targetPos.x - cannonPos.x;
-  const dz = targetPos.z - cannonPos.z;
-
-  let rotY = Math.atan2(dx, dz);
-  rotY = Math.max(-C.AIM_MAX_YAW, Math.min(C.AIM_MAX_YAW, rotY));
-
-  const dist = Math.sqrt(dx * dx + dz * dz);
-  let rotX = -Math.atan2(1.5, dist);
-  rotX = Math.max(C.AIM_MAX_PITCH, Math.min(C.AIM_MIN_PITCH, rotX));
-
-  return { rotY, rotX };
+export function ballisticPosition(start: Vector3, velocity: Vector3, t: number, out: Vector3): Vector3 {
+  out.x = start.x + velocity.x * t;
+  out.y = start.y + velocity.y * t + 0.5 * C.GRAVITY * t * t;
+  out.z = start.z + velocity.z * t;
+  return out;
 }
 
 /**
- * Returns true if the point is inside the play area.
- * @param x - World x coordinate.
- * @param z - World z coordinate.
- * @returns True when the point lies within the play-area bounds.
+ * Converts a world-space direction into clamped barrel angles.
+ *
+ * The barrel's rest axis is its local -Z and its rotation order is YXZ, so a
+ * direction d is produced by yaw = atan2(-d.x, -d.z) and pitch = asin(d.y). The
+ * previous atan2(dx, dz) was exactly a half-turn out, which the ±60° clamp then
+ * pinned to one side — the visible "ball leaves the side of the cannon".
+ * @param direction - Direction the barrel should point (need not be normalized).
+ * @returns Clamped yaw and pitch in radians.
  */
-export function isInsidePlayArea(x: number, z: number): boolean {
-  return x >= C.PLAY_X_MIN && x <= C.PLAY_X_MAX && z >= C.PLAY_Z_MIN && z <= C.PLAY_Z_MAX;
+export function computeCannonAim(direction: Vector3): { yaw: number; pitch: number } {
+  const length = Math.max(1e-6, direction.length());
+  const dx = direction.x / length;
+  const dy = direction.y / length;
+  const dz = direction.z / length;
+
+  const yaw = Math.max(-C.AIM_MAX_YAW, Math.min(C.AIM_MAX_YAW, Math.atan2(-dx, -dz)));
+  const pitch = Math.max(C.AIM_MIN_PITCH, Math.min(C.AIM_MAX_PITCH, Math.asin(Math.max(-1, Math.min(1, dy)))));
+
+  return { yaw, pitch };
 }
 
 /**
@@ -196,22 +202,4 @@ export function getSpawnCapacity(difficulty: number): number {
  */
 export function getSpawnInterval(difficulty: number): number {
   return lerp(C.SPAWN_INTERVAL_MAX, C.SPAWN_INTERVAL_MIN, difficulty);
-}
-
-/**
- * Difficulty-scaled drift speed.
- * @param difficulty - Normalized difficulty in [0, 1].
- * @returns Target drift speed in world units per second.
- */
-export function getDriftSpeed(difficulty: number): number {
-  return lerp(C.DRIFT_SPEED_MIN, C.DRIFT_SPEED_MAX, difficulty);
-}
-
-/**
- * Difficulty-scaled target scale.
- * @param difficulty - Normalized difficulty in [0, 1].
- * @returns Uniform scale factor applied to targets (smaller at higher difficulty).
- */
-export function getTargetScale(difficulty: number): number {
-  return lerp(C.TARGET_SCALE_MAX, C.TARGET_SCALE_MIN, difficulty);
 }

@@ -1,7 +1,10 @@
 import { type Scene, Sprite, SpriteMaterial, AdditiveBlending, CanvasTexture, Color, type Object3D } from 'three';
 
 export interface TapHint {
-  /** Call each frame. Tracks a target and animates. */
+  /**
+   * Call each frame — including after {@link dismiss}, which only *starts* the
+   * fade-out that this method plays out.
+   */
   update(deltaTime: number, target: Object3D | null): void;
   /** Call when the player catches their first firefly. */
   dismiss(): void;
@@ -74,22 +77,28 @@ export function createTapHint(scene: Scene): TapHint {
 
   return {
     update(deltaTime: number, target: Object3D | null): void {
-      if (dismissed && material.opacity <= 0) return;
+      if (dismissed) return;
 
       elapsed += deltaTime;
 
-      // Delay before appearing
-      if (appearDelay > 0) {
-        appearDelay -= deltaTime;
-        return;
-      }
-
+      // The fade-out is checked BEFORE the appear delay. `dismiss()` only raises
+      // this flag; the fade itself happens here, so a child who catches their
+      // first firefly inside the 1.5s appear delay used to leave `fadeOut` set
+      // with `appearDelay` still counting down — the hint then popped in and
+      // stayed forever. Handling it first also makes an early dismiss a no-op
+      // fade that ends immediately (opacity is still 0).
       if (fadeOut) {
         material.opacity = Math.max(0, material.opacity - deltaTime * 2);
         if (material.opacity <= 0) {
           sprite.visible = false;
           dismissed = true;
         }
+        return;
+      }
+
+      // Delay before appearing
+      if (appearDelay > 0) {
+        appearDelay -= deltaTime;
         return;
       }
 

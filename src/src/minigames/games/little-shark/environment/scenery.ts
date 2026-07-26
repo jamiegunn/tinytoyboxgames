@@ -3,6 +3,22 @@ import { createCoralMaterial, createSandMaterial, createLeafMaterial, createMeta
 import { buildDetailedRock } from '@app/minigames/shared/meshBuilders';
 import { randomRange } from '../helpers';
 import { CAUSTIC_LIGHT_COUNT } from '../types';
+import { getTerrainHeight } from './terrain';
+
+/**
+ * Baseline floor Y the hand-authored prop positions in this file were written
+ * against, back when the terrain was effectively a flat plane.
+ *
+ * Defect 11 gave the seafloor real relief (basins up to 1.8 units deep), so
+ * anything still pinned to this constant would hang in open water over a hollow.
+ * `floorOffset` converts an authored Y into one that rides the terrain.
+ */
+const AUTHORED_FLOOR_Y = -0.5;
+
+// Vertical shift needed at (x, z) to keep an authored-for-flat prop on the sand
+function floorOffset(x: number, z: number): number {
+  return getTerrainHeight(x, z) - AUTHORED_FLOOR_Y;
+}
 
 /**
  * Low-level mesh and light constructors for the underwater environment.
@@ -13,6 +29,19 @@ import { CAUSTIC_LIGHT_COUNT } from '../types';
 export interface CausticLight {
   mesh: Mesh;
   intensity: number;
+}
+
+/** Everything `buildCausticLights` creates, so teardown can free all of it. */
+export interface CausticBuild {
+  /** The moving emissive spheres, animated by `updateCausticLights`. */
+  lights: CausticLight[];
+  /**
+   * Static floor light patches, grouped so they can be disposed.
+   *
+   * These used to be loose `scene.add` calls with no handle kept anywhere, so
+   * they leaked their geometry and materials on every teardown.
+   */
+  patches: Group;
 }
 
 /**
@@ -133,8 +162,12 @@ export function buildOceanSurface(scene: Scene): Group {
     metalness: 0.15,
     roughness: 0.1,
     transparent: true,
-    opacity: 0.12,
+    // Defect 10: 0.12 opacity against a blue fog on a blue background meant the
+    // "ocean surface" was not visibly present at all. 0.45 reads as a ceiling of
+    // water without hiding the sky tint behind it.
+    opacity: 0.45,
     emissive: new Color(0.06, 0.15, 0.3),
+    emissiveIntensity: 0.6,
   });
   surfaceMat.name = 'water_surface_mat';
   const surface = new Mesh(surfaceGeo, surfaceMat);
@@ -142,23 +175,30 @@ export function buildOceanSurface(scene: Scene): Group {
   surface.raycast = () => {}; // Let taps pass through to the reef floor below
   parent.add(surface);
 
-  // Light rays from surface — translucent vertical planes
-  for (let ray = 0; ray < 6; ray++) {
-    const rayGeo = new PlaneGeometry(0.3, 3);
+  // Light rays from surface — translucent vertical planes, billboarded toward
+  // the camera every frame by updateGodRays (see environment/effects.ts).
+  //
+  // Defect 10: there were 6 of these, each a 0.3 x 3 plane at opacity 0.06,
+  // scattered over a 60x60 area with a fixed random Y rotation. A child would
+  // have to be looking at exactly the right spot from exactly the right angle to
+  // notice one. Now: 18 rays, 1.4 wide, 5.5 tall, opacity 0.3, spread over the
+  // ±48 the shark actually roams so there are always several in frame.
+  for (let ray = 0; ray < 18; ray++) {
+    const rayGeo = new PlaneGeometry(1.4, 5.5);
     const rayMat = new MeshStandardMaterial({
-      color: new Color(0.4, 0.7, 1.0),
-      emissive: new Color(0.2, 0.4, 0.6),
-      emissiveIntensity: 0.3,
+      color: new Color(0.6, 0.85, 1.0),
+      emissive: new Color(0.35, 0.6, 0.85),
+      emissiveIntensity: 0.9,
       transparent: true,
-      opacity: 0.06,
+      opacity: 0.3,
+      depthWrite: false, // Overlapping rays must not punch holes in each other
       side: 2, // DoubleSide
     });
     rayMat.name = `lightRayMat_${ray}`;
     const rayMesh = new Mesh(rayGeo, rayMat);
     rayMesh.name = `lightRay_${ray}`;
-    rayMesh.position.set(randomRange(-30, 30), -1.5, randomRange(-30, 30));
-    rayMesh.rotation.y = randomRange(0, Math.PI);
-    rayMesh.scale.set(1 + Math.random(), 1, 1);
+    rayMesh.position.set(randomRange(-48, 48), -2.2, randomRange(-48, 48));
+    rayMesh.scale.set(0.7 + Math.random() * 0.8, 1, 1);
     rayMesh.raycast = () => {}; // Don't intercept taps
     parent.add(rayMesh);
   }
@@ -405,6 +445,7 @@ export function buildAnemones(scene: Scene): Mesh[] {
 
   for (let a = 0; a < anemonePositions.length; a++) {
     const [ax, az] = anemonePositions[a];
+    const ay = floorOffset(ax, az);
     const color = anemoneColors[a];
     const aMat = createCoralMaterial(`anemoneMat_${a}`, color);
     const aTipMat = createCoralMaterial(`anemoneTipMat_${a}`, color.clone().add(new Color(0.2, 0.2, 0.2)));
@@ -413,7 +454,7 @@ export function buildAnemones(scene: Scene): Mesh[] {
     const baseGeo = new CylinderGeometry(0.2, 0.25, 0.12, 12);
     const base = new Mesh(baseGeo, aMat);
     base.name = `anemone_base_${a}`;
-    base.position.set(ax, -0.38, az);
+    base.position.set(ax, -0.38 + ay, az);
     scene.add(base);
     anemones.push(base);
 
@@ -426,7 +467,7 @@ export function buildAnemones(scene: Scene): Mesh[] {
       const tent = new Mesh(tentGeo, aMat);
       tent.name = `anemone_tent_${a}_${t}`;
       const radius = 0.1 + Math.random() * 0.08;
-      tent.position.set(ax + Math.cos(angle) * radius, tentacleH / 2 - 0.3, az + Math.sin(angle) * radius);
+      tent.position.set(ax + Math.cos(angle) * radius, tentacleH / 2 - 0.3 + ay, az + Math.sin(angle) * radius);
       tent.rotation.z = (Math.random() - 0.5) * 0.3;
       scene.add(tent);
       anemones.push(tent);
@@ -468,7 +509,8 @@ export function buildRocks(scene: Scene): Group[] {
 
   for (const [rx, ry, rz] of rockPositions) {
     const rock = buildDetailedRock(
-      new Vector3(rx, ry, rz),
+      // Sink slightly into the sand so the seam is hidden on a sloped basin wall
+      new Vector3(rx, ry + floorOffset(rx, rz) - 0.1, rz),
       0.6 + Math.random() * 0.5,
       new Color(0.3 + Math.random() * 0.1, 0.33 + Math.random() * 0.08, 0.35 + Math.random() * 0.1),
     );
@@ -487,20 +529,21 @@ export function buildRocks(scene: Scene): Group[] {
 export function buildTreasureChest(scene: Scene): Mesh {
   const chestX = 4.5;
   const chestZ = -4.5;
+  const chestY = floorOffset(chestX, chestZ);
 
   // Body
   const bodyGeo = new BoxGeometry(0.7, 0.4, 0.45);
   const woodMat = createMetalMaterial('treasureWoodMat', new Color(0.5, 0.3, 0.08));
   const body = new Mesh(bodyGeo, woodMat);
   body.name = 'treasure_chest';
-  body.position.set(chestX, -0.28, chestZ);
+  body.position.set(chestX, -0.28 + chestY, chestZ);
   scene.add(body);
 
   // Rounded lid (half cylinder)
   const lidGeo = new CylinderGeometry(0.225, 0.225, 0.7, 12, 1, false, 0, Math.PI);
   const lid = new Mesh(lidGeo, woodMat);
   lid.name = 'treasure_lid';
-  lid.position.set(chestX, -0.08, chestZ);
+  lid.position.set(chestX, -0.08 + chestY, chestZ);
   lid.rotation.z = Math.PI / 2;
   lid.rotation.y = Math.PI / 2;
   scene.add(lid);
@@ -511,7 +554,7 @@ export function buildTreasureChest(scene: Scene): Mesh {
     const bandGeo = new BoxGeometry(0.05, 0.42, 0.48);
     const band = new Mesh(bandGeo, bandMat);
     band.name = `treasure_band_${b}`;
-    band.position.set(chestX + (b - 1) * 0.25, -0.27, chestZ);
+    band.position.set(chestX + (b - 1) * 0.25, -0.27 + chestY, chestZ);
     scene.add(band);
   }
 
@@ -520,7 +563,7 @@ export function buildTreasureChest(scene: Scene): Mesh {
   const keyMat = createMetalMaterial('treasureKeyMat', new Color(0.7, 0.6, 0.1));
   const keyhole = new Mesh(keyGeo, keyMat);
   keyhole.name = 'treasure_keyhole';
-  keyhole.position.set(chestX, -0.15, chestZ + 0.23);
+  keyhole.position.set(chestX, -0.15 + chestY, chestZ + 0.23);
   keyhole.rotation.x = Math.PI / 2;
   scene.add(keyhole);
 
@@ -530,7 +573,7 @@ export function buildTreasureChest(scene: Scene): Mesh {
     const coinGeo = new CylinderGeometry(0.05, 0.05, 0.015, 10);
     const coin = new Mesh(coinGeo, coinMat);
     coin.name = `treasure_coin_${c}`;
-    coin.position.set(chestX + randomRange(-0.4, 0.4), -0.47 + Math.random() * 0.02, chestZ + randomRange(-0.3, 0.3));
+    coin.position.set(chestX + randomRange(-0.4, 0.4), -0.47 + chestY + Math.random() * 0.02, chestZ + randomRange(-0.3, 0.3));
     coin.rotation.x = Math.PI / 2 + randomRange(-0.3, 0.3);
     coin.rotation.z = Math.random() * Math.PI;
     scene.add(coin);
@@ -540,51 +583,69 @@ export function buildTreasureChest(scene: Scene): Mesh {
 }
 
 /**
- * Creates caustic-simulating emissive spheres for underwater light patterns.
+ * Creates caustic-simulating emissive spheres and static floor light patches.
  * @param scene - The Three.js scene.
- * @returns Array of caustic light objects.
+ * @returns The animated lights plus the disposable patch group.
  */
-export function buildCausticLights(scene: Scene): CausticLight[] {
+export function buildCausticLights(scene: Scene): CausticBuild {
   const causticLights: CausticLight[] = [];
   for (let i = 0; i < CAUSTIC_LIGHT_COUNT; i++) {
     const angle = (i / CAUSTIC_LIGHT_COUNT) * Math.PI * 2;
     const cx = Math.cos(angle) * 15;
     const cz = Math.sin(angle) * 15;
-    const geo = new SphereGeometry(0.25, 10, 10);
+    // Defect 10: 0.25-radius spheres at 0.2 emissive and 0.35 opacity, sitting
+    // 2 units above the sand. Bigger, brighter, and lower — they now read as
+    // pools of sunlight rather than faint dots. updateCausticLights drives their
+    // position (they orbit the shark) and pulses emissiveIntensity.
+    const geo = new SphereGeometry(0.55, 12, 12);
     const mat = new MeshStandardMaterial({
-      color: new Color(0.35, 0.65, 1.0),
-      emissive: new Color(0.3, 0.6, 1.0),
-      emissiveIntensity: 0.2,
+      color: new Color(0.55, 0.8, 1.0),
+      emissive: new Color(0.45, 0.75, 1.0),
+      emissiveIntensity: 0.55,
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.55,
+      depthWrite: false,
     });
     mat.name = `caustic_mat_${i}`;
     const mesh = new Mesh(geo, mat);
     mesh.name = `caustic_${i}`;
-    mesh.position.set(cx, 1.5, cz);
+    mesh.position.set(cx, 0.9, cz);
+    mesh.raycast = () => {}; // Purely decorative — must not swallow taps
     scene.add(mesh);
-    causticLights.push({ mesh, intensity: 0.2 });
+    causticLights.push({ mesh, intensity: 0.55 });
   }
 
-  // Extra floor caustic patches — flat bright spots on the sand
-  for (let i = 0; i < 6; i++) {
-    const patchGeo = new CircleGeometry(0.3 + Math.random() * 0.4, 12);
+  // Extra floor caustic patches — flat bright spots on the sand.
+  //
+  // Defect 10: 6 patches at 0.12 opacity over a ±25 area. These are static, so
+  // the only way a roaming child ever meets one is by covering the reef with
+  // them: 40 patches, wider, over the ±45 the shark actually swims.
+  const patches = new Group();
+  patches.name = 'caustic_patches';
+  for (let i = 0; i < 40; i++) {
+    const patchGeo = new CircleGeometry(0.6 + Math.random() * 0.9, 14);
     patchGeo.rotateX(-Math.PI / 2);
     const patchMat = new MeshStandardMaterial({
-      color: new Color(0.4, 0.65, 0.85),
-      emissive: new Color(0.3, 0.5, 0.7),
-      emissiveIntensity: 0.1,
+      color: new Color(0.65, 0.85, 1.0),
+      emissive: new Color(0.5, 0.75, 0.95),
+      emissiveIntensity: 0.5,
       transparent: true,
-      opacity: 0.12,
+      opacity: 0.4,
+      depthWrite: false,
     });
     patchMat.name = `caustic_patch_mat_${i}`;
     const patch = new Mesh(patchGeo, patchMat);
     patch.name = `caustic_patch_${i}`;
-    patch.position.set(randomRange(-25, 25), -0.48, randomRange(-25, 25));
-    scene.add(patch);
+    const px = randomRange(-45, 45);
+    const pz = randomRange(-45, 45);
+    // Ride the terrain (defect 11) or these vanish inside every basin wall
+    patch.position.set(px, -0.48 + floorOffset(px, pz) + 0.04, pz);
+    patch.raycast = () => {}; // Purely decorative — must not swallow taps
+    patches.add(patch);
   }
+  scene.add(patches);
 
-  return causticLights;
+  return { lights: causticLights, patches };
 }
 
 /**

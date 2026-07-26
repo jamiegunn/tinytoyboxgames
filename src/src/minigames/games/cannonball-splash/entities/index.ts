@@ -1,6 +1,6 @@
-export { createTargetByKind, updateSpecialTargetVisuals, getTargetColor, collectTargetMeshes } from './targets';
-export { createCannonballMesh, createCannonballShadow, updateCannonball, createTrailParticle } from './cannonball';
-export { aimCannon, fireCannonAnimation, updateCannonIdle, getCannonMouthPosition } from './cannon';
+export { createTargetByKind, updateSpecialTargetVisuals, getTargetColor, collectTargetMeshes, disposeTargetMaterials } from './targets';
+export { createCannonballMesh, createCannonballShadow, updateCannonball, disposeCannonballMaterials } from './cannonball';
+export { aimCannon, aimCannonAlong, fireCannonAnimation, updateCannonIdle, getCannonMouthPosition } from './cannon';
 export {
   spawnTargetExplosion,
   spawnWaterSplash,
@@ -14,5 +14,6 @@ export {
   updateParticles,
   updateFragments,
   updateCoins,
+  disposeEffectMaterials,
 } from './effects';
 export { spawnTarget, recycleTarget, spawnCannonball, recycleCannonball, getAllTargetMeshes } from './lifecycle';

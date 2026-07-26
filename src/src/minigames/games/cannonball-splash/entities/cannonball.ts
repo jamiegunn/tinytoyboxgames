@@ -2,9 +2,9 @@
  * Cannonball projectile for Cannonball Splash.
  */
 
-import { CircleGeometry, Color, Mesh, MeshStandardMaterial, SphereGeometry } from 'three';
+import { CircleGeometry, Color, Mesh, MeshStandardMaterial, SphereGeometry, Vector3 } from 'three';
 import type { Cannonball } from '../types';
-import { computeArcPosition } from '../helpers';
+import { ballisticPosition } from '../helpers';
 
 const cannonballMat = new MeshStandardMaterial({
   color: new Color(0.1, 0.1, 0.12),
@@ -21,14 +21,6 @@ const shadowMat = new MeshStandardMaterial({
   roughness: 1,
 });
 shadowMat.name = 'cannonball_shadow';
-
-const trailMat = new MeshStandardMaterial({
-  color: new Color(0.4, 0.4, 0.4),
-  transparent: true,
-  opacity: 0.3,
-  roughness: 0.8,
-});
-trailMat.name = 'trail_smoke';
 
 /**
  * Creates a cannonball mesh (poolable).
@@ -54,18 +46,21 @@ export function createCannonballShadow(): Mesh {
   return mesh;
 }
 
+const positionScratch = new Vector3();
+
+/** Water level the ball splashes into. */
+const WATER_Y = 0;
+
 /**
- * Updates a cannonball's position along its arc.
- * Returns true when the flight is complete (t >= 1).
+ * Advances a cannonball along its ballistic trajectory.
  * @param ball - The in-flight cannonball to advance.
  * @param dt - Frame delta time in seconds.
- * @returns True once the ball has reached the end of its arc.
+ * @returns True once the ball has reached the water.
  */
 export function updateCannonball(ball: Cannonball, dt: number): boolean {
   ball.elapsed += dt;
-  const t = Math.min(ball.elapsed / ball.flightDuration, 1);
 
-  const pos = computeArcPosition(ball.startPos, ball.endPos, ball.arcHeight, t);
+  const pos = ballisticPosition(ball.startPos, ball.velocity, ball.elapsed, positionScratch);
   ball.mesh.position.copy(pos);
 
   // Update shadow — project onto water surface, scale inversely with height
@@ -81,16 +76,17 @@ export function updateCannonball(ball: Cannonball, dt: number): boolean {
   ball.mesh.rotation.x += 6 * dt;
   ball.mesh.rotation.z += 3 * dt;
 
-  return t >= 1;
+  // The velocity was solved so that y(flightDuration) = WATER_Y; either test
+  // alone would do, and together they also cover a shot fired nearly straight up.
+  return ball.elapsed >= ball.flightDuration || pos.y <= WATER_Y;
 }
 
 /**
- * Creates a trail particle mesh (poolable).
- * @returns A hidden smoke-puff sphere mesh with its own cloned material.
+ * Disposes the module-level cannonball materials. Call once, at teardown —
+ * these are shared by every ball, so a per-instance dispose would leave later
+ * balls rendering against freed GPU resources.
  */
-export function createTrailParticle(): Mesh {
-  const mesh = new Mesh(new SphereGeometry(0.05, 4, 3), trailMat.clone());
-  mesh.name = 'cs_trail';
-  mesh.visible = false;
-  return mesh;
+export function disposeCannonballMaterials(): void {
+  cannonballMat.dispose();
+  shadowMat.dispose();
 }

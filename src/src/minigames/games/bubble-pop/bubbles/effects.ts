@@ -2,7 +2,7 @@ import { Scene, Color, Vector3, type ShaderMaterial } from 'three';
 import { getParticleEngine } from '@app/utils/particles/registry';
 import { PARTICLES } from '@app/utils/particles/presets';
 import type { BubbleState } from '../types';
-import { SIZE_VARIANTS, GIANT_SCALE, WOBBLE_AMPLITUDE, SPAWN_ANIM_DURATION, SWAY_AMPLITUDE, SWAY_FREQUENCY, BUBBLE_COLORS, GOLDEN_COLOR } from '../types';
+import { SIZE_EASE_RATE, GIANT_SCALE, WOBBLE_AMPLITUDE, SPAWN_ANIM_DURATION, SWAY_AMPLITUDE, SWAY_FREQUENCY, BUBBLE_COLORS, GOLDEN_COLOR } from '../types';
 import { randomRange } from '../helpers';
 import { tmpVec3 } from '../tempPool';
 import { sampleFlowFieldInto, DEFAULT_FLOW_CONFIG, type FlowFieldConfig } from '../physics/flowField';
@@ -50,8 +50,17 @@ export function updateBubbleMotion(bubble: BubbleState, elapsedTime: number, del
 export function updateBubbleWobble(bubble: BubbleState, time: number, deltaTime: number): void {
   bubble.age += deltaTime;
 
+  // Ease the rendered radius toward its target. For every bubble but a freshly
+  // tapped giant the two already agree, so this costs one compare; for a
+  // tapped giant it turns the size step into a visible deflation.
+  if (bubble.displaySize !== bubble.targetSize) {
+    const step = SIZE_EASE_RATE * deltaTime;
+    const diff = bubble.targetSize - bubble.displaySize;
+    bubble.displaySize = Math.abs(diff) <= step ? bubble.targetSize : bubble.displaySize + Math.sign(diff) * step;
+  }
+
   const wobble = Math.sin(time * bubble.wobbleSpeed + bubble.wobblePhase) * WOBBLE_AMPLITUDE;
-  const baseScale = (SIZE_VARIANTS[bubble.sizeVariant] / 0.5) * (bubble.kind === 'giant' ? GIANT_SCALE : 1);
+  const baseScale = (bubble.displaySize / 0.5) * (bubble.kind === 'giant' ? GIANT_SCALE : 1);
 
   // Spawn animation: elastic ease-out from 0 to full size
   if (bubble.spawning) {
@@ -126,7 +135,9 @@ export function popBubbleEffect(scene: Scene, bubble: BubbleState, onComplete: (
   // Register for game-loop-driven animation
   activePops.push({ bubble, timer: 0, duration: POP_ANIM_DURATION, onComplete });
 
-  const sizeScale = SIZE_VARIANTS[bubble.sizeVariant] / 0.5;
+  // Size the burst off what is actually on screen, so a giant tapped down to
+  // its last size pops with a burst that matches the bubble the child sees.
+  const sizeScale = bubble.displaySize / 0.5;
   const burstScale = sizeScale * (bubble.kind === 'giant' ? GIANT_SCALE : 1);
   // Use tmpVec3 for the position copy (sparkle burst needs a stable ref so copy once)
   const popPos = tmpVec3(0).copy(bubble.mesh.position);

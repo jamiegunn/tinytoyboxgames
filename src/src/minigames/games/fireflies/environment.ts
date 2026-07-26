@@ -34,12 +34,20 @@ export interface EnvironmentResult {
   jarMaterial: MeshStandardMaterial;
   moonMesh: Mesh;
   moonMaterial: MeshStandardMaterial;
+  /** Saturn group (planet + ring) — tappable and slowly spinning. */
+  saturnGroup: Group;
+  /** Saturn's ring mesh, spun independently of the planet. */
+  saturnRing: Mesh;
   /** Star field points for twinkling animation. */
   starField: Points;
   starSizes: Float32Array;
   starPhases: Float32Array;
   /** Flower root meshes for traversal by illumination controller. */
   flowerMeshes: Object3D[];
+  /** Tree roots, for idle breeze sway. */
+  treeMeshes: Object3D[];
+  /** Grass tuft roots, for idle breeze sway. */
+  grassMeshes: Object3D[];
   environmentMeshes: Object3D[];
   allMaterials: MeshStandardMaterial[];
 }
@@ -53,10 +61,28 @@ export function createEnvironment(scene: Scene): EnvironmentResult {
   const environmentMeshes: Object3D[] = [];
   const allMaterials: MeshStandardMaterial[] = [];
 
-  // Night sky gradient backdrop
-  const skyMesh = buildSkyGradient(new Color(0.02, 0.02, 0.08), new Color(0.08, 0.12, 0.2), 30);
+  // Night sky gradient backdrop.
+  //
+  // buildSkyGradient authors every strip at local z = +size/2 (it expects to be
+  // parented at the far wall of a box). With the group parked at z=-10 that put
+  // all four strips at world z=+5 — the exact position of the default shell
+  // camera at (0,2,5), i.e. clipped by the near plane and facing away. The sky
+  // was never on screen at all. Flatten the strips onto the group's own plane,
+  // then park the group behind everything else in the scene (stars reach
+  // z=-12, moon and Saturn sit at z=-9).
+  //
+  // The group is squashed vertically because the builder always makes a
+  // size x size sheet: 60 wide is what it takes to fill an ultrawide viewport
+  // at this distance, but 60 tall would push three of the four gradient bands
+  // off screen. Squashing to ~13 units tall lands three bands inside the
+  // visible sliver of sky above the horizon.
+  const skyMesh = buildSkyGradient(new Color(0.02, 0.02, 0.08), new Color(0.08, 0.12, 0.2), 60);
+  for (const strip of skyMesh.children) {
+    strip.position.z = 0;
+  }
+  skyMesh.scale.set(1, 0.22, 1);
+  skyMesh.position.set(0, 3, -14);
   scene.add(skyMesh);
-  skyMesh.position.set(0, 4, -10);
 
   // Ground plane with rounded back corners
   const groundShape = new Shape();
@@ -109,10 +135,15 @@ export function createEnvironment(scene: Scene): EnvironmentResult {
     side: DoubleSide,
     emissive: new Color(0.16, 0.22, 0.28),
   });
+  // Glass must not write depth: it is transparent and sits at almost exactly
+  // the same distance as the glowing fill dots inside it, so with depthWrite on
+  // the front wall silently discarded roughly half the swarm.
+  jarMaterial.depthWrite = false;
   const jarBody = new Mesh(jarBodyGeo, jarMaterial);
   jarBody.name = 'nature_jar_body';
   jarBody.position.set(JAR_POS.x, JAR_POS.y, JAR_POS.z);
   jarBody.scale.setScalar(JAR_SCALE);
+  jarBody.renderOrder = 1;
   scene.add(jarBody);
   allMaterials.push(jarMaterial);
 
@@ -127,11 +158,13 @@ export function createEnvironment(scene: Scene): EnvironmentResult {
   allMaterials.push(capMat);
 
   // Detailed storybook trees as backdrop (dark canopies for nighttime)
+  const treeMeshes: Object3D[] = [];
   const treePositions = [new Vector3(4, 0, -4), new Vector3(6, 0, -3), new Vector3(-5, 0, -5)];
   for (const treePos of treePositions) {
     const tree = buildDetailedTree(treePos, 3.0, new Color(0.25, 0.4, 0.18));
     scene.add(tree);
     environmentMeshes.push(tree);
+    treeMeshes.push(tree);
   }
 
   // Grass tufts scattered across the meadow
@@ -145,10 +178,12 @@ export function createEnvironment(scene: Scene): EnvironmentResult {
     new Vector3(5, 0, 0),
     new Vector3(-6, 0, -1),
   ];
+  const grassMeshes: Object3D[] = [];
   for (const gp of grassPositions) {
     const tuft = buildGrassTuft(gp, new Color(0.3, 0.6, 0.2));
     scene.add(tuft);
     environmentMeshes.push(tuft);
+    grassMeshes.push(tuft);
   }
 
   // Wildflowers dotted among the grass
@@ -158,10 +193,17 @@ export function createEnvironment(scene: Scene): EnvironmentResult {
     { pos: new Vector3(3.5, 0, 1.5), color: new Color(0.95, 0.75, 0.2) },
     { pos: new Vector3(-3.5, 0, -1.2), color: new Color(0.4, 0.6, 0.95) },
   ];
+  // Collected by reference as they are built. The old code recovered them
+  // afterwards with `environmentMeshes.length - flowerCount`, but Saturn was
+  // pushed onto the same array in between, so the slice was off by one and
+  // handed the game flowers 2, 3, 4 and *Saturn* — a planet then swayed in the
+  // breeze and lit up when a firefly flew past it.
+  const flowerMeshes: Object3D[] = [];
   for (const fc of flowerConfigs) {
     const flower = buildDetailedFlower(fc.pos, fc.color, 0.35);
     scene.add(flower);
     environmentMeshes.push(flower);
+    flowerMeshes.push(flower);
   }
 
   // Star field — scattered across the sky backdrop
@@ -222,8 +264,9 @@ export function createEnvironment(scene: Scene): EnvironmentResult {
   allMaterials.push(moonMat);
 
   // Saturn — above and offset from the front-left tree (-5, 0, -5)
+  const saturn = new Group();
+  let saturnRing: Mesh;
   {
-    const saturn = new Group();
     saturn.name = 'nature_saturn';
 
     // Planet body — muted golden, not too bright
@@ -250,24 +293,21 @@ export function createEnvironment(scene: Scene): EnvironmentResult {
       roughness: 0.6,
     });
     const ringMesh = new Mesh(ringGeo, ringMat);
+    ringMesh.name = 'nature_saturn_ring';
     ringMesh.rotation.x = -Math.PI * 0.35;
     ringMesh.rotation.z = 0.15;
     saturn.add(ringMesh);
     allMaterials.push(ringMat);
+    saturnRing = ringMesh;
 
-    // Place in the gap between the left tree (-5) and right trees (4,6), above treeline
-    saturn.position.set(-10.5, 3.2, -9);
+    // Place in the gap between the left tree (-5) and right trees (4,6), above
+    // the treeline. This is what the comment always claimed, but the position
+    // was x=-10.5 — from the fixed camera at (0,2,5) with a 60 deg fov that is
+    // outside the frustum at any aspect narrower than ~2.6:1, so on a phone or
+    // tablet Saturn was simply never on screen (and so could never be tapped).
+    saturn.position.set(-3.2, 3.6, -9);
     scene.add(saturn);
     environmentMeshes.push(saturn);
-  }
-
-  // Collect flower meshes separately for illumination control.
-  // Flowers are the last N entries added to environmentMeshes.
-  const flowerMeshes: Object3D[] = [];
-  const flowerCount = flowerConfigs.length;
-  const flowerStart = environmentMeshes.length - flowerCount;
-  for (let i = flowerStart; i < environmentMeshes.length; i++) {
-    flowerMeshes.push(environmentMeshes[i]);
   }
 
   return {
@@ -279,10 +319,14 @@ export function createEnvironment(scene: Scene): EnvironmentResult {
     jarMaterial,
     moonMesh,
     moonMaterial: moonMat,
+    saturnGroup: saturn,
+    saturnRing,
     starField,
     starSizes,
     starPhases,
     flowerMeshes,
+    treeMeshes,
+    grassMeshes,
     environmentMeshes,
     allMaterials,
   };

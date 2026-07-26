@@ -18,6 +18,8 @@ import { buildCoral, buildPlant, type CoralType, type PlantType } from './coralF
 export interface SceneEnvironment {
   lights: GameLights;
   causticLights: CausticLight[];
+  /** Static floor light patches, kept only so teardown can dispose them. */
+  causticPatches: Object3D;
   reefFloor: Mesh;
   waterSurface: Object3D;
   corals: Object3D[];
@@ -102,11 +104,12 @@ export function setupScene(scene: Scene, scope: DisposalScope): SceneEnvironment
   const anemones = buildAnemones(scene);
   const rocks = buildRocks(scene);
   const treasureChest = buildTreasureChest(scene);
-  const causticLights = buildCausticLights(scene);
+  const { lights: causticLights, patches: causticPatches } = buildCausticLights(scene);
 
   return {
     lights,
     causticLights,
+    causticPatches,
     reefFloor,
     waterSurface,
     corals,
@@ -122,6 +125,9 @@ export function setupScene(scene: Scene, scope: DisposalScope): SceneEnvironment
  * @param env - The scene environment to tear down.
  */
 export function teardownScene(env: SceneEnvironment): void {
+  // Dispose the static floor caustic patches, which used to leak entirely
+  disposeMeshDeep(env.causticPatches);
+
   // Dispose caustic lights
   for (const cl of env.causticLights) {
     cl.mesh.geometry?.dispose();

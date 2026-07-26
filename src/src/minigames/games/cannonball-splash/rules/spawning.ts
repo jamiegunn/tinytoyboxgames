@@ -3,6 +3,7 @@
  */
 
 import { Vector3 } from 'three';
+import type { DifficultyThresholds } from '../../../framework/types';
 import { C, type TargetKind } from '../types';
 import { getSpawnCapacity, getSpawnInterval, randomRange, selectTargetKind, randomDriftVector } from '../helpers';
 
@@ -21,13 +22,17 @@ export function pickSpawnPosition(): { position: Vector3; side: 'left' | 'right'
 }
 
 /**
- * Determines whether a special target should be spawned.
- * @param difficulty - Normalized difficulty in [0, 1].
- * @returns True once difficulty reaches 0.3 (timing is handled by the scheduler).
+ * Determines whether a special target may be spawned.
+ *
+ * The unlock used to be a local GOLDEN_UNLOCK constant of 150 points, which had
+ * drifted out of step with the manifest's specialItemScore of 180 — two numbers
+ * claiming to be the same rule. The framework derives this flag from the
+ * manifest, so the manifest is the single source of truth.
+ * @param thresholds - The difficulty controller's current thresholds.
+ * @returns True once specials are unlocked (timing is handled by the scheduler).
  */
-export function shouldSpawnSpecial(difficulty: number): boolean {
-  if (difficulty < 0.3) return false;
-  return true; // The special spawn scheduler handles timing
+export function shouldSpawnSpecial(thresholds: DifficultyThresholds): boolean {
+  return thresholds.specialItemsUnlocked;
 }
 
 /**

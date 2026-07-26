@@ -29,9 +29,38 @@ export interface SharkMoveState {
   driftCenterZ: number;
   /** Rest timer — shark stays put after arriving at a lunge destination. */
   restTimer: number;
+  /** Remaining time the shark may stand still turning before it must start moving. */
+  rotateHold: number;
 
   /** @deprecated Use swimPhase !== 'idle' instead. Kept for animation compatibility. */
   isLunging: boolean;
+}
+
+// ── Turn rates ──────────────────────────────────────────────────────
+//
+// Defect 6: turning used to be instant during hunt (index.ts snapped rotY),
+// 1.052 rad/s when idle or dragged, and 7.854 rad/s during the lunge rotate
+// phase — a 7.5x spread that made the shark read as three different animals.
+// One creature, two gears: a relaxed cruise turn and a committed chase turn.
+
+/** Turn rate while cruising, drifting, or following a finger (radians/second). */
+export const TURN_RATE_CRUISE = Math.PI * 1.2;
+
+/** Turn rate while hunting or lunging — committed, but still the same animal. */
+export const TURN_RATE_HUNT = Math.PI * 2.0;
+
+/**
+ * Rotates an angle toward a target at a bounded rate, taking the short way round.
+ * @param current - Current angle in radians.
+ * @param targetAngle - Desired angle in radians.
+ * @param rate - Maximum turn rate in radians per second.
+ * @param dt - Frame delta time in seconds.
+ * @returns The new angle in radians.
+ */
+export function steerTowardAngle(current: number, targetAngle: number, rate: number, dt: number): number {
+  const maxRot = rate * dt;
+  const angleDiff = clamp(wrapAngle(targetAngle - current), -maxRot, maxRot);
+  return current + angleDiff;
 }
 
 /**
@@ -56,18 +85,45 @@ export function createSharkMoveState(): SharkMoveState {
     driftCenterX: 0,
     driftCenterZ: 0,
     restTimer: 0,
+    rotateHold: 0,
     isLunging: false,
   };
 }
 
+// ── Drag feel ───────────────────────────────────────────────────────
+//
+// Defect 7: the drag spring was stiffness 4.0 critically damped, which takes
+// 1.5–2s to settle — the shark lagged so far behind the finger that dragging
+// felt disconnected. 60 rad^2/s^2 with a slightly under-damped ratio gives a
+// ~0.14s time constant, so the shark sits under the fingertip and still banks.
+
+/** Spring stiffness for finger-follow. */
+const DRAG_STIFFNESS = 60.0;
+
+/** Damping ratio just under 1 — a hint of overshoot reads as a living animal. */
+const DRAG_DAMPING_RATIO = 0.9;
+
+/** Spring damping coefficient for finger-follow. */
+const DRAG_DAMPING = 2.0 * DRAG_DAMPING_RATIO * Math.sqrt(DRAG_STIFFNESS);
+
+/** Velocity multiplier applied on release so the shark coasts out of a drag. */
+const DRAG_RELEASE_BOOST = 1.35;
+
+/** Upper bound on release speed so a fast flick cannot rocket the shark away. */
+const DRAG_RELEASE_MAX_SPEED = 9.0;
+
+/** How far ahead of the release point the idle drift re-anchors (seconds of glide). */
+const DRAG_RELEASE_GLIDE_TIME = 0.4;
+
 /**
- * Spring-damped follower when dragged. Critically damped for smooth feel.
+ * Spring-damped follower when dragged. Slightly under-damped so the shark
+ * tracks the finger closely instead of trailing it.
  * @param state - Shark movement state.
  * @param dt - Frame delta time.
  */
 export function updateSpringFollow(state: SharkMoveState, dt: number): void {
-  const stiffness = 4.0;
-  const damping = 2.0 * Math.sqrt(stiffness);
+  const stiffness = DRAG_STIFFNESS;
+  const damping = DRAG_DAMPING;
   const dx = state.targetX - state.posX;
   const dz = state.targetZ - state.posZ;
   const ax = stiffness * dx - damping * state.velX;
@@ -78,6 +134,34 @@ export function updateSpringFollow(state: SharkMoveState, dt: number): void {
   state.posZ += state.velZ * dt;
   state.posX = clamp(state.posX, -BOUNDS, BOUNDS);
   state.posZ = clamp(state.posZ, -BOUNDS, BOUNDS);
+}
+
+/**
+ * Ends a drag, carrying the finger's momentum into a short glide.
+ *
+ * Defect 7: `onDragEnd` used to only clear `isBeingDragged`, so the shark
+ * stopped dead the instant the finger lifted. Now the release keeps (and
+ * slightly amplifies) the drag velocity and re-anchors the idle drift ahead
+ * of the shark, so letting go reads as "and… glide" instead of a hard stop.
+ *
+ * @param state - Shark movement state.
+ */
+export function releaseDrag(state: SharkMoveState): void {
+  state.isBeingDragged = false;
+
+  const speed = Math.sqrt(state.velX * state.velX + state.velZ * state.velZ);
+  if (speed > 0.1) {
+    const boosted = Math.min(speed * DRAG_RELEASE_BOOST, DRAG_RELEASE_MAX_SPEED);
+    const scale = boosted / speed;
+    state.velX *= scale;
+    state.velZ *= scale;
+  }
+
+  // Anchor the figure-eight where the glide will end, not where the finger was.
+  state.driftCenterX = clamp(state.posX + state.velX * DRAG_RELEASE_GLIDE_TIME, -BOUNDS, BOUNDS);
+  state.driftCenterZ = clamp(state.posZ + state.velZ * DRAG_RELEASE_GLIDE_TIME, -BOUNDS, BOUNDS);
+  // A release is the child asking for motion — never answer it with a rest.
+  state.restTimer = 0;
 }
 
 /**
@@ -156,13 +240,26 @@ export function startLunge(state: SharkMoveState, toX: number, toZ: number, maxD
   state.targetX = toX;
   state.targetZ = toZ;
   state.swimPhase = 'rotating';
+  state.rotateHold = ROTATE_MAX_HOLD;
   state.isLunging = true;
 
   state.swimSpeed = Math.max(dist / 0.6, 3.0);
 }
 
-/** Rotation speed during active turning toward a target (radians/sec). */
-const TURN_SPEED = Math.PI * 2.5;
+/**
+ * Angular error (radians) at which the shark stops turning in place and starts
+ * swimming — it finishes the turn while already under way.
+ */
+const ROTATE_RELEASE = 0.7;
+
+/**
+ * Hard cap on standing-still turn time (seconds).
+ *
+ * Defect 1: the rotate phase used to block all translation until the shark was
+ * perfectly aligned, adding up to ~0.4s of dead air to every water tap. Now a
+ * tap always produces motion within 0.1s, worst case.
+ */
+const ROTATE_MAX_HOLD = 0.1;
 
 /**
  * Updates the rotate-then-swim sequence each frame.
@@ -179,15 +276,12 @@ export function updateSwim(state: SharkMoveState, dt: number): boolean {
   const targetAngle = Math.atan2(-dz, dx);
 
   if (state.swimPhase === 'rotating') {
-    let angleDiff = wrapAngle(targetAngle - state.rotY);
-    const maxRot = TURN_SPEED * dt;
-
-    if (Math.abs(angleDiff) <= maxRot) {
-      state.rotY += angleDiff;
+    state.rotY = steerTowardAngle(state.rotY, targetAngle, TURN_RATE_HUNT, dt);
+    state.rotateHold -= dt;
+    // Release into the swim as soon as we are roughly pointed the right way,
+    // or when the hold expires — whichever comes first (see ROTATE_MAX_HOLD).
+    if (Math.abs(wrapAngle(targetAngle - state.rotY)) <= ROTATE_RELEASE || state.rotateHold <= 0) {
       state.swimPhase = 'swimming';
-    } else {
-      angleDiff = clamp(angleDiff, -maxRot, maxRot);
-      state.rotY += angleDiff;
     }
     return true;
   }
@@ -203,10 +297,13 @@ export function updateSwim(state: SharkMoveState, dt: number): boolean {
       state.velZ = 0;
       state.swimPhase = 'idle';
       state.isLunging = false;
-      // Anchor idle drift around the arrival point and rest briefly
+      // Anchor idle drift around the arrival point and rest briefly.
+      // Defect 1: this used to be 2.5s. A 3-year-old taps again long before
+      // that, and the shark reads as ignoring them. A quarter second is just
+      // enough to punctuate the arrival.
       state.driftCenterX = state.posX;
       state.driftCenterZ = state.posZ;
-      state.restTimer = 2.5;
+      state.restTimer = 0.25;
       return false;
     }
 
@@ -223,7 +320,10 @@ export function updateSwim(state: SharkMoveState, dt: number): boolean {
     const newDx = state.swimDestX - state.posX;
     const newDz = state.swimDestZ - state.posZ;
     if (Math.abs(newDx) > 0.01 || Math.abs(newDz) > 0.01) {
-      state.rotY = Math.atan2(-newDz, newDx);
+      // Defect 6: this used to snap rotY straight to the travel angle. Steer at
+      // the shared hunt rate so the tail-end of the turn is continuous with the
+      // rotate phase that preceded it.
+      state.rotY = steerTowardAngle(state.rotY, Math.atan2(-newDz, newDx), TURN_RATE_HUNT, dt);
     }
 
     return true;
@@ -255,10 +355,9 @@ export function updateRotation(state: SharkMoveState, dt: number): void {
     }
   }
 
-  let angleDiff = wrapAngle(targetAngle - state.rotY);
-  const maxRot = Math.PI * 0.335 * dt;
-  angleDiff = clamp(angleDiff, -maxRot, maxRot);
-  state.rotY += angleDiff;
+  // Defect 6: was Math.PI * 0.335 (1.052 rad/s), 7.5x slower than the lunge
+  // turn. Cruise and hunt now share one scheme (see TURN_RATE_CRUISE).
+  state.rotY = steerTowardAngle(state.rotY, targetAngle, TURN_RATE_CRUISE, dt);
 }
 
 /**

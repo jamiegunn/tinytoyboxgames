@@ -18,6 +18,35 @@ import { clamp } from '../helpers';
  * what they ARE (lifecycle.ts) or how game rules decide what happens (orchestrator).
  */
 
+// ── Difficulty-scaled evasion (defect 3) ────────────────────────────
+//
+// Every one of these used to be a hard-coded constant, so a child on their
+// fortieth catch met exactly the same fish as on their first. They now
+// interpolate on the 0–1 evasiveness from `getFishEvasiveness`.
+
+/** Startle radius at evasiveness 0 → 1 (world units). */
+const STARTLE_RADIUS_MIN = 1.5;
+const STARTLE_RADIUS_MAX = 3.0;
+
+/** Drift speed multiplier applied while startled, at evasiveness 0 → 1. */
+const STARTLE_BOOST_MIN = 1.3;
+const STARTLE_BOOST_MAX = 2.2;
+
+/** Golden fish dodge trigger radius at evasiveness 0 → 1 (world units). */
+const DODGE_RADIUS_MIN = 2.0;
+const DODGE_RADIUS_MAX = 3.5;
+
+/** Extra golden dodges granted at maximum evasiveness. */
+const DODGE_BONUS_MAX = 2;
+
+/** Fraction of the dodge cooldown removed at maximum evasiveness. */
+const DODGE_COOLDOWN_CUT = 0.5;
+
+// Linear interpolation helper for the evasion bands above
+function mix(min: number, max: number, t: number): number {
+  return min + (max - min) * t;
+}
+
 /**
  * Updates a fish's drift movement using sine/cosine phase oscillation.
  * Includes gentle startle when shark is nearby.
@@ -26,9 +55,10 @@ import { clamp } from '../helpers';
  * @param speedMultiplier - Difficulty-driven speed multiplier.
  * @param sharkPosX - Shark X position for startle check.
  * @param sharkPosZ - Shark Z position for startle check.
+ * @param evasiveness - Difficulty-driven evasion strength in [0, 1]. Defaults to 0.
  * @returns void
  */
-export function updateFishDrift(fish: FishState, dt: number, speedMultiplier: number, sharkPosX?: number, sharkPosZ?: number): void {
+export function updateFishDrift(fish: FishState, dt: number, speedMultiplier: number, sharkPosX?: number, sharkPosZ?: number, evasiveness = 0): void {
   // Tired golden fish drifts slower
   let effectiveMultiplier = speedMultiplier;
   if (fish.kind === 'golden' && fish.dodgeCount >= GOLDEN_MAX_DODGES) {
@@ -47,9 +77,10 @@ export function updateFishDrift(fish: FishState, dt: number, speedMultiplier: nu
     const sdx = fish.root.position.x - sharkPosX;
     const sdz = fish.root.position.z - sharkPosZ;
     const sharkDist = Math.sqrt(sdx * sdx + sdz * sdz);
-    if (sharkDist < 1.5) {
-      effectiveSpeed *= 1.3;
-      if (sharkDist < 1.0) {
+    const startleRadius = mix(STARTLE_RADIUS_MIN, STARTLE_RADIUS_MAX, evasiveness);
+    if (sharkDist < startleRadius) {
+      effectiveSpeed *= mix(STARTLE_BOOST_MIN, STARTLE_BOOST_MAX, evasiveness);
+      if (sharkDist < startleRadius * 0.67) {
         fish.driftPhaseX += (Math.random() - 0.5) * 0.3;
         fish.driftPhaseZ += (Math.random() - 0.5) * 0.3;
       }
@@ -66,8 +97,9 @@ export function updateFishDrift(fish: FishState, dt: number, speedMultiplier: nu
  * @param sharkPosX - Shark X position.
  * @param sharkPosZ - Shark Z position.
  * @param dt - Frame delta time.
+ * @param evasiveness - Difficulty-driven evasion strength in [0, 1]. Defaults to 0.
  */
-export function updateGoldenDodge(fish: FishState, sharkPosX: number, sharkPosZ: number, dt: number): void {
+export function updateGoldenDodge(fish: FishState, sharkPosX: number, sharkPosZ: number, dt: number, evasiveness = 0): void {
   if (!fish.active || fish.kind !== 'golden') return;
 
   if (fish.dodgeCooldown > 0) {
@@ -75,13 +107,14 @@ export function updateGoldenDodge(fish: FishState, sharkPosX: number, sharkPosZ:
     return;
   }
 
-  if (fish.dodgeCount >= GOLDEN_MAX_DODGES) return;
+  const maxDodges = GOLDEN_MAX_DODGES + Math.round(DODGE_BONUS_MAX * evasiveness);
+  if (fish.dodgeCount >= maxDodges) return;
 
   const dx = fish.root.position.x - sharkPosX;
   const dz = fish.root.position.z - sharkPosZ;
   const dist = Math.sqrt(dx * dx + dz * dz);
 
-  if (dist < 2.0 && dist > 0.01 && !fish.isTargeted) {
+  if (dist < mix(DODGE_RADIUS_MIN, DODGE_RADIUS_MAX, evasiveness) && dist > 0.01 && !fish.isTargeted) {
     // Dodge perpendicular to approach vector
     const perpX = -dz / dist;
     const perpZ = dx / dist;
@@ -94,7 +127,7 @@ export function updateGoldenDodge(fish: FishState, sharkPosX: number, sharkPosZ:
     fish.root.position.z = clamp(fish.root.position.z, -BOUNDS, BOUNDS);
 
     fish.dodgeCount++;
-    fish.dodgeCooldown = GOLDEN_DODGE_COOLDOWN;
+    fish.dodgeCooldown = GOLDEN_DODGE_COOLDOWN * (1 - DODGE_COOLDOWN_CUT * evasiveness);
 
     fish.driftCenterX = fish.root.position.x;
     fish.driftCenterZ = fish.root.position.z;

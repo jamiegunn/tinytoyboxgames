@@ -1,7 +1,24 @@
 import { Scene, Color, Vector3, Mesh, PlaneGeometry, MeshBasicMaterial, SphereGeometry, DoubleSide, type Object3D, type MeshStandardMaterial } from 'three';
 import { getParticleEngine } from '@app/utils/particles/registry';
 import { PARTICLES } from '@app/utils/particles/presets';
-import type { SceneEnvironment } from './environment';
+import { getTerrainHeight, type SceneEnvironment } from './environment';
+
+/**
+ * Serendipitous ambient events.
+ *
+ * Defect 9: every one of these used to play at hard-coded world coordinates
+ * within a few units of the origin — the whale shadow swept x = -8 to +8, the
+ * fish parade crossed from x = -9, the bubble column burst at exactly (0, 0, 0).
+ * The shark roams ±50 with a follow camera, so from about ten seconds into a
+ * session onward the child was being shown these events off-screen. Every
+ * surprise now anchors to the shark's position at the moment it fires.
+ */
+
+/** Half-width of the sweep a travelling surprise makes across its staging point. */
+const SURPRISE_SPAN = 9;
+
+/** Only offer the treasure sparkle when the chest is at least this close. */
+const TREASURE_VISIBLE_RANGE = 18;
 
 /**
  * Finds the first MeshStandardMaterial with an emissive property on an Object3D or its children.
@@ -43,6 +60,10 @@ export interface SurpriseState {
   surpriseStartTime: number;
   /** Scheduled sparkle burst times remaining for treasureSparkle. */
   sparkleBurstTimes: number[];
+  /** World X the active surprise is staged around — the shark when it fired. */
+  originX: number;
+  /** World Z the active surprise is staged around — the shark when it fired. */
+  originZ: number;
 }
 
 /**
@@ -60,6 +81,8 @@ export function createSurpriseState(): SurpriseState {
     paradeFish: [],
     surpriseStartTime: 0,
     sparkleBurstTimes: [],
+    originX: 0,
+    originZ: 0,
   };
 }
 
@@ -101,6 +124,12 @@ function cleanupParadeFish(state: SurpriseState, scene: Scene): void {
   state.paradeFish = [];
 }
 
+// Height for the whale shadow at (x, z) — hovers just clear of the seabed so it
+// does not z-fight or sink into the terrain relief added by defect 11
+function shadowY(x: number, z: number): number {
+  return getTerrainHeight(x, z) + 0.18;
+}
+
 /**
  * Starts the whale shadow surprise: a large dark ellipse sliding across the floor.
  *
@@ -119,7 +148,9 @@ function startWhaleShadow(state: SurpriseState, scene: Scene, elapsedTime: numbe
   });
   const shadow = new Mesh(geometry, material);
   shadow.rotation.x = -Math.PI / 2;
-  shadow.position.set(-8, -0.4, 0);
+  const startX = state.originX - SURPRISE_SPAN;
+  shadow.position.set(startX, shadowY(startX, state.originZ), state.originZ);
+  shadow.raycast = () => {}; // Decorative — must not intercept taps
   scene.add(shadow);
   state.whaleShadowMesh = shadow;
   state.activeSurprise = 'whaleShadow';
@@ -172,10 +203,11 @@ function startFishParade(state: SurpriseState, scene: Scene, elapsedTime: number
       opacity: 0.85,
     });
     const fish = new Mesh(geometry.clone(), material);
-    // Start off-screen left, spread vertically
+    // Start off-screen to the shark's left, spread vertically around its plane
     const yOffset = -1 + (i / 7) * 2;
-    fish.position.set(-9, yOffset, -2 + i * 0.3);
+    fish.position.set(state.originX - SURPRISE_SPAN, yOffset, state.originZ - 2 + i * 0.3);
     fish.scale.set(1.0, 0.6, 0.5);
+    fish.raycast = () => {}; // Decorative — must not be mistaken for a catchable fish
     scene.add(fish);
     state.paradeFish.push(fish);
   }
@@ -193,8 +225,10 @@ function startFishParade(state: SurpriseState, scene: Scene, elapsedTime: number
  * @param dt - Frame delta time.
  * @param env - Scene environment.
  * @param scene - The Three.js scene.
+ * @param sharkX - Current shark world X — surprises are staged around this.
+ * @param sharkZ - Current shark world Z — surprises are staged around this.
  */
-export function updateSurprises(state: SurpriseState, elapsedTime: number, dt: number, env: SceneEnvironment, scene: Scene): void {
+export function updateSurprises(state: SurpriseState, elapsedTime: number, dt: number, env: SceneEnvironment, scene: Scene, sharkX = 0, sharkZ = 0): void {
   // Handle active surprise
   if (state.activeSurprise) {
     state.surpriseTimer -= dt;
@@ -212,9 +246,11 @@ export function updateSurprises(state: SurpriseState, elapsedTime: number, dt: n
     }
 
     if (state.activeSurprise === 'whaleShadow' && state.whaleShadowMesh) {
-      // Move shadow from left to right over 4 seconds
+      // Sweep across the staging origin over 4 seconds
       const progress = 1 - state.surpriseTimer / 4.0;
-      state.whaleShadowMesh.position.x = -8 + progress * 16;
+      const x = state.originX - SURPRISE_SPAN + progress * SURPRISE_SPAN * 2;
+      state.whaleShadowMesh.position.x = x;
+      state.whaleShadowMesh.position.y = shadowY(x, state.originZ);
     }
 
     if (state.activeSurprise === 'treasureSparkle') {
@@ -238,7 +274,7 @@ export function updateSurprises(state: SurpriseState, elapsedTime: number, dt: n
       const localTime = elapsedTime - state.surpriseStartTime;
       for (let i = 0; i < state.paradeFish.length; i++) {
         const fish = state.paradeFish[i];
-        const xBase = -9 + progress * 18;
+        const xBase = state.originX - SURPRISE_SPAN + progress * SURPRISE_SPAN * 2;
         // Stagger each fish slightly
         const stagger = i * 0.6;
         fish.position.x = xBase + stagger;
@@ -279,12 +315,25 @@ export function updateSurprises(state: SurpriseState, elapsedTime: number, dt: n
   state.nextSurpriseTime -= dt;
   if (state.nextSurpriseTime > 0) return;
 
-  // Trigger a random surprise from all 5 types
-  const kind = ALL_SURPRISE_TYPES[Math.floor(Math.random() * ALL_SURPRISE_TYPES.length)];
+  // Stage everything that follows around wherever the shark is right now
+  state.originX = sharkX;
+  state.originZ = sharkZ;
+
+  // The treasure chest is a fixed landmark, so its sparkle is the one surprise
+  // that cannot be moved. Offer it only when the child is close enough to see
+  // the chest; otherwise it would be a firework behind a hill.
+  const chestDx = env.treasureChest.position.x - sharkX;
+  const chestDz = env.treasureChest.position.z - sharkZ;
+  const chestVisible = chestDx * chestDx + chestDz * chestDz < TREASURE_VISIBLE_RANGE * TREASURE_VISIBLE_RANGE;
+  const available = chestVisible ? ALL_SURPRISE_TYPES : ALL_SURPRISE_TYPES.filter((t) => t !== 'treasureSparkle');
+
+  const kind = available[Math.floor(Math.random() * available.length)];
 
   if (kind === 'bubbleColumn') {
-    // Burst of bubbles from center
-    getParticleEngine(scene).emit(PARTICLES.bubblePop, new Vector3(0, 0, 0), { colors: [new Color(0.5, 0.8, 1.0)], count: 25 });
+    // Burst of bubbles just off the shark's shoulder, not at the world origin
+    const angle = Math.random() * Math.PI * 2;
+    const burstPos = new Vector3(sharkX + Math.cos(angle) * 3, -0.1, sharkZ + Math.sin(angle) * 3);
+    getParticleEngine(scene).emit(PARTICLES.bubblePop, burstPos, { colors: [new Color(0.5, 0.8, 1.0)], count: 25 });
     state.activeSurprise = 'bubbleColumn';
     state.surpriseTimer = 3.0;
   } else if (kind === 'colorShift') {

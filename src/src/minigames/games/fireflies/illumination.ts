@@ -29,90 +29,108 @@ interface IlluminationTierDef {
  * The six illumination tiers that define how the garden transforms
  * as the player catches more fireflies.
  *
- * Tier 0 — Dark:       Near-black. Silhouettes only.
- * Tier 1 — Dim:        Moon brightens. Tree outlines visible.
- * Tier 2 — Awakening:  Flowers begin faint bioluminescent pulse.
+ * Tier 0 — Dark:       Moonlit silhouettes. The jar is barely a shape.
+ * Tier 1 — Dim:        Moon brightens. Tree outlines and grass separate out.
+ * Tier 2 — Awakening:  Flowers begin a faint bioluminescent pulse.
  * Tier 3 — Glowing:    Jar projects warm light. Trees get rim lighting.
  * Tier 4 — Radiant:    Full moonlight. Garden alive with color.
  * Tier 5 — Enchanted:  Everything glows. The jar is a beacon.
+ *
+ * EVERY axis is strictly monotonically increasing tier over tier. It used not
+ * to be: tier 1 was darker than tier 0 on all seven axes (directional
+ * 0.18→0.08, ambient 0.12→0.04, moon 0.6→0.25, ground 0.05→0.01, jar light
+ * 0.25→0.0, jar emissive 0.35→0.05), so the third catch made the world dimmer
+ * and it did not recover until the fifteenth. Succeeding must never make the
+ * picture worse. Resulting per-axis progression, tier 0 → 5:
+ *
+ *   directional  0.08 → 0.13 → 0.19 → 0.26 → 0.34 → 0.44   (x5.5)
+ *   ambient      0.05 → 0.08 → 0.12 → 0.16 → 0.21 → 0.27   (x5.4)
+ *   moon         0.35 → 0.50 → 0.66 → 0.83 → 1.00 → 1.20   (x3.4)
+ *   ground       0.02 → 0.032 → 0.046 → 0.062 → 0.082 → 0.105 (x5.3)
+ *   flower       0.00 → 0.05 → 0.11 → 0.18 → 0.25 → 0.33   (off → glowing)
+ *   jar light    0.10 → 0.28 → 0.50 → 0.75 → 1.05 → 1.40   (x14)
+ *   jar emissive 0.10 → 0.18 → 0.28 → 0.42 → 0.58 → 0.78   (x7.8)
+ *
+ * The dirColor entries walk from cold moon-blue to warm lantern-white over the
+ * same span, so the garden reads as *warming up*, not just brightening.
  */
 const TIERS: IlluminationTierDef[] = [
   {
     threshold: 0,
     values: {
-      directionalIntensity: 0.18,
-      ambientIntensity: 0.12,
-      moonEmissive: 0.6,
-      groundEmissive: 0.05,
+      directionalIntensity: 0.08,
+      ambientIntensity: 0.05,
+      moonEmissive: 0.35,
+      groundEmissive: 0.02,
       flowerEmissive: 0.0,
-      jarLightIntensity: 0.25,
-      jarEmissive: 0.35,
-      dirColor: [0.55, 0.6, 0.85],
+      jarLightIntensity: 0.1,
+      jarEmissive: 0.1,
+      dirColor: [0.5, 0.56, 0.86],
     },
   },
   {
     threshold: 3,
     values: {
-      directionalIntensity: 0.08,
-      ambientIntensity: 0.04,
-      moonEmissive: 0.25,
-      groundEmissive: 0.01,
-      flowerEmissive: 0.0,
-      jarLightIntensity: 0.0,
-      jarEmissive: 0.05,
-      dirColor: [0.6, 0.65, 0.85],
+      directionalIntensity: 0.13,
+      ambientIntensity: 0.08,
+      moonEmissive: 0.5,
+      groundEmissive: 0.032,
+      flowerEmissive: 0.05,
+      jarLightIntensity: 0.28,
+      jarEmissive: 0.18,
+      dirColor: [0.58, 0.62, 0.86],
     },
   },
   {
     threshold: 8,
     values: {
-      directionalIntensity: 0.14,
-      ambientIntensity: 0.07,
-      moonEmissive: 0.45,
-      groundEmissive: 0.02,
-      flowerEmissive: 0.06,
-      jarLightIntensity: 0.1,
-      jarEmissive: 0.15,
-      dirColor: [0.7, 0.7, 0.85],
+      directionalIntensity: 0.19,
+      ambientIntensity: 0.12,
+      moonEmissive: 0.66,
+      groundEmissive: 0.046,
+      flowerEmissive: 0.11,
+      jarLightIntensity: 0.5,
+      jarEmissive: 0.28,
+      dirColor: [0.68, 0.7, 0.85],
     },
   },
   {
     threshold: 15,
     values: {
-      directionalIntensity: 0.22,
-      ambientIntensity: 0.12,
-      moonEmissive: 0.7,
-      groundEmissive: 0.04,
-      flowerEmissive: 0.14,
-      jarLightIntensity: 0.4,
-      jarEmissive: 0.35,
-      dirColor: [0.8, 0.78, 0.82],
+      directionalIntensity: 0.26,
+      ambientIntensity: 0.16,
+      moonEmissive: 0.83,
+      groundEmissive: 0.062,
+      flowerEmissive: 0.18,
+      jarLightIntensity: 0.75,
+      jarEmissive: 0.42,
+      dirColor: [0.78, 0.77, 0.84],
     },
   },
   {
     threshold: 25,
     values: {
-      directionalIntensity: 0.32,
-      ambientIntensity: 0.18,
-      moonEmissive: 0.9,
-      groundEmissive: 0.07,
-      flowerEmissive: 0.22,
-      jarLightIntensity: 0.8,
-      jarEmissive: 0.55,
-      dirColor: [0.9, 0.85, 0.8],
+      directionalIntensity: 0.34,
+      ambientIntensity: 0.21,
+      moonEmissive: 1.0,
+      groundEmissive: 0.082,
+      flowerEmissive: 0.25,
+      jarLightIntensity: 1.05,
+      jarEmissive: 0.58,
+      dirColor: [0.88, 0.84, 0.82],
     },
   },
   {
     threshold: 40,
     values: {
-      directionalIntensity: 0.4,
-      ambientIntensity: 0.25,
-      moonEmissive: 1.1,
-      groundEmissive: 0.1,
-      flowerEmissive: 0.3,
-      jarLightIntensity: 1.2,
-      jarEmissive: 0.75,
-      dirColor: [0.95, 0.9, 0.82],
+      directionalIntensity: 0.44,
+      ambientIntensity: 0.27,
+      moonEmissive: 1.2,
+      groundEmissive: 0.105,
+      flowerEmissive: 0.33,
+      jarLightIntensity: 1.4,
+      jarEmissive: 0.78,
+      dirColor: [0.97, 0.91, 0.82],
     },
   },
 ];
