@@ -68,7 +68,7 @@ export function LandingPage() {
             included in the current build &mdash; no install required.
           </p>
 
-          <a href="/#/playroom" className="landing-cta">
+          <a href="#/playroom" className="landing-cta">
             Open the Toybox <span className="landing-cta-arrow">&rarr;</span>
           </a>
 
@@ -191,7 +191,7 @@ export function LandingPage() {
       <section className="landing-bottom-cta">
         <div ref={bottomCtaRef} className="landing-reveal">
           <p className="landing-bottom-cta-text">Ready to play? No sign-up, no download, no waiting.</p>
-          <a href="/#/playroom" className="landing-cta">
+          <a href="#/playroom" className="landing-cta">
             Open the Toybox <span className="landing-cta-arrow">&rarr;</span>
           </a>
         </div>
