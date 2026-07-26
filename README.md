@@ -148,6 +148,8 @@ bun run dev
 
 If you prefer npm-based workflows, verify them against `src/package.json` and the lockfiles present in the repo.
 
+Installing dependencies also enables the repo's pre-commit checks (via `git config core.hooksPath .githooks`). If your install tool skips lifecycle scripts, run that command once manually from anywhere inside the repo.
+
 Open `http://localhost:5173` and start tapping.
 
 ### Docker

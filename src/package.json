@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
     "create:immersive-scene": "node scripts/create-immersive-scene.mjs",
     "create:minigame": "node scripts/create-minigame.mjs",
     "create:room-scene": "node scripts/create-room-scene.mjs",
