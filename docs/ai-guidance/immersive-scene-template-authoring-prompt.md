@@ -67,6 +67,8 @@ When updating structure:
 
 A generated immersive scene starts with:
 
+- a `sceneCatalog.ts` entry with a default camera preset, `games: ['bubble-pop']`,
+  and `audio: null`
 - walls or enclosure scaffold
 - floor
 - sky backdrop
@@ -76,6 +78,10 @@ A generated immersive scene starts with:
 
 Extend from that baseline. Do not delete the instructional structure unless the
 project's canonical template spec changes first.
+
+Before a generated scene is treated as implemented, replace `audio: null` with
+registered music and ambient ids. The audio coverage test enforces the runtime
+rule; the generator output is only a draft scaffold.
 
 ## Output Standard
 

@@ -35,8 +35,12 @@ export function createSpinningTop(scene: Scene, _keyLight: DirectionalLight): vo
   knob.position.y = 0.12;
   topBody.add(knob);
 
-  // Gentle wobble between ±0.05 rad on z. Base set first so the seeded phase
-  // renders from the right start. See architecture-standards.md#idleanimator.
-  topBody.rotation.z = 0.05;
-  getIdleAnimator(scene).sway(topBody, { amplitude: -0.1, period: 8 });
+  // Gentle wobble between ±0.05 rad on z. See architecture-standards.md#idleanimator.
+  //
+  // This used to be written `rotation.z = 0.05` with `amplitude: -0.1`, which was
+  // a hand-built compensation for `sway` swinging one way from rest instead of
+  // straddling it: start at one extreme, travel twice the intended peak, end at
+  // the other. `sway` now straddles its base, so the wobble the comment always
+  // described is finally what the arguments say.
+  getIdleAnimator(scene).sway(topBody, { amplitude: 0.05, period: 8 });
 }

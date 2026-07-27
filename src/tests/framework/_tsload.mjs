@@ -43,8 +43,16 @@ export async function loadTs(relPath) {
  * graph, resolving `@app/*`, `@scenes/*` and `@game/*` exactly as
  * `vite.config.ts` does.
  *
- * `three` is left external so the bundle and the test share one module
- * instance — otherwise `instanceof Vector3` checks across the boundary fail.
+ * `three` and `gsap` are left external so the bundle and the test share one
+ * module instance. For `three` that is what makes `instanceof Vector3` work
+ * across the boundary. For `gsap` there are two reasons, both learned the hard
+ * way: a test could not see the module's tweens via `gsap.getTweensOf()` when it
+ * held a second copy, and — more sharply — gsap's ticker keeps a live timer
+ * while any `repeat: -1` tween exists, so a suite that starts an idle animation
+ * never lets its own process exit. With one shared instance a test can end with
+ * `gsap.ticker.sleep()` and terminate. Killing the tweens is not sufficient; the
+ * ticker keeps one timer regardless.
+ *
  * Use this for framework modules that are pure logic but import siblings or
  * the alias (e.g. CelebrationSystem, which reaches the particle presets).
  *
@@ -71,7 +79,7 @@ export async function bundleTs(relPath) {
     format: 'esm',
     target: 'es2022',
     platform: 'neutral',
-    external: ['three'],
+    external: ['three', 'gsap'],
     alias: {
       '@app': path.join(packageRoot, 'src'),
       '@scenes': path.join(packageRoot, 'src/scenes'),

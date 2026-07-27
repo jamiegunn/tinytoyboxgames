@@ -47,6 +47,11 @@ const COLOR_BUILDING = new Color(0x37e0c8);
 const COLOR_BREWING = new Color(0xffb020);
 const COLOR_FRENZY = new Color(0xffd54a);
 
+/** Base opacity of the backing plate at full reveal. */
+const PLATE_OPACITY = 0.28;
+/** Base opacity of the empty track at full reveal. */
+const TRACK_OPACITY = 0.45;
+
 /** Live meshes and animation state for the build meter. */
 export interface FrenzyHud {
   plate: Mesh;
@@ -56,6 +61,14 @@ export interface FrenzyHud {
   shown: number;
   /** Free-running pulse clock, seconds. */
   pulse: number;
+  /**
+   * Smoothed 0-1 presence of the whole widget.
+   *
+   * An empty meter is not a quiet meter, it is a dark rectangle with nothing in
+   * it, and that is what a player reported as "a weird black box on the top".
+   * The chassis is therefore drawn only while the bar has something to say.
+   */
+  reveal: number;
 }
 
 // A camera-parented overlay plane. `depthTest: false` plus a high renderOrder
@@ -88,11 +101,15 @@ export function createFrenzyHud(camera: PerspectiveCamera): FrenzyHud {
   // 1200x800 canvas: comfortably above the 12 mm legibility floor this project
   // uses for anything a three-year-old has to read, without competing for the
   // attention the fish are supposed to have.
-  const plate = overlay(camera, METER_W + PLATE_PAD * 2, METER_H + PLATE_PAD * 2, 0x06222c, 0.3, 990, false);
-  const track = overlay(camera, METER_W, METER_H, 0x0d3b48, 0.5, 991, false);
+  const plate = overlay(camera, METER_W + PLATE_PAD * 2, METER_H + PLATE_PAD * 2, 0x06222c, PLATE_OPACITY, 990, false);
+  const track = overlay(camera, METER_W, METER_H, 0x0d3b48, TRACK_OPACITY, 991, false);
   const fill = overlay(camera, METER_W, METER_H, COLOR_BUILDING.getHex(), 0.95, 992, true);
   fill.scale.x = 0.0001;
-  return { plate, track, fill, shown: 0, pulse: 0 };
+  // Starts hidden. Before this the meter was built visible and empty, and since
+  // nothing camera-parented was being drawn at all until the shell camera joined
+  // the scene graph, its empty state had never once been on screen.
+  for (const mesh of [plate, track, fill]) mesh.visible = false;
+  return { plate, track, fill, shown: 0, pulse: 0, reveal: 0 };
 }
 
 /**
@@ -113,16 +130,32 @@ export function updateFrenzyHud(hud: FrenzyHud, intensity: number, phase: Frenzy
   hud.shown += (intensity - hud.shown) * Math.min(1, dt * 7);
   hud.fill.scale.x = Math.max(0.0001, hud.shown);
 
+  // Presence. The meter only exists while it is saying something: it fades in on
+  // the first catch of a build and back out when the arc resets to nothing. The
+  // fade-out is slower than the fade-in so a reset reads as the bar draining
+  // rather than as the widget being switched off.
+  // `calm` and `building` at zero catches are the empty states; `afterglow`
+  // decays its own intensity to 0, so it fades out on the same rule rather than
+  // needing a case of its own.
+  const wanted = intensity > 0.002 || phase === 'brewing' || phase === 'frenzy' ? 1 : 0;
+  hud.reveal += (wanted - hud.reveal) * Math.min(1, dt * (wanted > hud.reveal ? 6 : 2.5));
+  if (hud.reveal < 0.004) hud.reveal = 0;
+  const visible = hud.reveal > 0;
+  for (const mesh of [hud.plate, hud.track, hud.fill]) mesh.visible = visible;
+  if (!visible) return;
+  (hud.plate.material as MeshBasicMaterial).opacity = PLATE_OPACITY * hud.reveal;
+  (hud.track.material as MeshBasicMaterial).opacity = TRACK_OPACITY * hud.reveal;
+
   const mat = hud.fill.material as MeshBasicMaterial;
   if (phase === 'frenzy' || phase === 'afterglow') {
     mat.color.copy(COLOR_FRENZY);
-    mat.opacity = phase === 'frenzy' ? 0.8 + Math.sin(hud.pulse * 14) * 0.2 : 0.95;
+    mat.opacity = (phase === 'frenzy' ? 0.8 + Math.sin(hud.pulse * 14) * 0.2 : 0.95) * hud.reveal;
   } else if (phase === 'brewing') {
     mat.color.copy(COLOR_BREWING);
-    mat.opacity = 0.75 + Math.sin(hud.pulse * 7) * 0.25;
+    mat.opacity = (0.75 + Math.sin(hud.pulse * 7) * 0.25) * hud.reveal;
   } else {
     mat.color.copy(COLOR_BUILDING);
-    mat.opacity = 0.95;
+    mat.opacity = 0.95 * hud.reveal;
   }
 }
 

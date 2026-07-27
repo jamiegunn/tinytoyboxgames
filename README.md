@@ -54,13 +54,13 @@ The Kitchen currently contains one active toybox:
 
 The current minigame manifest registers five games:
 
-| Game | Launchable from | Status |
-|---|---|---|
-| **Bubble Pop** | Nature | registered |
-| **Fireflies** | Nature | registered |
-| **Little Shark** | Nature | registered |
-| **Star Catcher** | Nature | registered |
-| **Cannonball Splash** | Pirate Cove | registered |
+| Game                  | Launchable from | Status     |
+| --------------------- | --------------- | ---------- |
+| **Bubble Pop**        | Nature          | registered |
+| **Fireflies**         | Nature          | registered |
+| **Little Shark**      | Nature          | registered |
+| **Star Catcher**      | Nature          | registered |
+| **Cannonball Splash** | Pirate Cove     | registered |
 
 ### What is currently discoverable in the UI
 
@@ -112,29 +112,29 @@ The intended app model is memory-only for the current page lifecycle.
 
 ## Technology Stack
 
-| Layer | Choice |
-|---|---|
-| Language | TypeScript `~5.9.3` (strict mode) |
-| UI Framework | React `19.2.0` |
-| 3D Engine | Three.js `0.175.0` with React Three Fiber `9.1.0` and drei `10.0.0` |
-| Animation | GSAP `3.12.0` |
-| Build Tool | Vite `7.3.1` |
-| Deployment | Docker (multi-stage build + nginx) |
+| Layer        | Choice                                                              |
+| ------------ | ------------------------------------------------------------------- |
+| Language     | TypeScript `~5.9.3` (strict mode)                                   |
+| UI Framework | React `19.2.0`                                                      |
+| 3D Engine    | Three.js `0.175.0` with React Three Fiber `9.1.0` and drei `10.0.0` |
+| Animation    | GSAP `3.12.0`                                                       |
+| Build Tool   | Vite `7.3.1`                                                        |
+| Deployment   | Docker (multi-stage Bun build + nginx)                              |
 
-Note: the repo currently contains both `bun.lock` and `package-lock.json`. Until one package-manager story is standardized, do not describe Bun as the only supported workflow.
+Note: the repo currently contains `src/bun.lock` and no `package-lock.json`. Docker uses Bun with the frozen lockfile. The npm scripts in `src/package.json` remain useful command names, but Bun is the locked install path until an npm lockfile is added.
 
 ---
 
 ## Design Principles
 
-| Principle | What It Means |
-|---|---|
-| **Delight within the first tap** | Every interaction produces an immediate, satisfying response |
-| **No reading required** | The experience works for pre-literate children through visual affordance and sensory feedback |
-| **Zero persistence** | No localStorage, cookies, IndexedDB, or browser-stored app data |
-| **Browser-first** | A URL is the only install flow |
-| **Warmth over complexity** | Fidelity comes from lighting, materials, and motion rather than content sprawl |
-| **Open-ended play** | Toy, not test. Enter, explore, leave, and return freely |
+| Principle                        | What It Means                                                                                 |
+| -------------------------------- | --------------------------------------------------------------------------------------------- |
+| **Delight within the first tap** | Every interaction produces an immediate, satisfying response                                  |
+| **No reading required**          | The experience works for pre-literate children through visual affordance and sensory feedback |
+| **Zero persistence**             | No localStorage, cookies, IndexedDB, or browser-stored app data                               |
+| **Browser-first**                | A URL is the only install flow                                                                |
+| **Warmth over complexity**       | Fidelity comes from lighting, materials, and motion rather than content sprawl                |
+| **Open-ended play**              | Toy, not test. Enter, explore, leave, and return freely                                       |
 
 ---
 
@@ -146,7 +146,7 @@ bun install
 bun run dev
 ```
 
-If you prefer npm-based workflows, verify them against `src/package.json` and the lockfiles present in the repo.
+If you prefer npm-based workflows, verify them against `src/package.json`; the repo does not currently carry an npm lockfile.
 
 Installing dependencies also enables the repo's pre-commit checks (via `git config core.hooksPath .githooks`). If your install tool skips lifecycle scripts, run that command once manually from anywhere inside the repo.
 

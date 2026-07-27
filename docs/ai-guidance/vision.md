@@ -180,11 +180,17 @@ The target architecture has five structural layers:
 4. Literal toyboxes that open immersive toybox scenes
 5. Minigame play modes launched from immersive scenes
 
-The current implemented slice is smaller:
+The current implemented slice is smaller than the target architecture but
+larger than the original Playroom/Nature prototype. Current code facts are
+owned by `docs/status/current-state.md` and by the catalogs it names.
 
-- a Playroom scene, still loaded through the historical `hub` scene id
-- a Nature toybox immersive scene
-- four minigames launched from Nature
+- five registered scenes: Playroom, Kitchen, Living Room, Nature, and Pirate
+  Cove
+- three room destinations under the current House slice: Playroom, Kitchen,
+  and Living Room
+- two toybox immersive scenes: Nature and Pirate Cove
+- five registered minigames: Bubble Pop, Fireflies, Little Shark,
+  Star Catcher, and Cannonball Splash
 
 ### Playroom Scene
 
@@ -198,10 +204,11 @@ Scene qualities:
 - soft directional shadows
 - subtle dust motes and magical ambient motion
 
-Main layout:
+Current Playroom layout:
 
 - a central play rug acts as the emotional and visual focal point
-- four toyboxes sit around the rug
+- three visible toyboxes sit around the rug; Adventure opens Pirate Cove,
+  Animals opens Nature, and Creative is present but inactive
 - a toy music player sits lower in the composition
 - a plush owl companion provides life and focus
 

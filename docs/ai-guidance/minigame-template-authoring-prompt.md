@@ -55,6 +55,7 @@ When adding new mechanics:
 A generated minigame starts with:
 
 - a registered manifest entry
+- `musicId: 'mus_shared_music_box'` as a compliant draft music bed
 - a visible environment
 - tappable entities
 - score + combo integration
@@ -64,6 +65,9 @@ A generated minigame starts with:
 
 Extend from that baseline. Do not delete the instructional structure unless the
 canonical template spec changes first.
+
+Current proof games to compare against are Bubble Pop, Fireflies, Little Shark,
+Star Catcher, and Cannonball Splash in `src/src/minigames/games/`.
 
 ## Output Standard
 

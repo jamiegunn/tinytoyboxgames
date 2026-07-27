@@ -82,7 +82,7 @@ This file defines reusable skills (prompt templates) for the Whimsical Toybox Wo
 5. Populate `meta.ts` with the scene's `id`, `kind`, `parentSceneId`, child scene ids, toyboxes, and minigame links as needed.
 6. Populate `index.ts` with the standard scene assembly pattern and shared owl integration. Use the current Playroom implementation as the reference for room-level scenes and Nature as the reference for immersive toybox scenes.
 7. If the new scene is an immersive toybox scene, add `minigames.ts` with local minigame links that point to shared minigame implementations.
-8. Register the scene through the current loader or registry layer. If the repo is still on legacy `SceneId = 'hub' | 'nature'`, add the smallest compatibility mapping necessary instead of expanding the old union casually.
+8. Register the scene in `src/src/scenes/sceneCatalog.ts`. `SceneId` is derived from `SCENE_CATALOG`, so do not add parallel unions or compatibility maps unless a real migration requires them.
 9. If the scene contains literal toyboxes, add local toybox definitions that map each toybox to exactly one immersive scene.
 
 **Output:** A bootable scene skeleton that follows the recursive hierarchy contract, includes the owl through shared scene scaffolding, and is ready for local layout or factory work.
@@ -128,7 +128,7 @@ This file defines reusable skills (prompt templates) for the Whimsical Toybox Wo
    - **Compose pattern:** `ComposeContext` injection, `DisposeFn` contract, `propComposers` array where the scene warrants it
    - **Result types:** typed `CreateResult` interfaces per entity
    - **Interaction wiring:** `createTapInteraction(dispatcher, target, cb)` and `createRevealInteraction(scene, dispatcher, config)` via `WorldTapDispatcher`
-   - **Disposal contract:** every composer returns `() => void`, collected by `createDisposeCollector`
+   - **Disposal contract:** every composer returns `() => void` or registers with the active `DisposalScope`; shared scene factories dispose the scope and sweep scene resources on teardown
    - **Material tiers:** Tier 1 (scene-shared palette), Tier 2 (feature-local cached), Tier 3 (per-instance)
    - **Staging rules:** one file per entity in `staging/`, readonly placement arrays, positions and variant selection
    - **Owl rule:** every navigable non-minigame scene includes the shared owl companion

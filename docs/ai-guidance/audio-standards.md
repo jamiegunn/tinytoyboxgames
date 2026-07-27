@@ -9,9 +9,9 @@ quality bar below.
 
 **Every scene and every minigame ships its own music bed. No exceptions.**
 
-- Every entry in `sceneCatalog.ts` declares `audio: { musicId, ambientId }`
-  with non-empty ids registered in the audio registries. `audio: null` is not
-  allowed.
+- Every committed runtime entry in `sceneCatalog.ts` declares
+  `audio: { musicId, ambientId }` with non-empty ids registered in the audio
+  registries. `audio: null` is not merge-ready for a playable scene.
 - Every entry in `MiniGameManifest.ts` declares a `musicId` registered in
   `MUSIC_REGISTRY`. The MiniGameShell starts it automatically when the game
   starts — games do not (and should not) call `playMusic` themselves.
@@ -20,6 +20,10 @@ quality bar below.
 - The minigame generator emits `musicId: 'mus_shared_music_box'` so a freshly
   generated game is compliant from its first run. Composing a bespoke track is
   part of finishing a game, the same way replacing sample props is.
+- The immersive scene generator currently emits `audio: null` because it cannot
+  invent a scene-specific music and ambient pair. That generated scene is a
+  draft scaffold: before it is treated as implemented, replace `audio: null`
+  with registered ids and update this table.
 
 ## The quality bar
 
@@ -27,7 +31,7 @@ The reference track is the hub music box (`hub/hubMusic.ts`). Every bed must
 meet the same bar — "a few notes in a row" is not a music bed. Concretely:
 
 1. **Three layers.** A melody voice, a harmony layer (pad chords or chord
-   dabs with real voicings), and a bass foundation. A layer may *rest* for
+   dabs with real voicings), and a bass foundation. A layer may _rest_ for
    whole cycles (that's arrangement), but it must exist.
 2. **Phrase structure with a cadence.** Real tunes have shape — statement,
    answer, and an ending that resolves (leading tone to home, V to I). A loop
@@ -52,19 +56,25 @@ meet the same bar — "a few notes in a row" is not a music bed. Concretely:
 
 ## Current beds
 
-| Track id | Where | Character |
-|---|---|---|
-| `mus_hub_background` | Playroom | Music-box lullaby, AABA, I-vi-IV-V |
-| `mus_kitchen_background` | Kitchen | "Teatime Waltz", 3/4 oom-pah-pah |
-| `mus_living_room_background` | Living Room | "Hearthside", slow 4/4 by the fire |
-| `mus_nature_background` | Nature | Pentatonic flute over root-fifth drone |
-| `mus_pirate_cove_background` | Pirate Cove | 6/8 concertina shore tune |
-| `mus_bubble_pop_background` | Bubble Pop | Night lullaby, seventh-chord pads |
-| `mus_fireflies_background` | Fireflies | "Firefly Nocturne", sparse and dark |
-| `mus_little_shark_background` | Little Shark | Underwater pad + marimba motif |
-| `mus_star_catcher_background` | Star Catcher | "Starlight Ostinato" |
-| `mus_cannonball_splash_background` | Cannonball Splash | "Deck Dance", 6/8 jig |
-| `mus_shared_music_box` | Generated-game default | Alias of the hub lullaby |
+| Track id                           | Where                  | Character                              |
+| ---------------------------------- | ---------------------- | -------------------------------------- |
+| `mus_hub_background`               | Playroom               | Music-box lullaby, AABA, I-vi-IV-V     |
+| `mus_kitchen_background`           | Kitchen                | "Teatime Waltz", 3/4 oom-pah-pah       |
+| `mus_living_room_background`       | Living Room            | "Hearthside", slow 4/4 by the fire     |
+| `mus_nature_background`            | Nature                 | Pentatonic flute over root-fifth drone |
+| `mus_pirate_cove_background`       | Pirate Cove            | 6/8 concertina shore tune              |
+| `mus_bubble_pop_background`        | Bubble Pop             | Night lullaby, seventh-chord pads      |
+| `mus_fireflies_background`         | Fireflies              | "Firefly Nocturne", sparse and dark    |
+| `mus_little_shark_background`      | Little Shark           | Underwater pad + marimba motif         |
+| `mus_star_catcher_background`      | Star Catcher           | "Starlight Ostinato"                   |
+| `mus_cannonball_splash_background` | Cannonball Splash      | "Deck Dance", 6/8 jig                  |
+| `mus_shared_music_box`             | Generated-game default | Alias of the hub lullaby               |
+
+Proof command for the table: compare `MUSIC_REGISTRY` and `AMBIENT_REGISTRY`
+in `src/src/assets/audio/index.ts` with `SCENE_CATALOG` in
+`src/src/scenes/sceneCatalog.ts` and `MiniGameManifest.ts`. The executable
+coverage check is `npm test -- tests/audio/music-coverage.test.mjs` from
+`src/`.
 
 ## Sound effects
 

@@ -21,13 +21,13 @@ Internal architecture/spec documents may use **Whimsical Toybox World** only whe
 
 Current scene routes:
 
-| Scene ID | Display name | Kind | Status |
-|---|---|---|---|
-| `playroom` | Playroom | landing | implemented |
-| `kitchen` | Kitchen | landing | implemented |
-| `living-room` | Living Room | landing | implemented |
-| `nature` | Nature | immersive-toybox | implemented |
-| `pirate-cove` | Pirate Cove | immersive-toybox | implemented |
+| Scene ID      | Display name | Kind             | Status      |
+| ------------- | ------------ | ---------------- | ----------- |
+| `playroom`    | Playroom     | landing          | implemented |
+| `kitchen`     | Kitchen      | landing          | implemented |
+| `living-room` | Living Room  | landing          | implemented |
+| `nature`      | Nature       | immersive-toybox | implemented |
+| `pirate-cove` | Pirate Cove  | immersive-toybox | implemented |
 
 ## Scene audio
 
@@ -36,35 +36,35 @@ Every minigame also declares its own `musicId` in `MiniGameManifest.ts`, auto-st
 by the shell (see `docs/ai-guidance/audio-standards.md`; enforced by
 `src/tests/audio/music-coverage.test.mjs`):
 
-| Scene ID | Music | Ambient |
-|---|---|---|
-| `playroom` | `mus_hub_background` | `amb_hub_room_tone` |
-| `kitchen` | `mus_kitchen_background` | `amb_hub_room_tone` |
-| `living-room` | `mus_living_room_background` | `amb_hub_room_tone` |
-| `nature` | `mus_nature_background` | `amb_nature_stream` |
+| Scene ID      | Music                        | Ambient                 |
+| ------------- | ---------------------------- | ----------------------- |
+| `playroom`    | `mus_hub_background`         | `amb_hub_room_tone`     |
+| `kitchen`     | `mus_kitchen_background`     | `amb_hub_room_tone`     |
+| `living-room` | `mus_living_room_background` | `amb_hub_room_tone`     |
+| `nature`      | `mus_nature_background`      | `amb_nature_stream`     |
 | `pirate-cove` | `mus_pirate_cove_background` | `amb_pirate_cove_shore` |
 
 ## Active room destinations
 
 ### Playroom toyboxes
 
-| Toybox ID | Destination | Status |
-|---|---|---|
-| `adventure` | `pirate-cove` | active |
-| `animals` | `nature` | active |
-| `creative` | `null` | present but inactive |
+| Toybox ID   | Destination   | Status               |
+| ----------- | ------------- | -------------------- |
+| `adventure` | `pirate-cove` | active               |
+| `animals`   | `nature`      | active               |
+| `creative`  | `null`        | present but inactive |
 
 ### Kitchen toyboxes
 
-| Toybox ID | Destination | Status |
-|---|---|---|
-| `kitchen-nature` | `nature` | active |
+| Toybox ID        | Destination | Status |
+| ---------------- | ----------- | ------ |
+| `kitchen-nature` | `nature`    | active |
 
 ### Living Room toyboxes
 
-| Toybox ID | Destination | Status |
-|---|---|---|
-| `living-room-nature` | `nature` | active |
+| Toybox ID                 | Destination   | Status |
+| ------------------------- | ------------- | ------ |
+| `living-room-nature`      | `nature`      | active |
 | `living-room-pirate-cove` | `pirate-cove` | active |
 
 ### Doorway connections
@@ -72,26 +72,26 @@ by the shell (see `docs/ai-guidance/audio-standards.md`; enforced by
 Rooms are also connected by tappable doorways (shared builder in
 `src/src/scenes/world/places/house/shared/interactiveDoorway.ts`):
 
-| From | Doorway leads to | Notes |
-|---|---|---|
-| `playroom` | `living-room` | right-wall door |
-| `living-room` | `playroom` | left-wall door |
-| `living-room` | `kitchen` | right-wall door |
-| `living-room` | `nature` | back-wall "outside" door; the forest is outside until a dedicated backyard scene exists |
-| `kitchen` | `living-room` | left-wall door |
+| From          | Doorway leads to | Notes                                                                                   |
+| ------------- | ---------------- | --------------------------------------------------------------------------------------- |
+| `playroom`    | `living-room`    | right-wall door                                                                         |
+| `living-room` | `playroom`       | left-wall door                                                                          |
+| `living-room` | `kitchen`        | right-wall door                                                                         |
+| `living-room` | `nature`         | back-wall "outside" door; the forest is outside until a dedicated backyard scene exists |
+| `kitchen`     | `living-room`    | left-wall door                                                                          |
 
 The HUD back button follows each scene's catalog `backTarget` (default
 `playroom`); `kitchen` declares `backTarget: 'living-room'`.
 
 ## Registered minigames
 
-| Game ID | Display name | Launchable from | Status |
-|---|---|---|---|
-| `bubble-pop` | Bubble Pop | `nature` | registered |
-| `fireflies` | Fireflies | `nature` | registered |
-| `little-shark` | Little Shark | `nature` | registered |
-| `star-catcher` | Star Catcher | `nature` | registered + discoverable |
-| `cannonball-splash` | Cannonball Splash | `pirate-cove` | registered |
+| Game ID             | Display name      | Launchable from | Status                    |
+| ------------------- | ----------------- | --------------- | ------------------------- |
+| `bubble-pop`        | Bubble Pop        | `nature`        | registered + discoverable |
+| `fireflies`         | Fireflies         | `nature`        | registered + discoverable |
+| `little-shark`      | Little Shark      | `nature`        | registered + discoverable |
+| `star-catcher`      | Star Catcher      | `nature`        | registered + discoverable |
+| `cannonball-splash` | Cannonball Splash | `pirate-cove`   | registered + discoverable |
 
 ## Discoverable minigames
 
@@ -136,7 +136,7 @@ Do not claim any of the following unless the code is updated and this file is re
 - four toybox worlds are currently playable
 - twelve mini-games are currently playable
 - all visible toyboxes are active
-- all registered minigames are exposed in-scene
+- newly registered minigames are automatically exposed in-scene without portal wiring
 - roadmap content is already implemented
 
 ## How to update this file when content changes

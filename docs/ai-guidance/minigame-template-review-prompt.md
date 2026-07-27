@@ -54,6 +54,8 @@ Also compare the template mentally against:
 - `bubble-pop`
 - `fireflies`
 - `little-shark`
+- `star-catcher`
+- `cannonball-splash`
 
 ## Questions You Must Answer
 

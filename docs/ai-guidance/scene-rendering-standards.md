@@ -12,20 +12,25 @@ trial-and-error because the camera is mirrored and inverted).
 
 Every camera in the app has a different convention:
 
-| Surface | Camera | Looks toward | fov |
-|---|---|---|---|
-| Minigame (shell) | Fixed: pos `(0,2,5)`, `lookAt(0,0,0)` | −Z | 60° |
-| Immersive/room scene | Orbit (spherical, Babylon-derived), pos ≈ `target + (0, r·cosφ, −r·sinφ)` | +Z | 50° |
-| Star Catcher (authored) | `createGameCamera` (beta/radius), copied onto the shell camera | +Z, mirrored X | ~52° |
+| Surface                 | Camera                                                                    | Looks toward        | fov  |
+| ----------------------- | ------------------------------------------------------------------------- | ------------------- | ---- |
+| Minigame (shell)        | Fixed: pos `(0,2,5)`, `lookAt(0,0,0)`                                     | −Z                  | 60°  |
+| Immersive/room scene    | Orbit (spherical, Babylon-derived), pos ≈ `target + (0, r·cosφ, −r·sinφ)` | +Z                  | 50°  |
+| Star Catcher (authored) | Manifest `CameraDescriptor` orbit camera                                  | +Z via `azimuth: π` | ~52° |
 
 A moon at world `(4, 7, 8)` is upper-right in one scene, behind the camera in
 another, and off-screen in a third. So **do not hand-place sky/backdrop
 elements in world coordinates.** Instead use the shared sky rig
-(`src/src/utils/skyRig.ts`), which places elements in *screen space* against
+(`src/src/utils/skyRig.ts`), which places elements in _screen space_ against
 whatever camera is active, using the camera's own unprojection:
 
 ```ts
-import { projectToView, createGradientSkydome, createCelestialBody, createCloudPuff } from '@app/utils/skyRig';
+import {
+  projectToView,
+  createGradientSkydome,
+  createCelestialBody,
+  createCloudPuff,
+} from "@app/utils/skyRig";
 
 // "Put the moon 26% across, 28% down, 15 units from the camera" — correct for ANY camera.
 moon.root.position.copy(projectToView(camera, 0.26, 0.28, 15));
@@ -63,14 +68,16 @@ raycast-disabled (so they never intercept gameplay taps).
    plane must be sized/oriented per camera and tends to read as a wall with a
    hard seam; the dome is camera-agnostic.
 3. **Backdrops ignore fog** (`fog: false`) so a scene's depth fog softens only
-   its *geometry*, never the sky.
+   its _geometry_, never the sky.
 4. **Sizing.** On-screen diameter ≈ `worldRadius / distance / tan(fov/2) ·
-   viewportHeight`. To target ~`P` px tall at distance `d`:
+viewportHeight`. To target ~`P` px tall at distance `d`:
    `worldRadius ≈ P/viewportHeight · tan(fov/2) · d`. (Example: a 110 px moon at
    d = 15, fov 60° → radius ≈ 0.143 · 0.577 · 15 ≈ 1.24.)
-5. **Disposal.** Add rig meshes to the scene's existing disposal path
-   (minigames push to `env.meshes` → `disposeMeshDeep`; scenes are swept by
-   `disposeSceneResources`). No textures means nothing else to free.
+5. **Disposal.** Add rig meshes to the active lifecycle path: current scenes
+   receive a `DisposalScope` from `SceneFrame`, current minigames receive one
+   through `MiniGameContext`, and older environment helpers still sweep local
+   mesh arrays during teardown. No textures means there is usually nothing
+   else to free.
 
 ## Reference implementations
 
@@ -83,10 +90,11 @@ raycast-disabled (so they never intercept gameplay taps).
 
 ## Follow-ups (not yet done)
 
-- **Star Catcher** still uses a hand-rolled vertex-gradient plane + moon +
-  starfield in its own `environment/setup.ts`. It works and looks good, but it
-  should migrate to `skyRig` for consistency the next time it is touched.
-- Longer term, the two camera families (fixed shell camera vs orbit scene
-  camera) could share a single documented camera abstraction so even gameplay
-  code stops branching on scene type. Out of scope here; `projectToView`
-  already removes the need for backdrop code to know which camera it has.
+- **Star Catcher** no longer uses the removed `createGameCamera`; its manifest
+  supplies a `CameraDescriptor`. It still uses a hand-rolled vertex-gradient
+  sky plane plus moon/starfield in `environment/setup.ts`. It works and looks
+  good, but should migrate to `skyRig` for consistency the next time it is
+  touched.
+- The two camera families now share `CameraDescriptor` for fixed/orbit camera
+  creation. Backdrop code should still use `projectToView` so it does not need
+  to know which camera family it was handed.

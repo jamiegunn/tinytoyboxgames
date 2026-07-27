@@ -451,6 +451,36 @@ export function createGame(context: MiniGameContext): IMiniGame {
   // something the child cannot see.
   const AUTO_HUNT_RADIUS = 9.0;
 
+  // How long the shark waits, after the last time the child touched anything,
+  // before it starts hunting on its own.
+  //
+  // WHY THIS EXISTS. Without it the auto-hunt is not a fallback, it is the
+  // game. `maintainAutoHunt` runs as the first statement of every frame and
+  // re-acquires the instant the FSM goes idle, against a reef the spawner holds
+  // at 14-18 fish inside a 15-unit camera radius; a fish is essentially always
+  // within 9 units, so idle never survives a frame. A probe that loaded the
+  // game and touched nothing for a minute measured `autoHuntActive` on 100.0%
+  // of frames and scored 0 — the shark hunted continuously and none of it
+  // counted. That is the whole of "the shark auto hunts, it takes no input from
+  // the user": a child watching a toy play itself, badly, while their own taps
+  // arrive at an animal already busy with something else.
+  //
+  // 3.5 s is long enough that a child tapping at any sort of pace keeps the
+  // shark theirs for the whole session, and short enough that a toy set down on
+  // the sofa comes back to life before it looks broken.
+  const AUTO_HUNT_IDLE_DELAY = 3.5;
+
+  // Seconds since the child last touched the screen. Starts at 0, so the first
+  // few seconds of a session belong to the player rather than to the shark.
+  let secondsSinceInput = 0;
+
+  // Called by every input entry point. A tap on coral is not a movement command
+  // but it is still the child playing, so it counts: the shark should not wander
+  // off to hunt while they are poking the reef.
+  function noteInput(): void {
+    secondsSinceInput = 0;
+  }
+
   // Returns the fish that owns a root object, or null if it has been pooled.
   function fishForRoot(root: Object3D | null): FishState | null {
     if (!root) return null;
@@ -495,6 +525,9 @@ export function createGame(context: MiniGameContext): IMiniGame {
     if (getHuntPhase(huntState) === 'idle') autoHuntActive = false;
     if (getHuntPhase(huntState) !== 'idle') return;
     if (sharkMove.isBeingDragged || sharkMove.isLunging) return;
+    // The attention gate. Everything below this line is attract behaviour for a
+    // shark nobody is currently playing with.
+    if (secondsSinceInput < AUTO_HUNT_IDLE_DELAY) return;
 
     let best: FishState | null = null;
     let bestDistSq = AUTO_HUNT_RADIUS * AUTO_HUNT_RADIUS;
@@ -525,6 +558,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
    * @param dt - Frame delta time in seconds.
    */
   function updateSharkMovement(dt: number): void {
+    secondsSinceInput += dt;
     maintainAutoHunt();
     const huntPhase = getHuntPhase(huntState);
 
@@ -1020,6 +1054,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
       sharkAnim = createSharkAnimState();
       sharkMove = createSharkMoveState();
       sharkPos.set(0, 0, 0);
+      secondsSinceInput = 0;
       context.score.reset();
       context.combo.reset();
       for (const f of fishArray) disposeFish(f);
@@ -1175,8 +1210,20 @@ export function createGame(context: MiniGameContext): IMiniGame {
 
     onTap(event: MiniGameTapEvent): void {
       if (paused) return;
+      noteInput();
       const pick = event.pickResult;
       if (!pick || !pick.hit || !pick.pickedMesh) {
+        // Aim assist first. The raycast missing everything is a statement about
+        // the reef geometry, not about the child's intent: a fish swimming over
+        // open water above the floor's silhouette produces exactly this pick,
+        // and until now it was the one branch of this handler that did not run
+        // `findFishNearTap`. A tap two pixels either side of the floor's edge
+        // therefore either caught a fish or did nothing, depending on scenery.
+        const aimedMiss = findFishNearTap(event.screenX, event.screenY);
+        if (aimedMiss) {
+          chaseFish(aimedMiss);
+          return;
+        }
         // Defect 5: this used to be a bare `return`. A tap that hits nothing now
         // gets a bubble puff wherever the child actually touched, so the game
         // never looks frozen.
@@ -1269,6 +1316,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
 
     onDrag(event: MiniGameDragEvent): void {
       if (paused) return;
+      noteInput();
       // Cancel hunt when player drags — they want manual control
       if (getHuntPhase(huntState) !== 'idle') {
         cancelHunt(huntState);
@@ -1284,6 +1332,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
     },
 
     onDragEnd(_event: MiniGameDragEndEvent): void {
+      noteInput();
       // Defect 7: this used to just clear the flag, so the shark stopped dead
       // the instant a finger lifted. releaseDrag keeps (and slightly boosts) the
       // velocity the drag built up and re-anchors idle drift ahead of the shark,

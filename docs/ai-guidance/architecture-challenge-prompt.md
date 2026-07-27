@@ -20,6 +20,7 @@ Current proposed model:
 - the owl companion appears in every navigable non-minigame scene
 - Examples:
   - World -> House -> Playroom -> Toybox -> Nature -> minigames
+  - World -> House -> Living Room -> Toybox -> Pirate Cove -> Cannonball Splash
   - World -> Park -> Jungle Gym -> Toybox -> immersive scene -> minigames
 - Toyboxes are literal in-world objects and each opens exactly one immersive scene.
 - Minigames are play modes, not navigable scenes.

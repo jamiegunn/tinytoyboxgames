@@ -20,6 +20,8 @@ rot, drift, or confuse future contributors.
 - local README files will stay maintained
 - one simple prop and one interactive prop are enough to teach the pattern
 - `bubble-pop` is an appropriate default minigame integration example
+- `audio: null` in generated catalog entries is acceptable as a draft scaffold
+  but not as a finished scene
 - template-only tests are sufficient for the first implementation phase
 
 ## Required Attack Angles
