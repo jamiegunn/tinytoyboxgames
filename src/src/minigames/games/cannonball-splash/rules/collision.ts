@@ -7,26 +7,30 @@ import type { PerspectiveCamera } from 'three';
 import type { MiniGameTapEvent } from '../../../framework/types';
 import type { Target } from '../types';
 import { C } from '../types';
-import { nearestTarget } from '../helpers';
+import { nearestTargetOnScreen, playHalfWidthAt } from '../helpers';
 import { collectTargetMeshes } from '../entities/targets';
 
 /**
  * Resolves a tap event into the world point the cannon should shoot at.
  *
- * 1. Check pick result for a direct target mesh hit
- * 2. If no direct hit, snap to a target inside the grace radius (1.0 unit)
- * 3. Otherwise aim at the water where the tap ray meets the surface
+ * 1. Direct target mesh hit from the framework's pick result.
+ * 2. Otherwise, the nearest target within a screen-space snap radius.
+ * 3. Otherwise, the water where the tap ray meets the surface, clamped into the
+ *    frustum-derived play area.
  *
  * The tap no longer decides whether anything is *hit*: it only chooses where the
  * ball is thrown. Whether that lands on a target is settled when the ball
  * arrives, so a wild tap really does splash into empty water.
  * @param event - The framework tap event with screen coordinates and pick result.
  * @param targets - The pool of targets to test against.
- * @param camera - Camera used for the ocean-plane raycast.
+ * @param camera - Camera used for projection and the ocean-plane raycast.
  * @param canvas - Canvas element used to normalize screen coordinates.
  * @returns The world point to aim at, always on the water inside the play area.
  */
 export function resolveTap(event: MiniGameTapEvent, targets: Target[], camera: PerspectiveCamera, canvas: HTMLCanvasElement): Vector3 {
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+
   // Direct mesh hit check
   if (event.pickResult?.hit && event.pickResult.pickedMesh) {
     const pickedMesh = event.pickResult.pickedMesh as Mesh;
@@ -39,40 +43,48 @@ export function resolveTap(event: MiniGameTapEvent, targets: Target[], camera: P
     }
   }
 
+  // Screen-space snap — a tap beside a target still aims at that target, by the
+  // same number of pixels wherever on the water it happens.
+  const snapPixels = C.TAP_SNAP_SCREEN_FRACTION * Math.min(width, height);
+  const snapIndex = nearestTargetOnScreen(targets, camera, event.screenX, event.screenY, width, height, snapPixels);
+  if (snapIndex !== null) {
+    return targets[snapIndex].root.position.clone();
+  }
+
   // Raycast to ocean plane to get world point
-  const ndc = new Vector2((event.screenX / canvas.clientWidth) * 2 - 1, -(event.screenY / canvas.clientHeight) * 2 + 1);
+  const ndc = new Vector2((event.screenX / width) * 2 - 1, -(event.screenY / height) * 2 + 1);
   const raycaster = new Raycaster();
   raycaster.setFromCamera(ndc, camera);
 
   const oceanPlane = new Plane(new Vector3(0, 1, 0), 0);
   const worldPoint = new Vector3();
   const hitWater = raycaster.ray.intersectPlane(oceanPlane, worldPoint) !== null;
+  const inBand = hitWater && worldPoint.z >= C.PLAY_Z_MIN && worldPoint.z <= C.PLAY_Z_MAX;
 
-  if (!hitWater) {
-    // The tap was above the horizon — the ray never meets the water. It used to
-    // land on a hardcoded (0, 0, -8) because the old check only looked at x and
-    // z, so a tap on the sky silently fired dead ahead. Fire a long shot along
-    // the direction the child actually pointed instead: the cannon swings the
-    // right way and the ball arcs out to the far edge of the play area, which
-    // is what "shoot over there" should look like.
-    const dir = raycaster.ray.direction;
-    const horizontal = Math.max(1e-4, Math.hypot(dir.x, dir.z));
-    const reach = Math.abs(C.PLAY_Z_MIN - camera.position.z);
-    worldPoint.set(camera.position.x + (dir.x / horizontal) * reach, 0, camera.position.z + (dir.z / horizontal) * reach);
+  if (inBand) {
+    // The tap landed on water the child can shoot at. Take the ray's own
+    // intersection and only pull it in from the frame edge, so the shot goes
+    // exactly where the finger was.
+    const halfWidth = playHalfWidthAt(camera, worldPoint.z);
+    worldPoint.x = Math.max(-halfWidth, Math.min(halfWidth, worldPoint.x));
+  } else {
+    // Everything else — the sky, the far water past the play band, and the ship
+    // itself — is mapped proportionally onto the nearest edge of the band.
+    //
+    // Clamping z and x independently, which is what this used to do, saturates.
+    // A 6x4 probe sweep found the taps at screen x = 100 and x = 300 on the
+    // y = 304 row both aiming at x = -11.01: the ray meets the water out around
+    // z = -25 where the frame is 22 units wide, so both intersections were past
+    // the 11.01-unit bound at z = -12 and the clamp flattened them onto the same
+    // point. Two taps 200 px apart firing the identical shot is exactly the
+    // "nothing I do changes anything" the measurements describe. Scaling the
+    // tap's own NDC x across the edge's half-width is monotone in screenX by
+    // construction, so every column of the sweep aims somewhere different.
+    const edgeZ = hitWater && worldPoint.z > C.PLAY_Z_MAX ? C.PLAY_Z_MAX : C.PLAY_Z_MIN;
+    worldPoint.set(ndc.x * playHalfWidthAt(camera, edgeZ), 0, edgeZ);
   }
 
-  // Keep every shot inside the water the child can see, whether it came from a
-  // sky tap, the horizon haze, or a tap past the edge of the play area.
-  worldPoint.x = Math.max(C.PLAY_X_MIN, Math.min(C.PLAY_X_MAX, worldPoint.x));
-  worldPoint.z = Math.max(C.PLAY_Z_MIN, Math.min(C.PLAY_Z_MAX, worldPoint.z));
   worldPoint.y = 0;
-
-  // Grace radius check — a tap just beside a target still aims at the target.
-  const graceIndex = nearestTarget(targets, worldPoint, C.GRACE_RADIUS);
-  if (graceIndex !== null) {
-    return targets[graceIndex].root.position.clone();
-  }
-
   return worldPoint;
 }
 

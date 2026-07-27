@@ -76,15 +76,15 @@ This separation means either domain can be redesigned, rebalanced, or replaced w
 
 Within each domain directory, files are split by responsibility:
 
-| File | Responsibility | Knows about |
-|------|---------------|-------------|
-| `lifecycle.ts` | Entity identity — creation, reset, disposal, material assignment | Single entities |
-| `effects.ts` | Animation and visual feedback — motion, wobble, particle bursts | Single entities + time |
-| `rules.ts` | Game logic — chain reactions, proximity triggers, multi-tap | Collections of entities |
+| File           | Responsibility                                                   | Knows about             |
+| -------------- | ---------------------------------------------------------------- | ----------------------- |
+| `lifecycle.ts` | Entity identity — creation, reset, disposal, material assignment | Single entities         |
+| `effects.ts`   | Animation and visual feedback — motion, wobble, particle bursts  | Single entities + time  |
+| `rules.ts`     | Game logic — chain reactions, proximity triggers, multi-tap      | Collections of entities |
 
 **Rules never create or dispose entities.** They mutate state (queue a pop, apply wobble) and return. The orchestrator decides what to do with the result. This keeps rules testable without a scene graph.
 
-**Effects never make gameplay decisions.** They read entity state and produce visuals. A pop burst doesn't decide *whether* to pop — it animates *that* a pop happened.
+**Effects never make gameplay decisions.** They read entity state and produce visuals. A pop burst doesn't decide _whether_ to pop — it animates _that_ a pop happened.
 
 ### Setup vs. Scenery (Environment)
 
@@ -94,19 +94,20 @@ Within each domain directory, files are split by responsibility:
 
 Games delegate to framework systems rather than reimplementing common concerns:
 
-| System | Purpose | How the game uses it |
-|--------|---------|---------------------|
-| **ScoreManager** | Point tracking with combo multiplier | `context.score.addPoints(basePoints)` on every pop; `reset()` on start |
-| **ComboTracker** | Streak detection and multiplier | `context.combo.registerHit()` on every pop; chain pops build streaks naturally |
-| **DifficultyController** | Progressive ramp (0-1) based on score | `context.difficulty.level` drives entity count, speed, spawn variety, phase gating |
-| **SpawnScheduler** | Timer-managed spawning with pause/resume | `context.spawner.register()` for primary loop and shower bursts; `pauseAll()`/`resumeAll()`/`clearAll()` for lifecycle |
-| **CelebrationSystem** | Confetti, sounds, milestones | `confetti()` on every pop, `celebrationSound('pop'/'chime'/'whoosh')` per kind, `milestone()` at score thresholds |
-| **EntityPool** | Object recycling (acquire/release) | Pool prewarmed at setup, entities recycled instead of created/destroyed |
-| **AudioBridge** | Sound and music playback | SFX on interactions, background music on start, stop on teardown |
+| System                   | Purpose                                  | How the game uses it                                                                                                   |
+| ------------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **ScoreManager**         | Point tracking with combo multiplier     | `context.score.addPoints(basePoints)` on every pop; `reset()` on start                                                 |
+| **ComboTracker**         | Streak detection and multiplier          | `context.combo.registerHit()` on every pop; chain pops build streaks naturally                                         |
+| **DifficultyController** | Progressive ramp (0-1) based on score    | `context.difficulty.level` drives entity count, speed, spawn variety, phase gating                                     |
+| **SpawnScheduler**       | Timer-managed spawning with pause/resume | `context.spawner.register()` for primary loop and shower bursts; `pauseAll()`/`resumeAll()`/`clearAll()` for lifecycle |
+| **CelebrationSystem**    | Confetti, sounds, milestones             | `confetti()` on every pop, `celebrationSound('pop'/'chime'/'whoosh')` per kind, `milestone()` at score thresholds      |
+| **EntityPool**           | Object recycling (acquire/release)       | Pool prewarmed at setup, entities recycled instead of created/destroyed                                                |
+| **AudioBridge**          | Sound and music playback                 | SFX on interactions, background music on start, stop on teardown                                                       |
 
 ### Anti-Patterns Avoided
 
 Games must never:
+
 - Roll their own `setTimeout`/`setInterval` tracking — use `SpawnScheduler`
 - Maintain local score counters for progression — use `ScoreManager` + `DifficultyController`
 - Hardcode difficulty ramps (e.g., `if (count % 3 === 0) target++`) — derive from `context.difficulty.level`
@@ -116,32 +117,54 @@ Games must never:
 
 Tuning constants in `types.ts` define MIN/MAX bounds. Actual runtime values are interpolated from `context.difficulty.level`:
 
-- Entity count: SpawnScheduler's `maxCount` caps at `MAX_BUBBLES`; natural spawn cadence fills to capacity as difficulty rises
-- Entity speed: interpolated between `MIN_FLOAT_SPEED` and `MAX_FLOAT_SPEED`
-- Spawn variety: `pickBubbleKind(difficultyLevel)` unlocks rarer kinds and increases their probability as difficulty rises
-- Game phase: `getPhase(difficultyLevel, elapsedTime)` gates crescendo onset on difficulty, then uses elapsed time for breathing rhythm
+- Entity count: `targetBubbleCount(ed)` sets the crowd size (13–21 active, ~10–16 on screen); `MAX_BUBBLES` is only the hard pool/spawner ceiling above it
+- Entity speed: `bubbleSpeedRange(ed, phase)` slides a fixed-width window through `[MIN_FLOAT_SPEED, MAX_FLOAT_SPEED]`, which are themselves derived from a 6–12 second frame-crossing target
+- Spawn variety: `pickBubbleKindBalanced(ed, phase)` in `balance.ts` unlocks rarer kinds and increases their probability as difficulty rises
+- Spawn rate: `spawnInterval(ed)` — 0.62s down to 0.25s
+- Showers: `showerInterval(ed)` pops between showers (30 down to 15), `showerCount(ed, active, target)` bubbles per shower (3 up to 10, capped by headroom above target), `showerSpawnStagger(ed)` between each (0.15s down to 0.06s)
+- Giant bubbles: `giantTapsRequired(playerProfile)` — 1 to 5 taps, keyed to the player profile rather than to difficulty
+- Game phase: energy-driven, not time-driven. `createPhaseState` / `updatePhaseEnergy` / `recordPopForEnergy` in `adaptive.ts` move the phase on accumulated pop energy, so a child who is popping steadily reaches crescendo and one who is watching does not.
 
 ### Score Milestone Subscriptions
 
-Games subscribe to `context.score.onScoreChanged()` in `start()` and fire `context.celebration.milestone()` at intervals defined by `SCORE_MILESTONE_INTERVAL`. The unsubscribe function is stored as a closure variable and called in `teardown()` to prevent leaks.
+Games subscribe to `context.score.onScoreChanged()` in `start()` and fire `context.celebration.milestone()` at the thresholds returned by `nextMilestoneScore` in `balance.ts` — 100, 300, 600, 1000, 1500, then every 500. The unsubscribe function is stored as a closure variable and called in `teardown()` to prevent leaks.
 
 ## Constants Model
 
-All gameplay-affecting values live as named constants in `types.ts`. No magic numbers in orchestration or rule code.
+Fixed values live as named constants in `types.ts`. Anything that varies with
+difficulty or with the player lives as a function in `balance.ts`. No magic
+numbers in orchestration or rule code.
+
+**Backticks in this README mean the identifier exists.** Names of deleted things
+are written in plain text, so that a citation can be checked mechanically.
+
+**That convention exists because this README used to get the split wrong.** It
+listed SPAWN_INTERVAL, SHOWER_SPAWN_INTERVAL, SCORE_MILESTONE_INTERVAL,
+GIANT_TAPS and MIN_RESPAWN_DELAY / MAX_RESPAWN_DELAY as the live tuning values.
+All of them were dead — leftovers from before `balance.ts` existed — and every
+one of them named a different number from the one the game actually used. They
+have been deleted, along with getPhase and pickBubbleKind in `helpers.ts`, which
+this README documented as the live difficulty system while `index.ts` was
+calling `pickBubbleKindBalanced` and the energy phase machine instead. If you
+want to know what a rule does, read `balance.ts`; a constant in `types.ts` is
+only the truth if something imports it.
 
 ### Constant categories
 
-| Category | Examples | Notes |
-|----------|---------|-------|
-| **Bounds (MIN/MAX pairs)** | `MIN_FLOAT_SPEED`/`MAX_FLOAT_SPEED`, `MIN_RESPAWN_DELAY`/`MAX_RESPAWN_DELAY` | Interpolated by difficulty level at runtime |
-| **Capacities** | `MAX_BUBBLES`, `INITIAL_BUBBLES`, `POOL_BUFFER` | Fixed limits for pool sizing and spawn caps |
-| **Timing** | `SPAWN_INTERVAL`, `SPAWN_JITTER`, `SHOWER_SPAWN_INTERVAL`, `SPAWN_ANIM_DURATION` | SpawnScheduler config and animation durations |
-| **Thresholds** | `RECYCLE_Y`, `CHAIN_POP_RADIUS`, `WOBBLE_RADIUS`, `MOON_PULSE_INTERVAL` | Trigger distances and event intervals |
-| **Scoring** | `BUBBLE_POINTS` (per-kind record), `SCORE_MILESTONE_INTERVAL` | Framework-integrated point values |
-| **Camera** | `CAMERA_RADIUS_PORTRAIT`, `CAMERA_RADIUS_LANDSCAPE` | Responsive layout values |
-| **Audio** | `POP_SOUNDS` (indexed by sizeVariant) | Maps entity variant to sound ID |
-| **Entity rules** | `GIANT_TAPS`, `GOLDEN_BURST_COUNT`, `WOBBLE_AUTO_POP_DELAY` | Game rule parameters |
-| **Visual tuning** | `WOBBLE_AMPLITUDE`, `SWAY_AMPLITUDE`, `GIANT_SCALE` | Animation parameters used across multiple functions |
+| Category                   | Examples                                                                | Notes                                               |
+| -------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------- |
+| **Bounds (MIN/MAX pairs)** | `MIN_FLOAT_SPEED`/`MAX_FLOAT_SPEED`                                     | Read by `balance.ts` curves, never used directly    |
+| **Capacities**             | `MAX_BUBBLES`, `POOL_BUFFER`                                            | Fixed limits for pool sizing and spawn caps         |
+| **Timing**                 | `SPAWN_JITTER`, `SPAWN_ANIM_DURATION`                                   | SpawnScheduler config and animation durations       |
+| **Thresholds**             | `RECYCLE_Y`, `CHAIN_POP_RADIUS`, `WOBBLE_RADIUS`, `MOON_PULSE_INTERVAL` | Trigger distances and event intervals               |
+| **Scoring**                | `BUBBLE_POINTS` (per-kind record)                                       | Framework-integrated point values                   |
+| **Audio**                  | `POP_SOUNDS` (indexed by sizeVariant)                                   | Maps entity variant to sound ID                     |
+| **Entity rules**           | `GOLDEN_BURST_COUNT`, `WOBBLE_AUTO_POP_DELAY`                           | Game rule parameters                                |
+| **Visual tuning**          | `WOBBLE_AMPLITUDE`, `SWAY_AMPLITUDE`, `GIANT_SCALE`                     | Animation parameters used across multiple functions |
+
+The spawn band is measured from the live shell camera by `computeSpawnBand` in
+`helpers.ts` rather than declared as a constant, because the framed width
+depends on orientation.
 
 Animation-specific parameters that only appear in a single function (color values, easing curves, particle counts) remain as inline values in their respective `effects.ts` or `scenery.ts` files. Extracting every animation parameter to `types.ts` would hurt locality without improving maintainability.
 
@@ -163,6 +186,7 @@ The game depends on abstractions (`MiniGameContext`, `EntityPool<T>`, `AudioBrid
 ### DRY via Shared Libraries
 
 Cross-cutting concerns live in `@app/minigames/shared/`:
+
 - `materials` — reusable material factories (e.g., `createBubbleMaterial`)
 - `meshBuilders` — common geometry (e.g., `buildSkyGradient`)
 
@@ -176,6 +200,7 @@ Games import from shared libraries for common building blocks. Game-specific mes
 ### No GC Pressure in Hot Paths
 
 Per-frame code (anything called from `update`) avoids allocations:
+
 - `setRGB()` over `new Color()` for color mutations
 - Pre-allocated scratch variables for vector math (see `tempPool.ts`)
 - Object pool (`EntityPool<T>`) for entity recycling — acquire/release instead of create/dispose
@@ -188,6 +213,7 @@ All spawn timing is delegated to `context.spawner`. The framework handles timer 
 ## Dependencies
 
 ### Framework (injected via context)
+
 - `IMiniGame` — lifecycle contract
 - `MiniGameContext` — shared systems (scene, audio, pools, celebration, scoring, difficulty, spawning)
 - `EntityPool<T>` — object recycling with acquire/release/prewarm/dispose
@@ -199,14 +225,17 @@ All spawn timing is delegated to `context.spawner`. The framework handles timer 
 - `AudioBridge` — sound and music playback
 
 ### Engine (direct import)
+
 - `three` — Scene, Mesh, geometries, materials, lights, vectors, colors
 
 ### Shared Libraries (cross-game reuse)
+
 - `@app/minigames/shared/materials` — entity material factories
 - `@app/minigames/shared/meshBuilders` — sky gradients, common geometry
 - `@app/utils/particles` — per-scene ParticleEngine (`getParticleEngine(scene).emit(PARTICLES.x, pos)`)
 
 ### Internal (game-specific)
+
 - `types.ts` — all interfaces, type aliases, and tuning constants (MIN/MAX bounds, scoring, audio maps)
 - `helpers.ts` — pure utility functions (random ranges, difficulty-driven phase/spawn selection)
 
@@ -214,8 +243,8 @@ No game file imports from another game. No game file imports from React, the app
 
 ## Known Technical Debt
 
-| Item | Scope | Notes |
-|------|-------|-------|
-| `InputDispatcher` sends `pickResult: null` | `framework/InputDispatcher.ts` | Forces each game to call `scene.pick()` and do its own mesh-to-entity lookup |
-| No shared lighting rig factory | `shared/` | Camera + 2-3 light setup repeated across games; pattern hasn't stabilized enough to abstract |
-| No test coverage | `bubble-pop/` | Framework spec requires manifest, lifecycle, teardown, input, first-tap, and resize tests |
+| Item                                       | Scope                          | Notes                                                                                        |
+| ------------------------------------------ | ------------------------------ | -------------------------------------------------------------------------------------------- |
+| `InputDispatcher` sends `pickResult: null` | `framework/InputDispatcher.ts` | Forces each game to call `scene.pick()` and do its own mesh-to-entity lookup                 |
+| No shared lighting rig factory             | `shared/`                      | Camera + 2-3 light setup repeated across games; pattern hasn't stabilized enough to abstract |
+| No test coverage                           | `bubble-pop/`                  | Framework spec requires manifest, lifecycle, teardown, input, first-tap, and resize tests    |

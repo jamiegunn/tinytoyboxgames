@@ -1,5 +1,6 @@
 import { lerp } from '@app/minigames/shared/mathUtils';
 import type { BubbleKind, GamePhase } from './types';
+import { MAX_FLOAT_SPEED, MIN_FLOAT_SPEED, VISIBLE_LIFE_FRACTION } from './types';
 
 /**
  * Parameterized gameplay functions that replace static constants.
@@ -9,35 +10,94 @@ import type { BubbleKind, GamePhase } from './types';
 
 /**
  * Target active bubble count, scaled by effective difficulty.
+ *
+ * Sized from how many bubbles a child should *see*, then converted to the
+ * active count the spawner and pool deal in. Only VISIBLE_LIFE_FRACTION = 0.77
+ * of an active bubble's life is spent on screen (see types.ts for that
+ * derivation — side-edge spawns start off the horizontal frame edge and only
+ * drift inward some of the time).
+ *
+ *   easy (ed = 0): 10 on screen / 0.77 = 12.99 -> 13 active
+ *   hard (ed = 1): 16 on screen / 0.77 = 20.78 -> 21 active
+ *
+ * It used to run 20 -> 80. `spawnBubble` short-circuits on this number, so the
+ * cap (not the spawn rate) decided the crowd size, and 80 bubbles on a
+ * 7-unit-tall frame is a wall, not a playfield.
+ *
  * @param ed - Effective difficulty (0–1).
- * @returns Target bubble count (5–20).
+ * @returns Target active bubble count (13–21).
  */
 export function targetBubbleCount(ed: number): number {
-  if (ed < 0.3) return Math.round(lerp(20, 32, ed / 0.3));
-  if (ed < 0.6) return Math.round(lerp(32, 56, (ed - 0.3) / 0.3));
-  return Math.round(lerp(56, 80, (ed - 0.6) / 0.4));
+  return Math.round(lerp(10, 16, ed) / VISIBLE_LIFE_FRACTION);
 }
 
 /**
  * Spawn interval in seconds, scaled by effective difficulty.
+ *
+ * Chosen so the *natural* steady state sits just above `targetBubbleCount`
+ * rather than many times over it. At equilibrium, active bubbles = spawn rate
+ * x bubble lifetime, where lifetime is MEAN_TRAVEL_DISTANCE (7.08) divided by
+ * the mean speed `bubbleSpeedRange` hands out at that difficulty. A 1.25x
+ * margin keeps the field topped up against recycles the target hasn't yet
+ * accounted for:
+ *
+ *   ed = 0 (band [0.60, 0.80], mean 0.70), target 13:
+ *     lifetime 7.08 / 0.70 = 10.11 s
+ *     rate     13 / 10.11 * 1.25 = 1.607 /s  ->  1 / 1.607 = 0.622  -> 0.62
+ *   ed = 1, crescendo (band [1.00, 1.20], mean 1.10), target 21:
+ *     lifetime 7.08 / 1.10 =  6.44 s
+ *     rate     21 /  6.44 * 1.25 = 4.078 /s  ->  1 / 4.078 = 0.245  -> 0.25
+ *
+ * (Sized for the fastest phase, so in calm the field fills faster than it
+ * drains and `targetBubbleCount` trims the surplus — the safe direction, since
+ * the cap can only make the crowd smaller than intended, never emptier.)
+ *
+ * It was lerp(0.3, 0.12, ed): 3.33 spawns a second against a 10-second
+ * lifetime is a steady state of 34 bubbles, well past the target, so most
+ * spawn ticks did nothing but re-arm the timer.
+ *
  * @param ed - Effective difficulty (0–1).
- * @returns Spawn interval in seconds (1.2–0.5).
+ * @returns Spawn interval in seconds (0.62–0.25).
  */
 export function spawnInterval(ed: number): number {
-  return lerp(0.3, 0.12, ed);
+  return lerp(0.62, 0.25, ed);
 }
 
 /**
- * Bubble speed range for a given difficulty and phase.
+ * Bubble rise-speed band for a given difficulty and phase, in units/second.
+ *
+ * A fixed-width window that slides from the floor of [MIN_FLOAT_SPEED,
+ * MAX_FLOAT_SPEED] up to its ceiling as difficulty and phase energy rise, so
+ * every bubble — at every difficulty, in every phase — stays inside the 6-12
+ * second crossing target that fixed those two bounds:
+ *
+ *   span  = MAX_FLOAT_SPEED - MIN_FLOAT_SPEED = 1.2 - 0.6 = 0.6
+ *   width = span / 3                                      = 0.2
+ *   slide = span - width                                  = 0.4
+ *
+ *   ed 0, any phase: [0.60, 0.80] mean 0.70 -> 7.08 / 0.70 = 10.1 s to cross
+ *   ed 1, calm:      [0.78, 0.98] mean 0.88 -> 7.08 / 0.88 =  8.0 s
+ *   ed 1, building:  [0.90, 1.10] mean 1.00 -> 7.08 / 1.00 =  7.1 s
+ *   ed 1, crescendo: [1.00, 1.20] mean 1.10 -> 7.08 / 1.10 =  6.4 s
+ *
+ * This used to hardcode its own `min = 0.15` and `max = lerp(0.35, 1.0, ed)`,
+ * so MIN/MAX_FLOAT_SPEED never reached the speed a bubble actually got, and
+ * the calm phase multiplied the max by 0.6 — a [0.15, 0.21] band at difficulty
+ * 0, i.e. 34-39 seconds to cross the frame.
+ *
  * @param ed - Effective difficulty (0–1).
  * @param phase - Current game phase.
  * @returns [min, max] speed in units/second.
  */
 export function bubbleSpeedRange(ed: number, phase: GamePhase): [number, number] {
-  const phaseMultiplier = phase === 'calm' ? 0.6 : phase === 'building' ? 0.85 : 1.0;
-  const min = 0.15;
-  const max = lerp(0.35, 1.0, ed) * phaseMultiplier;
-  return [min, Math.max(min + 0.05, max)];
+  // How far up the speed band each phase is allowed to reach at full
+  // difficulty. Calm is still the slowest phase, but its floor is now
+  // MIN_FLOAT_SPEED rather than a fraction of it.
+  const phaseReach = phase === 'calm' ? 0.45 : phase === 'building' ? 0.75 : 1.0;
+  const span = MAX_FLOAT_SPEED - MIN_FLOAT_SPEED;
+  const width = span / 3;
+  const min = MIN_FLOAT_SPEED + (span - width) * ed * phaseReach;
+  return [min, min + width];
 }
 
 /**

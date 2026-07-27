@@ -7,9 +7,30 @@ import { getIdleAnimator } from '@app/utils/idle/registry';
 // The door crack is at the knob/free edge: X ≈ -5.7 (just inside wall), Z ≈ +0.9
 const DOOR_CRACK_INSIDE = new Vector3(-5.4, 0, 0.9);
 const DOOR_CRACK_OUTSIDE = new Vector3(-6.3, 0, 0.9);
-const PURPLE_TOYBOX = new Vector3(3.67, 0.01, -6.88);
-const RED_TOYBOX = new Vector3(5.25, 0.01, 1.5);
 const ANDY_POS = new Vector3(-3.6, 1.02, 7.78);
+
+/**
+ * A surface a visiting animal may leap onto, measured from the object that was
+ * actually built rather than written down by hand.
+ *
+ * Hand-written toybox coordinates used to live here as `PURPLE_TOYBOX` and
+ * `RED_TOYBOX`. The purple one referred to a fourth "nature" toybox that had
+ * been removed from `toyboxes/manifest.ts`, so the kitty leapt to y=1.3 over
+ * empty floor and sat grooming in mid-air every 20 seconds. Nothing detected
+ * it, because a constant cannot go stale in a way the compiler can see.
+ * Perches are now derived from the built scene, so a toybox that is not
+ * created cannot be landed on.
+ */
+export interface VisitorPerch {
+  /** World X of the perch centre. */
+  x: number;
+  /** World Z of the perch centre. */
+  z: number;
+  /** World Y of the perch's top surface — where the animal's feet land. */
+  topY: number;
+  /** Footprint radius on the floor, used for obstacle avoidance. */
+  radius: number;
+}
 
 /**
  * Builds a soft, rounded orange tabby cat.
@@ -367,11 +388,9 @@ const FLOOR_OBSTACLES: [number, number, number][] = [
   [-4.5, 4.0, 0.45], // pillow (left-back)
   // Floor books
   [-4.2, 5.5, 0.5], // floor books
-  // Toyboxes (large obstacles)
-  [5.25, 1.5, 0.8], // adventure toybox (red)
-  [-1.6, -6.5, 0.8], // animals toybox (blue)
-  [-2.8, 8.25, 0.8], // creative toybox (green)
-  [3.67, -6.88, 0.8], // nature toybox (purple)
+  // Toyboxes are NOT listed here — they are appended at spawn time from the
+  // perches measured off the built scene, so a removed toybox stops being an
+  // obstacle at the same moment it stops being a landing target.
 ];
 
 /**
@@ -420,7 +439,7 @@ function findObstaclesCrossed(from: Vector3, to: Vector3): Vector3[] {
   const nz = dz / len;
 
   const hits: { point: Vector3; dist: number }[] = [];
-  for (const [ox, oz, or] of FLOOR_OBSTACLES) {
+  for (const [ox, oz, or] of [...FLOOR_OBSTACLES, ...perchObstacles]) {
     // Project obstacle center onto the line
     const relX = ox - from.x;
     const relZ = oz - from.z;
@@ -496,30 +515,54 @@ async function smartWalk(root: Group, target: Vector3, speed: number, stopShort 
 }
 
 /**
- * Arc-jump from current position onto the top of a toybox.
- * The animal leaps forward and up simultaneously.
+ * Arc-jump from the current position onto the top of a perch.
+ * The animal leaps forward and up simultaneously and lands on the top surface.
  * @param root - The animal group to animate
- * @param toyboxPos - Toybox world position
- * @param topY - Y coordinate of the toybox top
+ * @param perch - The perch to land on, measured from the built scene
  * @returns Promise that resolves when the leap completes
  */
-function leapOnto(root: Group, toyboxPos: Vector3, topY: number): Promise<void> {
-  const landPos = new Vector3(toyboxPos.x, topY, toyboxPos.z);
-  return hop(root, landPos, topY * 0.6, 0.5);
+function leapOnto(root: Group, perch: VisitorPerch): Promise<void> {
+  const landPos = new Vector3(perch.x, perch.topY, perch.z);
+  return hop(root, landPos, perch.topY * 0.6, 0.5);
 }
 
-/** Toybox top Y — classic toyboxes at scale 0.75: root offset 0.7*0.75=0.525, ridge 0.93*0.75=0.7 → ~1.25 */
-const TOYBOX_TOP_Y = 1.3;
+// Toybox footprints for obstacle avoidance, refreshed by spawnAnimalVisitors.
+let perchObstacles: [number, number, number][] = [];
+
+/**
+ * Chooses which perches a visiting animal will leap onto, tallest first.
+ *
+ * Extracted as a pure function so the safety property can be tested by running
+ * it rather than by matching source text: an empty input must yield an empty
+ * output, which is what stops a critter leaping onto a toybox that was removed
+ * from the manifest.
+ * @param perches - Perches measured from the built scene
+ * @param limit - Maximum number of stops to visit
+ * @returns The chosen stops, tallest first, never more than `limit`
+ */
+export function selectPerchStops(perches: VisitorPerch[], limit = 2): VisitorPerch[] {
+  return [...perches].sort((a, b) => b.topY - a.topY).slice(0, Math.max(0, limit));
+}
 
 /**
  * Spawns ambient animal visitors after a delay:
- * 1. A kitty enters through the door, visits the purple and red toyboxes, then exits.
+ * 1. A kitty enters through the door, leaps onto up to two of the perches it is
+ *    given, then exits. With no perches it simply crosses the room and leaves.
  * 2. A golden retriever enters, grabs Andy, and runs out.
  * @param scene - The Three.js scene to add visitors to
+ * @param perches - Landing surfaces measured from the objects actually built in
+ *   this room. Passing an empty list is safe: the kitty skips its leaps rather
+ *   than jumping onto a surface that is not there.
  * @returns A cleanup function to cancel all visitor animations
  */
-export function spawnAnimalVisitors(scene: Scene): () => void {
+export function spawnAnimalVisitors(scene: Scene, perches: VisitorPerch[] = []): () => void {
   const cleanups: (() => void)[] = [];
+  // Highest first, so the kitty's two stops are the most visually interesting.
+  const stops = selectPerchStops(perches, 2);
+  perchObstacles = perches.map((p) => [p.x, p.z, p.radius]);
+  cleanups.push(() => {
+    perchObstacles = [];
+  });
 
   // ── Kitty sequence (repeats every 20 seconds) ──
   let kittyRunning = false;
@@ -537,32 +580,30 @@ export function spawnAnimalVisitors(scene: Scene): () => void {
     // Enter through door crack
     await walkStraight(kitty, DOOR_CRACK_INSIDE, 2);
 
-    // Walk toward purple toybox, stopping 1.2 units short
-    await smartWalk(kitty, new Vector3(PURPLE_TOYBOX.x, 0, PURPLE_TOYBOX.z), 3, 1.2);
+    // First stop: approach, leap up, sit and look around.
+    if (stops[0]) {
+      await smartWalk(kitty, new Vector3(stops[0].x, 0, stops[0].z), 3, 1.2);
+      await leapOnto(kitty, stops[0]);
 
-    // Leap onto the top of purple toybox
-    await leapOnto(kitty, PURPLE_TOYBOX, TOYBOX_TOP_Y);
+      await wait(0.3);
+      await new Promise<void>((r) => gsap.to(kitty.rotation, { y: '+=0.6', duration: 0.5, ease: 'sine.inOut', onComplete: r }));
+      await new Promise<void>((r) => gsap.to(kitty.rotation, { y: '-=0.9', duration: 0.6, ease: 'sine.inOut', onComplete: r }));
+      await wait(0.3);
 
-    // Sit and look around
-    await wait(0.3);
-    await new Promise<void>((r) => gsap.to(kitty.rotation, { y: '+=0.6', duration: 0.5, ease: 'sine.inOut', onComplete: r }));
-    await new Promise<void>((r) => gsap.to(kitty.rotation, { y: '-=0.9', duration: 0.6, ease: 'sine.inOut', onComplete: r }));
-    await wait(0.3);
+      // Jump down
+      await hop(kitty, new Vector3(kitty.position.x + 0.8, 0, kitty.position.z + 0.8), 0.3, 0.35);
+    }
 
-    // Jump down
-    await hop(kitty, new Vector3(kitty.position.x + 0.8, 0, kitty.position.z + 0.8), 0.3, 0.35);
+    // Second stop: a shorter visit before heading home.
+    if (stops[1]) {
+      await smartWalk(kitty, new Vector3(stops[1].x, 0, stops[1].z), 3, 1.2);
+      await leapOnto(kitty, stops[1]);
 
-    // Walk toward red toybox, stopping 1.2 units short
-    await smartWalk(kitty, new Vector3(RED_TOYBOX.x, 0, RED_TOYBOX.z), 3, 1.2);
+      await wait(1.0);
 
-    // Leap onto red toybox
-    await leapOnto(kitty, RED_TOYBOX, TOYBOX_TOP_Y);
-
-    // Sit briefly
-    await wait(1.0);
-
-    // Jump down
-    await hop(kitty, new Vector3(kitty.position.x - 0.8, 0, kitty.position.z), 0.3, 0.35);
+      // Jump down
+      await hop(kitty, new Vector3(kitty.position.x - 0.8, 0, kitty.position.z), 0.3, 0.35);
+    }
 
     // Sprint to door crack and exit
     await smartWalk(kitty, DOOR_CRACK_INSIDE.clone(), 5);

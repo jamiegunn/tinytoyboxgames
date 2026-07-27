@@ -91,6 +91,9 @@ export function updateVignette(state: VignetteState, dt: number): void {
 // Speed lines — radial blur hint during lunge
 // ---------------------------------------------------------------------------
 
+/** Peak opacity of a speed line. See createSpeedLines for why this fell from 0.4. */
+const SPEED_LINE_PEAK = 0.22;
+
 /** Mutable state for the speed-line screen effect. */
 export interface SpeedLineState {
   lines: Mesh[];
@@ -108,12 +111,19 @@ export interface SpeedLineState {
  */
 export function createSpeedLines(camera: PerspectiveCamera, count = 8): SpeedLineState {
   const lines: Mesh[] = [];
-  const radius = 0.3;
+  // Was radius 0.3 with 0.3-long pure-white quads at peak opacity 0.4. Nobody
+  // had ever seen that, because until the camera was added to the scene graph
+  // nothing parented to the camera was drawn at all (see index.ts setup). Once
+  // it rendered, an auto-hunt strike -- which the child did not initiate and
+  // which happens several times a minute -- threw hard white scratches right
+  // across the frame. Pulled in to a third the length, thinned, and tinted to
+  // the water's own pale blue so it reads as rush rather than damage.
+  const radius = 0.14;
 
   for (let i = 0; i < count; i++) {
-    const geometry = new PlaneGeometry(0.002, 0.3);
+    const geometry = new PlaneGeometry(0.0025, 0.09);
     const material = new MeshBasicMaterial({
-      color: 0xffffff,
+      color: 0xcfefff,
       transparent: true,
       opacity: 0,
       side: DoubleSide,
@@ -127,7 +137,15 @@ export function createSpeedLines(camera: PerspectiveCamera, count = 8): SpeedLin
 
     const angle = (i / count) * Math.PI * 2;
     mesh.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, -0.5);
-    mesh.rotation.z = angle;
+    // Radial, not tangential. `PlaneGeometry` runs its long axis along local +y,
+    // so `rotation.z = angle` -- what this file did from the day it was written
+    // -- points every bar at 90 degrees to the radius, and eight tangential bars
+    // on a common radius draw an octagon. A held-at-peak capture showed exactly
+    // that: a pale cage around the shark, which reads as a boundary box rather
+    // than as motion. Nobody had ever seen it, because nothing parented to the
+    // camera was drawn at all until the camera was added to the scene graph.
+    // Subtracting a quarter turn aligns +y with the outward radius.
+    mesh.rotation.z = angle - Math.PI / 2;
 
     camera.add(mesh);
     lines.push(mesh);
@@ -173,10 +191,10 @@ export function updateSpeedLines(state: SpeedLineState, dt: number): void {
 
   if (t < fadeInEnd) {
     // Quick fade in
-    opacity = 0.4 * (t / fadeInEnd);
+    opacity = SPEED_LINE_PEAK * (t / fadeInEnd);
   } else {
     // Fade out over remaining duration
-    opacity = 0.4 * (1 - (t - fadeInEnd) / (1 - fadeInEnd));
+    opacity = SPEED_LINE_PEAK * (1 - (t - fadeInEnd) / (1 - fadeInEnd));
   }
 
   // Slight outward stretch — lines grow longer as they fade

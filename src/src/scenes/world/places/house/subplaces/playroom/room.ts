@@ -1,4 +1,4 @@
-import { Vector3 } from 'three';
+import { Box3, Vector3 } from 'three';
 import { getParticleEngine } from '@app/utils/particles/registry';
 import { PARTICLES, DUST_MOTES_RATE } from '@app/utils/particles/presets';
 import { createDisposeCollector } from '@app/utils/sceneHelpers';
@@ -16,7 +16,7 @@ import { createBookshelf } from './bookshelf';
 import { createFloorToys } from './floorToys';
 import { createCritters } from './critters';
 import { createDecor } from './decor';
-import { spawnAnimalVisitors } from './critters/animalVisitors';
+import { spawnAnimalVisitors, type VisitorPerch } from './critters/animalVisitors';
 
 /** Fixed room-centre emit point for ambient dust motes (matches the legacy origin emitter). */
 const MOTE_ORIGIN = new Vector3(0, 0, 0);
@@ -50,6 +50,10 @@ export function buildPlayroomContents(context: RoomBuildContext): RoomContentRes
   createCritters(scene, keyLight);
   createDecor(scene, keyLight);
 
+  // Perches are measured from the toyboxes that are actually created, never
+  // written down separately: a hand-kept copy of these coordinates once
+  // outlived the toybox it described and left the kitty sitting in mid-air.
+  const perches: VisitorPerch[] = [];
   PLAYROOM_TOYBOXES.forEach((spec) => {
     const handle = createInteractiveToybox({
       scene,
@@ -61,9 +65,20 @@ export function buildPlayroomContents(context: RoomBuildContext): RoomContentRes
       spec,
     });
     disposer.add(handle);
+
+    const bounds = new Box3().setFromObject(handle.root);
+    if (!bounds.isEmpty()) {
+      const size = bounds.getSize(new Vector3());
+      perches.push({
+        x: spec.placement.x,
+        z: spec.placement.z,
+        topY: bounds.max.y,
+        radius: Math.max(size.x, size.z) / 2,
+      });
+    }
   });
 
-  const visitorsCleanup = spawnAnimalVisitors(scene);
+  const visitorsCleanup = spawnAnimalVisitors(scene, perches);
   disposer.add({ dispose: visitorsCleanup });
 
   return {

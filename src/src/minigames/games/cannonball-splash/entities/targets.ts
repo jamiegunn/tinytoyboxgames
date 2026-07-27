@@ -106,7 +106,6 @@ export function createBarrelMeshes(): TargetMeshes {
     root.add(band);
   }
 
-  root.position.y = -0.28;
   return { root, materials: [woodMat, rimMat, bandMat] };
 }
 
@@ -139,7 +138,6 @@ export function createBottleMeshes(): TargetMeshes {
   cork.position.x = 0.66;
   root.add(cork);
 
-  root.position.y = -0.02;
   return { root, materials: [glassMat, corkMat] };
 }
 
@@ -186,7 +184,6 @@ export function createDuckMeshes(): TargetMeshes {
     root.add(wing);
   }
 
-  root.position.y = -0.08;
   return { root, materials: [bodyMat, beakMat, eyeMat] };
 }
 
@@ -223,7 +220,6 @@ export function createGoldenBarrelMeshes(): TargetMeshes {
     root.add(band);
   }
 
-  root.position.y = -0.28;
   return { root, materials: [goldMat, bandMat] };
 }
 
@@ -256,7 +252,6 @@ export function createRainbowBottleMeshes(): TargetMeshes {
   cork.position.x = 0.66;
   root.add(cork);
 
-  root.position.y = -0.02;
   return { root, materials: [rainbowMat, corkMat] };
 }
 

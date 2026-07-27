@@ -66,30 +66,70 @@ export interface DifficultyTier {
   speedMultiplier: number;
 }
 
-/** Jar position constant used for catch arc targets. */
-export const JAR_POS = new Vector3(0, 0, 3);
+/**
+ * Jar base position.
+ *
+ * Derived from the shell camera (fixed at (0,2,5) looking at the origin, 60 deg
+ * vertical fov — see `DEFAULT_GAME_CAMERA`). With `d` the unit view direction
+ * and `u` the camera up, a world point P projects to
+ *   ndcY = ((P-C)·u) / (((P-C)·d) · tan(fov/2))
+ * The jar used to sit at (0, 0, 3) at scale 0.5, which puts its silhouette dead
+ * centre and spanning ndcY -0.74 → -0.22 (26% of frame height, 13% of width at
+ * 3:2) — i.e. squarely inside the region a child taps. z = 3.28 is the depth at
+ * which a base sitting on the ground plane lands at ndcY = -0.90, so the whole
+ * jar drops into the empty foreground strip below the play area:
+ *   yc = 0.92848·y - 0.37139·z,  depth = 5.38517 - 0.37139·y - 0.92848·z
+ *   base (y=0, z=3.28): yc = -1.21797, depth = 2.34209 → ndcY = -0.9007
+ * x = 0.62 shifts it off the centre line without leaving the frame on a tall
+ * (portrait) viewport, where the horizontal half-extent is only
+ * aspect·tan(30 deg)·depth: at aspect 0.75 that is 0.76 units, so a 0.62 offset
+ * plus a 0.20 jar radius still fits.
+ */
+export const JAR_POS = new Vector3(0.62, 0, 3.28);
 
-/** Uniform scale applied to the jar mesh. */
-export const JAR_SCALE = 0.5;
+/**
+ * Uniform scale applied to the jar mesh.
+ *
+ * At 0.36 the jar's 0.55-unit profile radius becomes 0.198 units, which at the
+ * jar's view depth of 2.342 is a half-width of 0.198/2.342 = 0.0845 view units
+ * → 0.0988 ndc at 3:2, i.e. 119 px of a 1200 px frame (9.9%). Its top (cork at
+ * y = 1.88·0.36 = 0.677) lands at ndcY = -0.488, so jar + cork occupy the
+ * bottom 21% of the frame and nothing else. Was 0.5 → 158 x 211 px, centred.
+ */
+export const JAR_SCALE = 0.36;
 
 /** Unscaled jar body height (from LatheGeometry profile). */
 export const JAR_BODY_HEIGHT = 1.78;
 
 /**
- * Play area bounds for firefly drift clamping.
+ * Containment box for firefly drift, in world units.
  *
- * `yMin` used to be -2, i.e. two units *below* the ground plane at y=0, so a
- * drifting firefly would sink into the meadow and hover underground until it
- * finally tripped the out-of-bounds teleport. The floor now sits just above
- * the grass.
+ * There is no x entry: the frustum is a cone, so a fixed |x| limit is either
+ * off-screen up close or needlessly tight far away. The horizontal limit is
+ * computed per-position from the view depth in `helpers.playHalfWidthAt`.
+ *
+ * The old box was `{xMin: -8, xMax: 8, yMin: 0.35, yMax: 8}` with no z limit at
+ * all. Every one of those faces is far outside the frame: at the play depths
+ * used here the frame ends at |x| ≈ 2-4 and y ≈ 1.9, so a firefly could drift
+ * out of shot and stay "in bounds" indefinitely. That is why a 24-tap grid
+ * sweep scored zero — the flock existed, it was just not on screen.
  */
-export const BOUNDS = { xMin: -8, xMax: 8, yMin: 0.35, yMax: 8 };
+export const BOUNDS = { yMin: 0.45, yMax: 1.9, zMin: -1.2, zMax: 2.9 };
 
-/** Spawn area bounds for new fireflies — never below {@link BOUNDS}.yMin. */
-export const SPAWN = { xMin: -5, xMax: 5, yMin: 0.6, yMax: 5, zMin: -2, zMax: 2 };
+/**
+ * Spawn box, inset from {@link BOUNDS} so a fresh firefly is not immediately
+ * clamped. Chosen so that every corner projects into the middle of the frame
+ * (ndcY from +0.61 at the far-top corner to -0.26 at the near-bottom corner,
+ * i.e. 20%-63% down a 3:2 frame) at a sprite size of 49-107 px.
+ */
+export const SPAWN = { yMin: 0.6, yMax: 1.7, zMin: -0.9, zMax: 2.6 };
 
-/** Foreground Z threshold — fireflies with z >= this are considered near the jar/camera. */
-export const FOREGROUND_Z = 2.0;
+/**
+ * Foreground Z threshold — fireflies with z >= this are near the camera.
+ * Was 2.0, the old spawn box's own zMax, so "foreground" meant "the very edge
+ * of where fireflies could be"; it is now the near third of the play box.
+ */
+export const FOREGROUND_Z = 1.4;
 
 /** Hit detection radius for tap-to-catch (world-space, legacy). */
 export const HIT_RADIUS = 1.5;

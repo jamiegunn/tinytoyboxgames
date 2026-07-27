@@ -52,6 +52,19 @@ function randomOffset(spread: number): Vector3 {
   return new Vector3((Math.random() - 0.5) * spread, (Math.random() - 0.5) * spread, (Math.random() - 0.5) * spread);
 }
 
+// Marks a particle mesh as decoration the tap ray must ignore.
+//
+// Every effect in this file adds its meshes straight to the scene, and
+// InputDispatcher.performPick raycasts `scene.children` recursively. With ~48
+// live trail bubbles hugging the shark plus up to 40 burst particles, a tap
+// aimed just past the shark's nose regularly hit a two-pixel bubble first;
+// `pickedPoint` then came back at the bubble instead of the seabed and the
+// shark steered half a unit short of where the child pointed. Particles are
+// decoration and carry no handler, so they are excluded from picking entirely.
+function makeUnpickable(mesh: Mesh): void {
+  mesh.raycast = () => {};
+}
+
 // Shared geometries (created once, reused across all effects)
 let _bubbleGeo: SphereGeometry | null = null;
 let _sparkleGeo: SphereGeometry | null = null;
@@ -105,15 +118,30 @@ export function createBubbleTrail(scene: Scene, startPos: Vector3, direction: Ve
   const geo = getBubbleGeometry();
   const bubbles: BubbleParticle[] = [];
 
+  // One material for the whole trail, not one per bubble.
+  //
+  // index.ts spawns a trail behind the shark at `Math.random() < dt * 3`, i.e.
+  // three per second while it is moving, and each trail held 8-12 bubbles for
+  // 1-2 seconds. That was ~30 MeshStandardMaterial allocations and ~30 disposals
+  // *per second*, and every disposal makes WebGLRenderer tear down the program
+  // and uniform state it had just built. Measured in the scene probe: about 48
+  // live trail bubbles at any moment, carrying 48 distinct materials, each one
+  // drawing a sphere roughly two pixels across.
+  //
+  // The trade is that the bubbles of a single trail now fade together rather
+  // than each on its own lifespan. They are two pixels wide and spawn within
+  // 0.05 units of each other, and the per-bubble grow/pop curve below still runs
+  // independently, so the shared fade is not something a child can see.
+  const trailMaterial = new MeshStandardMaterial({
+    color: bubbleColor,
+    transparent: true,
+    opacity: 0.6,
+    depthWrite: false,
+  });
+
   for (let i = 0; i < count; i++) {
     const radius = randRange(0.02, 0.06);
-    const mat = new MeshStandardMaterial({
-      color: bubbleColor,
-      transparent: true,
-      opacity: 0.6,
-      depthWrite: false,
-    });
-    const mesh = new Mesh(geo, mat);
+    const mesh = new Mesh(geo, trailMaterial);
     mesh.position.copy(startPos).add(randomOffset(0.05));
     mesh.scale.setScalar(radius);
 
@@ -122,6 +150,7 @@ export function createBubbleTrail(scene: Scene, startPos: Vector3, direction: Ve
     // Ensure bubbles rise
     vel.y = Math.abs(vel.y) + randRange(0.2, 0.5);
 
+    makeUnpickable(mesh);
     scene.add(mesh);
 
     bubbles.push({
@@ -138,16 +167,18 @@ export function createBubbleTrail(scene: Scene, startPos: Vector3, direction: Ve
 
   let disposed = false;
 
+  // The material is shared, so it is disposed once when the trail ends rather
+  // than by whichever bubble happens to pop first.
   function disposeBubble(b: BubbleParticle): void {
     b.alive = false;
     scene.remove(b.mesh);
-    (b.mesh.material as MeshStandardMaterial).dispose();
   }
 
   return {
     update(dt: number): boolean {
       if (disposed) return false;
 
+      let fade = 0;
       let anyAlive = false;
       for (const b of bubbles) {
         if (!b.alive) continue;
@@ -172,12 +203,16 @@ export function createBubbleTrail(scene: Scene, startPos: Vector3, direction: Ve
         const growCurve = t < 0.7 ? 1.0 + t * 0.5 : 1.35 * (1.0 - (t - 0.7) / 0.3);
         b.mesh.scale.setScalar(b.baseScale * Math.max(growCurve, 0));
 
-        // Fade out near end
-        (b.mesh.material as MeshStandardMaterial).opacity = 0.6 * (1.0 - t * t);
+        // Fade out near end. Tracked as the strongest surviving bubble so the
+        // shared material follows the trail rather than any one bubble.
+        fade = Math.max(fade, 1.0 - t * t);
       }
+
+      trailMaterial.opacity = 0.6 * fade;
 
       if (!anyAlive) {
         disposed = true;
+        trailMaterial.dispose();
       }
 
       return anyAlive;
@@ -189,6 +224,7 @@ export function createBubbleTrail(scene: Scene, startPos: Vector3, direction: Ve
       for (const b of bubbles) {
         if (b.alive) disposeBubble(b);
       }
+      trailMaterial.dispose();
     },
   };
 }
@@ -227,23 +263,39 @@ export function createCatchExplosion(scene: Scene, pos: Vector3, fishColor: Colo
   const gravity = new Vector3(0, -2.0, 0);
   const drag = 0.97;
 
+  // Two materials for the whole burst, not one per particle. Same reasoning as
+  // createBubbleTrail above: a burst is up to 40 particles, every one of which
+  // used to allocate and then dispose its own MeshStandardMaterial, and a
+  // combo-happy child sets one off every second or so. All the sparkles share a
+  // colour and all the bubbles share a colour, so nothing about the burst needs
+  // per-particle material state — only the fade did, and every particle in a
+  // burst starts at the same instant with a lifespan drawn from the same
+  // half-second window.
+  const sparkleMaterial = new MeshStandardMaterial({
+    color: fishColor,
+    emissive: fishColor,
+    emissiveIntensity: 0.5,
+    transparent: true,
+    opacity: 1.0,
+    depthWrite: false,
+  });
+  const bubbleMaterial = new MeshStandardMaterial({
+    color: new Color(0.9, 0.95, 1.0),
+    transparent: true,
+    opacity: 0.7,
+    depthWrite: false,
+  });
+
   // Sparkle particles (70%)
   for (let i = 0; i < sparkleCount; i++) {
-    const mat = new MeshStandardMaterial({
-      color: fishColor,
-      emissive: fishColor,
-      emissiveIntensity: 0.5,
-      transparent: true,
-      opacity: 1.0,
-      depthWrite: false,
-    });
-    const mesh = new Mesh(geo, mat);
+    const mesh = new Mesh(geo, sparkleMaterial);
     mesh.position.copy(pos);
     const scale = randRange(0.01, 0.03);
     mesh.scale.setScalar(scale);
 
     const vel = new Vector3((Math.random() - 0.5) * 4, randRange(1, 4), (Math.random() - 0.5) * 4);
 
+    makeUnpickable(mesh);
     scene.add(mesh);
     particles.push({
       mesh,
@@ -257,19 +309,14 @@ export function createCatchExplosion(scene: Scene, pos: Vector3, fishColor: Colo
 
   // Bubble particles (30%)
   for (let i = 0; i < bubbleCount; i++) {
-    const mat = new MeshStandardMaterial({
-      color: new Color(0.9, 0.95, 1.0),
-      transparent: true,
-      opacity: 0.7,
-      depthWrite: false,
-    });
-    const mesh = new Mesh(geo, mat);
+    const mesh = new Mesh(geo, bubbleMaterial);
     mesh.position.copy(pos);
     const scale = randRange(0.015, 0.035);
     mesh.scale.setScalar(scale);
 
     const vel = new Vector3((Math.random() - 0.5) * 1.5, randRange(1.5, 3.5), (Math.random() - 0.5) * 1.5);
 
+    makeUnpickable(mesh);
     scene.add(mesh);
     particles.push({
       mesh,
@@ -281,15 +328,22 @@ export function createCatchExplosion(scene: Scene, pos: Vector3, fishColor: Colo
     });
   }
 
-  /**
-   * Disposes a particle's mesh and marks it dead.
-   *
-   * @param p - The particle to dispose.
-   */
+  // Retires one particle. It must NOT touch the material: the material is shared
+  // by the whole burst, and the first particle to reach its lifespan would
+  // otherwise dispose the material the other 39 are still being drawn with.
   const kill = (p: ExplosionParticle): void => {
     p.alive = false;
     scene.remove(p.mesh);
-    (p.mesh.material as MeshStandardMaterial).dispose();
+  };
+
+  // The two shared materials are disposed exactly once, whichever comes first:
+  // the burst finishing naturally, or the scene tearing down mid-burst.
+  let materialsDisposed = false;
+  const disposeMaterials = (): void => {
+    if (materialsDisposed) return;
+    materialsDisposed = true;
+    sparkleMaterial.dispose();
+    bubbleMaterial.dispose();
   };
 
   // Driven by the scene's shared FrameClock (no private rAF), and killed on
@@ -301,12 +355,22 @@ export function createCatchExplosion(scene: Scene, pos: Vector3, fishColor: Colo
     // No scene runtime (should not happen inside a mini-game) — fail safe by
     // disposing immediately rather than leaking undriven meshes.
     for (const p of particles) kill(p);
+    disposeMaterials();
     return;
   }
 
   let unsubscribe = (): void => {};
   const step = (dt: number): void => {
     let anyAlive = false;
+    // Fade is now per material rather than per particle, tracked as the maximum
+    // remaining life across that material's live particles. Every particle in a
+    // burst is spawned on the same frame with a lifespan drawn from the same
+    // 0.5-1.0s window, so the spread between the brightest and dimmest particle
+    // is at most the spread in lifespans; taking the max means the burst holds
+    // its brightness until its longest-lived member starts to go, and dead
+    // particles are removed from the scene anyway so they cannot show it.
+    let sparkleFade = 0;
+    let bubbleFade = 0;
     for (const p of particles) {
       if (!p.alive) continue;
       p.age += dt;
@@ -319,9 +383,15 @@ export function createCatchExplosion(scene: Scene, pos: Vector3, fishColor: Colo
       if (!p.isBubble) p.velocity.addScaledVector(gravity, dt);
       p.velocity.multiplyScalar(drag);
       p.mesh.position.addScaledVector(p.velocity, dt);
-      (p.mesh.material as MeshStandardMaterial).opacity = (1.0 - t) * (p.isBubble ? 0.7 : 1.0);
+      if (p.isBubble) bubbleFade = Math.max(bubbleFade, 1.0 - t);
+      else sparkleFade = Math.max(sparkleFade, 1.0 - t);
     }
-    if (!anyAlive) unsubscribe();
+    sparkleMaterial.opacity = sparkleFade;
+    bubbleMaterial.opacity = 0.7 * bubbleFade;
+    if (!anyAlive) {
+      disposeMaterials();
+      unsubscribe();
+    }
   };
 
   unsubscribe = clock.subscribe(step);
@@ -330,6 +400,7 @@ export function createCatchExplosion(scene: Scene, pos: Vector3, fishColor: Colo
     for (const p of particles) {
       if (p.alive) kill(p);
     }
+    disposeMaterials();
     unsubscribe();
   });
 }
@@ -359,17 +430,26 @@ export function createGoldenShimmer(scene: Scene, targetRoot: Object3D): GoldenS
   let elapsed = 0;
   let disposed = false;
 
+  // One material for all six orbiters. They were six separate
+  // MeshStandardMaterials built from identical descriptors, and unlike the
+  // burst particles above nothing ever writes to them — opacity stays at 0.9
+  // for the whole life of the shimmer, only position and scale animate. Six
+  // identical materials is six shader-uniform uploads and six state changes per
+  // frame for a sprite about two pixels across, and the golden fish carries this
+  // aura for as long as it is on the reef.
+  const mat = new MeshStandardMaterial({
+    color: goldColor,
+    emissive: goldColor,
+    emissiveIntensity: 0.8,
+    transparent: true,
+    opacity: 0.9,
+    depthWrite: false,
+  });
+
   for (let i = 0; i < orbitCount; i++) {
-    const mat = new MeshStandardMaterial({
-      color: goldColor,
-      emissive: goldColor,
-      emissiveIntensity: 0.8,
-      transparent: true,
-      opacity: 0.9,
-      depthWrite: false,
-    });
     const mesh = new Mesh(geo, mat);
     mesh.scale.setScalar(baseScale);
+    makeUnpickable(mesh);
     scene.add(mesh);
 
     orbiters.push({
@@ -405,8 +485,8 @@ export function createGoldenShimmer(scene: Scene, targetRoot: Object3D): GoldenS
       disposed = true;
       for (const orb of orbiters) {
         scene.remove(orb.mesh);
-        (orb.mesh.material as MeshStandardMaterial).dispose();
       }
+      mat.dispose();
     },
   };
 }
@@ -448,6 +528,7 @@ export function createCausticRay(scene: Scene, x: number, z: number): CausticRay
   const mesh = new Mesh(geo, mat);
   mesh.scale.set(radius, height, radius);
   mesh.position.set(x, height * 0.5, z);
+  makeUnpickable(mesh);
   scene.add(mesh);
 
   let elapsed = 0;

@@ -56,27 +56,43 @@ export function decayStarPulses(env: EnvironmentObjects, deltaTime: number): voi
   }
 }
 
-/** Resting moon emissive color. */
-const MOON_REST_R = 0.6;
-const MOON_REST_G = 0.55;
-const MOON_REST_B = 0.35;
+/**
+ * Resting moon tint. The moon's materials are unlit and their `color` is a
+ * plain multiplier over the disc/glow textures, which already carry the moon's
+ * shading and warm-to-cool tint — so at rest the multiplier is exactly 1 and
+ * the moon looks the way it was painted. It used to be (0.6, 0.55, 0.35),
+ * dimming an emissive term rather than scaling a finished image.
+ */
+const MOON_REST_R = 1.0;
+const MOON_REST_G = 1.0;
+const MOON_REST_B = 1.0;
 
 /**
- * Pulses the moon glow briefly brighter.
+ * Pulses the moon briefly brighter.
+ *
+ * The renderer tone-maps with ACES at exposure 1.15, which compresses hard
+ * near 1.0, so a small multiplier would not register: the disc texture peaks
+ * at 206/255 (linear 0.617) precisely to leave room, and 1.8x lifts that to
+ * 1.11 linear — a clearly visible lift, still short of a harsh white flash.
+ * The glow is pushed further (2.2x) because a spreading halo is what actually
+ * reads as "the moon noticed" from across the room.
+ *
  * @param env - The environment objects.
  */
 export function pulseMoon(env: EnvironmentObjects): void {
-  if (!env.moonMat) return;
-  env.moonMat.emissive.setRGB(0.9, 0.85, 0.55);
+  env.moonMat?.color.setRGB(1.8, 1.74, 1.55);
+  env.moonGlowMat?.color.setRGB(2.2, 2.1, 1.85);
 }
 
 /**
- * Decays moon glow back to its resting color each frame.
+ * Decays the moon pulse back to its resting tint each frame.
  * @param env - The environment objects.
  * @param deltaTime - Frame delta time.
  */
 export function decayMoonPulse(env: EnvironmentObjects, deltaTime: number): void {
-  if (!env.moonMat) return;
-  const t = tmpColor(0).setRGB(MOON_REST_R, MOON_REST_G, MOON_REST_B);
-  env.moonMat.emissive.lerp(t, deltaTime * 2);
+  const rest = tmpColor(0).setRGB(MOON_REST_R, MOON_REST_G, MOON_REST_B);
+  // deltaTime * 2 is a ~0.5s time constant: long enough to see, short enough
+  // that the next pulse (every MOON_PULSE_INTERVAL pops) starts from rest.
+  env.moonMat?.color.lerp(rest, deltaTime * 2);
+  env.moonGlowMat?.color.lerp(rest, deltaTime * 2);
 }

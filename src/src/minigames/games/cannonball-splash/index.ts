@@ -74,7 +74,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
     if (standardCount >= maxActive) return;
 
     const kind = selectTargetKind(context.difficulty.level);
-    const { position, side } = pickSpawnPosition();
+    const { position, side } = pickSpawnPosition(camera, state.targets);
     const drift = randomDriftVector(side, context.difficulty.level);
     spawnTarget(kind, position, drift.vx, drift.vz, scene, state.targets);
   }
@@ -87,7 +87,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
     if (hasSpecial) return;
 
     const kind = selectSpecialKind(context.difficulty.level);
-    const { position, side } = pickSpawnPosition();
+    const { position, side } = pickSpawnPosition(camera, state.targets);
     const drift = randomDriftVector(side, context.difficulty.level);
     spawnTarget(kind, position, drift.vx, drift.vz, scene, state.targets);
     context.celebration.celebrationSound('chime');
@@ -147,8 +147,13 @@ export function createGame(context: MiniGameContext): IMiniGame {
       spawnRegistrationId = null;
       specialSpawnRegistrationId = null;
 
-      // Spawn initial 2 targets
-      for (let i = 0; i < 2; i++) {
+      // Open with a full pond rather than two lonely barrels. getSpawnCapacity
+      // at difficulty 0 is 5, and the first scheduled spawn is a whole
+      // SPAWN_INTERVAL_MAX away, so anything less than the capacity means the
+      // child's opening shots are aimed at emptier water than the game ever
+      // shows again. pickSpawnPosition keeps them apart.
+      const initialTargets = getSpawnCapacity(context.difficulty.level);
+      for (let i = 0; i < initialTargets; i++) {
         spawnStandardTarget();
       }
 

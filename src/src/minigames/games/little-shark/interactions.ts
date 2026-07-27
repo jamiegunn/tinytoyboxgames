@@ -5,6 +5,25 @@ import type { SharkAnimState } from './shark';
 import { triggerBarrelRoll } from './shark';
 import type { MiniGameContext } from '../../framework/types';
 
+// Returns the world position of a tapped mesh.
+//
+// Every handler below used `mesh.position`, which is the mesh's position in its
+// PARENT's space. Corals and plants are Groups placed out on the reef with their
+// sub-meshes at small local offsets, so a coral 30 units from the origin emitted
+// its bonk puff about 0.3 units from the world origin — off-camera, behind the
+// shark, every time. Anemones and the chest are added straight to the scene so
+// the two agreed there; this makes it right for all of them.
+function worldPositionOf(mesh: Object3D): Vector3 {
+  return mesh.getWorldPosition(new Vector3());
+}
+
+// Walks up from a picked sub-mesh to the prop root that was added to the scene.
+function propRootOf(mesh: Object3D): Object3D {
+  let node = mesh;
+  while (node.parent && !(node.parent as Scene).isScene) node = node.parent;
+  return node;
+}
+
 /** A queued tap animation that ticks via the game update loop. */
 interface TapAnimation {
   /** The mesh being animated. */
@@ -71,7 +90,7 @@ export function createInteractionState(): InteractionState {
     // fast enough and small enough to be invisible at any sane frame rate.
     // 0.3 rad (17 degrees) over 0.55s at a slower beat actually reads as a bonk.
     enqueueTapAnimation(mesh, 'z', mesh.rotation.z, 18, 0.3, 0.55);
-    getParticleEngine(scene).emit(PARTICLES.bubblePop, mesh.position.clone(), { colors: [new Color(0.5, 0.4, 0.3)], count: 12 });
+    getParticleEngine(scene).emit(PARTICLES.bubblePop, worldPositionOf(mesh), { colors: [new Color(0.5, 0.4, 0.3)], count: 12 });
     audio.playSound('coral-bonk');
   }
 
@@ -84,20 +103,26 @@ export function createInteractionState(): InteractionState {
     const tint = new Color(0.95, 0.5, 0.75);
     const mat = (mesh as { material?: { color?: Color } }).material;
     if (mat?.color) tint.copy(mat.color);
-    getParticleEngine(scene).emit(PARTICLES.sparkle, mesh.position.clone(), { colors: [tint], count: 10 });
+    getParticleEngine(scene).emit(PARTICLES.sparkle, worldPositionOf(mesh), { colors: [tint], count: 10 });
     audio.playSound('seaweed-rustle');
   }
 
   function handleSeaweedTap(mesh: Object3D, audio: MiniGameContext['audio']): void {
     // Defect 4: the boost this records is now actually consumed by
     // updateSeaweedSway. 1.2s so the child sees the whole thrash, not a blink.
-    seaweedBoostTimers.set(mesh, 1.2);
+    //
+    // It has to be keyed on the plant's root, not the mesh the ray hit.
+    // updateSeaweedSway iterates `env.seaweeds`, which holds the Group that
+    // setup.ts added to the scene, and looks each one up in this map — so
+    // recording the sub-mesh under the child's finger meant the lookup never
+    // matched and the boost was silently dropped on every tap.
+    seaweedBoostTimers.set(propRootOf(mesh), 1.2);
     audio.playSound('seaweed-rustle');
   }
 
   function handleTreasureChestTap(mesh: Object3D, scene: Scene, audio: MiniGameContext['audio']): void {
     enqueueTapAnimation(mesh, 'x', 0, 15, 0.175, 0.4);
-    getParticleEngine(scene).emit(PARTICLES.sparkle, mesh.position.clone(), { colors: [new Color(1.0, 0.85, 0.2)], count: 15 });
+    getParticleEngine(scene).emit(PARTICLES.sparkle, worldPositionOf(mesh), { colors: [new Color(1.0, 0.85, 0.2)], count: 15 });
     audio.playSound('treasure-jingle');
   }
 

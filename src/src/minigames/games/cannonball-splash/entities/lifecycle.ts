@@ -4,7 +4,7 @@
 
 import { Mesh, Scene, Vector3 } from 'three';
 import type { Cannonball, Target, TargetKind } from '../types';
-import { randomRange, scoreForKind } from '../helpers';
+import { floatOffsetForKind, randomRange, scoreForKind } from '../helpers';
 import { createTargetByKind, collectTargetMeshes } from './targets';
 import { createCannonballMesh, createCannonballShadow } from './cannonball';
 
@@ -33,12 +33,13 @@ export function spawnTarget(kind: TargetKind, position: Vector3, driftVx: number
     bobSpeed: randomRange(0.8, 1.2),
     driftVx,
     driftVz,
-    baseY: position.y,
+    // How high this kind rides is a property of the kind, not of wherever it
+    // happened to spawn. This used to be `position.y` — a flat -0.3 for every
+    // kind, which silently overrode the per-kind offsets the builders were
+    // setting and left every target about three-quarters submerged.
+    baseY: floatOffsetForKind(kind),
     scoreValue: scoreForKind(kind),
     materials,
-    // Targets spawn at |x| = SPAWN_X_EDGE, outside the edge-warning band, so the
-    // warning stays suppressed until the target has drifted properly into play.
-    hasEnteredPlay: false,
   };
 
   // Every target is the same size at every difficulty; start the pop-in from 0.

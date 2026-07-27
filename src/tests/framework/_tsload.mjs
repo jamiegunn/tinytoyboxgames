@@ -40,12 +40,21 @@ export async function loadTs(relPath) {
 
 /**
  * Bundles and imports a TypeScript module along with its local dependency
- * graph, resolving `@app/*` to `src/*` exactly as `vite.config.ts` does.
+ * graph, resolving `@app/*`, `@scenes/*` and `@game/*` exactly as
+ * `vite.config.ts` does.
  *
  * `three` is left external so the bundle and the test share one module
  * instance — otherwise `instanceof Vector3` checks across the boundary fail.
  * Use this for framework modules that are pure logic but import siblings or
  * the alias (e.g. CelebrationSystem, which reaches the particle presets).
+ *
+ * SHADERS ARE STUBBED TO AN EMPTY STRING, NOT EXTERNALISED. Anything reaching
+ * `sceneCatalog.ts` pulls in every scene, and several scenes import
+ * `.glsl?raw`. Marking those external does not work: the import is a static
+ * top-level one, so esbuild hoists it into the bundle and node then fails to
+ * resolve a `.glsl` file at load time. A module whose shader source is `''`
+ * still loads, which is all a logic test needs — so do not use this loader to
+ * assert anything about shader text.
  *
  * @param relPath - Path relative to the package root, e.g.
  *   `src/minigames/framework/CelebrationSystem.ts`.
@@ -63,7 +72,20 @@ export async function bundleTs(relPath) {
     target: 'es2022',
     platform: 'neutral',
     external: ['three'],
-    alias: { '@app': path.join(packageRoot, 'src') },
+    alias: {
+      '@app': path.join(packageRoot, 'src'),
+      '@scenes': path.join(packageRoot, 'src/scenes'),
+      '@game': path.join(packageRoot, 'src/minigames'),
+    },
+    plugins: [
+      {
+        name: 'stub-shaders',
+        setup(build) {
+          build.onResolve({ filter: /\.glsl(\?raw)?$/ }, (a) => ({ path: a.path, namespace: 'glsl-stub' }));
+          build.onLoad({ filter: /.*/, namespace: 'glsl-stub' }, () => ({ contents: 'export default ""', loader: 'js' }));
+        },
+      },
+    ],
     logLevel: 'silent',
   });
   return import(pathToFileURL(outPath).href);

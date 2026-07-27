@@ -3,22 +3,62 @@
  */
 
 import { Vector3 } from 'three';
+import type { PerspectiveCamera } from 'three';
 import type { DifficultyThresholds } from '../../../framework/types';
-import { C, type TargetKind } from '../types';
-import { getSpawnCapacity, getSpawnInterval, randomRange, selectTargetKind, randomDriftVector } from '../helpers';
+import { C, type Target, type TargetKind } from '../types';
+import { getSpawnCapacity, getSpawnInterval, playHalfWidthAt, randomRange, selectTargetKind, randomDriftVector } from '../helpers';
+
+// Rejection-sampling budget for pickSpawnPosition.
+const SPAWN_ATTEMPTS = 12;
+
+// Distance from (x, z) to the nearest existing target, on the water plane.
+function separationFrom(x: number, z: number, targets: Target[]): number {
+  let nearest = Infinity;
+  for (const t of targets) {
+    if (t.state === 'hit' || t.state === 'drifted-off') continue;
+    const dx = t.root.position.x - x;
+    const dz = t.root.position.z - z;
+    nearest = Math.min(nearest, Math.sqrt(dx * dx + dz * dz));
+  }
+  return nearest;
+}
 
 /**
- * Picks a spawn position (left or right edge) and a random z depth.
- * @returns The world-space spawn position and which edge it is on.
+ * Picks a spawn position anywhere inside the visible play trapezoid.
+ *
+ * Targets used to spawn only at |x| = 9 with z ∈ [-16, -4]. At the shipped
+ * camera the visible half-width at the water plane is 5.53 units at z = -4 and
+ * 8.58 at z = -8, so a spawn at |x| = 9 is *off the side of the screen* for the
+ * whole near half of that range, and with a drift speed of 0.3 units/s at
+ * difficulty 0 it takes 25-30 seconds to walk into view. A headless probe of the
+ * first four seconds reproduced the eval exactly — three barrels at x = 7.9,
+ * 7.9, 8.7, all outside the frame, and 0 of 24 grid taps scoring.
+ *
+ * Rejection sampling keeps the spread even without letting two targets land on
+ * top of each other; after SPAWN_ATTEMPTS tries the best candidate so far wins,
+ * so this always terminates.
+ * @param camera - The live game camera, used to derive the trapezoid.
+ * @param targets - Targets already in play, kept at arm's length.
+ * @returns The world-space spawn position and which half it landed in.
  */
-export function pickSpawnPosition(): { position: Vector3; side: 'left' | 'right' } {
-  const side = Math.random() < 0.5 ? 'left' : 'right';
-  const x = side === 'left' ? -C.SPAWN_X_EDGE : C.SPAWN_X_EDGE;
-  const z = randomRange(C.SPAWN_Z_NEAR, C.SPAWN_Z_FAR);
-  return {
-    position: new Vector3(x, -0.3, z),
-    side,
-  };
+export function pickSpawnPosition(camera: PerspectiveCamera, targets: Target[]): { position: Vector3; side: 'left' | 'right' } {
+  const best = new Vector3();
+  let bestSeparation = -Infinity;
+
+  for (let attempt = 0; attempt < SPAWN_ATTEMPTS; attempt++) {
+    const z = randomRange(C.PLAY_Z_MIN, C.PLAY_Z_MAX);
+    const halfWidth = playHalfWidthAt(camera, z);
+    const x = randomRange(-halfWidth, halfWidth);
+    const separation = separationFrom(x, z, targets);
+
+    if (separation > bestSeparation) {
+      bestSeparation = separation;
+      best.set(x, 0, z);
+    }
+    if (separation >= C.SPAWN_MIN_SEPARATION) break;
+  }
+
+  return { position: best, side: best.x < 0 ? 'left' : 'right' };
 }
 
 /**

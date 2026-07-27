@@ -1,4 +1,4 @@
-import { Color, Mesh, type Object3D, type MeshStandardMaterial } from 'three';
+import { Color, Mesh, type Object3D, type MeshBasicMaterial, type MeshStandardMaterial } from 'three';
 
 /** Bubble special type — determines pop behavior. */
 export type BubbleKind = 'normal' | 'golden' | 'rainbow' | 'giant';
@@ -103,11 +103,22 @@ export const GIANT_TAP_SHRINK = 0.8;
 /** Hard floor on `targetSize`, so no run of taps can shrink a bubble to nothing. */
 export const MIN_DISPLAY_SIZE = 0.15;
 
-/** Maximum number of bubbles active at once. */
-export const MAX_BUBBLES = 80;
-
-/** Starting number of bubbles. */
-export const INITIAL_BUBBLES = 40;
+/**
+ * Hard ceiling on active bubbles — used for the spawner's `maxCount`, the pool
+ * prewarm size and the pool cap. The *gameplay* crowd size is
+ * `targetBubbleCount` (13 at difficulty 0 rising to 21); this constant only has
+ * to leave headroom above that for the two things which can spawn past the
+ * target:
+ *
+ *   targetBubbleCount(1)                                  = 21
+ *   + shower headroom (`showerCount` allows target + 4)   =  4  -> 25
+ *   + one golden burst on top (GOLDEN_BURST_COUNT)        =  6  -> 31
+ *
+ * rounded up to 32. It was 80, so `pool.prewarm(MAX_BUBBLES)` built 80 bubble
+ * meshes (a 32x32 sphere, ~2k triangles, plus a material each) that the game
+ * could never put on screen at once.
+ */
+export const MAX_BUBBLES = 32;
 
 /**
  * Y threshold above which bubbles are recycled.
@@ -130,13 +141,56 @@ export const INITIAL_BUBBLES = 40;
  */
 export const RECYCLE_Y = 3.6;
 
-/** Respawn delay bounds in seconds — interpolated by difficulty level. */
-export const MIN_RESPAWN_DELAY = 0.3;
-export const MAX_RESPAWN_DELAY = 0.8;
+/**
+ * Visible height of the bubble plane, in world units.
+ *
+ * Derived from the default shell camera (`DEFAULT_GAME_CAMERA`: position
+ * (0, 2, 5), target (0, 0, 0), vertical fov 60), intersected with the plane
+ * the bubbles float on, z = 0:
+ *
+ *   view axis tilts down atan(2 / 5)                = 21.8 deg
+ *   top frustum edge    = 30 - 21.8 =  8.2 deg above horizontal
+ *     dir (0,  sin 8.2,  -cos 8.2)  = (0,  0.143, -0.990)
+ *     t = 5 / 0.990 = 5.05  ->  y = 2 + 0.143 * 5.05 =  2.72
+ *   bottom frustum edge = 30 + 21.8 = 51.8 deg below horizontal
+ *     dir (0, -sin 51.8, -cos 51.8) = (0, -0.786, -0.618)
+ *     t = 5 / 0.618 = 8.09  ->  y = 2 - 0.786 * 8.09 = -4.36
+ *
+ *   visible band = 2.72 - (-4.36) = 7.08 world units
+ *
+ * fov is vertical, so this is orientation-independent. (Bubbles are spread
+ * over z in [-1, 1.5] rather than pinned to z = 0, which widens the real band
+ * to [-5.62, 2.86] at the far edge and narrows it to [-2.45, 2.50] at the near
+ * edge; z = 0 is the representative middle and is what every derivation below
+ * uses.)
+ */
+export const VISIBLE_BAND_HEIGHT = 7.08;
 
-/** Float speed bounds in units per second — interpolated by difficulty level. */
-export const MIN_FLOAT_SPEED = 0.15;
-export const MAX_FLOAT_SPEED = 1.0;
+/**
+ * Float speed bounds in world units per second — the hard floor and ceiling
+ * that every bubble's rise rate is clamped into (see `clampSpeed`), and the
+ * band `bubbleSpeedRange` slides its per-difficulty window through.
+ *
+ * Derived from how long a bubble should take to cross the frame, not by
+ * nudging. A 3-year-old will not wait for a slow crossing, and a fast one is
+ * unhittable, so the target is 6-12 seconds across VISIBLE_BAND_HEIGHT:
+ *
+ *   MIN = 7.08 / 12 = 0.59  ->  0.6  (slowest bubble crosses in 7.08/0.6 = 11.8 s)
+ *   MAX = 7.08 /  6 = 1.18  ->  1.2  (fastest bubble crosses in 7.08/1.2 =  5.9 s)
+ *
+ * These were 0.15 and 1.0. `bubbleSpeedRange` handed out ~0.18 u/s at
+ * difficulty 0 in the calm phase, i.e. 7.08 / 0.18 = 39 seconds to cross the
+ * frame — bubbles enter from the bottom, so the top two thirds of the screen
+ * was measurably empty for the first half-minute of every session.
+ *
+ * NOTE the rise is not applied as a direct velocity: `updateBubbleMotion`
+ * scales the flow field by `speed / DEFAULT_FLOW_CONFIG.baseRise` (= speed /
+ * 0.3), and the field's mean vertical component is exactly `baseRise`, so the
+ * *average* rise rate works out to `speed` u/s with simplex noise either side
+ * of it. The numbers above are therefore averages, not instantaneous speeds.
+ */
+export const MIN_FLOAT_SPEED = 0.6;
+export const MAX_FLOAT_SPEED = 1.2;
 
 /**
  * Per-bubble random rise-speed variation, applied as a *multiplier* on the
@@ -179,8 +233,47 @@ export interface SpawnBand {
  */
 export const FALLBACK_SPAWN_BAND: SpawnBand = { halfWidth: 1.0, edgeX: 2.2 };
 
-/** Bottom-edge spawn Y (just below the visible area at the bubble plane). */
+/**
+ * Bottom-edge spawn Y (just below the visible area at the bubble plane).
+ * Bottom spawns are jittered into [SPAWN_Y_BOTTOM - 0.5, SPAWN_Y_BOTTOM], so
+ * the mean entry height is -4.75, against a visible bottom edge of -4.36 (see
+ * VISIBLE_BAND_HEIGHT) — bubbles still enter from off screen.
+ */
 export const SPAWN_Y_BOTTOM = -4.5;
+
+/**
+ * Mean vertical distance a bubble rises before it is recycled, averaged over
+ * both spawn edges. `targetBubbleCount` and `spawnInterval` size themselves
+ * off this, because a bubble's lifetime is this distance divided by its speed.
+ *
+ *   bottom edge (SPAWN_BOTTOM_CHANCE = 70%), mean spawn y = -4.75:
+ *     RECYCLE_Y - (-4.75)                              = 8.35
+ *   side edge (30%), mean spawn y = (-3 + 2.0) / 2     = -0.5:
+ *     RECYCLE_Y - (-0.5)                               = 4.10
+ *
+ *   0.7 * 8.35 + 0.3 * 4.10 = 5.845 + 1.230            = 7.08
+ *
+ * (That it lands on the same 7.08 as VISIBLE_BAND_HEIGHT is a coincidence of
+ * the two spawn edges, not a derivation — they are independent numbers.)
+ */
+export const MEAN_TRAVEL_DISTANCE = 7.08;
+
+/**
+ * Fraction of an active bubble's life that is actually on screen — the bridge
+ * between "how many bubbles should a child see" and the active-entity count
+ * the pool and spawner deal in.
+ *
+ *   bottom-edge bubble: crosses the whole visible band, 7.08 units of its
+ *     8.35-unit run
+ *   side-edge bubble: born inside the visible band at mean y = -0.5 and leaves
+ *     at 2.72, so 3.22 of its 4.10-unit run is vertically on screen — but it
+ *     starts just outside the horizontal frame edge and only drifts inward on
+ *     about half the flow-field rolls, so call it 3.22 * 0.5 = 1.61
+ *
+ *   visible units per spawn = 0.7 * 7.08 + 0.3 * 1.61 = 4.956 + 0.483 = 5.44
+ *   fraction                = 5.44 / MEAN_TRAVEL_DISTANCE = 5.44 / 7.08 = 0.77
+ */
+export const VISIBLE_LIFE_FRACTION = 0.77;
 
 /**
  * Side-edge spawn Y range (visible band for side-entering bubbles).
@@ -216,15 +309,6 @@ export const SPAWN_ANIM_DURATION = 0.4;
 /** Moon pulse trigger — every N pops. */
 export const MOON_PULSE_INTERVAL = 10;
 
-/** Bubble shower trigger — every N pops. */
-export const SHOWER_INTERVAL = 20;
-
-/** Shower bubble count. */
-export const SHOWER_COUNT = 32;
-
-/** Crescendo cycle duration in seconds for the breathing rhythm. */
-export const CRESCENDO_CYCLE = 60;
-
 /** Base points awarded per bubble kind on pop. */
 export const BUBBLE_POINTS: Record<BubbleKind, number> = {
   normal: 10,
@@ -233,29 +317,38 @@ export const BUBBLE_POINTS: Record<BubbleKind, number> = {
   giant: 100,
 };
 
-/** Score milestone interval — celebration fires every N points. */
-export const SCORE_MILESTONE_INTERVAL = 100;
-
-/** Primary spawn loop interval in seconds. */
-export const SPAWN_INTERVAL = 0.2;
+/**
+ * NOT HERE, DELIBERATELY: the tuning knobs live in balance.ts, not in this file.
+ *
+ * This block used to also hold SPAWN_INTERVAL, SHOWER_INTERVAL, SHOWER_COUNT,
+ * SHOWER_SPAWN_INTERVAL, SCORE_MILESTONE_INTERVAL, GIANT_TAPS,
+ * MIN_RESPAWN_DELAY and MAX_RESPAWN_DELAY. Every one of them was a plain
+ * `export const` with a confident one-line comment, and not one was imported
+ * anywhere. They were left behind when the fixed values were replaced by the
+ * difficulty curves in balance.ts, and they did not merely sit idle — they
+ * disagreed with the game:
+ *
+ *   SPAWN_INTERVAL 0.2            vs  spawnInterval(ed)        0.62 → 0.25
+ *   SHOWER_INTERVAL 20 pops       vs  showerInterval(ed)       30 → 15
+ *   SHOWER_COUNT 32 bubbles       vs  showerCount(...)         3 → 10, headroom-capped
+ *   SHOWER_SPAWN_INTERVAL 0.08    vs  showerSpawnStagger(ed)   0.15 → 0.06
+ *   SCORE_MILESTONE_INTERVAL 100  vs  MILESTONE_SCHEDULE       100/300/600/1000/1500, then +500
+ *   GIANT_TAPS 3                  vs  giantTapsRequired(p)     1 → 5 by player profile
+ *   MIN/MAX_RESPAWN_DELAY         vs  nothing — bubbles do not respawn on a delay at all
+ *
+ * Anyone — human or model — reading this file to learn the rules would have
+ * come away with the wrong number for every rule it named. Balance questions
+ * are answered by balance.ts; put new curves there, not new constants here.
+ */
 
 /** Primary spawn loop jitter in seconds. */
 export const SPAWN_JITTER = 0.08;
-
-/** Shower burst spawn interval in seconds (stagger between each bubble). */
-export const SHOWER_SPAWN_INTERVAL = 0.08;
-
-/** Number of taps required to pop a giant bubble. */
-export const GIANT_TAPS = 3;
 
 /** Extra pool slots beyond MAX_BUBBLES for golden burst headroom. */
 export const POOL_BUFFER = 10;
 
 /** Approximate world-to-screen scaling factor for decorative confetti placement. */
 export const SCREEN_PROJECTION_SCALE = 50;
-
-/** Speed boost cap added to MIN_FLOAT_SPEED during calm phase. */
-export const CALM_SPEED_CEILING = 0.25;
 
 /** Delay in seconds before a wobble-victim auto-pops. */
 export const WOBBLE_AUTO_POP_DELAY = 0.5;
@@ -287,7 +380,17 @@ export interface EnvironmentObjects {
   meshes: Object3D[];
   stars: StarMesh[];
   moon: Object3D | null;
-  moonMat: MeshStandardMaterial | null;
+  /**
+   * Material of the moon disc. Unlit (`MeshBasicMaterial`): the disc's shading,
+   * craters and warm-to-cool tint all live in its texture, and `color` is a
+   * plain brightness multiplier the pop pulse rides on. It used to be a
+   * `MeshStandardMaterial` whose `emissive` was pulsed, which meant the moon's
+   * appearance depended on the shell's environment map as well as its own
+   * emissive term.
+   */
+  moonMat: MeshBasicMaterial | null;
+  /** Material of the moon's additive glow quad — pulsed alongside `moonMat`. */
+  moonGlowMat: MeshBasicMaterial | null;
 }
 
 /** Individual star with its own twinkle parameters. */

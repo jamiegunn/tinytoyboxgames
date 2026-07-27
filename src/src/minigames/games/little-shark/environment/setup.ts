@@ -6,8 +6,10 @@ import { buildOceanSurface, buildAnemones, buildRocks, buildTreasureChest, build
 import type { CausticLight } from './scenery';
 import { disposeMeshDeep } from '@app/minigames/shared/disposal';
 import { buildReefTerrain, getTerrainHeight } from './terrain';
-import { placePropsByDensity } from './placement';
+import { placePropsByDensity, createSeededRandom } from './placement';
+import { REEF_REGIONS } from './regions';
 import { buildCoral, buildPlant, type CoralType, type PlantType } from './coralFactory';
+import { buildReefLitter, disposeReefLitter, type ReefLitter } from './reefLitter';
 
 /**
  * Scene-level assembly: camera, lighting rig, and environment meshes.
@@ -27,6 +29,73 @@ export interface SceneEnvironment {
   anemones: Mesh[];
   rocks: Object3D[];
   treasureChest: Mesh;
+  /** Dense instanced seabed scatter — two draw calls for the whole reef. */
+  reefLitter: ReefLitter;
+}
+
+// Thickens the reef inside each coloured region.
+//
+// THESE PROPS DO NOT CARRY REGION LEGIBILITY, AND THAT IS MEASURED. A 49-site
+// lattice was captured three times with the same 24x14 block instrument: with no
+// regions at all, with floor colour but this function ablated, and as shipped.
+// r^2(region-field distance, frame difference) went 0.001 -> 0.815 -> 0.806, and
+// max frame dE 11.01 -> 26.45 -> 25.93. The floor colour alone produces the
+// entire frame-scale effect; adding the thickets moves it very slightly the
+// WRONG way, because they add prop content that region and non-region frames
+// have in common. See the ablation table in regions.ts.
+//
+// So the justification is close range only, and it is a design claim rather than
+// a measured one: standing inside a region, it should look like a place rather
+// than a tinted patch of the same empty sand. If that ever has to be defended,
+// it needs its own measurement at close range — the frame-scale numbers above
+// are evidence AGAINST a distance role, not for one.
+//
+// 30 props inside the region core (radius 0.45 * 18 = 8.1, area 206 square
+// units) = 0.146 per square unit, against the 290 props spread over the
+// radius-55 disc = 0.031 per square unit. 4.8x the open reef's density.
+//
+// Cost: 90 extra props at the 1-2 draw calls `collapseByMaterial` leaves each
+// one, so up to +180 draws on top of the ~580 the existing scatter already
+// spends. Every one of them sits inside a region core, which is 3 x 206 = 618 of
+// the arena's 10,000 square units, so at most one thicket is ever in shot.
+//
+// Nothing here is taller than about two units, and that is a measured ceiling,
+// not a style choice. The follow camera is pitched 37.3 degrees down with a
+// 24.4-degree half fov, so the greatest world height still inside the frame is
+// 3.37 units at 5 ahead, 2.22 at 10, 1.08 at 15 and below the floor at 20. The
+// props keep their factory colours: the floor is the measured channel (see
+// regions.ts), and tinting props per region would be an unmeasured claim laid on
+// top of a measured one.
+function buildRegionThickets(scene: Scene, corals: Object3D[], seaweeds: Object3D[]): void {
+  const rand = createSeededRandom(20260726);
+  // Natural heights at scale 1.0, measured off the factory: brain 0.70,
+  // staghorn 0.94, fan 1.02, tube 0.78, mushroom 0.50, kelp 1.36, seaGrass 0.74,
+  // fern 0.63. The scale ranges below keep every one of them under 2.1.
+  const coralKinds: CoralType[] = ['brain', 'staghorn', 'fan', 'tube', 'mushroom'];
+  const plantKinds: PlantType[] = ['kelp', 'seaGrass', 'fern'];
+
+  for (const region of REEF_REGIONS) {
+    // Placed inside the core (0.45 of the radius), where the floor colour is at
+    // full strength, so the thicket and the colour mark the same spot.
+    const core = region.radius * 0.45;
+    for (let i = 0; i < 30; i++) {
+      // sqrt of a uniform draw spreads the points evenly by area rather than
+      // piling them at the centre.
+      const r = Math.sqrt(rand()) * core;
+      const a = rand() * Math.PI * 2;
+      const px = region.x + Math.cos(a) * r;
+      const pz = region.z + Math.sin(a) * r;
+
+      const isCoral = rand() < 0.55;
+      const group: Object3D = isCoral
+        ? buildCoral(coralKinds[Math.floor(rand() * coralKinds.length)], undefined, 1.3 + rand() * 0.7)
+        : buildPlant(plantKinds[Math.floor(rand() * plantKinds.length)], undefined, 1.2 + rand() * 0.35);
+      group.position.set(px, getTerrainHeight(px, pz), pz);
+      group.rotation.y = rand() * Math.PI * 2;
+      scene.add(group);
+      (isCoral ? corals : seaweeds).push(group);
+    }
+  }
 }
 
 /**
@@ -36,27 +105,207 @@ export interface SceneEnvironment {
  * @returns All environment handles for update/teardown.
  */
 export function setupScene(scene: Scene, scope: DisposalScope): SceneEnvironment {
-  // Bright cheerful Caribbean ocean background
-  scene.background = new Color(0.15, 0.4, 0.65);
-  // Underwater haze — fades distant geometry into the ocean background
-  scene.fog = new FogExp2(new Color(0.18, 0.42, 0.6).getHex(), 0.025);
+  // ── Frame geometry: what is actually on screen ──────────────────────
+  //
+  // Everything below depends on this, so it is stated first and it is measured,
+  // not assumed.
+  //
+  // CORRECTION (this pass). This block used to quote the MANIFEST camera — an
+  // orbit descriptor at polar 0.95, distance 10 about (0, 0.5, 0), giving eye
+  // (0, 6.317, -8.134) and a pitch of 35.6 degrees. That camera never renders.
+  // `camera/followCamera.ts` overwrites both position and orientation every
+  // frame: it springs the eye toward the shark plus LEAD_OFFSET and then calls
+  // `camera.lookAt(lookAtX, LOOK_TARGET_Y = 0.35, lookAtZ)`. The steady state
+  // an idle shark settles into is eye (0.300, 6.3168, -7.8342) looking at
+  // (0, 0.35, 0), i.e. along (-0.030, -0.606, 0.795) once normalised —
+  // pitched 37.3 degrees BELOW horizontal, not 35.6. The vertical FOV is
+  // 0.85 rad, a 24.4-degree half-angle.
+  //
+  // 37.3 > 24.4, so the TOP of the frame still points 12.9 degrees below the
+  // horizon. There is no horizon, no water column and no surface anywhere in
+  // shot: every pixel is reef floor. Raycasting the twelve horizontal twelfths
+  // of the frame through the real scene graph hits terrain_reef_floor in all of
+  // them, at view depths
+  //
+  //   top    27.6  22.8  20.7  18.4  16.9  15.6  14.1  12.8  11.7  10.8  10.1  9.4   bottom
+  //
+  // The vertical gradient in this game is therefore a DISTANCE ramp, not a
+  // depth ramp. The bottom of the frame is the near sand and the top is the far
+  // sand; "brighter toward the surface at the top of frame" is not achievable
+  // without changing the camera, and trying to invert the ramp by lighting can
+  // only be done by making the near sand darker than the far haze, which is
+  // what a silt cloud looks like, not a reef. What the frame can and should do
+  // is go warm and lit at the near end and deep blue at the far end.
+
+  // ── Water colour ────────────────────────────────────────────────────
+  //
+  // scene.background and the fog colour are NOT tone-mapped. Both go through
+  // getUnlitUniformColorSpace (WebGLMaterials.refreshFogUniforms /
+  // WebGLBackground), so a linear triple here is sRGB-encoded and written
+  // straight to the framebuffer.
+  //
+  // In meshphysical.glsl the chunk order is opaque_fragment -> tonemapping ->
+  // colorspace -> fog_fragment, so fog is a lerp in *display* space between the
+  // shaded floor and this colour, and every pixel of the frame lies on the
+  // straight line between those two endpoints. That line is the whole image, so
+  // both of its ends have to be worth looking at.
+  //
+  // The previous value, linear (0.0006, 0.007, 0.026), encodes to rgb(2, 20,
+  // 45): display luminance 18 and chroma 43. Paired with a floor that rendered
+  // at rgb(223, 220, 211) it gave a 200-level ramp from near-white to near-
+  // black whose every intermediate value passes through neutral grey — which is
+  // exactly what the shipped frame measured as (chroma 3 to 6 across the bottom
+  // two thirds).
+  //
+  // Linear (0.0040, 0.1070, 0.2961) encodes to rgb(13, 92, 148): display
+  // luminance 79 and chroma 135, a real tropical blue rather than a black hole.
+  // The floor is brought down to meet it (see the exposure budget below), so
+  // the ramp is now 79 -> 144 in luminance and 135 -> 26 in chroma instead of
+  // 18 -> 220 and 43 -> 13.
+  const WATER_COLOR = new Color(0.004, 0.107, 0.2961);
+  scene.background = WATER_COLOR.clone();
+
+  // Underwater haze — shares the background colour exactly so there is no seam
+  // where the terrain rim ends.
+  //
+  // FogExp2 gives 1 - exp(-(d * density)^2). At 0.058 the half-fade lands at
+  // sqrt(ln 2) / 0.058 = 14.4 units, which against the measured band depths
+  // above works out as:
+  //   9.4 units  (bottom of frame, the shark's own neighbourhood): 26% water
+  //   15.6 units (mid frame):                                      55%
+  //   20.7 units:                                                  76%
+  //   27.6 units (top of frame):                                   92%
+  //
+  // Density is the single control over how much of the frame is water colour
+  // and how much is sand colour, and it trades the two off directly. Modelled
+  // per-band chroma at 0.058 runs 123 (top) to 19 (bottom); at 0.045 it runs
+  // 105 to 16 and the frame loses its blue, and at 0.070 the near sand is 40%
+  // water and the orange fish stop reading as orange.
+  scene.fog = new FogExp2(WATER_COLOR.getHex(), 0.058);
 
   // Camera comes from the manifest (an orbit descriptor) applied to the shell
   // camera; the follow cam drives it thereafter. See architecture-standards.md#cameradescriptor.
 
-  // Bright, cheerful underwater lighting — boosted for visibility.
-  // The rig adds the lights to the scene and scope-owns them.
+  // ── Exposure budget ─────────────────────────────────────────────────
+  //
+  // The renderer is ACES filmic at exposure 1.15 (utils/rendererFactory.ts) and
+  // three.js shades Lambert diffuse as albedo * irradiance / PI for punctual
+  // lights, plus albedo * environmentIntensity * E for the PMREM ambient the
+  // shell installs (minigames/framework/MiniGameShell.tsx:110, RoomEnvironment
+  // at the project default scene.environmentIntensity = 0.24).
+  //
+  // Fitting the real pipeline — ACES at 1.15, sRGB encode, then the display-
+  // space fog lerp — against measured pixels of a shipped build gives an average
+  // environment radiance E of 3.68.
+  //
+  // The previous rig here put the whole budget on a white key:
+  //     key  2.60 * 0.941 / PI = 0.779  (88%)
+  //     hemi 0.12 / PI         = 0.038  ( 4%)
+  //     env  0.02 * 3.68       = 0.074  ( 8%)
+  //     total                    0.888  in every channel
+  // and 0.888 is far too much light. Sand at albedo (0.90, 0.82, 0.62) becomes
+  // linear (0.80, 0.73, 0.55), and ACES at 1.15 maps that to rgb(223, 220, 211)
+  // — display luminance 220 and chroma 13. (The figure of rgb(196, 189, 168)
+  // this comment used to quote was simply arithmetically wrong.) Two things
+  // follow, and together they are the defect this scene had:
+  //
+  //   1. ACES is a strong desaturator near the top of its curve. The sand's own
+  //      albedo has 38 levels of sRGB chroma; at an irradiance of 0.888 only 13
+  //      survive. Sweeping the irradiance shows this albedo peaks at about 24
+  //      levels of retained chroma around 0.20-0.30 and falls monotonically
+  //      after that, so no choice of light colour recovers it at 0.888.
+  //   2. There is no headroom left above the floor. Caustics, coral highlights
+  //      and lit fish all clip into the same near-white, and the difference
+  //      between a +15-degree and a -15-degree sand slope is 6.4 display levels
+  //      — which is why the seabed had no visible texture or shape.
+  //
+  // So the budget comes down by a factor of four and gets a colour. Sunlight
+  // that has been through several metres of water is barely warm; the ambient
+  // it scatters back down is strongly blue. Splitting it that way:
+  //     key  (1.00, 0.96, 0.88) * 0.72 * 0.737 / PI = (0.1688, 0.1621, 0.1486)
+  //     hemi (0.06, 0.30, 0.60) * 0.50 / PI         = (0.0095, 0.0477, 0.0955)
+  //     env  0.012 * 3.68                           =  0.0442 flat
+  //     total                                        (0.2226, 0.2540, 0.2883)
+  // The key is 76% of it, the hemisphere 4-33% depending on channel, and the
+  // ambient 15-20%, so the scene still has one dominant direction and things
+  // still have a lit side and a shaded side.
+  //
+  // 0.737 is |direction.y| after normalising (0.8, -1, 0.45), which puts the key
+  // 42.5 degrees off vertical instead of the old (0.3, -1, 0.2)'s 19.8. That is
+  // deliberate and it is close to the physical limit: refraction at a flat
+  // surface compresses the whole sky into Snell's window, a cone of half-angle
+  // asin(1/1.333) = 48.6 degrees, so no underwater sun can rake harder than
+  // that. The reason to go to the edge of it is that the measured seafloor is
+  // shallow — raycasting the visible wedge gives face normals with a median
+  // tilt of 6.7 degrees and a maximum of 19.9 — and how much a 7-degree slope
+  // changes the shading depends entirely on where on the cosine curve the key
+  // sits. At 19.8 degrees off vertical, +/-7 degrees moves dotNL from 0.99 to
+  // 0.87 (a 12% swing); at 42.5 degrees it moves from 0.81 to 0.65 (a 25%
+  // swing). Measured on a rendered frame, that doubling raises the standard
+  // deviation of the luminance residual after the per-row mean is subtracted —
+  // a texture score that a vertical gradient cannot inflate — by 23%.
+  //
+  // Reef sand at albedo (0.93, 0.80, 0.48) now renders linear
+  // (0.208, 0.204, 0.139) -> rgb(147, 145, 121): luminance 144 against a water
+  // colour of luminance 79, and 26 levels of chroma instead of 13. The
+  // +/-15-degree slope test now spans 15.5 display levels rather than 6.4.
+  //
+  // Sensitivity: the environment term is 15-20% of the total, so even a 40%
+  // error in the E = 3.68 fit moves the floor by under 8% (about 5 display
+  // levels). The result is dominated by the key and the water colour, both of
+  // which are set here exactly.
+  //
+  // The accent point light sits at the rig default (0, 4, -1) with inverse-square
+  // decay, so around the shark it contributes 1.0 / 3.7^2 = 0.07 before the 1/PI
+  // — a soft top-light on whatever swims up near the surface, not a budget item.
+  //
+  // 0.24 is the project-wide default for a scene lit like a room; this one is
+  // lit like the sea, so it is dialled down here and put back on teardown.
+  const previousEnvIntensity = scene.environmentIntensity;
+  scene.environmentIntensity = 0.012;
+  scope.add(() => {
+    scene.environmentIntensity = previousEnvIntensity;
+  });
+
   const lights = createGameLighting(
     scene,
     {
       name: 'shark',
-      direction: new Vector3(0.3, -1, 0.2).normalize(),
-      directionalIntensity: 2.0,
-      hemisphericIntensity: 1.5,
-      pointIntensity: 0.8,
+      direction: new Vector3(0.8, -1, 0.45).normalize(),
+      directionalIntensity: 0.72,
+      hemisphericIntensity: 0.5,
+      pointIntensity: 1.0,
     },
     scope,
   );
+
+  // createGameLighting hard-codes white for all three lights, which is right for
+  // a game lit like a room and wrong for one lit through six metres of seawater.
+  // It returns the light objects, so the colours are set here rather than by
+  // widening the shared rig's options — this scene is the only caller that wants
+  // them. All three are authored in the working (linear) colour space, the same
+  // space `new Color(r, g, b)` writes to.
+  //
+  // Key: filtered sunlight, only slightly warm — most of the red is already gone
+  // by this depth, and taking more out would leave the orange and yellow fish
+  // with no red channel to render.
+  lights.directionalLight.color.setRGB(1.0, 0.96, 0.88);
+  // Fill: sky is the blue column overhead, ground is warm light bounced off the
+  // sand. A hemisphere with sky !== ground is what makes an upward-facing sand
+  // slope read as a different colour from a downward-facing one.
+  lights.ambientLight.color.setRGB(0.06, 0.3, 0.6);
+  lights.ambientLight.groundColor.setRGB(0.3, 0.26, 0.18);
+  // Accent: a cool pool of light where the shark surfaces.
+  lights.pointLight.color.setRGB(0.55, 0.8, 1.0);
+
+  // Nothing in this scene sets castShadow: the reef floor, all 290 props, the
+  // shark and the fish are built without it, so the shadow map renders an empty
+  // depth pass every frame and samples it for every lit fragment.
+  // configureKeyShadow (utils/lighting/lightingRig.ts) turns it on
+  // unconditionally for every game, which is the right default when there are
+  // casters; here it is a whole extra scene traversal and a 2048-square depth
+  // target for a result that is uniformly "unshadowed".
+  lights.directionalLight.castShadow = false;
 
   // Build environment meshes — no ocean walls for infinite reef
   const reefFloor = buildReefTerrain(scene, 60.0);
@@ -101,6 +350,15 @@ export function setupScene(scene: Scene, scope: DisposalScope): SceneEnvironment
     scene.add(group);
   }
 
+  buildRegionThickets(scene, corals, seaweeds);
+
+  // Small-scale scatter. This is what makes the seabed read as a reef floor
+  // rather than a sand-coloured gradient: the 290 placed props above are spread
+  // uniformly by area, which puts 71% of the ones in shot into the far bands
+  // where fog has taken 77-91% of their contrast. See reefLitter.ts for the
+  // measured ground-area-per-frame-band table that sets its density.
+  const reefLitter = buildReefLitter(scene);
+
   const anemones = buildAnemones(scene);
   const rocks = buildRocks(scene);
   const treasureChest = buildTreasureChest(scene);
@@ -117,6 +375,7 @@ export function setupScene(scene: Scene, scope: DisposalScope): SceneEnvironment
     anemones,
     rocks,
     treasureChest,
+    reefLitter,
   };
 }
 
@@ -157,6 +416,10 @@ export function teardownScene(env: SceneEnvironment): void {
 
   // Dispose treasure chest
   disposeMeshDeep(env.treasureChest);
+
+  // Dispose the instanced litter. InstancedMesh owns a GPU-side instance buffer
+  // that geometry.dispose() does not touch, so it needs its own dispose() too.
+  disposeReefLitter(env.reefLitter);
 
   // Dispose water surface
   disposeMeshDeep(env.waterSurface);

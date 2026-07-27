@@ -5,7 +5,12 @@
  */
 
 import { Vector3 } from 'three';
+import type { PerspectiveCamera } from 'three';
 import { C, type Target, type TargetKind } from './types';
+
+// Scratch vectors so the per-frame and per-tap helpers never allocate.
+const forwardScratch = new Vector3();
+const projectScratch = new Vector3();
 
 /**
  * Random number in [min, max).
@@ -38,14 +43,66 @@ export function lerp(a: number, b: number, t: number): number {
 }
 
 /**
- * Maps target z-depth to flight duration.
- * Near (z > -8) → FLIGHT_DURATION_NEAR, far (z < -14) → FLIGHT_DURATION_FAR.
+ * Maps target z-depth to flight duration across the play band.
+ * The near edge (z = PLAY_Z_MAX) gets FLIGHT_DURATION_NEAR and the far edge
+ * (z = PLAY_Z_MIN) gets FLIGHT_DURATION_FAR.
  * @param targetZ - The target's world z coordinate.
  * @returns Flight duration in seconds.
  */
 export function computeFlightDuration(targetZ: number): number {
-  const t = clamp01((targetZ - -8) / (-14 - -8));
+  const t = clamp01((targetZ - C.PLAY_Z_MAX) / (C.PLAY_Z_MIN - C.PLAY_Z_MAX));
   return lerp(C.FLIGHT_DURATION_NEAR, C.FLIGHT_DURATION_FAR, t);
+}
+
+/**
+ * Half-width of the camera frustum where it crosses the water plane at depth z.
+ *
+ * Derived rather than guessed: the distance along the view axis from the eye to
+ * the water point straight ahead at depth z is `(P - eye) · forward`, and the
+ * frustum's half-width at that distance is `depth · tan(fov/2) · aspect`. The
+ * camera has no yaw (lookAt keeps x = 0 for both eye and target), so the
+ * forward vector's x term drops out. For the shipped camera — eye (0, 4.2, 2.8),
+ * forward (0, -0.27074, -0.96263), fov 55°, aspect 1.481 — this is
+ * `(3.83247 - 0.96263·z) · 0.77121`: 6.30 units at z = -4.5, 8.89 at z = -8 and
+ * 11.86 at z = -12.
+ * @param camera - The live game camera (fov, aspect and position are all read).
+ * @param z - World-space depth of the water point being measured.
+ * @returns Half the width of the frame at that depth, in world units.
+ */
+export function visibleHalfWidthAt(camera: PerspectiveCamera, z: number): number {
+  camera.getWorldDirection(forwardScratch);
+  const depth = -camera.position.y * forwardScratch.y + (z - camera.position.z) * forwardScratch.z;
+  const tanHalfH = Math.tan((camera.fov * Math.PI) / 360) * camera.aspect;
+  return Math.max(0, depth) * tanHalfH;
+}
+
+/**
+ * Half-width of the *playable* strip at depth z: the visible half-width pulled
+ * in by PLAY_EDGE_MARGIN so a target sitting on the boundary is drawn whole.
+ * @param camera - The live game camera.
+ * @param z - World-space depth of the water point being measured.
+ * @returns Half-width of the play area at that depth, never below PLAY_HALF_WIDTH_MIN.
+ */
+export function playHalfWidthAt(camera: PerspectiveCamera, z: number): number {
+  return Math.max(C.PLAY_HALF_WIDTH_MIN, visibleHalfWidthAt(camera, z) - C.PLAY_EDGE_MARGIN);
+}
+
+/**
+ * How high a target of the given kind floats above the water surface.
+ * @param kind - The target kind to look up.
+ * @returns Vertical offset applied to the target root, in world units.
+ */
+export function floatOffsetForKind(kind: TargetKind): number {
+  switch (kind) {
+    case 'barrel':
+    case 'golden-barrel':
+      return C.FLOAT_Y_BARREL;
+    case 'bottle':
+    case 'rainbow-bottle':
+      return C.FLOAT_Y_BOTTLE;
+    case 'duck':
+      return C.FLOAT_Y_DUCK;
+  }
 }
 
 /**
@@ -156,6 +213,57 @@ export function nearestTarget(targets: Target[], worldPoint: Vector3, maxDist: n
     const dx = t.root.position.x - worldPoint.x;
     const dz = t.root.position.z - worldPoint.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
+
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIndex = i;
+    }
+  }
+
+  return bestIndex;
+}
+
+/**
+ * Finds the active target whose centre is nearest the tap in *screen* pixels.
+ *
+ * The old grace check measured world-space distance on the water plane, which at
+ * this camera pitch is between 15 and 95 screen pixels per world unit depending
+ * on where and in which direction you measure — so the same "1.0 unit" tolerance
+ * was six times more forgiving sideways near the bow than it was in depth out at
+ * the horizon. Projecting the targets instead makes the forgiveness isotropic
+ * and resolution-independent.
+ * @param targets - The pool of targets to search.
+ * @param camera - Camera used to project each target centre.
+ * @param screenX - Tap x in CSS pixels, relative to the canvas.
+ * @param screenY - Tap y in CSS pixels, relative to the canvas.
+ * @param width - Canvas width in CSS pixels.
+ * @param height - Canvas height in CSS pixels.
+ * @param maxPixels - Largest accepted distance, in CSS pixels.
+ * @returns Index of the nearest active target within range, or null.
+ */
+export function nearestTargetOnScreen(
+  targets: Target[],
+  camera: PerspectiveCamera,
+  screenX: number,
+  screenY: number,
+  width: number,
+  height: number,
+  maxPixels: number,
+): number | null {
+  let bestIndex: number | null = null;
+  let bestDist = maxPixels;
+
+  for (let i = 0; i < targets.length; i++) {
+    const t = targets[i];
+    if (t.state !== 'active') continue;
+
+    projectScratch.copy(t.root.position).project(camera);
+    // Behind the eye or past the far plane: not something the child can see.
+    if (projectScratch.z < -1 || projectScratch.z > 1) continue;
+
+    const sx = (projectScratch.x * 0.5 + 0.5) * width;
+    const sy = (-projectScratch.y * 0.5 + 0.5) * height;
+    const dist = Math.hypot(sx - screenX, sy - screenY);
 
     if (dist < bestDist) {
       bestDist = dist;

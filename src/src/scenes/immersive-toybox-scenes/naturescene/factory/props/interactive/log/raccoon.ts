@@ -11,9 +11,18 @@
  * Design notes — to be recognisable at the game's viewing distance
  * the raccoon relies on CONTRAST, not detail:
  *   • Light-grey head fur ≠ dark log bark → stands out.
- *   • A single wide DARK mask-band across the face → signature look.
+ *   • A dark patch around each eye, joined by a thin bridge over the
+ *     nose → the bandit mask that says raccoon and not panda.
  *   • Bright-white eyes inside the mask → pop.
  *   • Cream muzzle below the mask → cute snout.
+ *
+ * That mask bullet used to read "a single wide DARK mask-band across the
+ * face". That is what the first raccoon built and what the rebuild
+ * deliberately stopped building, because a full-width band reads as a panda.
+ * The code changed and the header did not, so this summary and the
+ * `addBanditMask` docblock forty lines below it asserted opposite shapes,
+ * and the function was still named addMaskBand. A header is the part of a
+ * file a reader trusts most and checks least.
  */
 import { Mesh, Group, Color, SphereGeometry } from 'three';
 import { createFeltMaterial, createGlossyPaintMaterial } from '@app/utils/materialFactory';
@@ -48,7 +57,7 @@ function addHead(raccoon: Group): Mesh {
  *
  * @param head - The raccoon head mesh.
  */
-function addMaskBand(head: Mesh): void {
+function addBanditMask(head: Mesh): void {
   const maskMat = createFeltMaterial('rcMaskMat', new Color(0.07, 0.06, 0.05));
   [-1, 1].forEach((side) => {
     const patch = new Mesh(new SphereGeometry(HEAD_R * 0.42, 8, 6), maskMat);
@@ -162,7 +171,7 @@ export function addRaccoon(root: Group): () => void {
 
   addTorso(raccoon);
   const head = addHead(raccoon);
-  addMaskBand(head);
+  addBanditMask(head);
   addEyes(head);
   addMuzzle(head);
   const ears = addEars(head);

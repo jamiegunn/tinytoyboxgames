@@ -97,7 +97,12 @@ export function createLightingRig(scene: Scene, d: LightingDescriptor, scope: Di
   scene.add(fill);
   scope.object3D(fill);
 
-  // Point accents.
+  // Point accents. The `?? 0` is documentation, not a guard: three.js defaults
+  // `distance` to 0 for undefined, for an explicit 0, and for an omitted third
+  // argument alike, so all three constructions are identical. It is written out
+  // because 0 is three.js's sentinel for "no falloff", which is worth saying.
+  // Do not read it as load-bearing — mutating it away changes no behaviour, and
+  // no test can pin it (see the mutation note in lightingRig.test.mjs).
   const accents = (d.accents ?? []).map((a) => {
     const light = new PointLight(a.color, a.intensity, a.distance ?? 0);
     light.position.copy(a.position);

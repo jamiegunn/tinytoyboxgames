@@ -5,8 +5,9 @@
  */
 
 import { BoxGeometry, CircleGeometry, Color, CylinderGeometry, Mesh, MeshStandardMaterial, Scene, SphereGeometry, TorusGeometry, Vector3 } from 'three';
+import type { PerspectiveCamera } from 'three';
 import { C, type BonusCoin, type Fragment, type SplashParticle, type TargetKind } from '../types';
-import { randomRange } from '../helpers';
+import { playHalfWidthAt, randomRange } from '../helpers';
 import { getTargetColor } from './targets';
 
 // ── Shared materials ────────────────────────────────────────────────────────
@@ -297,13 +298,22 @@ export function spawnTrailParticle(scene: Scene, position: Vector3, splashPartic
 // ── Ocean Sparkle (ambient) ─────────────────────────────────────────────────
 
 /**
+ * Spawns one short-lived glint on the water somewhere the child can see.
  *
- * @param scene
- * @param splashParticles
+ * The x range used to be a fixed ±8 world units, which at this camera is wider
+ * than the frame near the bow (half-width 6.3 units at z = -4.5) and narrower
+ * than it out at the far edge (11.9 units at z = -12) — so the sparkles bunched
+ * into two off-screen columns near the camera and never reached the corners
+ * further out. Sampling the frustum's own half-width spreads them evenly across
+ * the water that is actually on screen.
+ * @param scene - Scene to add the sparkle mesh to.
+ * @param camera - Live game camera, used to derive the visible width at each depth.
+ * @param splashParticles - Particle list the sparkle is pushed onto.
  */
-export function spawnOceanSparkle(scene: Scene, splashParticles: SplashParticle[]): void {
-  const x = randomRange(C.PLAY_X_MIN, C.PLAY_X_MAX);
+export function spawnOceanSparkle(scene: Scene, camera: PerspectiveCamera, splashParticles: SplashParticle[]): void {
   const z = randomRange(C.PLAY_Z_MIN, C.PLAY_Z_MAX);
+  const halfWidth = playHalfWidthAt(camera, z);
+  const x = randomRange(-halfWidth, halfWidth);
   const mesh = new Mesh(new SphereGeometry(0.03, 4, 3), sparkleMat.clone());
   mesh.name = 'cs_oceanSparkle';
   mesh.position.set(x, 0.05, z);

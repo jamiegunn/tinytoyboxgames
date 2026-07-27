@@ -8,7 +8,7 @@ import { type Scene, type PerspectiveCamera } from 'three';
 import type { MiniGameContext } from '../../../framework/types';
 import type { GameState, Target, EnvironmentRig } from '../types';
 import { C } from '../types';
-import { lerp, nearestTarget } from '../helpers';
+import { lerp, nearestTarget, playHalfWidthAt } from '../helpers';
 import { updateEnvironment, sampleOceanHeight } from '../environment';
 import {
   updateCannonball,
@@ -50,7 +50,7 @@ export function updateGameFrame(state: GameState, dt: number, context: MiniGameC
   updateEnvironment(env, time, dt);
 
   // 2. Update target positions + state machines
-  updateTargets(state, dt, time, context.difficulty.level);
+  updateTargets(state, dt, time, context.difficulty.level, camera);
 
   // 3. Update cannonball arcs + arrival checks
   updateCannonballs(state, dt, scene, context, camera);
@@ -76,12 +76,12 @@ export function updateGameFrame(state: GameState, dt: number, context: MiniGameC
   if (oceanSparkleTimer >= C.OCEAN_SPARKLE_INTERVAL) {
     oceanSparkleTimer -= C.OCEAN_SPARKLE_INTERVAL;
     if (state.splashParticles.length < 60) {
-      spawnOceanSparkle(scene, state.splashParticles);
+      spawnOceanSparkle(scene, camera, state.splashParticles);
     }
   }
 }
 
-// Paints (or clears) a target's own "I'm about to drift away" warning.
+// Paints (or clears) a target's own "I'm about to float away" warning.
 //
 // The warning used to traverse the meshes and write emissive on whatever
 // material it found — which were module-level singletons, so one barrel nearing
@@ -89,25 +89,59 @@ export function updateGameFrame(state: GameState, dt: number, context: MiniGameC
 // only to the materials this target owns, and every material restores the
 // baseEmissive it was built with, including the golden barrel's glow (which had
 // no reset branch at all and stayed red forever once warned).
-function applyEdgeWarning(target: Target, warning: boolean, time: number): void {
-  const pulse = 0.7 + 0.3 * Math.sin(time * 8);
+//
+// Red on black is also not a colour a three-year-old reads as "hurry" so much as
+// "danger"; the warning brightens the target's own colour instead of repainting
+// it, so a barrel about to leave looks lit up rather than broken.
+function applyExpiryWarning(target: Target, warning: boolean, time: number): void {
+  const pulse = 0.18 + 0.18 * Math.sin(time * 7);
   for (const m of target.materials) {
     if (warning) {
-      m.emissive.setRGB(pulse, 0, 0);
+      m.emissive.copy(m.color).multiplyScalar(pulse);
     } else {
       m.emissive.setHex((m.userData.baseEmissive as number | undefined) ?? 0);
     }
   }
 }
 
+// Keeps a drifting target inside the visible trapezoid by reflecting it off the
+// boundary instead of letting it walk out of frame.
+//
+// Bouncing rather than despawning is what makes the play area feel like a pond
+// with sides: the old rule spawned at |x| = 9 (off-screen at every z the camera
+// shows near the bow) and despawned at |x| > 9, so a target's whole life could
+// be spent outside the frame. Because the half-width grows with depth, the
+// bound is recomputed at the target's current z every frame.
+function constrainDrift(target: Target, camera: PerspectiveCamera): void {
+  const pos = target.root.position;
+
+  if (pos.z < C.PLAY_Z_MIN) {
+    pos.z = C.PLAY_Z_MIN;
+    target.driftVz = Math.abs(target.driftVz);
+  } else if (pos.z > C.PLAY_Z_MAX) {
+    pos.z = C.PLAY_Z_MAX;
+    target.driftVz = -Math.abs(target.driftVz);
+  }
+
+  const halfWidth = playHalfWidthAt(camera, pos.z);
+  if (pos.x < -halfWidth) {
+    pos.x = -halfWidth;
+    target.driftVx = Math.abs(target.driftVx);
+  } else if (pos.x > halfWidth) {
+    pos.x = halfWidth;
+    target.driftVx = -Math.abs(target.driftVx);
+  }
+}
+
 /**
- * Updates all active targets — spawning animation, bob/drift, boundary recycling.
+ * Updates all active targets — spawn animation, bob/drift, expiry and recycling.
  * @param state - Mutable game state.
  * @param dt - Frame delta time in seconds.
  * @param time - Total elapsed game time in seconds.
  * @param difficulty - Normalized difficulty in [0, 1].
+ * @param camera - Live game camera, used to derive the play boundary per depth.
  */
-function updateTargets(state: GameState, dt: number, time: number, difficulty: number): void {
+function updateTargets(state: GameState, dt: number, time: number, difficulty: number, camera: PerspectiveCamera): void {
   // Difficulty-scaled bob amplitude
   const bobAmplitude = lerp(0.06, 0.08, difficulty);
 
@@ -130,9 +164,12 @@ function updateTargets(state: GameState, dt: number, time: number, difficulty: n
       continue;
     }
 
-    if (t.state === 'hit') {
+    // 'hit' and 'drifted-off' are both "shrink away and go", and share the
+    // animation. They differ only in how they were reached: one was earned.
+    if (t.state === 'hit' || t.state === 'drifted-off') {
       const progress = Math.min(1, t.stateTimer / C.HIT_ANIM_DURATION);
       t.root.scale.setScalar(C.TARGET_SCALE * (1 - progress));
+      t.root.position.y = waterY + t.baseY;
 
       if (progress >= 1) {
         recycleTarget(state.targets, i);
@@ -141,9 +178,10 @@ function updateTargets(state: GameState, dt: number, time: number, difficulty: n
     }
 
     if (t.state === 'active') {
-      // Drift
+      // Drift, then reflect off the visible play boundary.
       t.root.position.x += t.driftVx * dt;
       t.root.position.z += t.driftVz * dt;
+      constrainDrift(t, camera);
 
       // Bob — difficulty-scaled amplitude on top of the swell
       t.root.position.y = waterY + t.baseY + bobAmplitude * Math.sin(time * t.bobSpeed + t.bobPhase);
@@ -154,18 +192,15 @@ function updateTargets(state: GameState, dt: number, time: number, difficulty: n
         updateSpecialTargetVisuals(t.root, t.kind, time);
       }
 
-      // Edge warning — pulse red only once the target has actually been inside
-      // the play area. Targets spawn at |x| = 9, outside the |x| > 7 warning
-      // band, so without this gate every new target arrived already flashing
-      // "I'm leaving" and the warning meant nothing.
-      const outsideWarnBand = Math.abs(t.root.position.x) > C.EDGE_WARN_X;
-      if (!outsideWarnBand) t.hasEnteredPlay = true;
-      applyEdgeWarning(t, t.hasEnteredPlay && outsideWarnBand, time);
+      // Turnover is now driven by time in play, not by leaving through the side.
+      // Targets bounce off the frustum edge, so without a lifetime the water
+      // would silently fill to the spawn cap and stay there.
+      applyExpiryWarning(t, t.stateTimer > C.TARGET_LIFETIME - C.TARGET_WARN_TIME, time);
 
-      // Boundary check
-      if (Math.abs(t.root.position.x) > C.SPAWN_X_EDGE) {
+      if (t.stateTimer >= C.TARGET_LIFETIME) {
+        applyExpiryWarning(t, false, time);
         t.state = 'drifted-off';
-        recycleTarget(state.targets, i);
+        t.stateTimer = 0;
       }
     }
   }

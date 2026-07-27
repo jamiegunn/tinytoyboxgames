@@ -1,12 +1,81 @@
 import { Vector3 } from 'three';
-import { randomRange } from '@app/minigames/shared/mathUtils';
+import { randomRange, clamp } from '@app/minigames/shared/mathUtils';
 import type { DifficultyTier, FireflyBehavior, FireflyData } from './types';
-import { SPAWN, FOREGROUND_Z } from './types';
+import { SPAWN, BOUNDS, FOREGROUND_Z } from './types';
 
 export { randomRange };
 
+// ---------------------------------------------------------------------------
+// Camera-derived play area
+// ---------------------------------------------------------------------------
+// The shell hands every mini-game the same fixed camera unless the manifest
+// overrides it, and the fireflies entry does not: DEFAULT_GAME_CAMERA is
+// position (0,2,5), target (0,0,0), 60 deg vertical fov. So the projection can
+// be solved in closed form here instead of guessing at world-space limits.
+//
+//   forward d = normalize((0,0,0) - (0,2,5)) = (0, -0.3713907, -0.9284767)
+//   up      u = (0, 0.9284767, -0.3713907)
+// and for a world point P, with C the camera position:
+//   depth = (P-C)·d = 5.3851648 - 0.3713907*y - 0.9284767*z
+//   yc    = (P-C)·u = 0.9284767*y - 0.3713907*z
+//   ndcY  = yc / (depth * tan(fov/2))
+//   ndcX  = x  / (depth * tan(fov/2) * aspect)
+// The depth constant is -(C·d) = 2*0.3713907 + 5*0.9284767 = 5.3851648.
+const CAM_FWD_Y = -0.3713907;
+const CAM_FWD_Z = -0.9284767;
+const CAM_DEPTH_BIAS = 5.3851648;
+const TAN_HALF_FOV_Y = 0.5773503;
+
+// Fraction of the half-frame width fireflies are allowed to reach. 0.72 keeps
+// the whole 80 px tap disc (2*80/1200 = 0.133 ndc, i.e. 0.067 half) plus the
+// sprite's own ~50-110 px halo inside the frame even at the very edge of the
+// range, so nothing is ever half-clipped by the viewport border.
+const X_NDC_LIMIT = 0.72;
+
+// Updated from the shell's viewport in setup()/onResize(). Seeded with 3:2,
+// the aspect the game was measured at, so the module is usable before setup.
+let viewAspect = 1200 / 810;
+
+/**
+ * Records the current viewport aspect so the horizontal play limits track the
+ * actual frame. Call from `setup()` and `onResize()`.
+ *
+ * @param aspect - Viewport width / height.
+ */
+export function setViewAspect(aspect: number): void {
+  if (Number.isFinite(aspect) && aspect > 0) viewAspect = aspect;
+}
+
+/**
+ * Distance from the camera plane to a world point, along the view direction.
+ *
+ * @param y - World Y.
+ * @param z - World Z.
+ * @returns View-space depth in world units (larger = further away).
+ */
+export function viewDepth(y: number, z: number): number {
+  return CAM_DEPTH_BIAS + CAM_FWD_Y * y + CAM_FWD_Z * z;
+}
+
+/**
+ * Largest |x| that still renders comfortably inside the frame at a given view
+ * depth. The frustum is a cone, so a single fixed |x| limit is wrong at every
+ * depth but one — hence the per-position computation.
+ *
+ * @param depth - View-space depth from {@link viewDepth}.
+ * @returns Half-width of the usable play area, in world units.
+ */
+export function playHalfWidthAt(depth: number): number {
+  // Guard the degenerate near-camera case; 0.4 is well inside the 0.1 near
+  // plane and BOUNDS.zMax never gets closer than depth 2.6 anyway.
+  return X_NDC_LIMIT * viewAspect * TAN_HALF_FOV_Y * Math.max(0.4, depth);
+}
+
 /** Firefly count at difficulty level 0 (a calm, uncrowded meadow). */
-const FIREFLY_COUNT_MIN = 6;
+// Raised 6 -> 8. The play box is now camera-tight, so all of them are on
+// screen; the previous 6 were spread over a box ~4x the frame's volume and
+// typically only 2-5 were ever visible at once.
+const FIREFLY_COUNT_MIN = 8;
 
 /** Firefly count at difficulty level 1 (a meadow that feels genuinely busy). */
 const FIREFLY_COUNT_MAX = 18;
@@ -42,19 +111,103 @@ export function getDifficultyTier(level: number): DifficultyTier {
 
 /**
  * Creates a random spawn position within the play area.
- * @returns A Vector3 within spawn bounds.
+ *
+ * X is drawn from the depth-dependent half-width rather than a fixed range:
+ * the old `SPAWN.xMin/xMax = +/-5` was up to 2.3x the frame half-width at the
+ * near end of the box, so a large share of every spawn landed off screen.
+ *
+ * @returns A Vector3 inside the visible play volume.
  */
 export function randomSpawnPos(): Vector3 {
-  return new Vector3(randomRange(SPAWN.xMin, SPAWN.xMax), randomRange(SPAWN.yMin, SPAWN.yMax), randomRange(SPAWN.zMin, SPAWN.zMax));
+  const y = randomRange(SPAWN.yMin, SPAWN.yMax);
+  const z = randomRange(SPAWN.zMin, SPAWN.zMax);
+  const halfWidth = playHalfWidthAt(viewDepth(y, z));
+  return new Vector3(randomRange(-halfWidth, halfWidth), y, z);
 }
 
 /**
- * Creates a spawn position guaranteed to be in the foreground (close to camera).
- * Uses lower Y range so they're easy to tap for young children.
+ * Creates a spawn position guaranteed to be in the foreground (close to camera)
+ * and low enough to read as within a child's reach.
+ *
+ * The Y ceiling is `SPAWN.yMin + 0.75` (0.6 -> 1.35), which at the foreground
+ * depths (z 1.4 -> 2.6, depth 3.6 -> 2.5) projects to ndcY -0.10 .. +0.36, i.e.
+ * the middle third of the frame. The 0.8 factor on the half-width keeps these
+ * "guaranteed reachable" fireflies away from the frame edge entirely.
+ *
  * @returns A Vector3 in the foreground area.
  */
 export function foregroundSpawnPos(): Vector3 {
-  return new Vector3(randomRange(-3, 3), randomRange(0.5, 2.5), randomRange(FOREGROUND_Z, SPAWN.zMax + 1));
+  const y = randomRange(SPAWN.yMin, SPAWN.yMin + 0.75);
+  const z = randomRange(FOREGROUND_Z, SPAWN.zMax);
+  const halfWidth = playHalfWidthAt(viewDepth(y, z)) * 0.8;
+  return new Vector3(randomRange(-halfWidth, halfWidth), y, z);
+}
+
+/** Scratch vector for the pre-clamp position in {@link containInPlayArea}. */
+const _preClamp = new Vector3();
+
+/**
+ * Keeps a firefly inside the visible play volume, steering it back in rather
+ * than teleporting it.
+ *
+ * This replaces the old "if it left the +/-8 box, respawn it somewhere random"
+ * rule, which had two problems: the box was far wider than the frame (so a
+ * firefly could leave the shot and legally stay gone), and a teleport makes a
+ * firefly a child was tracking vanish mid-tap.
+ *
+ * Clamping alone is not enough for the two stateful behaviours:
+ * - `drift` integrates sin/cos of `driftOffset*`; adding PI flips the sign of
+ *   that axis' velocity, so it walks away from the wall instead of grinding
+ *   along it.
+ * - `circle` writes position absolutely from `behaviorCenter`, so a clamp would
+ *   be undone on the very next frame. Translating the centre by the same delta
+ *   makes the clamp stick for the rest of the revolution.
+ *
+ * @param fd - The firefly to contain.
+ */
+export function containInPlayArea(fd: FireflyData): void {
+  const p = fd.sprite.position;
+  _preClamp.copy(p);
+
+  if (p.y < BOUNDS.yMin) {
+    p.y = BOUNDS.yMin;
+    fd.zigzagDir.y = Math.abs(fd.zigzagDir.y);
+    fd.driftOffsetY += Math.PI;
+  } else if (p.y > BOUNDS.yMax) {
+    p.y = BOUNDS.yMax;
+    fd.zigzagDir.y = -Math.abs(fd.zigzagDir.y);
+    fd.driftOffsetY += Math.PI;
+  }
+
+  if (p.z < BOUNDS.zMin) {
+    p.z = BOUNDS.zMin;
+    fd.zigzagDir.z = Math.abs(fd.zigzagDir.z);
+    fd.driftOffsetZ += Math.PI;
+  } else if (p.z > BOUNDS.zMax) {
+    p.z = BOUNDS.zMax;
+    fd.zigzagDir.z = -Math.abs(fd.zigzagDir.z);
+    fd.driftOffsetZ += Math.PI;
+  }
+
+  const halfWidth = playHalfWidthAt(viewDepth(p.y, p.z));
+  if (p.x < -halfWidth) {
+    p.x = -halfWidth;
+    fd.zigzagDir.x = Math.abs(fd.zigzagDir.x);
+    fd.driftOffsetX += Math.PI;
+  } else if (p.x > halfWidth) {
+    p.x = halfWidth;
+    fd.zigzagDir.x = -Math.abs(fd.zigzagDir.x);
+    fd.driftOffsetX += Math.PI;
+  }
+
+  const dx = p.x - _preClamp.x;
+  const dy = p.y - _preClamp.y;
+  const dz = p.z - _preClamp.z;
+  if (dx !== 0 || dy !== 0 || dz !== 0) {
+    fd.behaviorCenter.x += dx;
+    fd.behaviorCenter.y = clamp(fd.behaviorCenter.y + dy, SPAWN.yMin, SPAWN.yMax);
+    fd.behaviorCenter.z = clamp(fd.behaviorCenter.z + dz, SPAWN.zMin, SPAWN.zMax);
+  }
 }
 
 /**

@@ -21,6 +21,57 @@ const SURPRISE_SPAN = 9;
 const TREASURE_VISIBLE_RANGE = 18;
 
 /**
+ * A sound sink, structurally the shell's audio service.
+ *
+ * Declared here rather than imported so this module keeps compiling in the
+ * headless probe harness, which drives the real file without a shell.
+ */
+export interface SurpriseAudio {
+  playSound(id: string): void;
+}
+
+/**
+ * The sound each surprise announces itself with.
+ *
+ * F3, measured: this file contained ZERO `playSound` calls while every single
+ * player-initiated interaction had one. So the five events that exist purely to
+ * make the reef feel inhabited were the only silent things in the game, and a
+ * child looking the other way when one fired had no cue to turn around. The IDs
+ * are the existing little-shark bank -- no new synths, so no new failure mode.
+ */
+const SURPRISE_SOUND: Record<SurpriseType, string> = {
+  bubbleColumn: 'water-bloop',
+  colorShift: 'seaweed-rustle',
+  whaleShadow: 'shark-barrel-roll',
+  treasureSparkle: 'treasure-jingle',
+  fishParade: 'crab-skitter',
+};
+
+/**
+ * Pulls the next surprise forward so it lands inside a window the caller cares
+ * about.
+ *
+ * This exists because of a regression the frenzy measurement caught rather than
+ * a feature request. With the reef gathering during a frenzy, `monotonousFrac`
+ * at the pessimistic arm rose from 0.074 to 0.133: the payoff was flooding the
+ * trailing window with a great deal of ONE kind of event, and the perplexity
+ * statistic correctly punished that. A frenzy should bring more KINDS of
+ * things, not just more of the same, and the five surprises are the kinds the
+ * game already has and was firing at an 8.3% duty cycle.
+ *
+ * It only ever moves the clock earlier, and never while a surprise is already
+ * running, so it cannot be used to spam them.
+ *
+ * @param state - Surprise state to nudge.
+ * @param within - Upper bound in seconds on the new wait.
+ */
+export function nudgeSurpriseSoon(state: SurpriseState, within = 2.5): void {
+  if (state.activeSurprise) return;
+  if (state.nextSurpriseTime <= within) return;
+  state.nextSurpriseTime = Math.random() * within;
+}
+
+/**
  * Finds the first MeshStandardMaterial with an emissive property on an Object3D or its children.
  * @param obj - The Object3D to search.
  * @returns The first MeshStandardMaterial with emissive, or null.
@@ -227,8 +278,18 @@ function startFishParade(state: SurpriseState, scene: Scene, elapsedTime: number
  * @param scene - The Three.js scene.
  * @param sharkX - Current shark world X — surprises are staged around this.
  * @param sharkZ - Current shark world Z — surprises are staged around this.
+ * @param audio - Optional sound sink. Omitted by the headless probe harness.
  */
-export function updateSurprises(state: SurpriseState, elapsedTime: number, dt: number, env: SceneEnvironment, scene: Scene, sharkX = 0, sharkZ = 0): void {
+export function updateSurprises(
+  state: SurpriseState,
+  elapsedTime: number,
+  dt: number,
+  env: SceneEnvironment,
+  scene: Scene,
+  sharkX = 0,
+  sharkZ = 0,
+  audio?: SurpriseAudio,
+): void {
   // Handle active surprise
   if (state.activeSurprise) {
     state.surpriseTimer -= dt;
@@ -328,6 +389,7 @@ export function updateSurprises(state: SurpriseState, elapsedTime: number, dt: n
   const available = chestVisible ? ALL_SURPRISE_TYPES : ALL_SURPRISE_TYPES.filter((t) => t !== 'treasureSparkle');
 
   const kind = available[Math.floor(Math.random() * available.length)];
+  audio?.playSound(SURPRISE_SOUND[kind]);
 
   if (kind === 'bubbleColumn') {
     // Burst of bubbles just off the shark's shoulder, not at the world origin

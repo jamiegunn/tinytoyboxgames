@@ -39,7 +39,7 @@ import {
   triggerWobbleChain,
   tapGiantBubble,
 } from './bubbles';
-import { buildEnvironment, updateEnvironment, pulseNearbyStars, decayStarPulses, pulseMoon, decayMoonPulse } from './environment';
+import { buildEnvironment, updateEnvironment, pulseNearbyStars, decayStarPulses, pulseMoon, decayMoonPulse, disposeMoonTextures } from './environment';
 import { disposeMeshDeep } from '@app/minigames/shared/disposal';
 import { tmpVec3 } from './tempPool';
 import { createSpatialHash, applySoftBodyRepulsion, applyPopPressureWave } from './physics';
@@ -534,6 +534,9 @@ export function createGame(context: MiniGameContext): IMiniGame {
         }
         env = null;
       }
+      // disposeMeshDeep releases geometries and materials but not the textures
+      // those materials reference, so the moon's canvas textures need this.
+      disposeMoonTextures();
 
       context.audio.stopMusic();
     },

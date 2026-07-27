@@ -30,11 +30,24 @@ import {
 import { recycleTargetAtIndex } from './entities/lifecycle';
 import { applyMissTap, applySuccessfulTap } from './rules/scoring';
 import { findNearestCatchableTargetIndex, findTappedTargetIndex, spawnNextTarget, updateActiveTargets } from './rules';
-import { computeMaxActiveTargets, computeSpawnIntervalSeconds, getSpawnBand, PLAY_PLANE_Z, TEMPLATE_SPAWN_BOUNDS } from './rules/spawning';
+import { computeMaxActiveTargets, computeSpawnIntervalSeconds, getSpawnBand, PLAY_PLANE_Z, TEMPLATE_PLAY_FIELD } from './rules/spawning';
 import type { TemplateEnvironmentRig, TemplateTargetState, TransientEffectRig } from './types';
 
 /** Sound used to acknowledge a tap on the moon or the background starfield. */
 const AMBIENT_TWINKLE_SOUND = 'sfx_shared_star_chime';
+
+/**
+ * NDC rows the opening stars are seeded at, top to bottom.
+ *
+ * The run used to open with three stars all placed above the top of the frame,
+ * so for the first second and a half the screen was empty and for the next few
+ * only its top edge had anything in it. A four-second measurement of the very
+ * start of a run therefore recorded all of the game's motion in the top sixth
+ * of the frame — which is exactly what the harness saw. Seeding the field the
+ * way it looks in steady state removes the cold start entirely: from the first
+ * rendered frame there are stars spread down the whole picture.
+ */
+const OPENING_ENTRY_ROWS = [0.85, 0.5, 0.15, -0.15, -0.45, -0.7];
 
 /**
  * Creates the generated Star Catcher minigame.
@@ -95,11 +108,13 @@ export function createGame(context: MiniGameContext): IMiniGame {
         const maxActive = computeMaxActiveTargets(context.difficulty.level);
         if (activeTargets.length >= maxActive) return;
 
-        spawnNextTarget(targetPool, activeTargets, TEMPLATE_SPAWN_BOUNDS, context.difficulty.level);
+        spawnNextTarget(targetPool, activeTargets, camera, TEMPLATE_PLAY_FIELD, context.difficulty.level);
       },
       intervalSeconds: computeSpawnIntervalSeconds(context.difficulty.level),
       jitterSeconds: 0.2,
-      maxCount: 12,
+      // Above the hardest band's cap of 10, so the scheduler never becomes the
+      // thing limiting the field; `computeMaxActiveTargets` owns that.
+      maxCount: 14,
       activeCount: () => activeTargets.length,
     });
   }
@@ -108,16 +123,18 @@ export function createGame(context: MiniGameContext): IMiniGame {
     id: 'star-catcher',
 
     async setup(): Promise<void> {
-      environment = setupTemplateEnvironment(scene, context.disposal);
+      environment = setupTemplateEnvironment(scene, camera, context.disposal);
       effects = createTransientEffects();
 
       targetPool = context.createPool<TemplateTargetState>({
         create: () => createTarget(scene),
         reset: resetTarget,
         dispose: disposeTarget,
-        maxPoolSize: 18,
+        // 10 concurrent catchable stars at the top difficulty band, plus the
+        // handful mid catch-or-fade animation, plus headroom.
+        maxPoolSize: 24,
       });
-      targetPool.prewarm(8);
+      targetPool.prewarm(12);
     },
 
     start(): void {
@@ -137,8 +154,10 @@ export function createGame(context: MiniGameContext): IMiniGame {
       }
 
       if (targetPool) {
-        for (let count = 0; count < 3; count += 1) {
-          spawnNextTarget(targetPool, activeTargets, TEMPLATE_SPAWN_BOUNDS, context.difficulty.level);
+        const maxActive = computeMaxActiveTargets(context.difficulty.level);
+        for (const entryRow of OPENING_ENTRY_ROWS) {
+          if (activeTargets.length >= maxActive) break;
+          spawnNextTarget(targetPool, activeTargets, camera, TEMPLATE_PLAY_FIELD, context.difficulty.level, entryRow);
         }
       }
 

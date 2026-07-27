@@ -86,9 +86,26 @@ export const FLOOR_LAMP_Z = 7.4;
 export const CAT_X = 1.1;
 export const CAT_Z = 2.7;
 
-/** Stack of picture books on the front floor, between the toyboxes. */
-export const BOOK_STACK_X = -1.7;
-export const BOOK_STACK_Z = -3.8;
+/*
+ * GONE: BOOK_STACK_X = -1.7 and BOOK_STACK_Z = -3.8, under the comment "Stack
+ * of picture books on the front floor, between the toyboxes."
+ *
+ * There is no floor book stack in this room and there never was. The only
+ * books the Living Room builds are two on the side table, in `sideTable.ts`,
+ * at a different place and a different scale.
+ *
+ * The reason this pair is worth a note rather than a silent delete is where it
+ * sat. Every other slot in this block — RUG, COUCH, SIDE_TABLE, FLOOR_LAMP,
+ * CAT, and both toyboxes — is imported by the module that builds the thing it
+ * names, between two and six times each. These two had the same JSDoc voice,
+ * the same SCREAMING_CASE X/Z pairing and the same position in the list, and
+ * zero readers. Nothing about the text distinguishes a coordinate the room was
+ * built to from a coordinate for a prop that was never made; only the import
+ * graph does, and prose does not have one.
+ *
+ * If a floor book stack is wanted, build it and let the builder own its
+ * position, the way `sideTable.ts` owns the side table's.
+ */
 
 // ── Toybox slots ────────────────────────────────────────────────────────────
 

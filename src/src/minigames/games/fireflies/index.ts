@@ -8,7 +8,6 @@ import {
   JAR_POS,
   JAR_SCALE,
   JAR_BODY_HEIGHT,
-  BOUNDS,
   FOREGROUND_Z,
   HIT_RADIUS_PX,
   RESPAWN_DELAY,
@@ -25,8 +24,8 @@ import {
   GOLDEN_LIFETIME,
   GOLDEN_FADE_DURATION,
 } from './types';
-import { getDifficultyTier, randomSpawnPos, foregroundSpawnPos, updateFireflyBehavior } from './helpers';
-import { createEnvironment } from './environment';
+import { getDifficultyTier, foregroundSpawnPos, updateFireflyBehavior, containInPlayArea, setViewAspect } from './helpers';
+import { createEnvironment, MOON_BASE_Y, SATURN_BASE_Y } from './environment';
 import { createFirefly, resetFirefly, getFireflyCreatureTextures } from './entities';
 import { createIlluminationController, collectMaterials, type IlluminationController } from './illumination';
 import { createFirefliesAudio, type FirefliesAudio } from './audio';
@@ -63,6 +62,31 @@ const RIPPLE_PLANE_Z = 1.5;
 /** Seconds a poked piece of scenery spends bouncing. */
 const POKE_DURATION = 0.6;
 
+/** Peak idle breeze lean of a tree, in radians (4.0 deg). Was 0.025 (1.4 deg). */
+const TREE_SWAY = 0.07;
+
+/** Peak idle breeze lean of a grass tuft, in radians (12.6 deg). Was 0.1. */
+const GRASS_SWAY = 0.22;
+
+/**
+ * Floor on the number of fireflies in play, independent of the difficulty tier.
+ *
+ * Six is `getDifficultyTier(0).maxFireflies` (8) minus the two that can be
+ * mid-catch at once, so this only ever fires while catches are in flight and
+ * never fights the tier target. It was 5 against a play box roughly four times
+ * the frame's volume; now that the box is camera-tight, all six are visible.
+ */
+const MIN_ACTIVE_FIREFLIES = 6;
+
+/**
+ * Floor on the number of fireflies in the near third of the play box.
+ *
+ * Raised 2 -> 3. Foreground fireflies are the large, easy targets — at
+ * z = FOREGROUND_Z..SPAWN.zMax the glow sprite spans roughly 75-107 px, well
+ * over the 80 px tap radius, so a tap anywhere near one connects.
+ */
+const MIN_FOREGROUND_FIREFLIES = 3;
+
 /**
  * Creates the Fireflies mini-game instance.
  * Players tap glowing fireflies to catch them and fill a jar.
@@ -96,6 +120,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
   let starField: Points | null = null;
   let starSizes: Float32Array | null = null;
   let starPhases: Float32Array | null = null;
+  let starBaseY: Float32Array | null = null;
   let tapHint: TapHint | null = null;
   let firstCatchDone = false;
   const environmentMeshes: Object3D[] = [];
@@ -193,13 +218,15 @@ export function createGame(context: MiniGameContext): IMiniGame {
     saturnPoke = Math.max(0, saturnPoke - dt);
     jarPoke = Math.max(0, jarPoke - dt);
 
+    // Baselines must match the placements in environment.ts, or the first frame
+    // of animation snaps everything back to the old (clipped) heights.
     if (moonMesh) {
-      moonMesh.position.y = 4 + Math.sin(elapsedTime * 0.22) * 0.14;
+      moonMesh.position.y = MOON_BASE_Y + Math.sin(elapsedTime * 0.22) * 0.14;
       moonMesh.scale.setScalar(pokeScale(moonPoke));
     }
 
     if (saturnGroup) {
-      saturnGroup.position.y = 3.6 + Math.sin(elapsedTime * 0.17 + 1.2) * 0.16;
+      saturnGroup.position.y = SATURN_BASE_Y + Math.sin(elapsedTime * 0.17 + 1.2) * 0.16;
       saturnGroup.rotation.y = Math.sin(elapsedTime * 0.12) * 0.25;
       saturnGroup.scale.setScalar(pokeScale(saturnPoke));
     }
@@ -210,11 +237,26 @@ export function createGame(context: MiniGameContext): IMiniGame {
     }
 
     // Breeze: big things move a little, small things move a lot.
+    //
+    // The amplitudes were 0.025 rad on the trees and 0.1 rad on the grass. A
+    // whole-frame delta-pixel measurement over four seconds found 0.00 in the
+    // bottom two sixths of the frame and 0.16 in the middle — the sway existed,
+    // it was just below the noise floor. A 3.0-unit tree at 0.025 rad moves its
+    // canopy 3.0*sin(0.025) = 0.075 units, which at the tree's view depth of
+    // 7.98 is 13 px on a 1200 px frame, against a dark canopy on a dark sky.
+    // At TREE_SWAY = 0.07 that becomes 0.21 units = 37 px. Likewise a 0.30-unit
+    // background tuft at 0.1 rad travels 0.030 units = 12 px; at 0.22 rad, and
+    // 0.54 units tall for the foreground row, the tips travel 0.118 units,
+    // which is 32 px at z = 3. The extra rotation.x term (40% of the z term,
+    // one third out of phase) stops the whole meadow leaning in lockstep, which
+    // reads as a wobbling sheet rather than as wind.
     for (let i = 0; i < treeRoots.length; i++) {
-      treeRoots[i].rotation.z = Math.sin(elapsedTime * 0.5 + i * 1.3) * 0.025;
+      treeRoots[i].rotation.z = Math.sin(elapsedTime * 0.5 + i * 1.3) * TREE_SWAY;
     }
     for (let i = 0; i < grassRoots.length; i++) {
-      grassRoots[i].rotation.z = Math.sin(elapsedTime * 1.4 + i * 0.9) * 0.1;
+      const phase = elapsedTime * 1.4 + i * 0.9;
+      grassRoots[i].rotation.z = Math.sin(phase) * GRASS_SWAY;
+      grassRoots[i].rotation.x = Math.sin(phase * 0.77 + 2.1) * GRASS_SWAY * 0.4;
     }
 
     // The jar bumps when a firefly drops in, so the deposit lands physically.
@@ -239,6 +281,11 @@ export function createGame(context: MiniGameContext): IMiniGame {
     id: 'fireflies',
 
     async setup(): Promise<void> {
+      // The play area's horizontal limits are derived from the frustum, which
+      // depends on the aspect ratio, so the helpers need to know it before the
+      // first spawn happens below.
+      setViewAspect(context.viewport.width / context.viewport.height);
+
       // Lights — intensities set to Tier 0 (dark); illumination controller drives
       // them. The camera is the default fixed shell view (the old createGameCamera
       // here was never applied — dead code, removed). See #cameradescriptor.
@@ -267,6 +314,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
       starField = env.starField;
       starSizes = env.starSizes;
       starPhases = env.starPhases;
+      starBaseY = env.starBaseY;
       environmentMeshes.push(...env.environmentMeshes);
       allMaterials.push(...env.allMaterials);
 
@@ -302,9 +350,21 @@ export function createGame(context: MiniGameContext): IMiniGame {
       // Onboarding tap hint
       tapHint = createTapHint(scene);
 
-      // Initial fireflies
-      for (let i = 0; i < 5; i++) {
+      // Initial fireflies. The count comes from the tier-0 target rather than a
+      // separate literal 5 — a hard-coded initial count below the tier minimum
+      // meant the meadow started under-populated and only filled in over the
+      // following frames as ensureFireflyCount caught up.
+      const initialCount = getDifficultyTier(0).maxFireflies;
+      for (let i = 0; i < initialCount; i++) {
         fireflies.push(createFirefly(scene, fireflies.length, false));
+      }
+
+      // Guarantee the opening frame already has targets in the near-centre of
+      // the shot, instead of waiting for the update loop's foreground top-up.
+      for (let i = 0; i < MIN_FOREGROUND_FIREFLIES; i++) {
+        const pos = foregroundSpawnPos();
+        fireflies[i].sprite.position.copy(pos);
+        fireflies[i].behaviorCenter.copy(pos);
       }
     },
 
@@ -343,15 +403,17 @@ export function createGame(context: MiniGameContext): IMiniGame {
       jarFill?.update(deltaTime);
 
       // Star twinkling
-      if (starField && starSizes && starPhases) {
+      if (starField && starSizes && starPhases && starBaseY) {
         const geo = starField.geometry;
         const posAttr = geo.getAttribute('position');
         const count = starSizes.length;
         for (let i = 0; i < count; i++) {
-          // Each star twinkles at its own phase and rate
-          // Modulate the Y position very slightly for a shimmer effect
-          const baseY = 2 + (starPhases[i] / (Math.PI * 2)) * 10;
-          posAttr.setY(i, baseY + Math.sin(elapsedTime * 0.8 + starPhases[i]) * 0.02);
+          // Shimmer each star around its own resting height. The base used to
+          // be re-derived as `2 + phase/(2*PI) * 10`, which has nothing to do
+          // with where the star was placed — so the first animated frame threw
+          // the entire sky into a phase-sorted band spanning y = 2..12, most of
+          // it above the top of the frame.
+          posAttr.setY(i, starBaseY[i] + Math.sin(elapsedTime * 0.8 + starPhases[i]) * 0.02);
         }
         posAttr.needsUpdate = true;
         // Modulate overall opacity based on twinkling
@@ -385,35 +447,35 @@ export function createGame(context: MiniGameContext): IMiniGame {
 
       ensureFireflyCount(tier.maxFireflies);
 
-      // Maintain minimum 5 active fireflies on screen at all times
+      // Maintain a minimum population of active fireflies at all times
       let activeCount = 0;
       for (const fd of fireflies) {
         if (fd.active && !fd.catching) activeCount++;
       }
-      if (activeCount < 5) {
+      if (activeCount < MIN_ACTIVE_FIREFLIES) {
         for (const fd of fireflies) {
           if (!fd.active && !fd.isGolden) {
             fd.respawnTimer = 0;
             resetFirefly(fd);
             activeCount++;
-            if (activeCount >= 5) break;
+            if (activeCount >= MIN_ACTIVE_FIREFLIES) break;
           }
         }
       }
 
-      // Ensure at least 2 fireflies are in the foreground (close to camera, easy to tap)
+      // Ensure some fireflies are in the foreground (close to camera, easy to tap)
       let foregroundCount = 0;
       for (const fd of fireflies) {
         if (fd.active && !fd.catching && fd.sprite.position.z >= FOREGROUND_Z) foregroundCount++;
       }
-      if (foregroundCount < 2) {
+      if (foregroundCount < MIN_FOREGROUND_FIREFLIES) {
         for (const fd of fireflies) {
           if (fd.active && !fd.catching && fd.sprite.position.z < FOREGROUND_Z) {
             const pos = foregroundSpawnPos();
             fd.sprite.position.copy(pos);
             fd.behaviorCenter.copy(pos);
             foregroundCount++;
-            if (foregroundCount >= 2) break;
+            if (foregroundCount >= MIN_FOREGROUND_FIREFLIES) break;
           }
         }
       }
@@ -595,26 +657,13 @@ export function createGame(context: MiniGameContext): IMiniGame {
         // readable at the dim end of the halo's pulse.
         fd.bodyMaterial.opacity = (0.7 + 0.25 * pulseVal) * lifeFade;
 
-        // Floor: nudge a sinking firefly back up rather than teleporting it.
-        // BOUNDS.yMin used to be -2, i.e. two units *under* the ground plane,
-        // so fireflies really did fly through the meadow. A clamp reads as the
-        // firefly skimming the grass; the old teleport read as a glitch.
-        const pos = fd.sprite.position;
-        if (pos.y < BOUNDS.yMin) {
-          pos.y = BOUNDS.yMin;
-          // Circle orbits set Y absolutely from behaviorCenter, so clamping the
-          // sprite alone would be undone on the very next frame.
-          if (fd.behaviorCenter.y < BOUNDS.yMin + 0.4) fd.behaviorCenter.y = BOUNDS.yMin + 0.8;
-          fd.zigzagDir.y = Math.abs(fd.zigzagDir.y);
-        }
-
-        // Out-of-bounds check (horizontal escape or flying off the top)
-        if (pos.x < BOUNDS.xMin || pos.x > BOUNDS.xMax || pos.y > BOUNDS.yMax) {
-          const newPos = randomSpawnPos();
-          fd.sprite.position.copy(newPos);
-          fd.behaviorCenter.copy(newPos);
-          fd.time = Math.random() * 100;
-        }
+        // Keep the firefly inside the visible play volume. This replaces a
+        // floor clamp plus an "escaped the +/-8 box -> teleport somewhere
+        // random" rule. Both were wrong: the box was several times wider than
+        // the frame, so a firefly could leave the shot and legally never come
+        // back (the measured cause of a 24-tap grid sweep scoring zero), and a
+        // teleport made a firefly a child was tracking vanish mid-tap.
+        containInPlayArea(fd);
       }
 
       // Flower proximity glow: flowers brighten when a firefly is nearby
@@ -638,7 +687,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
         // already on top of the flower, so the meadow looked frozen. There is
         // now an always-on breeze (~7 deg) that a nearby firefly boosts to a
         // clear ~23 deg nod, which is what makes the flower feel noticed.
-        const breeze = Math.sin(elapsedTime * 1.1 + fi * 0.8) * 0.12;
+        const breeze = Math.sin(elapsedTime * 1.1 + fi * 0.8) * 0.16;
         const excited = Math.sin(elapsedTime * 3.5 + fi) * 0.28 * proximity;
         flower.rotation.z = breeze + excited;
       }
@@ -700,6 +749,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
       starField = null;
       starSizes = null;
       starPhases = null;
+      starBaseY = null;
 
       tapHint?.dispose();
       tapHint = null;
@@ -720,7 +770,10 @@ export function createGame(context: MiniGameContext): IMiniGame {
     },
 
     onResize(): void {
-      // Camera FOV and positioning are fixed; no resize adjustments needed
+      // Camera FOV and position are fixed, but the horizontal frustum extent is
+      // aspect-dependent, so the play-area width has to be recomputed or
+      // fireflies drift off the side of a narrower window.
+      setViewAspect(context.viewport.width / context.viewport.height);
     },
 
     onTap(event: MiniGameTapEvent): void {

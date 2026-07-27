@@ -1,4 +1,4 @@
-import type { Object3D, MeshStandardMaterial, PerspectiveCamera } from 'three';
+import type { Object3D, MeshBasicMaterial, PerspectiveCamera } from 'three';
 import { CAUSTIC_LIGHT_COUNT } from '../types';
 import type { SceneEnvironment } from './setup';
 import type { CausticLight } from './scenery';
@@ -36,13 +36,17 @@ export function updateCausticLights(causticLights: readonly CausticLight[], elap
     const phase = elapsedTime * 0.3 + (i * Math.PI * 2) / CAUSTIC_LIGHT_COUNT;
     cl.mesh.position.x = sharkPosX + Math.cos(phase) * (5.0 + Math.sin(elapsedTime * 0.15 + i) * 2.0);
     cl.mesh.position.z = sharkPosZ + Math.sin(phase) * (5.0 + Math.cos(elapsedTime * 0.2 + i) * 2.0);
-    // Defect 10: 0.15 ± 0.08 emissive was indistinguishable from unlit.
-    const intensity = 0.55 + 0.25 * Math.sin(elapsedTime * 0.8 + i * 1.5);
+    // Pulse around the build-time opacity of CAUSTIC_SPHERE_ALPHA set in
+    // buildCausticLights (environment/scenery.ts); the ±0.05 swing is a visible
+    // shimmer without pushing the peak past the overlay budget documented there.
+    //
+    // This used to drive emissiveIntensity, which the spheres no longer have —
+    // they are MeshBasicMaterial now, so opacity is the only channel that
+    // changes how much of the frame they cover.
+    const intensity = 0.12 + 0.05 * Math.sin(elapsedTime * 0.8 + i * 1.5);
     cl.intensity = intensity;
-    const mat = cl.mesh.material as MeshStandardMaterial;
-    if (mat && 'emissiveIntensity' in mat) {
-      mat.emissiveIntensity = intensity;
-    }
+    const mat = cl.mesh.material as MeshBasicMaterial;
+    if (mat) mat.opacity = intensity;
   }
 }
 

@@ -19,20 +19,35 @@ export interface SubmarineTransit {
   active: boolean;
 }
 
+/**
+ * A creature that travels the reef on a heading and is kept near the player by
+ * a travelling box that wraps out of sight. See the Traffic section below.
+ */
+export interface Drifter {
+  /** The creature's group. */
+  group: Group;
+  /** Direction of travel in the XZ plane, in radians. */
+  heading: number;
+  /** Travel speed in world units per second. */
+  speed: number;
+  /** Per-creature phase offset, so wander is not synchronised across a class. */
+  phase: number;
+}
+
 /** Decorative background creatures that add life to the reef. */
 export interface AmbientCreatures {
   /** Small fish moving as a group. */
   fishSchool: Group[];
   /** Ambient rising bubbles. */
   bubbles: Mesh[];
-  /** Translucent jellyfish. */
-  jellyfish: Group[];
-  /** Decorative octopuses on the seafloor. */
-  octopuses: Group[];
-  /** Floating squids. */
-  squids: Group[];
-  /** Scuttling crabs on the seafloor. */
-  crabs: { group: Group; baseX: number; baseZ: number }[];
+  /** Translucent jellyfish drifting through the reef. */
+  jellyfish: Drifter[];
+  /** Octopuses crawling across the seafloor. */
+  octopuses: Drifter[];
+  /** Squids jetting through mid-water. */
+  squids: Drifter[];
+  /** Crabs scuttling across the seafloor. */
+  crabs: Drifter[];
   /** SpongeBob-style pineapples on the seafloor. */
   pineapples: Group[];
   /** Submarines that transit through the scene. */
@@ -43,14 +58,234 @@ export interface AmbientCreatures {
   propWashMat: MeshStandardMaterial;
   /** School movement state. */
   schoolPhase: number;
-  /** Timer for octopus proximity check (fires every 5s). */
-  octoProximityTimer: number;
   /** Timer for submarine dispatch (fires every 10s). */
   subTimer: number;
 }
 
-/** Camera view radius for proximity checks (matches waves.ts). */
-const CAMERA_VIEW_RADIUS = 15;
+// ── Traffic ─────────────────────────────────────────────────────────
+//
+// WHAT WAS WRONG, measured rather than asserted. Park the shark at the origin
+// and run the shipped update loop for five minutes against the real camera
+// frustum (manifest descriptor: orbit, target (0,0.5,0), azimuth PI, polar
+// 0.95, distance 10, fov 0.85 rad — which puts the lens at (0, 6.32, -8.13),
+// pitched 35.6 degrees down over a 24.35-degree half-fov):
+//
+//     mean ambient creatures on screen      0.14
+//     frames with none on screen           86.3%
+//     distinct creatures ever seen, of 21      1
+//
+// One crab, at t = 17.5 s. No jellyfish, no squid, no octopus, in five minutes.
+// Meanwhile a submarine crosses the shark every 15 s and takes 8 s to do it,
+// so it is on screen 53% of the time at scale 1.5. A player who reports seeing
+// nothing but a submarine is reporting the arithmetic correctly.
+//
+// WHY. Creatures were placed once, at hardcoded coordinates, over a world that
+// is BOUNDS = 50 a side, and then never travelled. Jellyfish and squid moved by
+// an oscillating increment whose net displacement over a cycle is zero; crabs
+// orbited a fixed base by half a unit; only the octopuses moved at all, and
+// only by teleporting.
+//
+// The octopus recycler is worth its own note, because it existed specifically
+// to prevent this and did not work. It teleported a far octopus in whenever
+// none was within CAMERA_VIEW_RADIUS of the shark — but that is a radius, and
+// the camera sees a wedge in front. An octopus parked twelve units BEHIND the
+// player satisfied the test perfectly while being impossible to see, so the
+// recycler sat there believing its job was done. That is why four octopuses
+// produced zero sightings.
+//
+// THE FIX IS REDISTRIBUTION, NOT ADDITION — the same 21 creatures, given real
+// headings and confined to a box that travels with the player. Zero extra
+// meshes, zero extra draw calls. Measured, 8 runs per arm, 300 s each, mean +/-
+// sd (the module seeds headings from Math.random, so one run is a draw, not an
+// answer). "Moving" is a shark wandering at 1.5 units per second, which is what
+// a child dragging it produces; "close" counts only creatures within 18 units
+// of the lens, where one world unit is about 49 px and a creature reads at
+// roughly 9 mm on a tablet.
+//
+//                        before            after
+//   on screen            2.58 +/- 0.14     5.89 +/- 0.21
+//   frames with none    13.6% +/- 5.0      0.0% +/- 0.0
+//   distinct of 21       15.9 +/- 0.4      21.0 +/- 0.0
+//   entries per minute   15.7 +/- 0.8      32.2 +/- 1.3
+//   close, on screen     0.82 +/- 0.04     2.14 +/- 0.15
+//   close, none         40.6% +/- 4.5      3.0% +/- 2.6
+//
+// A parked shark is the worst case, and it is where the old code was worst:
+// 0.14 on screen and 86.3% of frames empty becomes 4.51 +/- 1.03 and 0.0%.
+// Every one of the 21 is now seen within five minutes of ordinary play; one was
+// before.
+//
+// TWO EARLIER VERSIONS OF THIS FIX FAILED, and the failures are worth keeping.
+//
+// A leash — steer home once past radius L — was the first attempt. It repeated
+// the recycler's own mistake at larger scale: a disc centred on the player
+// spends half its area behind the camera. Anchoring the disc 13 units downrange
+// helped a stationary player and did nothing for a moving one.
+//
+// A speed boost for stragglers was the second. The shark is simply faster than
+// the reef — a child dragging it makes ~1.5 units per second and a jellyfish
+// makes 0.3 — so any creature that falls behind can only return by swimming
+// harder than it should. Confining the boost to "out of frame" would have made
+// it invisible, except that the region I believed was out of frame was not:
+// the camera is pitched 35.6 degrees down, so a jellyfish floating at head
+// height four units BEHIND the player is comfortably inside the cone. The
+// instrument caught it — 10,554 frames of a creature visibly sprinting.
+//
+// WHAT WORKS IS A WRAP, and it works because the bounds are measured. The
+// visible region, swept over every height a creature occupies and expressed
+// relative to the shark, is x within +/-20.5 and z from -6.0 to +24.5
+// (.probe/viewedge.mjs, which scans the real frustum rather than reasoning
+// about it — my own trig had the near edge at +8 when it is actually -6).
+// Creatures travel freely in a straight line with a slow wander, and a creature
+// that leaves the box on one side is moved to the far side. Both the departure
+// point and the arrival point sit a clear margin outside the measured visible
+// bounds, so the move cannot be seen; the population is exactly conserved; and
+// the reef ahead of the player is continually restocked by the reef behind.
+// Nothing pops, nothing sprints, and nothing has to catch up.
+
+// Measured visible bounds in shark-relative coordinates. See .probe/viewedge.mjs.
+const VIEW_MAX_X = 20.5;
+const VIEW_MIN_Z = -6.0;
+const VIEW_MAX_Z = 24.5;
+
+// How far outside the visible bounds a wrap happens. Both ends of every wrap
+// clear the visible region by this much, which is what makes the wrap invisible.
+const WRAP_MARGIN = 4;
+const WRAP_X = VIEW_MAX_X + WRAP_MARGIN;
+const WRAP_MIN_Z = VIEW_MIN_Z - WRAP_MARGIN;
+const WRAP_MAX_Z = VIEW_MAX_Z + WRAP_MARGIN;
+const WRAP_SPAN_Z = WRAP_MAX_Z - WRAP_MIN_Z;
+
+// Radians per second a drifter may turn — slow enough to read as a lazy arc
+// rather than a swerve, fast enough to turn right around in about four seconds.
+const TURN_RATE = 0.8;
+
+// Smallest signed angle carrying `from` to `to`, in (-PI, PI].
+function angleDelta(from: number, to: number): number {
+  let a = (to - from) % (Math.PI * 2);
+  if (a > Math.PI) a -= Math.PI * 2;
+  if (a < -Math.PI) a += Math.PI * 2;
+  return a;
+}
+
+// ── Gathering ───────────────────────────────────────────────────────
+//
+// WHY THE REEF CONVERGES DURING A FEEDING FRENZY, AND WHY IT IS MEASURED.
+//
+// The frenzy arc (../frenzy.ts) was built to give the loop a build and a
+// payoff, and on every statistic except one it worked. The exception was the
+// statistic built specifically to detect it: phase z against a rate-matched
+// shuffled null, which scores a build-and-payoff cycle at +28 on the control rig
+// and scored the shipped frenzy at 0.
+//
+// .probe/session-phase.mjs diagnosed that null rather than reporting it. It
+// re-analysed the same dumped sessions under a relabelling ladder and found a
+// clean monotone dose response: relabelling a controlled share of the events
+// inside the frenzy into a disjoint alphabet crosses z=3 at about 8-10% of the
+// event stream and reaches z=12-16 at 20-25%, while a scatter control that
+// relabels the same COUNT of events without clustering them stays at
+// -1.2..+0.7. So the instrument sees structure fine at this density; the fix
+// simply did not recruit enough of what the child sees. The shipped frenzy
+// changed only the outcome of a tap, which is about 6% of the salient stream.
+// Ambient traffic is 55% of it and carried on exactly as before -- a child
+// cannot tell a frenzy is happening if the world does not change.
+//
+// So during the build and the frenzy the reef converges on the shark and swirls
+// around it, and afterwards it disperses. This is a real behaviour change with a
+// real consequence for what reaches the screen -- creatures that converge are
+// creatures that are ON SCREEN -- so the effect survives without any relabelling
+// at all, which .probe/session.mjs reports separately for exactly that reason.
+//
+// THIS IS NOT THE STRAGGLER SPEED BOOST THAT FAILED EARLIER. That one was a
+// covert boost, justified by a claim that it happened out of frame, and the
+// claim was false: 10,554 frames of a creature visibly sprinting. This boost is
+// overt, global, tied to a state the child caused, and meant to be seen. The
+// earlier mistake was hiding motion, not causing it.
+
+// Radius of the swirl the reef settles into around the shark when fully
+// gathered. Chosen so the ring sits inside the measured visible box on every
+// side (x +/-20.5, z -6.0..+24.5) even when the shark is turning.
+const GATHER_RADIUS = 9;
+// Speed multiplier at full gather. A jellyfish at 0.3 units/s reaches 0.75,
+// which is still slower than the shark at 1.5 -- nothing outruns the child.
+const GATHER_SPEED_GAIN = 1.5;
+// Turn-rate multiplier at full gather, so a creature can actually come about
+// inside the frenzy rather than arriving after it has ended.
+const GATHER_TURN_GAIN = 2.0;
+
+// Advances one drifter along its heading, then wraps it around the travelling
+// box if it has left. The wander is a slow sinusoid rather than noise so the
+// path is a readable arc: a three-year-old should be able to see where a
+// creature is going and point at it before it gets there.
+//
+// `gather` in [0, 1] blends in the convergence described above: 0 is the
+// ordinary drift, 1 is a full swirl around the shark.
+function advanceDrifter(d: Drifter, dt: number, elapsedTime: number, sharkX: number, sharkZ: number, gather: number): void {
+  let want = d.heading + Math.sin(elapsedTime * 0.13 + d.phase) * 0.6;
+  if (gather > 0) {
+    const dx = sharkX - d.group.position.x;
+    const dz = sharkZ - d.group.position.z;
+    const dist = Math.hypot(dx, dz) || 1e-6;
+    // Head in when outside the ring, out when inside it, and tangentially when
+    // on it -- which is what makes the gathered state an orbit rather than a
+    // pile-up at the shark's nose.
+    const toShark = Math.atan2(dz, dx);
+    const radial = dist > GATHER_RADIUS ? toShark : toShark + Math.PI;
+    const onRing = 1 - Math.min(1, Math.abs(dist - GATHER_RADIUS) / GATHER_RADIUS);
+    // A stable per-creature swirl direction, so the ring does not shear.
+    const spin = d.phase % (Math.PI * 2) < Math.PI ? 1 : -1;
+    const target = radial + spin * (Math.PI / 2) * onRing;
+    want = d.heading + angleDelta(d.heading, target) * gather + Math.sin(elapsedTime * 0.13 + d.phase) * 0.6 * (1 - gather);
+  }
+  const step = TURN_RATE * (1 + gather * GATHER_TURN_GAIN) * dt;
+  d.heading += Math.max(-step, Math.min(step, angleDelta(d.heading, want)));
+  const speed = d.speed * (1 + gather * GATHER_SPEED_GAIN);
+  d.group.position.x += Math.cos(d.heading) * speed * dt;
+  d.group.position.z += Math.sin(d.heading) * speed * dt;
+
+  // Wrapping, and re-aiming at the wrap. A drifter that only ever wanders by a
+  // bounded sinusoid keeps its lane: measured with a stationary shark, just 7 of
+  // 21 creatures were ever seen in five minutes, because the other 14 tracked
+  // back and forth across a band of z the camera does not cover. Re-picking the
+  // heading on wrap fixes that, and it is free — the wrap is already proven to
+  // happen out of sight, so a direction change there cannot be seen either. The
+  // new heading points back into the box, otherwise a creature would wrap
+  // straight out again.
+  const relX = d.group.position.x - sharkX;
+  if (relX > WRAP_X) {
+    // Left by the +X side, re-enters on the -X side, so it must head +X.
+    d.group.position.x -= WRAP_X * 2;
+    d.heading = (Math.random() - 0.5) * Math.PI;
+  } else if (relX < -WRAP_X) {
+    d.group.position.x += WRAP_X * 2;
+    d.heading = Math.PI + (Math.random() - 0.5) * Math.PI;
+  }
+
+  const relZ = d.group.position.z - sharkZ;
+  if (relZ > WRAP_MAX_Z) {
+    d.group.position.z -= WRAP_SPAN_Z;
+    d.heading = Math.random() * Math.PI;
+  } else if (relZ < WRAP_MIN_Z) {
+    d.group.position.z += WRAP_SPAN_Z;
+    d.heading = Math.PI + Math.random() * Math.PI;
+  }
+}
+
+// Places drifter i of n across the travelling box. The R2 low-discrepancy
+// sequence spreads points more evenly than random placement and, unlike a grid,
+// leaves no visible rows; `offset` keeps one class from landing on another.
+const R2_A1 = 1 / 1.324717957244746;
+const R2_A2 = 1 / (1.324717957244746 * 1.324717957244746);
+function scatterDrifter(i: number, offset: number): { x: number; z: number; heading: number } {
+  const k = i + offset;
+  const u = (0.5 + R2_A1 * k) % 1;
+  const v = (0.5 + R2_A2 * k) % 1;
+  return {
+    x: (u - 0.5) * 2 * WRAP_X,
+    z: WRAP_MIN_Z + v * WRAP_SPAN_Z,
+    heading: Math.random() * Math.PI * 2,
+  };
+}
 
 // ── Tiny fish (school) ──────────────────────────────────────────────
 
@@ -543,8 +778,8 @@ export function createAmbientCreatures(scene: Scene): AmbientCreatures {
     bubbles.push(bubble);
   }
 
-  // Jellyfish (8 spread across the world)
-  const jellyfish: Group[] = [];
+  // Jellyfish (8 drifting through the travelling box)
+  const jellyfish: Drifter[] = [];
   const jellyColors = [
     new Color(0.7, 0.4, 0.9),
     new Color(0.3, 0.8, 0.9),
@@ -555,57 +790,54 @@ export function createAmbientCreatures(scene: Scene): AmbientCreatures {
     new Color(0.8, 0.3, 0.6),
     new Color(0.6, 0.9, 0.8),
   ];
-  const jellyPositions: [number, number, number][] = [
-    [-12, 1.2, -10],
-    [15, 1.5, 12],
-    [-8, 1.8, 18],
-    [25, 1.3, -15],
-    [-20, 1.6, 5],
-    [10, 1.4, -25],
-    [-30, 1.7, -20],
-    [35, 1.5, 8],
-  ];
-  for (let j = 0; j < jellyPositions.length; j++) {
+  for (let j = 0; j < jellyColors.length; j++) {
     const jelly = buildJellyfish(j, jellyColors[j]);
-    jelly.position.set(jellyPositions[j][0], jellyPositions[j][1], jellyPositions[j][2]);
+    const spot = scatterDrifter(j, 0);
+    jelly.position.set(spot.x, 1.2 + (j % 3) * 0.3, spot.z);
     scene.add(jelly);
-    jellyfish.push(jelly);
+    jellyfish.push({
+      group: jelly,
+      heading: spot.heading,
+      speed: 0.3 + Math.random() * 0.25,
+      phase: Math.random() * Math.PI * 2,
+    });
   }
 
-  // Octopuses (4 on the seafloor)
-  const octopuses: Group[] = [];
+  // Octopuses (4 crawling the seafloor)
+  const octopuses: Drifter[] = [];
   const octoColors = [new Color(0.6, 0.2, 0.7), new Color(0.9, 0.4, 0.2), new Color(0.2, 0.65, 0.6), new Color(0.85, 0.3, 0.55)];
-  const octoPositions: [number, number][] = [
-    [-10, -8],
-    [18, 15],
-    [-22, 12],
-    [8, -20],
-  ];
-  for (let o = 0; o < octoPositions.length; o++) {
+  for (let o = 0; o < octoColors.length; o++) {
     const octo = buildOctopus(o, octoColors[o]);
-    octo.position.set(octoPositions[o][0], -0.45, octoPositions[o][1]);
-    octo.rotation.y = Math.random() * Math.PI * 2;
+    const spot = scatterDrifter(o, 40);
+    octo.position.set(spot.x, -0.45, spot.z);
+    octo.rotation.y = -spot.heading;
     scene.add(octo);
-    octopuses.push(octo);
+    octopuses.push({
+      group: octo,
+      heading: spot.heading,
+      speed: 0.25 + Math.random() * 0.2,
+      phase: Math.random() * Math.PI * 2,
+    });
   }
 
-  // Squids (3 floating mid-water)
-  const squids: Group[] = [];
+  // Squids (3 jetting through mid-water)
+  const squids: Drifter[] = [];
   const squidColors = [new Color(0.85, 0.6, 0.7), new Color(0.6, 0.75, 0.9), new Color(0.9, 0.8, 0.65)];
-  const squidPositions: [number, number, number][] = [
-    [-15, 1.0, 10],
-    [20, 1.3, -12],
-    [-5, 0.8, -18],
-  ];
-  for (let s = 0; s < squidPositions.length; s++) {
+  for (let s = 0; s < squidColors.length; s++) {
     const squid = buildSquid(s, squidColors[s]);
-    squid.position.set(squidPositions[s][0], squidPositions[s][1], squidPositions[s][2]);
+    const spot = scatterDrifter(s, 80);
+    squid.position.set(spot.x, 0.8 + s * 0.25, spot.z);
     scene.add(squid);
-    squids.push(squid);
+    squids.push({
+      group: squid,
+      heading: spot.heading,
+      speed: 0.9 + Math.random() * 0.6,
+      phase: Math.random() * Math.PI * 2,
+    });
   }
 
-  // Crabs (6 on the seafloor)
-  const crabs: AmbientCreatures['crabs'] = [];
+  // Crabs (6 scuttling the seafloor)
+  const crabs: Drifter[] = [];
   const crabColors = [
     new Color(0.9, 0.3, 0.15),
     new Color(0.85, 0.4, 0.1),
@@ -614,22 +846,18 @@ export function createAmbientCreatures(scene: Scene): AmbientCreatures {
     new Color(0.9, 0.45, 0.15),
     new Color(0.75, 0.3, 0.18),
   ];
-  const crabPositions: [number, number][] = [
-    [-6, -5],
-    [12, 8],
-    [-18, 3],
-    [5, -15],
-    [-25, -12],
-    [30, 20],
-  ];
-  for (let c = 0; c < crabPositions.length; c++) {
+  for (let c = 0; c < crabColors.length; c++) {
     const crab = buildCrab(c, crabColors[c]);
-    const bx = crabPositions[c][0];
-    const bz = crabPositions[c][1];
-    crab.position.set(bx, -0.47, bz);
-    crab.rotation.y = Math.random() * Math.PI * 2;
+    const spot = scatterDrifter(c, 120);
+    crab.position.set(spot.x, -0.47, spot.z);
+    crab.rotation.y = -spot.heading + Math.PI / 2;
     scene.add(crab);
-    crabs.push({ group: crab, baseX: bx, baseZ: bz });
+    crabs.push({
+      group: crab,
+      heading: spot.heading,
+      speed: 0.45 + Math.random() * 0.35,
+      phase: Math.random() * Math.PI * 2,
+    });
   }
 
   // Pineapples (3 on the seafloor)
@@ -696,7 +924,6 @@ export function createAmbientCreatures(scene: Scene): AmbientCreatures {
     propWash,
     propWashMat,
     schoolPhase: Math.random() * Math.PI * 2,
-    octoProximityTimer: 5.0,
     subTimer: 15.0,
   };
 }
@@ -710,8 +937,9 @@ export function createAmbientCreatures(scene: Scene): AmbientCreatures {
  * @param elapsedTime - Total elapsed game time.
  * @param sharkX - Shark world X position (school orbits near shark).
  * @param sharkZ - Shark world Z position.
+ * @param gather - 0..1 convergence of the reef on the shark during a feeding frenzy. See advanceDrifter.
  */
-export function updateAmbientCreatures(creatures: AmbientCreatures, dt: number, elapsedTime: number, sharkX: number, sharkZ: number): void {
+export function updateAmbientCreatures(creatures: AmbientCreatures, dt: number, elapsedTime: number, sharkX: number, sharkZ: number, gather = 0): void {
   creatures.schoolPhase += dt * 0.3;
 
   // School moves in a lazy arc centered around the shark
@@ -741,13 +969,12 @@ export function updateAmbientCreatures(creatures: AmbientCreatures, dt: number, 
     }
   }
 
-  // Jellyfish: gentle floating and pulsing
+  // Jellyfish: travel the reef, plus gentle floating and pulsing
   for (let j = 0; j < creatures.jellyfish.length; j++) {
-    const jelly = creatures.jellyfish[j];
+    advanceDrifter(creatures.jellyfish[j], dt, elapsedTime, sharkX, sharkZ, gather);
+    const jelly = creatures.jellyfish[j].group;
     const baseY = 1.2 + (j % 3) * 0.3;
     jelly.position.y = baseY + Math.sin(elapsedTime * 0.5 + j * 2) * 0.3;
-    jelly.position.x += Math.sin(elapsedTime * 0.2 + j * 1.5) * dt * 0.15;
-    jelly.position.z += Math.cos(elapsedTime * 0.15 + j * 2.5) * dt * 0.1;
     const jellyPulse = 1 + Math.sin(elapsedTime * 2 + j * 1.3) * 0.08;
     jelly.scale.set(jellyPulse, 1 / jellyPulse, jellyPulse);
     jelly.children.forEach((child, ci) => {
@@ -758,11 +985,13 @@ export function updateAmbientCreatures(creatures: AmbientCreatures, dt: number, 
     });
   }
 
-  // Octopuses: tentacle sway + gentle body bob
+  // Octopuses: crawl the seafloor, tentacle sway + gentle body bob
   for (let o = 0; o < creatures.octopuses.length; o++) {
-    const octo = creatures.octopuses[o];
+    advanceDrifter(creatures.octopuses[o], dt, elapsedTime, sharkX, sharkZ, gather);
+    const octo = creatures.octopuses[o].group;
     // Gentle body bob
     octo.position.y = -0.45 + Math.sin(elapsedTime * 0.4 + o * 1.7) * 0.02;
+    octo.rotation.y = -creatures.octopuses[o].heading;
     // Tentacle sway (children index 3+ are tentacles: 0=body, 1-4=eyes, 5-12=tentacles)
     octo.children.forEach((child, ci) => {
       if (ci >= 5) {
@@ -772,13 +1001,13 @@ export function updateAmbientCreatures(creatures: AmbientCreatures, dt: number, 
     });
   }
 
-  // Squids: vertical bob + gentle drift + tentacle sway
+  // Squids: jet across the reef, vertical bob + tentacle sway
   for (let s = 0; s < creatures.squids.length; s++) {
-    const squid = creatures.squids[s];
+    advanceDrifter(creatures.squids[s], dt, elapsedTime, sharkX, sharkZ, gather);
+    const squid = creatures.squids[s].group;
     const baseY = 0.8 + s * 0.25;
     squid.position.y = baseY + Math.sin(elapsedTime * 0.6 + s * 2.1) * 0.25;
-    squid.position.x += Math.sin(elapsedTime * 0.15 + s * 1.8) * dt * 0.12;
-    squid.position.z += Math.cos(elapsedTime * 0.12 + s * 2.3) * dt * 0.08;
+    squid.rotation.y = -creatures.squids[s].heading;
     // Mantle breathing
     const squidPulse = 1 + Math.sin(elapsedTime * 2.5 + s) * 0.06;
     squid.scale.set(squidPulse, 1, squidPulse);
@@ -790,15 +1019,12 @@ export function updateAmbientCreatures(creatures: AmbientCreatures, dt: number, 
     }
   }
 
-  // Crabs: sideways scuttle oscillation
+  // Crabs: scuttle across the seafloor, sideways to their line of travel
   for (let c = 0; c < creatures.crabs.length; c++) {
-    const { group, baseX, baseZ } = creatures.crabs[c];
-    const scuttlePhase = elapsedTime * 0.5 + c * 1.4;
-    // Sideways oscillation ~0.5 units
-    group.position.x = baseX + Math.sin(scuttlePhase) * 0.5;
-    group.position.z = baseZ + Math.cos(scuttlePhase * 0.7) * 0.3;
-    // Face sideways to direction of movement
-    group.rotation.y = Math.sin(scuttlePhase) > 0 ? Math.PI / 2 : -Math.PI / 2;
+    advanceDrifter(creatures.crabs[c], dt, elapsedTime, sharkX, sharkZ, gather);
+    const group = creatures.crabs[c].group;
+    // A crab walks sideways, so its body faces 90 degrees off its heading.
+    group.rotation.y = -creatures.crabs[c].heading + Math.PI / 2;
     // Claw clacking — rotate claws (children at specific indices)
     group.children.forEach((child, ci) => {
       // Leg wiggle for legs (index >= 12 for the leg meshes)
@@ -809,69 +1035,6 @@ export function updateAmbientCreatures(creatures: AmbientCreatures, dt: number, 
   }
 
   // Pineapples: static (they just sit there — it's a pineapple)
-
-  // ── Octopus proximity (every 5s, ensure 1-2 in camera) ───────────
-  creatures.octoProximityTimer -= dt;
-  if (creatures.octoProximityTimer <= 0) {
-    creatures.octoProximityTimer = 5.0;
-
-    // Count octopuses within camera view
-    let nearCount = 0;
-    let farthestIdx = 0;
-    let farthestDist = 0;
-    for (let o = 0; o < creatures.octopuses.length; o++) {
-      const octo = creatures.octopuses[o];
-      const dx = octo.position.x - sharkX;
-      const dz = octo.position.z - sharkZ;
-      const dist = dx * dx + dz * dz;
-      if (dist < CAMERA_VIEW_RADIUS * CAMERA_VIEW_RADIUS) {
-        nearCount++;
-      }
-      if (dist > farthestDist) {
-        farthestDist = dist;
-        farthestIdx = o;
-      }
-    }
-
-    // Need at least 1; teleport a far octopus near the shark
-    if (nearCount < 1 && creatures.octopuses.length > 0) {
-      const angle = Math.random() * Math.PI * 2;
-      const dist = 6 + Math.random() * 5; // 6-11 units from shark
-      const octo = creatures.octopuses[farthestIdx];
-      octo.position.x = sharkX + Math.cos(angle) * dist;
-      octo.position.z = sharkZ + Math.sin(angle) * dist;
-      octo.position.y = -0.45;
-      octo.rotation.y = Math.random() * Math.PI * 2;
-      nearCount++;
-    }
-
-    // Ensure at most 2 — if more, move the farthest "near" one away
-    if (nearCount > 2) {
-      let closestNearIdx = 0;
-      let closestNearDist = Infinity;
-      for (let o = 0; o < creatures.octopuses.length; o++) {
-        const octo = creatures.octopuses[o];
-        const dx = octo.position.x - sharkX;
-        const dz = octo.position.z - sharkZ;
-        const dist = dx * dx + dz * dz;
-        if (dist < CAMERA_VIEW_RADIUS * CAMERA_VIEW_RADIUS && dist < closestNearDist) {
-          // Find the one closest to camera edge (largest dist within view)
-          // Actually we want the 3rd+ one — find the third nearest
-        }
-        // Simpler: just move one that's near to far away
-        if (dist < CAMERA_VIEW_RADIUS * CAMERA_VIEW_RADIUS) {
-          if (dist > closestNearDist || closestNearDist === Infinity) {
-            closestNearDist = dist;
-            closestNearIdx = o;
-          }
-        }
-      }
-      const octo = creatures.octopuses[closestNearIdx];
-      const awayAngle = Math.random() * Math.PI * 2;
-      octo.position.x = sharkX + Math.cos(awayAngle) * 30;
-      octo.position.z = sharkZ + Math.sin(awayAngle) * 30;
-    }
-  }
 
   // ── Submarine transit (every 10s, send one through) ───────────────
   creatures.subTimer -= dt;
@@ -1000,9 +1163,9 @@ export function disposeAmbientCreatures(creatures: AmbientCreatures): void {
     (bubble.material as MeshStandardMaterial)?.dispose();
     bubble.removeFromParent();
   }
-  for (const jelly of creatures.jellyfish) disposeGroup(jelly);
-  for (const octo of creatures.octopuses) disposeGroup(octo);
-  for (const squid of creatures.squids) disposeGroup(squid);
+  for (const { group } of creatures.jellyfish) disposeGroup(group);
+  for (const { group } of creatures.octopuses) disposeGroup(group);
+  for (const { group } of creatures.squids) disposeGroup(group);
   for (const { group } of creatures.crabs) disposeGroup(group);
   for (const pine of creatures.pineapples) disposeGroup(pine);
   for (const sub of creatures.submarines) disposeGroup(sub.group);

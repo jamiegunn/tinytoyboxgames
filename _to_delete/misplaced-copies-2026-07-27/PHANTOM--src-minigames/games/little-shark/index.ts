@@ -1,0 +1,1105 @@
+import { Scene, Vector3, Vector2, Color, Plane, Raycaster, PerspectiveCamera, type Object3D } from 'three';
+import type { Mesh } from 'three';
+import type { IMiniGame, MiniGameContext, MiniGameTapEvent, MiniGameDragEvent, MiniGameDragEndEvent, ViewportInfo } from '../../framework/types';
+import { clamp, getSpeedMultiplier, getTargetFishCount, getFishEvasiveness } from './helpers';
+import {
+  buildSharkEntity,
+  createFish,
+  resetFishForSpawn,
+  deactivateFish,
+  disposeFish,
+  resetMeshIndex,
+  updateFishDrift,
+  updateGoldenDodge,
+  escapeFromShark,
+  updateDespawnAnimation,
+  updateEatAnimation,
+} from './fish';
+import {
+  setupScene,
+  teardownScene,
+  updateCausticLights,
+  updateGodRays,
+  updateSeaweedSway,
+  updateAnemoneSway,
+  updateEnvironmentReactions,
+  createAmbientCreatures,
+  updateAmbientCreatures,
+  disposeAmbientCreatures,
+  type SceneEnvironment,
+  type AmbientCreatures,
+} from './environment';
+import {
+  BOUNDS,
+  FISH_HIT_RADIUS,
+  GOLDEN_HIT_RADIUS,
+  EAT_ANIM_DURATION,
+  FISH_DESPAWN_SCALE_DURATION,
+  FISH_POINTS,
+  MAX_FISH_COUNT,
+  GOLDEN_SPAWN_RING,
+  MILESTONE_SCHEDULE,
+  MILESTONE_REPEAT_INTERVAL,
+  type FishState,
+  type FishKind,
+} from './types';
+import {
+  createSharkAnimState,
+  updateTailWag,
+  updateBodyWobble,
+  updateBreathing,
+  updateEyeBlink,
+  updateBarrelRoll,
+  updateHeadLook,
+  triggerHeadLook,
+  triggerBarrelRoll,
+  type SharkAnimState,
+  createSharkMoveState,
+  updateSpringFollow,
+  updateIdleDrift,
+  updateSwim,
+  startLunge,
+  updateRotation,
+  releaseDrag,
+  steerTowardAngle,
+  TURN_RATE_HUNT,
+  getSpeed,
+  isPlayerDriven,
+  applyToMesh,
+  type SharkMoveState,
+  // Hunt FSM
+  createHuntFSMState,
+  updateHuntFSM,
+  triggerHunt,
+  cancelHunt,
+  getHuntPhase,
+  type HuntFSMState,
+  // Expressions
+  createExpressionState,
+  updateExpressions,
+  setMood,
+  getMoodParams,
+  getMoodForPhase,
+  type ExpressionState,
+} from './shark';
+import {
+  classifyPickedMesh,
+  handleWaterTap,
+  handleRockTap,
+  handleSharkTap,
+  handleMissedTap,
+  createInteractionState,
+  type InteractionState,
+} from './interactions';
+import { createCelebrationQueue } from './celebrations';
+import {
+  createProximitySpawnState,
+  updateProximitySpawning,
+  notifyFishEaten,
+  notifyGoldenLost,
+  CAMERA_VIEW_RADIUS,
+  CULL_DISTANCE,
+  type ProximitySpawnState,
+} from './waves';
+import { createSurpriseState, updateSurprises, type SurpriseState } from './surprises';
+import { disposeMeshDeep } from '@app/minigames/shared/disposal';
+import type { StreamHandle } from '@app/utils/particles/engine';
+
+// Phase 6 — Camera, VFX, Screen effects
+import { createCameraState, updateFollowCamera, triggerCatchZoom, triggerScreenShake, resetCamera, type CameraState } from './camera/followCamera';
+import { createBubbleTrail, createCatchExplosion, type BubbleTrail } from './effects/particles';
+import {
+  createVignette,
+  updateVignette,
+  triggerVignette,
+  createSpeedLines,
+  updateSpeedLines,
+  triggerSpeedLines,
+  createColorFlash,
+  updateColorFlash,
+  triggerColorFlash,
+  disposeScreenFx,
+  type VignetteState,
+  type SpeedLineState,
+  type ColorFlashState,
+} from './effects/screenFx';
+
+/**
+ * Checks if a mesh is a descendant of (or is) a root object.
+ * @param child - The object to check.
+ * @param root - The potential ancestor object.
+ * @returns True if child is root or a descendant of root.
+ */
+function isDescendantOf(child: Object3D, root: Object3D): boolean {
+  let current: Object3D | null = child;
+  while (current) {
+    if (current === root) return true;
+    current = current.parent;
+  }
+  return false;
+}
+
+/**
+ * Creates the Little Shark mini-game.
+ * @param context - Shell-provided context with shared systems.
+ * @returns An IMiniGame implementation for the little-shark game.
+ */
+export function createGame(context: MiniGameContext): IMiniGame {
+  const scene = context.scene as Scene;
+  const shellCam = context.camera as PerspectiveCamera;
+  let env: SceneEnvironment | null = null;
+  let ambientCreatures: AmbientCreatures | null = null;
+  let sharkRoot: Mesh | null = null;
+  let sharkBody: Object3D | null = null;
+  let sharkGlowTrail: StreamHandle | null = null;
+  let tailMeshes: Object3D[] = [];
+  let eyeMeshes: Object3D[] = [];
+  let sharkAnim: SharkAnimState = createSharkAnimState();
+  let sharkMove: SharkMoveState = createSharkMoveState();
+  const sharkPos = new Vector3(0, 0, 0);
+  let paused = false;
+  let elapsedTime = 0;
+  let eatAnimTimer = -1;
+  let firstCatchDone = false;
+  const fishArray: FishState[] = [];
+  let goldenFish: FishState | null = null;
+  let spawnState: ProximitySpawnState | null = null;
+  let surpriseState: SurpriseState | null = null;
+  let unsubScore: (() => void) | null = null;
+  const celebrations = createCelebrationQueue();
+  let interactionState: InteractionState = createInteractionState();
+
+  // Phase 3 — Hunt FSM, Expressions
+  let huntState: HuntFSMState = createHuntFSMState();
+  let expressionState: ExpressionState = createExpressionState();
+
+  // Phase 6 — Camera, VFX, Screen effects
+  let cameraState: CameraState | null = null;
+  let vignetteState: VignetteState | null = null;
+  let speedLineState: SpeedLineState | null = null;
+  let colorFlashState: ColorFlashState | null = null;
+  const activeBubbleTrails: BubbleTrail[] = [];
+
+  // Scratch objects for turning a missed tap into a world point (defect 5).
+  // Allocated once — onTap runs on every touch and must not churn the heap.
+  const tapRaycaster = new Raycaster();
+  const tapNdc = new Vector2();
+  const tapWorldPoint = new Vector3();
+  const swimPlane = new Plane(new Vector3(0, 1, 0), 0);
+
+  // Aims tapRaycaster down the tap. Returns false if the canvas has no size yet.
+  function aimTapRay(screenX: number, screenY: number): boolean {
+    const rect = context.canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return false;
+    tapNdc.set(((screenX - rect.left) / rect.width) * 2 - 1, -(((screenY - rect.top) / rect.height) * 2 - 1));
+    tapRaycaster.setFromCamera(tapNdc, shellCam);
+    return true;
+  }
+
+  // Projects a client-space tap onto the shark's swim plane (y = 0). Only used
+  // when the pick hit nothing, so there is no pickedPoint to reuse.
+  function tapToWaterPoint(screenX: number, screenY: number): Vector3 | null {
+    if (!aimTapRay(screenX, screenY)) return null;
+    return tapRaycaster.ray.intersectPlane(swimPlane, tapWorldPoint);
+  }
+
+  // How far from the tap, in SCREEN PIXELS, a fish may be and still count as the
+  // thing the child meant to point at.
+  //
+  // This was a world-space radius: 2.5 units, measured perpendicular to the tap
+  // ray. Its own comment justified the number by converting it to pixels —
+  // "2.5 world units = 224 px = ~4 cm of slack" — using the scale that holds at
+  // the shark's depth. That conversion is only valid there. The camera pitches
+  // ~36 degrees down over a 24.35-degree half-fov, so the reef runs from about
+  // 8 units from the lens at the bottom of the frame to about 33 at the top,
+  // and one world unit is ~110 px down there against ~27 px up here. A fixed
+  // world radius therefore gave the child several times more on-screen slack on
+  // a fish swimming towards the camera than on one swimming away, for exactly
+  // the same aiming error, and delivered the author's intended 224 px at
+  // precisely one depth.
+  //
+  // 220 px in screen space is that same intent, made true everywhere in frame:
+  // ~4 cm on a 22 cm tablet, which is a toddler's ~55 px finger pad plus a
+  // generous miss. Measured with the headless tap probe over 30 seeded runs of
+  // the 24-tap grid sweep, the swap alone moved the sweep from 3.5 catches to
+  // 5.9 — and the pixel miss it has to cover is real: the nearest fish to a
+  // given grid tap sits a mean of 220-338 px away depending on how full the
+  // reef is.
+  const FISH_TAP_SNAP_RADIUS_PX = 220;
+
+  // Scratch for projecting a fish to screen space. See the note on tapRaycaster.
+  const tapProjected = new Vector3();
+
+  // Finds the fish whose screen position is closest to the tap, within
+  // FISH_TAP_SNAP_RADIUS_PX. Fish behind the camera are skipped: `project`
+  // mirrors those through the origin, so without the z guard a fish directly
+  // behind the child's view would read as a near-perfect hit.
+  function findFishNearTap(screenX: number, screenY: number): FishState | null {
+    const rect = context.canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    let best: FishState | null = null;
+    let bestDistSq = FISH_TAP_SNAP_RADIUS_PX * FISH_TAP_SNAP_RADIUS_PX;
+    const consider = (fish: FishState | null): void => {
+      if (!fish || !fish.active) return;
+      tapProjected.copy(fish.root.position).project(shellCam);
+      if (tapProjected.z > 1) return;
+      const px = rect.left + ((tapProjected.x + 1) / 2) * rect.width;
+      const py = rect.top + ((1 - tapProjected.y) / 2) * rect.height;
+      const dx = px - screenX;
+      const dy = py - screenY;
+      const d = dx * dx + dy * dy;
+      if (d < bestDistSq) {
+        bestDistSq = d;
+        best = fish;
+      }
+    };
+    for (const f of fishArray) consider(f);
+    consider(goldenFish);
+    return best;
+  }
+
+  // Catches the fish the child pointed at.
+  //
+  // This used to only set a hunt target, and that was the whole scoring defect.
+  // `eatFishAction` is the one place `score.addPoints` is called, and its only
+  // caller was the per-frame collision test at FISH_HIT_RADIUS = 1.0 — so a tap
+  // never scored, it merely asked the simulation to try. Whether the child got
+  // a point then depended on how many frames the shark got to close a gap of up
+  // to 15 units at 3-8 units/second, i.e. on the frame rate. Measured on the
+  // shipped build: a 24-tap grid sweep scored 0, and an 8-tap burst scored 0.
+  //
+  // Every sibling game scores in the tap handler — bubble-pop pops in
+  // `popBubble` from `onTap`, fireflies adds points inline in `onTap`,
+  // star-catcher in `rules/scoring.ts` off the pick. little-shark was the only
+  // one that made the reward conditional on physics, and it is also the only
+  // one that does not score.
+  //
+  // So the tap resolves the catch. The shark still lunges at the fish, so the
+  // pounce reads on screen and the celebration plays where the fish was, but
+  // the point is credited at the moment the child touched it. Swimming the
+  // shark into a fish by dragging still eats it through the collision path
+  // below — that half of the toy is unchanged.
+  function chaseFish(fish: FishState): void {
+    fish.isTargeted = true;
+    // The child has spoken, so whatever the shark had decided to do on its own
+    // no longer owns the next catch.
+    autoHuntActive = false;
+    setMood(expressionState, fish.kind === 'golden' ? 'excited' : 'curious');
+    // Point the shark at the kill so the lunge animation reads, then clear the
+    // hunt: there is nothing left to hunt once the fish is eaten, and leaving a
+    // stale target makes the FSM drive the shark at a despawning mesh.
+    cancelHunt(huntState);
+    startLunge(sharkMove, fish.root.position.x, fish.root.position.z, 6.0);
+    eatFishAction(fish);
+  }
+
+  function eatFishAction(fish: FishState): void {
+    fish.active = false;
+    // A fish can now be caught mid-arrival, so clear the inbound flag or the
+    // despawn/pool path would still treat it as flying in.
+    fish.spawning = false;
+    fish.despawnTimer = FISH_DESPAWN_SCALE_DURATION;
+    context.score.addPoints(FISH_POINTS[fish.kind]);
+    context.combo.registerHit();
+    celebrations.playEatCelebration({
+      scene,
+      fishPos: fish.root.position.clone(),
+      // Was `FISH_COLORS[0]`. Every standard fish in the game, whatever colour
+      // the child had just been looking at, burst into orange confetti — so the
+      // one moment in the loop that is supposed to say "yes, THAT one" said it
+      // in the wrong colour four times out of five.
+      fishColor: fish.color,
+      fishKind: fish.kind,
+      sharkBody,
+      sharkRoot,
+      sharkAnim,
+      comboStreak: context.combo.streak,
+      isFirstCatch: !firstCatchDone,
+      context,
+    });
+    if (!firstCatchDone) firstCatchDone = true;
+    eatAnimTimer = EAT_ANIM_DURATION;
+
+    // Camera catch zoom + screen shake
+    if (cameraState) {
+      triggerCatchZoom(cameraState, fish.kind === 'golden' ? 5.0 : 3.0);
+      triggerScreenShake(cameraState, 0.12, fish.kind === 'golden' ? 0.06 : 0.03);
+    }
+
+    // Catch explosion VFX scaled by combo
+    createCatchExplosion(scene, fish.root.position.clone(), fish.color, context.combo.streak);
+
+    // Golden catch: vignette + color flash
+    if (fish.kind === 'golden') {
+      if (vignetteState) triggerVignette(vignetteState, 0.4, 0.2);
+      if (colorFlashState) triggerColorFlash(colorFlashState, new Color(1.0, 0.85, 0.2), 0.3, 0.12);
+    }
+
+    // Cancel hunt if we ate the hunted fish
+    if (huntState.targetFishRoot === fish.root) {
+      cancelHunt(huntState);
+    }
+
+    // Notify proximity spawner to queue replacements
+    if (spawnState) notifyFishEaten(spawnState, fish.kind === 'golden');
+  }
+
+  // ── Entity pool helpers ─────────────────────────────────────────────
+
+  /**
+   * Counts the fish currently alive in the reef, inbound ones included.
+   * @returns The number of active fish.
+   */
+  function countActiveFish(): number {
+    let count = 0;
+    for (const f of fishArray) if (f.active) count++;
+    return count;
+  }
+
+  /**
+   * Acquires a fish from the pool or creates a new one.
+   * Reuses inactive fish of matching kind before allocating.
+   * @param kind - The fish kind to acquire.
+   * @returns A ready-to-use FishState.
+   */
+  function acquireFish(kind: FishKind): FishState {
+    const pooled = fishArray.find((f) => !f.active && f.despawnTimer <= 0 && f.kind === kind);
+    if (pooled) {
+      resetFishForSpawn(pooled, sharkPos);
+      return pooled;
+    }
+    const fish = createFish(scene, sharkPos, kind);
+    fishArray.push(fish);
+    return fish;
+  }
+
+  // How long a replacement fish takes to swim in from SPAWN_DISTANCE (18 units
+  // off-screen) to its drift target.
+  //
+  // 1.5s at the 4-8 units the drift target sits from the shark meant a fish
+  // covered ~12 units in that window: fast enough to see, but combined with the
+  // spawner's post-eat grace period it was the second half of a 3.5-second gap
+  // with nothing catchable on screen. 0.9s puts it in frame in about half a
+  // second while still reading as a fish swimming in rather than appearing.
+  const FISH_ARRIVAL_DURATION = 0.9;
+
+  // ── Autonomous hunting ──────────────────────────────────────────────
+
+  // How close a fish has to drift before the shark decides to go for it by
+  // itself. CAMERA_VIEW_RADIUS is 15, so 9 keeps the target comfortably on
+  // screen for the whole stalk instead of having the shark charge off toward
+  // something the child cannot see.
+  const AUTO_HUNT_RADIUS = 9.0;
+
+  // Returns the fish that owns a root object, or null if it has been pooled.
+  function fishForRoot(root: Object3D | null): FishState | null {
+    if (!root) return null;
+    if (goldenFish && goldenFish.root === root) return goldenFish;
+    for (const f of fishArray) if (f.root === root) return f;
+    return null;
+  }
+
+  // True while the shark is chasing a fish it picked out for itself.
+  //
+  // This is the flag that decides whether a catch belongs to the child, and it
+  // has to be provenance rather than kinematics. The first attempt at this gate
+  // asked whether the shark was moving fast enough to be under a finger, and it
+  // changed the measured idle score rate by nothing at all (72 -> 81 points a
+  // minute, i.e. noise) — because an auto-hunt looks exactly like a lunge from
+  // the outside. Same speeds, same animation, same everything. The only thing
+  // that distinguishes them is who started it, so that is what gets recorded.
+  let autoHuntActive = false;
+
+  // Keeps the shark hunting on its own.
+  //
+  // Taps now resolve their own catch (see `chaseFish`), so without this the
+  // hunt FSM would only ever sit idle and the shark would do nothing unless
+  // touched. A shark that stalks and lunges at whatever swims past is the
+  // behaviour that makes the toy worth watching between taps, and it is also
+  // what the collision test at FISH_HIT_RADIUS exists to resolve.
+  //
+  // Deliberately yields to the child: no auto-hunt while a drag or a lunge is
+  // in flight, because those are direct instructions about where to go.
+  function maintainAutoHunt(): void {
+    // Drop a target that has been eaten, culled or recycled out from under us —
+    // the FSM would otherwise steer at a pooled root sitting at the last
+    // position it happened to be left in.
+    if (huntState.targetFishRoot) {
+      const target = fishForRoot(huntState.targetFishRoot);
+      if (!target || !target.active || target.spawning) cancelHunt(huntState);
+    }
+    // No hunt in flight means nothing the shark decided for itself is pending,
+    // so the flag must drop here rather than only when a new hunt starts —
+    // otherwise it latches true after the first auto-hunt and permanently
+    // disables the drag-into-fish catch the child is entitled to.
+    if (getHuntPhase(huntState) === 'idle') autoHuntActive = false;
+    if (getHuntPhase(huntState) !== 'idle') return;
+    if (sharkMove.isBeingDragged || sharkMove.isLunging) return;
+
+    let best: FishState | null = null;
+    let bestDistSq = AUTO_HUNT_RADIUS * AUTO_HUNT_RADIUS;
+    const consider = (fish: FishState | null): void => {
+      if (!fish || !fish.active || fish.spawning) return;
+      const dx = fish.root.position.x - sharkPos.x;
+      const dz = fish.root.position.z - sharkPos.z;
+      const d = dx * dx + dz * dz;
+      if (d < bestDistSq) {
+        bestDistSq = d;
+        best = fish;
+      }
+    };
+    for (const f of fishArray) consider(f);
+    consider(goldenFish);
+    if (!best) return;
+    const target: FishState = best;
+    target.isTargeted = true;
+    autoHuntActive = true;
+    triggerHunt(huntState, target.root);
+  }
+
+  // ── Update subsystems ───────────────────────────────────────────────
+
+  /**
+   * Updates shark movement, rotation, hunt FSM, and applies to mesh.
+   *
+   * @param dt - Frame delta time in seconds.
+   */
+  function updateSharkMovement(dt: number): void {
+    maintainAutoHunt();
+    const huntPhase = getHuntPhase(huntState);
+
+    // Hunt FSM drives movement when not idle
+    if (huntPhase !== 'idle') {
+      updateHuntFSM(huntState, sharkMove, dt, {
+        onStrike: () => {
+          // Speed lines on strike
+          if (speedLineState) triggerSpeedLines(speedLineState, 0.25);
+        },
+        onCelebrate: () => {
+          triggerBarrelRoll(sharkAnim);
+        },
+      });
+      // Face the direction of travel during the hunt.
+      //
+      // Defect 6: this used to snap rotY straight to the velocity heading — an
+      // effectively infinite turn rate, against 1.05 rad/s while idle and 7.85
+      // rad/s mid-lunge. The shark would pivot like a compass needle the instant
+      // a hunt began and then crawl around when it ended. All three now go
+      // through steerTowardAngle with the same two rates (see movement.ts).
+      if (Math.abs(sharkMove.velX) > 0.01 || Math.abs(sharkMove.velZ) > 0.01) {
+        sharkMove.rotY = steerTowardAngle(sharkMove.rotY, Math.atan2(-sharkMove.velZ, sharkMove.velX), TURN_RATE_HUNT, dt);
+      }
+      // Apply position from hunt FSM
+      if (sharkRoot) applyToMesh(sharkMove, sharkRoot);
+      sharkPos.x = sharkMove.posX;
+      sharkPos.z = sharkMove.posZ;
+    } else {
+      // Normal movement when not hunting
+      const wasLunging = sharkMove.isLunging;
+      if (sharkMove.swimPhase !== 'idle') {
+        updateSwim(sharkMove, dt);
+      } else if (!sharkMove.isBeingDragged) {
+        updateIdleDrift(sharkMove, dt);
+      } else {
+        updateSpringFollow(sharkMove, dt);
+      }
+      updateRotation(sharkMove, dt);
+      if (sharkRoot) applyToMesh(sharkMove, sharkRoot);
+      sharkPos.x = sharkMove.posX;
+      sharkPos.z = sharkMove.posZ;
+
+      if (!sharkMove.isLunging && wasLunging) {
+        const near = fishArray.some((f) => f.active && Math.hypot(sharkMove.posX - f.root.position.x, sharkMove.posZ - f.root.position.z) < 2.0);
+        if (!near) triggerHeadLook(sharkAnim);
+      }
+    }
+
+    // Update expression mood based on hunt phase
+    const targetMood = getMoodForPhase(huntPhase);
+    setMood(expressionState, targetMood);
+    updateExpressions(expressionState, dt);
+  }
+
+  /**
+   * Updates all shark animations driven by mood and speed.
+   * @param dt - Frame delta time in seconds.
+   */
+  function updateSharkAnimations(dt: number): void {
+    const speed = getSpeed(sharkMove);
+    const mood = getMoodParams(expressionState);
+
+    // Tail wag modulated by mood
+    if (tailMeshes.length > 0) {
+      // Temporarily scale animation params by mood multipliers
+      const origTailPhase = sharkAnim.tailPhase;
+      updateTailWag(tailMeshes, sharkAnim, speed * mood.tailFreqMult, dt);
+      // Apply amplitude modulation by scaling the result
+      for (const tail of tailMeshes) {
+        tail.rotation.y *= mood.tailAmpMult;
+      }
+      void origTailPhase; // used for type-checking only
+    }
+
+    if (sharkBody) {
+      updateBodyWobble(sharkBody, elapsedTime, speed * mood.bodyWobbleMult);
+      updateBreathing(sharkBody, elapsedTime);
+    }
+
+    // Eye scale driven by mood
+    if (eyeMeshes.length > 0) {
+      updateEyeBlink(eyeMeshes, sharkAnim, dt);
+      for (const eye of eyeMeshes) {
+        eye.scale.y *= mood.eyeScaleY;
+      }
+    }
+
+    if (sharkRoot) {
+      updateBarrelRoll(sharkRoot, sharkAnim, dt);
+      updateHeadLook(sharkRoot, sharkAnim, dt);
+    }
+  }
+
+  /**
+   * Updates proximity-based spawning and culls distant fish.
+   * @param dt - Frame delta time in seconds.
+   */
+  function updateSpawning(dt: number): void {
+    if (!spawnState) return;
+
+    // Defect 3: the spawner used to hold a hard-coded 2 fish near the shark for
+    // the entire session. The reef now fills up as the child gets better.
+    const targetNearby = getTargetFishCount(context.difficulty.level);
+
+    updateProximitySpawning(
+      spawnState,
+      dt,
+      sharkPos.x,
+      sharkPos.z,
+      {
+        spawnFish: (edgeX: number, edgeZ: number, targetX: number, targetZ: number) => {
+          // Hard ceiling, independent of the spawner's arithmetic. MAX_FISH_COUNT
+          // is the nearby target at full difficulty; anything beyond 3x that has
+          // drifted out of the camera radius and is waiting to be culled, so it
+          // can never be a legitimate reason to allocate another fish.
+          if (countActiveFish() >= MAX_FISH_COUNT * 3) return;
+          const fish = acquireFish('standard');
+          fish.root.position.set(edgeX, 0, edgeZ);
+          fish.spawning = true;
+          fish.spawnTimer = FISH_ARRIVAL_DURATION;
+          fish.spawnEdgeX = edgeX;
+          fish.spawnEdgeZ = edgeZ;
+          fish.driftCenterX = targetX;
+          fish.driftCenterZ = targetZ;
+        },
+        spawnGoldenFish: () => {
+          // Placed on a ring around the shark rather than anywhere in the
+          // 100x100 reef. Uniform placement in a square that large puts the
+          // median golden 40 units out, and legibility is gone past 20 (see
+          // CAMERA_VIEW_RADIUS in waves.ts), so the reward fish spent almost
+          // all of its life invisible. GOLDEN_SPAWN_RING is inside the fog
+          // wall but outside the shark's immediate reach, so it arrives as
+          // something the child can see coming.
+          if (goldenFish) return;
+          const angle = Math.random() * Math.PI * 2;
+          goldenFish = createFish(scene, sharkPos, 'golden', [
+            clamp(sharkPos.x + Math.cos(angle) * GOLDEN_SPAWN_RING, -BOUNDS, BOUNDS),
+            clamp(sharkPos.z + Math.sin(angle) * GOLDEN_SPAWN_RING, -BOUNDS, BOUNDS),
+          ]);
+        },
+        countNearbyFish: () => {
+          let count = 0;
+          for (const f of fishArray) {
+            if (!f.active) continue;
+            // An inbound fish counts as nearby even though it is still outside
+            // CAMERA_VIEW_RADIUS: it was spawned specifically to arrive next to
+            // the shark, so it is already on order.
+            //
+            // Skipping them here was the whole bug. `updateProximitySpawning`
+            // fills `target - nearbyCount` EVERY frame, and the arrival
+            // animation runs for 1.5s, so a fish in flight never counted
+            // against the target it was ordered to satisfy: 60fps x 1.5s x a
+            // target of 3 = ~270 fish before the first one became catchable —
+            // and until it landed, nothing was edible or tappable at all.
+            if (f.spawning) {
+              count++;
+              continue;
+            }
+            const dx = f.root.position.x - sharkPos.x;
+            const dz = f.root.position.z - sharkPos.z;
+            if (dx * dx + dz * dz < CAMERA_VIEW_RADIUS * CAMERA_VIEW_RADIUS) count++;
+          }
+          return count;
+        },
+      },
+      targetNearby,
+    );
+
+    // Silently cull fish that have drifted far from the shark
+    for (const fish of fishArray) {
+      if (!fish.active || fish.spawning) continue;
+      const dx = fish.root.position.x - sharkPos.x;
+      const dz = fish.root.position.z - sharkPos.z;
+      if (dx * dx + dz * dz > CULL_DISTANCE * CULL_DISTANCE) {
+        deactivateFish(fish);
+      }
+    }
+
+    // The golden fish is not in `fishArray`, so the loop above never saw it and
+    // it was the one fish in the game that could never be culled. An uncaught
+    // golden therefore drifted away and stayed alive at the far end of the reef
+    // holding `goldenActive` true forever, which meant no second golden for the
+    // rest of the session.
+    if (goldenFish && goldenFish.active && !goldenFish.spawning) {
+      const gdx = goldenFish.root.position.x - sharkPos.x;
+      const gdz = goldenFish.root.position.z - sharkPos.z;
+      if (gdx * gdx + gdz * gdz > CULL_DISTANCE * CULL_DISTANCE) {
+        disposeFish(goldenFish);
+        goldenFish = null;
+        if (spawnState) notifyGoldenLost(spawnState);
+      }
+    }
+  }
+
+  /**
+   * Updates all environment systems (caustics, sway, reactions, ambient, surprises).
+   * @param dt - Frame delta time in seconds.
+   * @param seaweedBoosts - Tapped-seaweed boost timers from the interaction state.
+   */
+  function updateEnvironmentSystems(dt: number, seaweedBoosts: ReadonlyMap<Object3D, number>): void {
+    if (env) {
+      // Defect 10: caustics orbited the origin and the god rays never turned to
+      // face anything. Both now track the shark and the live camera.
+      updateCausticLights(env.causticLights, elapsedTime, sharkPos.x, sharkPos.z);
+      updateGodRays(env.waterSurface, shellCam);
+      // Defect 4: `seaweedBoosts` is the map that used to be discarded, so a
+      // tapped plant made a rustle and stood perfectly still.
+      updateSeaweedSway(env.seaweeds, elapsedTime, seaweedBoosts);
+      updateAnemoneSway(env.anemones, elapsedTime);
+      updateEnvironmentReactions(sharkPos.x, sharkPos.z, env, dt, elapsedTime);
+      env.waterSurface.position.y = 2.5 + Math.sin(elapsedTime * 0.15) * 0.03;
+    }
+    if (ambientCreatures) updateAmbientCreatures(ambientCreatures, dt, elapsedTime, sharkPos.x, sharkPos.z);
+    // Defect 9: surprises are staged around the shark, not the world origin.
+    if (surpriseState && env) updateSurprises(surpriseState, elapsedTime, dt, env, scene, sharkPos.x, sharkPos.z);
+  }
+
+  /**
+   * Updates all fish (drift, dodge, spawn, despawn) and checks collisions.
+   * @param dt - Frame delta time in seconds.
+   * @param speedMultiplier - Difficulty-driven speed multiplier.
+   * @param evasiveness - Difficulty-driven fish evasion strength in [0, 1].
+   */
+  function updateFishAndCollisions(dt: number, speedMultiplier: number, evasiveness: number): void {
+    const allFish: FishState[] = [...fishArray];
+    if (goldenFish) allFish.push(goldenFish);
+    for (const fish of allFish) {
+      if (!fish.active) {
+        if (fish.despawnTimer > 0) {
+          const done = updateDespawnAnimation(fish, dt);
+          if (done) {
+            if (fish === goldenFish) {
+              disposeFish(fish);
+              goldenFish = null;
+            } else {
+              deactivateFish(fish);
+            }
+          }
+        }
+        continue;
+      }
+      if (fish.spawning) {
+        fish.spawnTimer -= dt;
+        const t = clamp(1.0 - fish.spawnTimer / FISH_ARRIVAL_DURATION, 0, 1);
+        const eased = t * t * (3 - 2 * t);
+        fish.root.position.x = fish.spawnEdgeX + (fish.driftCenterX - fish.spawnEdgeX) * eased;
+        fish.root.position.z = fish.spawnEdgeZ + (fish.driftCenterZ - fish.spawnEdgeZ) * eased;
+        if (fish.spawnTimer <= 0) fish.spawning = false;
+        continue;
+      }
+      updateFishDrift(fish, dt, speedMultiplier, sharkPos.x, sharkPos.z, evasiveness);
+      if (fish.kind === 'golden') updateGoldenDodge(fish, sharkPos.x, sharkPos.z, dt, evasiveness);
+    }
+
+    // Collision detection — standard fish.
+    //
+    // Inbound fish are included: they are fully drawn and swimming through the
+    // play area for 1.5s, so a shark that runs into one must eat it. Excluding
+    // them meant nothing on screen was edible during the arrival window.
+    //
+    // Contact only counts when the child put the shark there. It used to count
+    // unconditionally, and an unconditional mouth on an animal that drifts in a
+    // figure-eight AND stalks on its own, through water the spawner keeps aiming
+    // fish into, is a machine for playing itself: a probe that loaded the game
+    // and then touched nothing scored 24 out of 24 slots and 72 points a minute,
+    // scoring in 49% of all one-second intervals.
+    //
+    // Both clauses are load-bearing and neither is sufficient. `isPlayerDriven`
+    // alone leaves the auto-hunt, which moves at lunge speed and so reads as
+    // player-driven; `!autoHuntActive` alone leaves the idle drift, which is
+    // slow but still sweeps up fish the spawner delivers to it.
+    //
+    // Fish that survive on this rule are pushed clear rather than left standing
+    // inside the shark. That is not a consolation prize: the shark visibly
+    // stalking a fish and having it slip away is a better thing for a three-year
+    // -old to watch than the shark quietly eating the reef, and it leaves the
+    // fish on screen for the child to claim.
+    const canHarvest = isPlayerDriven(sharkMove) && !autoHuntActive;
+    for (let i = fishArray.length - 1; i >= 0; i--) {
+      const fish = fishArray[i];
+      if (!fish.active) continue;
+      const ex = sharkPos.x - fish.root.position.x;
+      const ez = sharkPos.z - fish.root.position.z;
+      if (Math.sqrt(ex * ex + ez * ez) >= FISH_HIT_RADIUS) continue;
+      if (canHarvest) {
+        eatFishAction(fish);
+      } else {
+        escapeFromShark(fish, sharkPos.x, sharkPos.z);
+        if (huntState.targetFishRoot === fish.root) cancelHunt(huntState);
+      }
+    }
+    // Collision detection — golden fish
+    if (goldenFish && goldenFish.active && !goldenFish.spawning && !canHarvest) {
+      const gx = sharkPos.x - goldenFish.root.position.x;
+      const gz = sharkPos.z - goldenFish.root.position.z;
+      if (Math.sqrt(gx * gx + gz * gz) < GOLDEN_HIT_RADIUS) {
+        escapeFromShark(goldenFish, sharkPos.x, sharkPos.z);
+        if (huntState.targetFishRoot === goldenFish.root) cancelHunt(huntState);
+      }
+    }
+    if (canHarvest && goldenFish && goldenFish.active && !goldenFish.spawning) {
+      const gx = sharkPos.x - goldenFish.root.position.x;
+      const gz = sharkPos.z - goldenFish.root.position.z;
+      if (Math.sqrt(gx * gx + gz * gz) < GOLDEN_HIT_RADIUS) {
+        // `eatFishAction` → `playCatchCelebration` already fires the golden
+        // milestone (see celebrations.ts). Firing a second one here made every
+        // golden catch play the fanfare twice.
+        eatFishAction(goldenFish);
+      }
+    }
+  }
+
+  /**
+   * Updates camera follow, VFX, and screen effects.
+   * @param dt - Frame delta time in seconds.
+   */
+  function updateCameraAndEffects(dt: number): void {
+    // Follow camera
+    if (cameraState) {
+      updateFollowCamera(cameraState, shellCam, sharkPos.x, sharkPos.z, dt);
+    }
+
+    // Screen effects
+    if (vignetteState) updateVignette(vignetteState, dt);
+    if (speedLineState) updateSpeedLines(speedLineState, dt);
+    if (colorFlashState) updateColorFlash(colorFlashState, dt);
+
+    // Bubble trails — tick active trails, remove expired
+    for (let i = activeBubbleTrails.length - 1; i >= 0; i--) {
+      const alive = activeBubbleTrails[i].update(dt);
+      if (!alive) {
+        activeBubbleTrails[i].dispose();
+        activeBubbleTrails.splice(i, 1);
+      }
+    }
+
+    // Spawn bubble trail behind swimming shark periodically
+    if (getSpeed(sharkMove) > 1.0 && sharkRoot && Math.random() < dt * 3.0) {
+      const dir = new Vector3(-Math.sin(sharkMove.rotY) * 0.5, 0.3, -Math.cos(sharkMove.rotY) * 0.5);
+      const trail = createBubbleTrail(scene, sharkRoot.position.clone(), dir);
+      activeBubbleTrails.push(trail);
+    }
+  }
+
+  // ── Game implementation ─────────────────────────────────────────────
+
+  const game: IMiniGame = {
+    id: 'little-shark',
+
+    async setup(): Promise<void> {
+      env = setupScene(scene, context.disposal);
+
+      // The shell already positioned shellCam from the manifest camera
+      // descriptor; the follow cam (createCameraState below) drives it from here.
+      // Lights are added to the scene by the lighting rig (see setupScene).
+
+      ambientCreatures = createAmbientCreatures(scene);
+      const sharkResult = buildSharkEntity(scene, sharkPos);
+      sharkRoot = sharkResult.sharkRoot;
+      sharkBody = sharkResult.sharkBody;
+      sharkGlowTrail = sharkResult.sharkGlowTrail;
+      tailMeshes = sharkResult.tailFins;
+      eyeMeshes = sharkResult.eyes;
+
+      // Initialize camera system
+      cameraState = createCameraState(shellCam);
+
+      // Initialize screen effects (parented to camera)
+      vignetteState = createVignette(shellCam);
+      speedLineState = createSpeedLines(shellCam);
+      colorFlashState = createColorFlash(shellCam);
+    },
+
+    start(): void {
+      paused = false;
+      elapsedTime = 0;
+      eatAnimTimer = -1;
+      firstCatchDone = false;
+      sharkAnim = createSharkAnimState();
+      sharkMove = createSharkMoveState();
+      sharkPos.set(0, 0, 0);
+      context.score.reset();
+      context.combo.reset();
+      for (const f of fishArray) disposeFish(f);
+      fishArray.length = 0;
+      if (goldenFish) {
+        disposeFish(goldenFish);
+        goldenFish = null;
+      }
+      spawnState = createProximitySpawnState();
+      surpriseState = createSurpriseState();
+      celebrations.clear();
+      interactionState.clear();
+      interactionState = createInteractionState();
+
+      // Reset Phase 3 systems
+      huntState = createHuntFSMState();
+      expressionState = createExpressionState();
+
+      // Reset camera
+      if (cameraState) resetCamera(cameraState, shellCam);
+
+      let lastMilestoneScore = 0;
+      const maxScheduled = MILESTONE_SCHEDULE.length > 0 ? MILESTONE_SCHEDULE[MILESTONE_SCHEDULE.length - 1].score : 0;
+      // Score milestones belong to no single fish, so they play at the middle
+      // of the view. They used to pass (0, 0) — now that celebrations actually
+      // render, that would have fired every burst off in the top-left corner.
+      const midX = (): number => context.viewport.width / 2;
+      const midY = (): number => context.viewport.height / 2;
+      unsubScore = context.score.onScoreChanged((newScore: number) => {
+        for (const ms of MILESTONE_SCHEDULE) {
+          if (newScore >= ms.score && lastMilestoneScore < ms.score) {
+            context.celebration.milestone(midX(), midY(), ms.size);
+            lastMilestoneScore = ms.score;
+          }
+        }
+        if (newScore > maxScheduled) {
+          const rm = maxScheduled + Math.floor((newScore - maxScheduled) / MILESTONE_REPEAT_INTERVAL) * MILESTONE_REPEAT_INTERVAL;
+          if (rm > lastMilestoneScore) {
+            context.celebration.milestone(midX(), midY(), 'medium');
+            lastMilestoneScore = rm;
+          }
+        }
+      });
+    },
+
+    update(deltaTime: number): void {
+      if (paused) return;
+      const dt = deltaTime;
+      elapsedTime += dt;
+      // Defect 3: `speedMultiplier` was halved right here, which cancelled most
+      // of the ramp; `evasiveness` did not exist at all. Both now reach the fish.
+      const speedMultiplier = getSpeedMultiplier(context.difficulty.level);
+      const evasiveness = getFishEvasiveness(context.difficulty.level);
+
+      if (eatAnimTimer > 0 && sharkBody) eatAnimTimer = updateEatAnimation(sharkBody, eatAnimTimer, dt);
+
+      updateSharkMovement(dt);
+      updateSharkAnimations(dt);
+      updateSpawning(dt);
+      // Defect 4: tick interactions BEFORE the environment so the boost map is
+      // current for this frame's sway, and so the return value is actually used.
+      const seaweedBoosts = interactionState.update(dt);
+      updateEnvironmentSystems(dt, seaweedBoosts);
+      updateFishAndCollisions(dt, speedMultiplier, evasiveness);
+      celebrations.update(dt);
+      updateCameraAndEffects(dt);
+    },
+
+    pause(): void {
+      paused = true;
+    },
+
+    resume(): void {
+      paused = false;
+    },
+
+    teardown(): void {
+      unsubScore?.();
+      unsubScore = null;
+      celebrations.clear();
+      interactionState.clear();
+      context.audio.stopMusic();
+
+      // Dispose bubble trails
+      for (const trail of activeBubbleTrails) trail.dispose();
+      activeBubbleTrails.length = 0;
+
+      // Dispose screen effects
+      if (vignetteState && speedLineState && colorFlashState) {
+        disposeScreenFx(vignetteState, speedLineState, colorFlashState);
+        vignetteState = null;
+        speedLineState = null;
+        colorFlashState = null;
+      }
+
+      cameraState = null;
+
+      if (sharkGlowTrail) {
+        // Stop the stream; the shared glow batch is freed by the shell's
+        // disposal scope. See architecture-standards.md#particleengine.
+        sharkGlowTrail.stop();
+        sharkGlowTrail = null;
+      }
+      for (const f of fishArray) disposeFish(f);
+      fishArray.length = 0;
+      if (goldenFish) {
+        disposeFish(goldenFish);
+        goldenFish = null;
+      }
+      if (sharkRoot) {
+        disposeMeshDeep(sharkRoot);
+        sharkRoot = null;
+        sharkBody = null;
+        tailMeshes = [];
+        eyeMeshes = [];
+      }
+      if (ambientCreatures) {
+        disposeAmbientCreatures(ambientCreatures);
+        ambientCreatures = null;
+      }
+      if (env) {
+        teardownScene(env);
+        env = null;
+      }
+      spawnState = null;
+      surpriseState = null;
+      huntState = createHuntFSMState();
+      expressionState = createExpressionState();
+      resetMeshIndex();
+    },
+
+    onResize(_viewport: ViewportInfo): void {
+      if (!env) return;
+    },
+
+    onTap(event: MiniGameTapEvent): void {
+      if (paused) return;
+      const pick = event.pickResult;
+      if (!pick || !pick.hit || !pick.pickedMesh) {
+        // Defect 5: this used to be a bare `return`. A tap that hits nothing now
+        // gets a bubble puff wherever the child actually touched, so the game
+        // never looks frozen.
+        const missPoint = tapToWaterPoint(event.screenX, event.screenY);
+        if (missPoint) {
+          handleMissedTap(scene, new Vector3(clamp(missPoint.x, -BOUNDS, BOUNDS), 0, clamp(missPoint.z, -BOUNDS, BOUNDS)), context.audio);
+        }
+        return;
+      }
+      const pickedMesh = pick.pickedMesh as Object3D;
+      const kind = classifyPickedMesh(pickedMesh.name);
+      switch (kind) {
+        case 'fish': {
+          // A visible fish is a tappable fish — the `!f.spawning` guard that
+          // used to be here silently dropped every tap on a fish still swimming
+          // in from the edge, which for the first 1.5s of a session is all of them.
+          const fish = fishArray.find((f) => f.active && isDescendantOf(pickedMesh, f.root));
+          if (fish) chaseFish(fish);
+          break;
+        }
+        case 'golden': {
+          if (goldenFish && goldenFish.active && isDescendantOf(pickedMesh, goldenFish.root)) {
+            chaseFish(goldenFish);
+          }
+          break;
+        }
+        case 'shark': {
+          if (sharkRoot) {
+            handleSharkTap(sharkAnim, scene, sharkRoot, context.audio);
+            setMood(expressionState, 'playful');
+          }
+          break;
+        }
+        case 'coral': {
+          interactionState.handleCoralTap(pickedMesh, scene, context.audio);
+          break;
+        }
+        case 'anemone': {
+          // Defect 8: anemones matched no prefix and fell through to 'water',
+          // so tapping one sent the shark diving at the seabed.
+          interactionState.handleAnemoneTap(pickedMesh, scene, context.audio);
+          break;
+        }
+        case 'seaweed': {
+          interactionState.handleSeaweedTap(pickedMesh, context.audio);
+          break;
+        }
+        case 'treasure': {
+          interactionState.handleTreasureChestTap(pickedMesh, scene, context.audio);
+          break;
+        }
+        case 'rock': {
+          handleRockTap(pickedMesh, scene, context.audio);
+          break;
+        }
+        case 'water':
+        default: {
+          // Aim assist. Measured: a 6x4 grid of 24 taps spread over the play
+          // area landed on `terrain_reef_floor` 23 times and on a blade of
+          // seaweed once — not one of them on a fish — and scored nothing,
+          // because a water tap only ever steered the shark to that spot and
+          // nothing in the game targets a fish on the child's behalf.
+          //
+          // A tap now snaps to the nearest fish within FISH_TAP_SNAP_RADIUS_PX
+          // of the touch point and catches it. Taps in genuinely open water
+          // still steer the shark, so the free-swimming half of the toy is
+          // unchanged.
+          const aimed = findFishNearTap(event.screenX, event.screenY);
+          if (aimed) {
+            chaseFish(aimed);
+            break;
+          }
+          const wp = pick.pickedPoint;
+          if (wp) {
+            // Cancel any active hunt so the shark goes where you tap
+            if (getHuntPhase(huntState) !== 'idle') {
+              cancelHunt(huntState);
+              sharkMove.velX = 0;
+              sharkMove.velZ = 0;
+            }
+            const cx = clamp(wp.x, -BOUNDS, BOUNDS);
+            const cz = clamp(wp.z, -BOUNDS, BOUNDS);
+            startLunge(sharkMove, cx, cz, BOUNDS * 3);
+            handleWaterTap(scene, new Vector3(cx, 0, cz), context.audio);
+          }
+          break;
+        }
+      }
+    },
+
+    onDrag(event: MiniGameDragEvent): void {
+      if (paused) return;
+      // Cancel hunt when player drags — they want manual control
+      if (getHuntPhase(huntState) !== 'idle') {
+        cancelHunt(huntState);
+        sharkMove.velX = 0;
+        sharkMove.velZ = 0;
+      }
+      sharkMove.isBeingDragged = true;
+      const pick = event.pickResult;
+      if (pick && pick.hit && pick.pickedPoint) {
+        sharkMove.targetX = clamp(pick.pickedPoint.x, -BOUNDS, BOUNDS);
+        sharkMove.targetZ = clamp(pick.pickedPoint.z, -BOUNDS, BOUNDS);
+      }
+    },
+
+    onDragEnd(_event: MiniGameDragEndEvent): void {
+      // Defect 7: this used to just clear the flag, so the shark stopped dead
+      // the instant a finger lifted. releaseDrag keeps (and slightly boosts) the
+      // velocity the drag built up and re-anchors idle drift ahead of the shark,
+      // so a flick coasts out instead of hitting a wall.
+      releaseDrag(sharkMove);
+    },
+  };
+
+  return game;
+}

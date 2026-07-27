@@ -1,10 +1,13 @@
 import { Color, PointLight, type Scene, Mesh, MeshStandardMaterial, type Object3D } from 'three';
 import type { GameLightingRig } from '@app/minigames/shared/sceneSetup';
+import { JAR_BODY_HEIGHT, JAR_SCALE } from './types';
 
 /** Target values for a single illumination tier. */
 interface TierValues {
   directionalIntensity: number;
   ambientIntensity: number;
+  /** `scene.environmentIntensity` — the image-based ambient light. */
+  envIntensity: number;
   /** Multiplier applied to the base moon emissive color. */
   moonEmissive: number;
   /** Multiplier applied to the base ground emissive color. */
@@ -45,6 +48,7 @@ interface IlluminationTierDef {
  *
  *   directional  0.08 → 0.13 → 0.19 → 0.26 → 0.34 → 0.44   (x5.5)
  *   ambient      0.05 → 0.08 → 0.12 → 0.16 → 0.21 → 0.27   (x5.4)
+ *   env          0.05 → 0.068 → 0.094 → 0.128 → 0.175 → 0.24 (x4.8)
  *   moon         0.35 → 0.50 → 0.66 → 0.83 → 1.00 → 1.20   (x3.4)
  *   ground       0.02 → 0.032 → 0.046 → 0.062 → 0.082 → 0.105 (x5.3)
  *   flower       0.00 → 0.05 → 0.11 → 0.18 → 0.25 → 0.33   (off → glowing)
@@ -53,6 +57,20 @@ interface IlluminationTierDef {
  *
  * The dirColor entries walk from cold moon-blue to warm lantern-white over the
  * same span, so the garden reads as *warming up*, not just brightening.
+ *
+ * The `env` axis is the one that decides whether tier 0 reads as night at all.
+ * The shell applies a PMREM RoomEnvironment IBL to every mini-game with
+ * `scene.environmentIntensity = 0.24` (utils/rendererFactory.ts:24, applied
+ * from MiniGameShell.tsx). That is a bright, neutral, omnidirectional room —
+ * with an estimated irradiance around 1.24 it delivered roughly 0.30 to the
+ * meadow floor against 0.115 from this game's own tier-0 rig, i.e. the shared
+ * default was contributing about 2.6x the game's own lighting and no amount of
+ * tuning the axes below could get out from under it. That is why the "moonlit
+ * meadow" rendered as a bright daytime field. This game now owns the value:
+ * tier 0 drops it to 0.05 and it climbs geometrically (ratio (0.24/0.05)^(1/5)
+ * = 1.369 per tier) back to exactly the app default by tier 5, so the top tier
+ * still looks like everything else in the app. The original value is captured
+ * at construction and restored on dispose(), so nothing leaks to the next game.
  */
 const TIERS: IlluminationTierDef[] = [
   {
@@ -60,6 +78,7 @@ const TIERS: IlluminationTierDef[] = [
     values: {
       directionalIntensity: 0.08,
       ambientIntensity: 0.05,
+      envIntensity: 0.05,
       moonEmissive: 0.35,
       groundEmissive: 0.02,
       flowerEmissive: 0.0,
@@ -73,6 +92,7 @@ const TIERS: IlluminationTierDef[] = [
     values: {
       directionalIntensity: 0.13,
       ambientIntensity: 0.08,
+      envIntensity: 0.068,
       moonEmissive: 0.5,
       groundEmissive: 0.032,
       flowerEmissive: 0.05,
@@ -86,6 +106,7 @@ const TIERS: IlluminationTierDef[] = [
     values: {
       directionalIntensity: 0.19,
       ambientIntensity: 0.12,
+      envIntensity: 0.094,
       moonEmissive: 0.66,
       groundEmissive: 0.046,
       flowerEmissive: 0.11,
@@ -99,6 +120,7 @@ const TIERS: IlluminationTierDef[] = [
     values: {
       directionalIntensity: 0.26,
       ambientIntensity: 0.16,
+      envIntensity: 0.128,
       moonEmissive: 0.83,
       groundEmissive: 0.062,
       flowerEmissive: 0.18,
@@ -112,6 +134,7 @@ const TIERS: IlluminationTierDef[] = [
     values: {
       directionalIntensity: 0.34,
       ambientIntensity: 0.21,
+      envIntensity: 0.175,
       moonEmissive: 1.0,
       groundEmissive: 0.082,
       flowerEmissive: 0.25,
@@ -125,6 +148,7 @@ const TIERS: IlluminationTierDef[] = [
     values: {
       directionalIntensity: 0.44,
       ambientIntensity: 0.27,
+      envIntensity: 0.24,
       moonEmissive: 1.2,
       groundEmissive: 0.105,
       flowerEmissive: 0.33,
@@ -144,8 +168,15 @@ const JAR_LIGHT_COLOR = new Color(1.0, 0.85, 0.5);
 /** Base moon emissive color (warm yellow-white). */
 const MOON_BASE_COLOR = new Color(0.95, 0.9, 0.6);
 
-/** Base ground emissive color (warm green). */
-const GROUND_BASE_COLOR = new Color(0.3, 0.5, 0.15);
+/**
+ * Base ground emissive color.
+ *
+ * Was (0.3, 0.5, 0.15), a warm green. The meadow's albedo is now a cold
+ * blue-green, and an emissive of a different hue fights it: the ground read as
+ * grey-green where the two mixed. This is the same hue family as the albedo so
+ * the self-lit term deepens the meadow rather than washing the colour out.
+ */
+const GROUND_BASE_COLOR = new Color(0.18, 0.42, 0.34);
 
 /** Base jar emissive color (warm amber-green). */
 const JAR_BASE_COLOR = new Color(0.6, 0.8, 0.3);
@@ -163,6 +194,7 @@ export interface IlluminationRefs {
 interface LerpState {
   directionalIntensity: number;
   ambientIntensity: number;
+  envIntensity: number;
   moonEmissive: number;
   groundEmissive: number;
   flowerEmissive: number;
@@ -226,11 +258,19 @@ function getTargetTier(collectedCount: number): number {
  * @returns An IlluminationController with update and dispose methods.
  */
 export function createIlluminationController(scene: Scene, refs: IlluminationRefs, jarPosition: { x: number; y: number; z: number }): IlluminationController {
-  // Create jar interior point light (centered within the scaled-down jar)
+  // Create jar interior point light, centred in the *scaled* jar. The offset
+  // used to be a hard-coded +0.6, which was near the top of the jar at the old
+  // scale and floats well above the cork at the new one. JAR_BODY_HEIGHT is the
+  // unscaled profile height; 0.55 of the scaled height puts the light just
+  // above the middle of the glass, where the fill dots sit.
   const jarLight = new PointLight(JAR_LIGHT_COLOR, 0, 6.0);
   jarLight.name = 'fireflies_jar_interior_light';
-  jarLight.position.set(jarPosition.x, jarPosition.y + 0.6, jarPosition.z);
+  jarLight.position.set(jarPosition.x, jarPosition.y + JAR_BODY_HEIGHT * JAR_SCALE * 0.55, jarPosition.z);
   scene.add(jarLight);
+
+  // The shell's default IBL intensity, restored on dispose so this game's night
+  // setting cannot leak into whatever mounts next.
+  const baseEnvIntensity = scene.environmentIntensity;
 
   // Ensure main lights are in the scene
   if (!refs.lights.directionalLight.parent) scene.add(refs.lights.directionalLight);
@@ -242,6 +282,7 @@ export function createIlluminationController(scene: Scene, refs: IlluminationRef
   const state: LerpState = {
     directionalIntensity: t0.directionalIntensity,
     ambientIntensity: t0.ambientIntensity,
+    envIntensity: t0.envIntensity,
     moonEmissive: t0.moonEmissive,
     groundEmissive: t0.groundEmissive,
     flowerEmissive: t0.flowerEmissive,
@@ -262,6 +303,11 @@ export function createIlluminationController(scene: Scene, refs: IlluminationRef
     r.lights.directionalLight.intensity = s.directionalIntensity;
     r.lights.directionalLight.color.setRGB(s.dirColorR, s.dirColorG, s.dirColorB);
     r.lights.ambientLight.intensity = s.ambientIntensity;
+
+    // Image-based ambient. This is the dominant light source at the shell's
+    // default of 0.24 and has to move with the tiers, or the "dark" tiers are
+    // dark only in the lights this controller happens to own.
+    scene.environmentIntensity = s.envIntensity;
 
     // Moon emissive
     r.moonMaterial.emissive.copy(MOON_BASE_COLOR).multiplyScalar(s.moonEmissive);
@@ -293,6 +339,7 @@ export function createIlluminationController(scene: Scene, refs: IlluminationRef
 
       state.directionalIntensity += (target.directionalIntensity - state.directionalIntensity) * alpha;
       state.ambientIntensity += (target.ambientIntensity - state.ambientIntensity) * alpha;
+      state.envIntensity += (target.envIntensity - state.envIntensity) * alpha;
       state.moonEmissive += (target.moonEmissive - state.moonEmissive) * alpha;
       state.groundEmissive += (target.groundEmissive - state.groundEmissive) * alpha;
       state.flowerEmissive += (target.flowerEmissive - state.flowerEmissive) * alpha;
@@ -311,6 +358,7 @@ export function createIlluminationController(scene: Scene, refs: IlluminationRef
 
     dispose(): void {
       jarLight.removeFromParent();
+      scene.environmentIntensity = baseEnvIntensity;
     },
   };
 }

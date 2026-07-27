@@ -7,9 +7,24 @@
  * turning `index.ts` into a geometry file.
  */
 
-import { Color, ExtrudeGeometry, Mesh, MeshStandardMaterial, Scene, Shape } from 'three';
+import { Color, ExtrudeGeometry, Mesh, MeshStandardMaterial, Scene, Shape, type Vector3 } from 'three';
 import { clamp01, randomRange } from '../helpers';
 import type { TemplateTargetKind, TemplateTargetState } from '../types';
+
+/**
+ * Outer radius of the star silhouette, in world units.
+ *
+ * Exported because the catch forgiveness in `rules/` sizes its screen-space
+ * radius from the star's actual projected size rather than a flat pixel
+ * constant. Trimmed from 0.34 because the play field moved much closer to the
+ * camera: at 0.34 the nearest bonus star would have spanned 232 px of an 810 px
+ * frame. At 0.30 the range across the field is 96-172 px, still far above the
+ * ~2 cm floor a small child needs and no longer crowding the frame.
+ */
+export const STAR_OUTER_RADIUS = 0.3;
+
+/** Seconds a landed star lies glowing in the grass, still catchable. */
+export const REST_DURATION_SECONDS = 2.6;
 
 /**
  * Maximum off-axis tilt, in radians, applied by the tumble.
@@ -49,8 +64,8 @@ const CATCH_RISE_SPEED = 1.6;
  * @returns An extruded, centred five-point star geometry.
  */
 function buildStarGeometry(): ExtrudeGeometry {
-  const outer = 0.34;
-  const inner = 0.15;
+  const outer = STAR_OUTER_RADIUS;
+  const inner = STAR_OUTER_RADIUS * 0.44;
   const points = 5;
   const shape = new Shape();
   for (let i = 0; i < points * 2; i += 1) {
@@ -67,10 +82,10 @@ function buildStarGeometry(): ExtrudeGeometry {
   shape.closePath();
 
   const geometry = new ExtrudeGeometry(shape, {
-    depth: 0.07,
+    depth: 0.062,
     bevelEnabled: true,
-    bevelThickness: 0.03,
-    bevelSize: 0.03,
+    bevelThickness: 0.026,
+    bevelSize: 0.026,
     bevelSegments: 2,
   });
   geometry.center();
@@ -93,7 +108,12 @@ export function createTarget(scene: Scene): TemplateTargetState {
   const material = new MeshStandardMaterial({
     color: new Color(1, 0.95, 0.72),
     emissive: new Color(1, 0.86, 0.5),
-    emissiveIntensity: 1.6,
+    // Halved from 1.6. The night around the stars is now roughly 3.3x darker
+    // (see `environment/setup.ts`), and at 1.6 the ACES curve clipped every star
+    // to a flat #f2f0e7 — the standard and bonus stars were the same white
+    // blob. At 0.7-1.05 they render #e3dfce vs the bonus #ecddae, so the
+    // higher-value target is legible by colour as well as by size.
+    emissiveIntensity: 0.85,
     roughness: 0.35,
     metalness: 0.05,
     // Always transparent, even though opacity is 1 for the whole falling life of
@@ -122,59 +142,69 @@ export function createTarget(scene: Scene): TemplateTargetState {
     points: 1,
     bobPhase: 0,
     fallSpeed: 0,
+    driftX: 0,
+    landingY: 0,
     rotationSpeed: 0,
     lifetimeRemaining: 0,
   };
 }
 
 /**
- * Activates a pooled target at a new position with the correct authored values
- * for the requested kind.
+ * Activates a pooled target on a trajectory solved from the live camera.
  *
- * Fall speeds are authored against the visible drop: the top of the frame sits
- * at y ~= 3.9 at the play depth and stars are retired at y = 0.25, so a star is
- * on screen for 3.65 / speed seconds — **5.6-7.3s for a standard star and
- * 4.3-5.6s for a bonus star**. That is deliberately generous: a 3-year-old
- * needs to see a star, decide, reach, and land a finger on it, and every one of
- * those steps is slow.
+ * Everything about the flight path is now decided by the caller in screen
+ * space (`entities/lifecycle.ts`) rather than authored here: where the star
+ * appears, which patch of hillside it is aimed at, how fast it falls so its
+ * *apparent* speed matches every other star, and how much world X it must
+ * travel per unit of fall to hold a straight vertical line on screen.
  *
  * @param target - Target state being activated.
  * @param kind - Target kind for this spawn.
- * @param x - World X spawn position.
- * @param y - World Y spawn position.
- * @param z - World Z spawn position.
+ * @param position - World-space spawn position.
+ * @param driftX - World X travelled per world unit of fall.
+ * @param landingY - World Y of the hillside this star is aimed at.
+ * @param fallSpeed - Downward speed in world units per second.
  */
-export function activateTarget(target: TemplateTargetState, kind: TemplateTargetKind, x: number, y: number, z: number): void {
+export function activateTarget(
+  target: TemplateTargetState,
+  kind: TemplateTargetKind,
+  position: Vector3,
+  driftX: number,
+  landingY: number,
+  fallSpeed: number,
+): void {
   target.active = true;
   target.kind = kind;
   target.phase = 'falling';
   target.phaseTime = 0;
   target.points = kind === 'bonus' ? 3 : 1;
   target.bobPhase = randomRange(0, Math.PI * 2);
-  target.fallSpeed = kind === 'bonus' ? randomRange(0.65, 0.85) : randomRange(0.5, 0.65);
+  target.fallSpeed = fallSpeed;
+  target.driftX = driftX;
+  target.landingY = landingY;
   target.rotationSpeed = randomRange(0.8, 1.6);
-  // Reaching the floor is what retires a star now, so this is only a safety net
-  // against a star that somehow never gets there. The slowest star needs
-  // (4.4 - 0.25) / 0.5 = 8.3s, so 12s can never cut a legitimate fall short.
+  // Landing is what ends the fall now, so this is only a safety net against a
+  // star that somehow never gets there. The whole drop is ~3.9 units and the
+  // slowest star manages ~0.45 u/s, so 12s can never cut a legitimate fall short.
   target.lifetimeRemaining = 12;
 
   target.mesh.visible = true;
-  target.mesh.position.set(x, y, z);
+  target.mesh.position.copy(position);
   target.mesh.rotation.set(0, 0, 0);
   target.mesh.scale.setScalar(baseScaleFor(kind));
 
   const material = target.mesh.material as MeshStandardMaterial;
   material.opacity = 1;
   if (kind === 'bonus') {
-    // Bright golden hero star.
-    material.color.setRGB(1, 0.8, 0.32);
-    material.emissive.setRGB(1, 0.72, 0.28);
-    material.emissiveIntensity = 2.2;
+    // Deep golden hero star; renders ~#ecddae against the night sky.
+    material.color.setRGB(1, 0.78, 0.3);
+    material.emissive.setRGB(1, 0.62, 0.18);
+    material.emissiveIntensity = 1.15;
   } else {
-    // Warm cream-gold star.
+    // Warm cream star; renders ~#e3dfce.
     material.color.setRGB(1, 0.95, 0.72);
     material.emissive.setRGB(1, 0.86, 0.5);
-    material.emissiveIntensity = 1.6;
+    material.emissiveIntensity = 0.85;
   }
 }
 
@@ -206,18 +236,40 @@ function updateDespawnAnimation(target: TemplateTargetState, deltaTime: number):
     target.mesh.scale.setScalar(baseScale * Math.max(0, pop));
     target.mesh.rotation.z += CATCH_SPIN_RAD_PER_SECOND * deltaTime;
     target.mesh.position.y += CATCH_RISE_SPEED * deltaTime;
-    material.emissiveIntensity = 2.6 + progress * 2.4;
+    // Scaled with the rest of the star emissives for the darker night.
+    material.emissiveIntensity = 1.4 + progress * 1.3;
     material.opacity = 1 - clamp01((progress - 0.6) / 0.4);
     return;
   }
 
   const progress = clamp01(target.phaseTime / FADE_DURATION_SECONDS);
   target.mesh.scale.setScalar(baseScale * (1 - progress * 0.35));
-  // Keep settling downward while it dims, so it reads as "drifted away" rather
-  // than "was deleted".
-  target.mesh.position.y -= target.fallSpeed * deltaTime * 0.5;
+  // Sink gently into the grass while it dims, so a star that was never caught
+  // reads as "settled away" rather than "was deleted".
+  target.mesh.position.y -= deltaTime * 0.28;
   material.opacity = 1 - progress;
-  material.emissiveIntensity = 1.4 * (1 - progress);
+  material.emissiveIntensity = 0.8 * (1 - progress);
+}
+
+// A landed star: it has come to rest in the grass and is still catchable for
+// REST_DURATION_SECONDS. It breathes and turns slowly in place rather than
+// holding a dead pose, both so it keeps drawing the eye and so the bottom of
+// the frame — which used to be numerically motionless — is alive.
+function updateRestingMotion(target: TemplateTargetState, elapsedTime: number, deltaTime: number): void {
+  target.phaseTime += deltaTime;
+
+  const baseScale = baseScaleFor(target.kind);
+  const breathe = Math.sin(elapsedTime * 2.2 + target.bobPhase) * 0.5 + 0.5;
+  target.mesh.position.y = target.landingY + breathe * 0.05;
+  target.mesh.scale.setScalar(baseScale * (0.94 + breathe * 0.08));
+  target.mesh.rotation.z += target.rotationSpeed * 0.35 * deltaTime;
+  target.mesh.rotation.x = Math.sin(elapsedTime * 0.7 + target.bobPhase) * TUMBLE_TILT_RAD * 0.4;
+  target.mesh.rotation.y = Math.sin(elapsedTime * 0.9 + target.bobPhase * 1.7) * TUMBLE_TILT_RAD * 0.4;
+
+  const material = target.mesh.material as MeshStandardMaterial;
+  const base = target.kind === 'bonus' ? 0.95 : 0.7;
+  const span = target.kind === 'bonus' ? 0.45 : 0.35;
+  material.emissiveIntensity = base + breathe * span;
 }
 
 /**
@@ -230,6 +282,11 @@ function updateDespawnAnimation(target: TemplateTargetState, deltaTime: number):
 export function updateTargetMotion(target: TemplateTargetState, elapsedTime: number, deltaTime: number): void {
   if (!target.active) return;
 
+  if (target.phase === 'resting') {
+    updateRestingMotion(target, elapsedTime, deltaTime);
+    return;
+  }
+
   if (target.phase !== 'falling') {
     updateDespawnAnimation(target, deltaTime);
     return;
@@ -240,14 +297,18 @@ export function updateTargetMotion(target: TemplateTargetState, elapsedTime: num
   // made every star in "Catch falling stars before they drift away!" drift
   // *upward* at 0.08-0.16 u/s from a fixed spawn at y = 0.55. Stars now spawn
   // above the frame and fall.
-  target.mesh.position.y -= target.fallSpeed * deltaTime;
-  target.mesh.position.x += Math.sin(elapsedTime * 1.6 + target.bobPhase) * deltaTime * 0.18;
+  const fall = target.fallSpeed * deltaTime;
+  target.mesh.position.y -= fall;
+  // `driftX` is the exact world X rate that holds a constant screen column for
+  // this camera. The sine term on top is a small readable sway, kept well under
+  // the drift so the star never leaves its lane.
+  target.mesh.position.x += target.driftX * fall + Math.sin(elapsedTime * 1.6 + target.bobPhase) * deltaTime * 0.09;
 
   applyTumble(target, elapsedTime, deltaTime);
 
   const material = target.mesh.material as MeshStandardMaterial;
-  const pulse = 0.5 + (Math.sin(elapsedTime * 3 + target.bobPhase) * 0.5 + 0.5) * 0.5;
-  material.emissiveIntensity = target.kind === 'bonus' ? 2.0 + pulse : 1.4 + pulse;
+  const pulse = Math.sin(elapsedTime * 3 + target.bobPhase) * 0.5 + 0.5;
+  material.emissiveIntensity = target.kind === 'bonus' ? 0.95 + pulse * 0.45 : 0.7 + pulse * 0.35;
 }
 
 /**
@@ -257,19 +318,45 @@ export function updateTargetMotion(target: TemplateTargetState, elapsedTime: num
  * @returns True when the star was catchable and is now celebrating.
  */
 export function beginCatch(target: TemplateTargetState): boolean {
-  if (!target.active || target.phase !== 'falling') return false;
+  if (!target.active || !isCatchable(target)) return false;
   target.phase = 'caught';
   target.phaseTime = 0;
   return true;
 }
 
 /**
- * Starts the gentle fade-out used when a star lands or times out.
+ * Reports whether a target is in a phase that can still be scored.
+ *
+ * A star already playing its catch or fade animation still has a mesh in the
+ * scene, and letting it score twice would award points for a star that is
+ * visibly gone. A landed, resting star is very much still fair game.
+ *
+ * @param target - Target being checked.
+ * @returns True while the star is falling or resting in the grass.
+ */
+export function isCatchable(target: TemplateTargetState): boolean {
+  return target.phase === 'falling' || target.phase === 'resting';
+}
+
+/**
+ * Settles a star onto the patch of hillside it was aimed at.
+ *
+ * @param target - The star that has reached its landing height.
+ */
+export function beginRest(target: TemplateTargetState): void {
+  if (!target.active || target.phase !== 'falling') return;
+  target.phase = 'resting';
+  target.phaseTime = 0;
+  target.mesh.position.y = target.landingY;
+}
+
+/**
+ * Starts the gentle fade-out used when a star gives up without being caught.
  *
  * @param target - The star that is leaving without being caught.
  */
 export function beginFadeOut(target: TemplateTargetState): void {
-  if (!target.active || target.phase !== 'falling') return;
+  if (!target.active || !isCatchable(target)) return;
   target.phase = 'fading';
   target.phaseTime = 0;
 }
@@ -304,6 +391,8 @@ export function resetTarget(target: TemplateTargetState): void {
   target.points = 1;
   target.bobPhase = 0;
   target.fallSpeed = 0;
+  target.driftX = 0;
+  target.landingY = 0;
   target.rotationSpeed = 0;
   target.lifetimeRemaining = 0;
   target.mesh.visible = false;

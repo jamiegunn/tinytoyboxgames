@@ -1,4 +1,5 @@
-import { Group, Color, Mesh, SphereGeometry, CylinderGeometry, BoxGeometry, MeshStandardMaterial } from 'three';
+import { Group, Color, Mesh, SphereGeometry, CylinderGeometry, BoxGeometry, MeshStandardMaterial, type BufferGeometry, type Material } from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { randomRange } from '@app/minigames/shared/mathUtils';
 
 // ── Type definitions ────────────────────────────────────────────────
@@ -36,6 +37,74 @@ let plantUid = 0;
 // Picks a random element from an array.
 function pick<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// Collapses a prop's sub-meshes into one merged mesh per material.
+//
+// Every builder below assembles its prop out of many small primitives that
+// already share a material: a staghorn's 3-5 arms all use `mat`, a moss patch's
+// 6-10 blobs all use `mat`, a fern's 8-12 leaves all use `leafMat`. Each one was
+// a separate Mesh, which means a separate draw call and a separate geometry
+// buffer, for shapes that never move relative to each other.
+//
+// Measured on the shipped scene (headless traversal, manifest orbit camera at
+// 1200x810, 10s settle, frustum test per mesh): the 290 corals and plants that
+// setup.ts places accounted for 1,953 of the scene's 3,200 drawables and 377 of
+// the 649 draws actually inside the frustum. For comparison, through the same
+// probe star-catcher draws 17 and bubble-pop 81 — and bubble-pop pushes MORE
+// triangles than little-shark (66,372 vs 54,626) while running fine, so the
+// discriminator is the draw count, not the geometry.
+//
+// Merging is exactly pixel-neutral: each source geometry is cloned, has its own
+// local matrix baked in, and is concatenated into one buffer drawn with the
+// identical material. Same vertices, same world positions, same shader. The
+// triangle total is unchanged; only the number of draw calls falls.
+//
+// Materials are deliberately NOT shared between props. Sharing would cut the
+// material count further, but every prop is disposed through disposeMeshDeep at
+// teardown, and a material owned by two props would be disposed twice with the
+// first disposal orphaning the second prop. The draw-call win does not need it.
+function collapseByMaterial(group: Group): void {
+  const buckets = new Map<Material, Mesh[]>();
+  for (const child of group.children) {
+    const mesh = child as Mesh;
+    if (!mesh.isMesh || Array.isArray(mesh.material)) continue;
+    const bucket = buckets.get(mesh.material);
+    if (bucket) bucket.push(mesh);
+    else buckets.set(mesh.material, [mesh]);
+  }
+
+  let part = 0;
+  for (const [material, meshes] of buckets) {
+    const index = part++;
+    if (meshes.length < 2) continue;
+
+    const baked: BufferGeometry[] = [];
+    for (const mesh of meshes) {
+      mesh.updateMatrix();
+      baked.push(mesh.geometry.clone().applyMatrix4(mesh.matrix));
+    }
+    const merged = mergeGeometries(baked, false);
+    for (const geometry of baked) geometry.dispose();
+    // mergeGeometries returns null when the inputs disagree on attributes.
+    // Every primitive here is position/normal/uv, but bail rather than corrupt
+    // the prop if that ever stops being true.
+    if (!merged) continue;
+
+    const retired = new Set<BufferGeometry>();
+    for (const mesh of meshes) {
+      group.remove(mesh);
+      retired.add(mesh.geometry);
+    }
+    for (const geometry of retired) geometry.dispose();
+
+    const collapsed = new Mesh(merged, material);
+    // The name has to keep the `coral_` / `seaweed_` substring that
+    // classifyPickedMesh (interactions.ts) matches on, so derive it from the
+    // group rather than inventing one.
+    collapsed.name = `${group.name}_part${index}`;
+    group.add(collapsed);
+  }
 }
 
 // Creates a coral-style MeshStandardMaterial.
@@ -109,6 +178,7 @@ export function buildBrainCoral(color: Color, scale: number): Group {
     group.add(bump);
   }
 
+  collapseByMaterial(group);
   group.scale.setScalar(scale);
   return group;
 }
@@ -161,6 +231,7 @@ export function buildStaghornCoral(color: Color, scale: number): Group {
     group.add(tip);
   }
 
+  collapseByMaterial(group);
   group.scale.setScalar(scale);
   return group;
 }
@@ -196,6 +267,7 @@ export function buildFanCoral(color: Color, scale: number): Group {
   fan.scale.set(0.1, 1.0, 1.2);
   group.add(fan);
 
+  collapseByMaterial(group);
   group.scale.setScalar(scale);
   return group;
 }
@@ -235,6 +307,7 @@ export function buildTubeCoral(color: Color, scale: number): Group {
     group.add(cap);
   }
 
+  collapseByMaterial(group);
   group.scale.setScalar(scale);
   return group;
 }
@@ -270,6 +343,7 @@ export function buildMushroomCoral(color: Color, scale: number): Group {
   cap.scale.set(1, 0.4, 1);
   group.add(cap);
 
+  collapseByMaterial(group);
   group.scale.setScalar(scale);
   return group;
 }
@@ -313,6 +387,7 @@ export function buildKelp(color: Color, scale: number): Group {
     group.add(frond);
   }
 
+  collapseByMaterial(group);
   group.scale.setScalar(scale);
   return group;
 }
@@ -344,6 +419,7 @@ export function buildSeaGrass(color: Color, scale: number): Group {
     group.add(blade);
   }
 
+  collapseByMaterial(group);
   group.scale.setScalar(scale);
   return group;
 }
@@ -387,6 +463,7 @@ export function buildFern(color: Color, scale: number): Group {
     }
   }
 
+  collapseByMaterial(group);
   group.scale.setScalar(scale);
   return group;
 }
@@ -416,6 +493,7 @@ export function buildMoss(color: Color, scale: number): Group {
     group.add(blob);
   }
 
+  collapseByMaterial(group);
   group.scale.setScalar(scale);
   return group;
 }

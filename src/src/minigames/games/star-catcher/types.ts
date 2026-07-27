@@ -6,7 +6,7 @@
  * can stay explicit without duplicating shape definitions.
  */
 
-import type { Mesh, Object3D, TorusGeometry, Vector3 } from 'three';
+import type { Mesh, Object3D, Texture, TorusGeometry, Vector3 } from 'three';
 import type { GameLightingRig } from '@app/minigames/shared/sceneSetup';
 
 /** The baseline template supports a normal target and a higher-value bonus target. */
@@ -15,13 +15,19 @@ export type TemplateTargetKind = 'standard' | 'bonus';
 /**
  * What a target is currently doing.
  *
- * Only a `falling` star is catchable. `caught` and `fading` are the two short
- * despawn animations that play *before* the star is handed back to the pool —
- * catching used to hard-hide the mesh and teleport it to (0, -10, 0) in the same
- * frame, so the single most important moment in the game had no animation at
- * all (defect 2).
+ * `falling` and `resting` are both catchable. `resting` is the settled star
+ * lying in the grass after it lands: it keeps glowing, keeps bobbing and stays
+ * tappable for a couple of seconds before it sinks away. That phase is what
+ * puts catchable content in the lower third of the frame, which previously held
+ * none at all, and it gives a slow three-year-old a second chance at a star
+ * they were still reaching for.
+ *
+ * `caught` and `fading` are the two short despawn animations that play *before*
+ * the star is handed back to the pool — catching used to hard-hide the mesh and
+ * teleport it to (0, -10, 0) in the same frame, so the single most important
+ * moment in the game had no animation at all (defect 2).
  */
-export type TemplateTargetPhase = 'falling' | 'caught' | 'fading';
+export type TemplateTargetPhase = 'falling' | 'resting' | 'caught' | 'fading';
 
 /** Runtime state tracked for each tappable target in the scene. */
 export interface TemplateTargetState {
@@ -29,24 +35,45 @@ export interface TemplateTargetState {
   active: boolean;
   kind: TemplateTargetKind;
   phase: TemplateTargetPhase;
-  /** Seconds elapsed inside the current despawn phase (unused while falling). */
+  /** Seconds elapsed inside the current non-falling phase. */
   phaseTime: number;
   points: number;
   bobPhase: number;
   /** Downward speed in world units per second. Stars fall; they used to rise. */
   fallSpeed: number;
+  /**
+   * World X travelled per world unit of fall.
+   *
+   * A constant world X is *not* a constant screen column for this camera: the
+   * view depth of a point grows as it descends, so an untouched star slides
+   * toward the centre of the frame as it falls. This is solved once at spawn so
+   * the star tracks a straight vertical line on screen, which is the only
+   * trajectory a small child can lead.
+   */
+  driftX: number;
+  /** World Y of the patch of hillside this star is aimed at. */
+  landingY: number;
   rotationSpeed: number;
   lifetimeRemaining: number;
 }
 
-/** Authored play-space envelope used when spawning template entities. */
-export interface SpawnBounds {
-  minX: number;
-  maxX: number;
-  minZ: number;
-  maxZ: number;
-  /** Spawn altitude, above the top of the frame so stars fall into view. */
-  y: number;
+/**
+ * Play-space envelope, authored in normalized device coordinates.
+ *
+ * Screen space, not world space, is the honest coordinate system here: what
+ * matters is that stars enter above the top edge, occupy the full width, and
+ * land spread down the lower half of the frame. The world positions that
+ * produce that are derived per spawn from the live camera in `view.ts`.
+ */
+export interface PlayFieldBounds {
+  /** Half-width of the column span stars fall down, in NDC X. */
+  ndcHalfWidth: number;
+  /** Lowest landing row, in NDC Y (-1 is the bottom edge of the frame). */
+  landingNdcMin: number;
+  /** Highest landing row, in NDC Y. */
+  landingNdcMax: number;
+  /** World-space clearance above the top edge at which stars appear. */
+  spawnClearance: number;
 }
 
 /**
@@ -105,6 +132,12 @@ export interface TemplateEnvironmentRig {
   floor: Mesh;
   backdrop: Mesh;
   accents: Object3D[];
+  /**
+   * Canvas textures the environment allocated. `disposeMeshDeep` frees
+   * geometries and materials but not textures, so teardown has to walk these
+   * itself or they leak for the lifetime of the page.
+   */
+  textures: Texture[];
   /** Screen-space tap targets for the moon and the background starfield. */
   twinklePoints: AmbientTwinklePoint[];
 }

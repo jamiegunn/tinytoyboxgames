@@ -1,9 +1,12 @@
-import { Vector3 } from 'three';
-
 // ── Playroom Layout Constants ───────────────────────────────────────────────
-// Single source of truth for spatial zones in the playroom.
-// All playroom modules should reference these instead of scattering literal coords.
-// Changing a value here cascades to every wall, trim, floor, ceiling, and decor module.
+// Dimensions and surfaces for the room shell: walls, trim, floor, ceiling, and
+// the frames the decor hangs on. Changing a value here cascades to every module
+// that builds part of that shell.
+//
+// This is NOT where an object's position lives. Where a thing is belongs to the
+// code that builds it — see the gravestone further down, which lists eight
+// blocks of coordinates that were kept here in parallel with the real ones and
+// were wrong about the room by the time anyone read them.
 
 // ── Room vertical ───────────────────────────────────────────────────────────
 
@@ -86,9 +89,13 @@ export const CHAIR_RAIL_Y = CEILING_Y * 0.3; // 2.7
 
 // Trim inset: how far behind the wall face the trim centre sits.
 // A positive inset means the front half of the trim protrudes into the room.
-export const BASEBOARD_INSET = 0.05;
-export const CROWN_INSET = 0.03;
-export const CHAIR_RAIL_INSET = 0.06;
+// Not exported: nothing outside this file wants an inset, it wants the finished
+// position. Keeping the `export` on an intermediate is how a file ends up with
+// a public surface nobody reads, which is indistinguishable at a glance from a
+// public surface everybody reads.
+const BASEBOARD_INSET = 0.05;
+const CROWN_INSET = 0.03;
+const CHAIR_RAIL_INSET = 0.06;
 
 // ── Trim attachment helpers ─────────────────────────────────────────────────
 // Pre-computed positions where trim attaches on each wall.
@@ -118,8 +125,10 @@ export const LEFT_TRIM = {
 // Offsets from the wall face (toward room interior) for flat decals.
 // layer2 sits slightly in front of layer1 (closer to camera).
 
-export const DECAL_LAYER_1 = 0.03; // clouds, base-star stickers
-export const DECAL_LAYER_2 = 0.05; // stars, moon
+// Not exported, for the same reason as the trim insets: the wall builders use
+// BACK_DECAL_Z / RIGHT_DECAL_X / LEFT_DECAL_X, never the raw offset.
+const DECAL_LAYER_1 = 0.03; // clouds, base-star stickers
+const DECAL_LAYER_2 = 0.05; // stars, moon
 
 /** Back wall decal Z positions (in front of wall face, toward camera). */
 export const BACK_DECAL_Z = {
@@ -164,20 +173,8 @@ export const RUG_DIAMETER = 7.6;
 /** Rug mesh thickness (cylinder height). */
 export const RUG_THICKNESS = 0.06;
 
-/** Rug band ring thickness (torus tube). */
-export const RUG_BAND_THICKNESS = 0.2;
-
 /** Rug band diameters (outer to inner). */
 export const RUG_BAND_DIAMETERS = [7.4, 6.8, 6.2, 5.6, 5.0, 4.4, 3.6] as const;
-
-/** Rug centre position. */
-export const RUG_CENTER = new Vector3(0, 0, 2.0);
-
-/** Layout radius for prop clearance around rug centre. */
-export const RUG_RADIUS = 3.5;
-
-/** Owl and at most 1–2 small props only inside this radius. */
-export const RUG_CLEAR_RADIUS = 1.5;
 
 // ── Window ──────────────────────────────────────────────────────────────────
 
@@ -251,58 +248,76 @@ export const PENNANT_START_X = -3.8;
 /** Maximum pennant droop at string centre. */
 export const PENNANT_DROOP = 0.2;
 
-// ── Viewport-safe content box ───────────────────────────────────────────────
-// Objects inside this box will not be clipped on portrait (9:16) or landscape (16:9).
-
-export const SAFE_X_MIN = -4.8;
-export const SAFE_X_MAX = 4.8;
-export const SAFE_Z_MIN = -4.5;
-export const SAFE_Z_MAX = 8.0;
-
-// ── Window exclusion zone ───────────────────────────────────────────────────
-// No wall art, banners, or shelf elements should overlap this region.
-
-export const WINDOW_X_MIN = -4.8;
-export const WINDOW_X_MAX = -1.2;
-export const WINDOW_Y_MIN = wallY(0.28);
-export const WINDOW_Y_MAX = wallY(0.64);
-
-// ── Toybox ring ─────────────────────────────────────────────────────────────
-// Toybox positions pulled inward from original values for portrait safety.
-
-export const TOYBOX_POSITIONS = {
-  adventure: { pos: new Vector3(5.25, 0.01, 1.5), rot: -Math.PI / 2 },
-  animals: { pos: new Vector3(-1.6, 0.01, -6.5), rot: -0.15 },
-  creative: { pos: new Vector3(-2.8, 0.01, 8.25), rot: Math.PI },
-  nature: { pos: new Vector3(3.67, 0.01, -6.88), rot: Math.PI + Math.PI / 4 },
-} as const;
-
-/** Minimum distance from a toybox centre that floor props should maintain. */
-export const TOYBOX_CLEARANCE = 1.8;
-
-// ── Wall art positions ──────────────────────────────────────────────────────
-// Placed to avoid window exclusion zone. Left picture moved rightward.
-
-export const WALL_ART_POSITIONS = {
-  left: new Vector3(-0.5, wallY(0.44), BACK_WALL_FACE_Z + CROWN_INSET),
-  center: new Vector3(2.5, wallY(0.48), BACK_WALL_FACE_Z + CROWN_INSET),
-  right: new Vector3(5.0, wallY(0.4), BACK_WALL_FACE_Z + CROWN_INSET),
-} as const;
+/**
+ * NOT HERE EITHER: a hand-written box saying what fits on screen.
+ *
+ * This file used to export SAFE_X_MIN/SAFE_X_MAX/SAFE_Z_MIN/SAFE_Z_MAX under
+ * the header "Viewport-safe content box" and the comment "Objects inside this
+ * box will not be clipped on portrait (9:16) or landscape (16:9)". Nothing
+ * imported them, nothing checked them, and all three toyboxes were outside
+ * them — one of them, the pirate-cove entrance, by enough to hang 20% off the
+ * side of a portrait phone.
+ *
+ * The reason the replacement is a test and not a corrected box is that no box
+ * can be correct. What fits on screen is a frustum cross-section, so the X
+ * limit moves with depth. Sweeping the `adventure` toybox with the real camera
+ * preset at portrait 9:16, the furthest its outer edge may reach is:
+ *
+ *   z = -4   ->  3.52        z = +2.7  ->  5.19
+ *   z = -2   ->  4.02        z = +4    ->  5.52
+ *   z =  0   ->  4.52        z = +6    ->  6.02
+ *   z = +2   ->  5.02        z = +8    ->  6.52
+ *
+ * A single SAFE_X_MAX of 4.8 is too permissive across the whole front half of
+ * the room and too strict across the whole back half. It read as measured
+ * because at z 1.5 — where `adventure` happened to sit — the true limit is
+ * 4.83, and landing within 0.03 of the truth at the one depth anyone would
+ * check it against is a coincidence that is very hard to tell from rigour.
+ *
+ * SAFE_Z_MIN/SAFE_Z_MAX were not even coincidentally right. The real visible-Z
+ * span depends on the object's X, because coming toward the camera magnifies
+ * whatever sideways offset it already has: `animals` at x -1.6 is visible back
+ * to z -7.25, while `adventure` at x 4.05 is cut off below z +0.60. One pair of
+ * numbers cannot describe both. In +z nothing is ever clipped; the limit there
+ * is the back wall.
+ *
+ * `playroom-toybox-framing.test.mjs` builds the toyboxes for real and projects
+ * their real bounds through the real camera at both aspect ratios. That asks
+ * the question directly instead of consulting a copied-down answer.
+ */
 
 // ── Bookshelf ───────────────────────────────────────────────────────────────
 
 export const BOOKSHELF_CENTER_X = 2.5;
 export const BOOKSHELF_Z = 8.3;
 
-// ── Floor prop zones ────────────────────────────────────────────────────────
-// Three bands for depth layering.
-
-/** Foreground: Z < -2, scattered toys in front of the toybox ring. */
-export const FOREGROUND_Z_MAX = -2.0;
-
-/** Midground: -2 ≤ Z ≤ 5, the rug play area. */
-export const MIDGROUND_Z_MIN = -2.0;
-export const MIDGROUND_Z_MAX = 5.0;
-
-/** Background: Z > 5, near the back wall. */
-export const BACKGROUND_Z_MIN = 5.0;
+/**
+ * NOT HERE, DELIBERATELY: a second copy of where things are.
+ *
+ * This file used to also export TOYBOX_POSITIONS, TOYBOX_CLEARANCE,
+ * WALL_ART_POSITIONS, RUG_CENTER, RUG_RADIUS, RUG_CLEAR_RADIUS,
+ * RUG_BAND_THICKNESS, a WINDOW_X_MIN/WINDOW_X_MAX/WINDOW_Y_MIN/WINDOW_Y_MAX
+ * exclusion zone, and FOREGROUND_Z_MAX / MIDGROUND_Z_MIN / MIDGROUND_Z_MAX /
+ * BACKGROUND_Z_MIN depth bands. Nothing imported a single one of them. They
+ * sat under a header calling this file the single source of truth for the
+ * room's spatial zones, which is exactly why they were believable — and they
+ * did not merely sit idle, they disagreed with the room:
+ *
+ *   TOYBOX_POSITIONS      4 entries, incl. `nature`  vs  PLAYROOM_TOYBOXES, 3 entries
+ *   RUG_CENTER (0, 0, 2)                             vs  floor.ts builds the rug at the origin
+ *   RUG_RADIUS 3.5                                   vs  RUG_DIAMETER / 2 = 3.8
+ *   RUG_CLEAR_RADIUS 1.5  "owl and 1-2 props only"   vs  nothing, no prop consults it
+ *   WALL_ART_POSITIONS    3 back-wall pictures       vs  wallArt.ts builds 1, plus a left-wall
+ *                                                        cork board these coordinates never mention
+ *   WINDOW_X/Y exclusion  "no wall art may overlap"  vs  nothing, no check exists
+ *   depth bands           "midground is the rug"     vs  the rug spans -3.8..3.8 and crosses two of them
+ *
+ * The `nature` entry is the sharpest. It described a toybox that had already
+ * been removed, and the same stale coordinate in a different hand-kept copy is
+ * what left the kitty perching on empty air (see the comment in room.ts, which
+ * was written about this defect while the copy that caused it stayed here).
+ *
+ * Positions are answered by the thing that builds the object: toyboxes by
+ * `PLAYROOM_TOYBOXES`, the rug by `createFloor`, wall art by `createWallArt`.
+ * Put dimensions here; do not write down a second copy of a placement.
+ */

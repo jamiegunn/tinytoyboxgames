@@ -1,4 +1,5 @@
-import { Scene, Mesh, PlaneGeometry, MeshStandardMaterial, Color } from 'three';
+import { Scene, Mesh, PlaneGeometry, MeshStandardMaterial, Color, BufferAttribute } from 'three';
+import { floorAlbedoAt } from './regions';
 
 /**
  * Noise-based heightmapped reef floor terrain with sandy hills,
@@ -190,13 +191,104 @@ export function buildReefTerrain(scene: Scene, radius: number = DEFAULT_RADIUS):
   // Recompute normals after displacement
   geo.computeVertexNormals();
 
-  // Warm sand material
+  // Warm sand material.
+  //
+  // Every pixel of this game's frame is this material seen through some amount
+  // of fog — the camera is pitched 37.3 degrees down with a 24.4-degree half-FOV,
+  // so even the top of the frame points below the horizon (setup.ts). That makes
+  // this albedo one of only two colours in the image; the water colour is the
+  // other, and fog lerps between them in display space.
+  //
+  // Both the value and the saturation matter, and the saturation is the
+  // non-obvious one. ACES desaturates hard near the top of its curve: at the
+  // 0.888 irradiance this rig used to run at, this albedo kept only 13 of its
+  // 38 sRGB levels of chroma and rendered as rgb(223, 220, 211) — a blown-out
+  // near-neutral with no headroom above it for caustics or slope shading. At
+  // the rig's present total of (0.2234, 0.2549, 0.2890) the same curve is far
+  // more forgiving, so the albedo can be pushed toward real sand yellow and
+  // actually keep it.
+  //
+  // The blue channel is the whole lever, and the previous value of 0.48 was
+  // spending it in the wrong direction.
+  //
+  // This comment used to warn that pushing the yellow further was not free:
+  // warm sand and blue water sit on opposite sides of neutral, the fog lerp
+  // between them passes through grey somewhere in the frame, and a more
+  // saturated sand was supposed to deepen that crossover -- "(0.98, 0.76, 0.28)
+  // dips to 17 and moves into mid-frame". That is measurably false. Rasterising
+  // the real scene graph offline and evaluating candidate sand albedos over the
+  // recorded per-pixel illuminant (so the only thing that varies is the albedo)
+  // gives per-band chroma, top of frame first:
+  //
+  //   (0.93, 0.80, 0.48)  114 98 84 72 62 53 44 36 29 24 20 18   min 18, band 12
+  //   (0.98, 0.76, 0.28)  110 89 73 58 46 36 30 25 22 21 23 26   min 21, band 10
+  //   (1.00, 0.80, 0.26)  109 88 71 57 45 36 31 27 24 25 28 31   min 24, band  9
+  //
+  // The crossover does move up-frame, but it gets *shallower*, not deeper: a
+  // saturated sand comes out of the grey on the far side, into yellow, so the
+  // near bands regain chroma instead of asymptoting to neutral. The old albedo
+  // had its minimum at the bottom of frame precisely because it never crossed
+  // -- it just faded to grey and stopped there.
+  //
+  // What that buys, per band, R-B (= R minus B, the warm/cool axis):
+  //
+  //   (0.93, 0.80, 0.48)  -114 -98 -84 -72 -62 -53 -44 -36 -29 -23 -17 -13
+  //   (1.00, 0.80, 0.26)  -109 -88 -71 -56 -44 -32 -21 -11  -3  +5 +11 +17
+  //
+  // i.e. the far end stays deep blue (-109 against water at -135) and the near
+  // end crosses into warm at band 9 instead of never crossing at all. Display
+  // luminance is unchanged to within 1 level in every band (88..130 against
+  // 88..131), so nothing above this on the floor loses contrast.
+  //
+  // (1.00, 0.80, 0.26) renders unfogged at rgb(156, 150, 90); through fog it is
+  // rgb(31, 99, 140) at the top of frame, rgb(86, 121, 118) mid, and
+  // rgb(121, 136, 104) at the bottom.
+  //
+  // Note that the litter palette in reefLitter.ts is annotated against this
+  // sand. Move this albedo and those dL and R-B figures go stale.
+  //
+  // ── Where this albedo now lives ─────────────────────────────────────
+  //
+  // It is no longer a property of the material. The floor was a single flat
+  // albedo over all 100x100 units of arena, and since 73% of every frame is this
+  // material at under 60% fog, that uniformity was the structural reason a
+  // 400-second swim over 80 units changed the screen no more than a 5-unit one
+  // (r^2 = 0.012; see regions.ts for the measurement and the palette search).
+  //
+  // So the material is white and the albedo above is per-vertex, supplied by
+  // `floorAlbedoAt` as the home sand blended toward one of three measured region
+  // colours. White x vertex colour reproduces the value above exactly wherever
+  // no region reaches, which is most of the reef; the derivation and the litter
+  // annotation therefore still hold on the open sand, and regions.ts records
+  // what they become inside a region.
+  //
+  // Vertex colours are consumed raw, in the working (linear) space `new
+  // Color(r, g, b)` writes to, which is the same space these albedos are
+  // authored in — the same arrangement reefLitter.ts already uses for its two
+  // InstancedMeshes' per-instance colours.
+  //
+  // Resolution check: the grid cell is 120/64 = 1.875 units and a region's fade
+  // band is 8.1 to 18 units from its centre, about 5.3 cells. Interpolating a
+  // smoothstep piecewise-linearly over 5 samples departs from it by under 3% of
+  // a colour delta whose full span is dE2000 ~13, i.e. under 0.4 dE — well below
+  // the 2.3 JND, so the band does not facet.
   const mat = new MeshStandardMaterial({
-    color: new Color(0.76, 0.69, 0.5),
+    color: new Color(1, 1, 1),
+    vertexColors: true,
     roughness: 0.9,
     metalness: 0.0,
   });
   mat.name = 'terrain_reef_floor_mat';
+
+  const colours = new Float32Array(posAttr.count * 3);
+  const albedo: [number, number, number] = [0, 0, 0];
+  for (let i = 0; i < posAttr.count; i++) {
+    floorAlbedoAt(posAttr.getX(i), posAttr.getZ(i), albedo);
+    colours[i * 3] = albedo[0];
+    colours[i * 3 + 1] = albedo[1];
+    colours[i * 3 + 2] = albedo[2];
+  }
+  geo.setAttribute('color', new BufferAttribute(colours, 3));
 
   const mesh = new Mesh(geo, mat);
   mesh.name = 'terrain_reef_floor';

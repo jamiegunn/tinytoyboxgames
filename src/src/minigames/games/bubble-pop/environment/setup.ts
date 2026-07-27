@@ -1,7 +1,7 @@
 import { Color, type Scene, type Object3D, type PerspectiveCamera } from 'three';
-import { createGradientSkydome, createCelestialBody, projectToView } from '@app/utils/skyRig';
+import { createGradientSkydome, projectToView } from '@app/utils/skyRig';
 import type { EnvironmentObjects, StarMesh } from '../types';
-import { buildStar } from './scenery';
+import { buildMoon, buildStar } from './scenery';
 
 /**
  * Scene-level setup: night sky assembly. The camera is the default fixed shell
@@ -37,18 +37,11 @@ export function buildEnvironment(scene: Scene, camera: PerspectiveCamera): Envir
   meshes.push(sky);
 
   // Moon — upper-left of frame, clear of the HUD buttons, behind the bubbles.
-  const moonBody = createCelestialBody({
-    radius: 1.05,
-    color: new Color(0.96, 0.9, 0.74),
-    emissive: new Color(0.6, 0.55, 0.35),
-    emissiveIntensity: 0.55,
-    haloScale: 1.9,
-    haloColor: new Color(1.0, 0.92, 0.66),
-    haloOpacity: 0.22,
-  });
-  moonBody.root.position.copy(projectToView(camera, 0.26, 0.28, 15));
-  scene.add(moonBody.root);
-  meshes.push(moonBody.root);
+  // Placement, sizing and appearance all live in buildMoon; the shared sky
+  // rig's createCelestialBody could only make a flat disc inside a hard-edged
+  // halo sphere.
+  const moon = buildMoon(scene, camera);
+  meshes.push(moon.root);
 
   // Stars — scattered across the upper sky in screen space, behind the bubbles.
   for (let i = 0; i < 48; i++) {
@@ -65,5 +58,5 @@ export function buildEnvironment(scene: Scene, camera: PerspectiveCamera): Envir
     stars.push(star);
   }
 
-  return { meshes, stars, moon: moonBody.root, moonMat: moonBody.coreMaterial };
+  return { meshes, stars, moon: moon.root, moonMat: moon.discMat, moonGlowMat: moon.glowMat };
 }

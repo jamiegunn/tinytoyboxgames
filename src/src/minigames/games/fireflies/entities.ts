@@ -46,6 +46,17 @@ function getGlowDotTexture(): CanvasTexture {
 // zero extra geometry — the glow halo underneath still carries the bloom that
 // makes them readable in the dark.
 
+// Orbit radius range for `circle` fireflies, in world units.
+//
+// Was 0.8-1.5. The play box is only ~3.2 units wide at its near edge (at
+// z = SPAWN.zMax = 2.6 and y = 1 the view depth is 2.60, and the usable
+// half-width is 0.72 * (1200/810) * tan(30 deg) * 2.60 = 1.60), so an orbit of
+// radius 1.5 swept 94% of the half-width and spent most of every revolution
+// pinned against the containment wall. 0.4-0.95 is 25-59% of that half-width,
+// so a full revolution fits on screen from any reasonable spawn point.
+const ORBIT_RADIUS_MIN = 0.4;
+const ORBIT_RADIUS_MAX = 0.95;
+
 /** Canvas size for the creature textures. */
 const CREATURE_TEX_SIZE = 64;
 
@@ -207,8 +218,13 @@ export function createFirefly(scene: Scene, index: number, isGolden: boolean): F
   const glowTrail = getParticleEngine(scene).stream(PARTICLES.fireflyGlow, sprite, FIREFLY_GLOW_RATE, { colors: [baseColor] });
 
   const behavior = randomBehavior();
-  const behaviorCenter = randomSpawnPos();
-  const behaviorRadius = randomRange(0.8, 1.5);
+  // The orbit centre is the spawn point, not a second independent draw. A
+  // `circle` firefly writes its position absolutely from `behaviorCenter` on
+  // its very first update, so an unrelated centre made it teleport away from
+  // where it was just placed — including away from the deliberately-foreground
+  // placements the game makes to keep targets reachable.
+  const behaviorCenter = pos.clone();
+  const behaviorRadius = randomRange(ORBIT_RADIUS_MIN, ORBIT_RADIUS_MAX);
   const zigzagDir = new Vector3(randomRange(-1, 1), randomRange(-0.5, 0.5), randomRange(-0.5, 0.5)).normalize();
 
   return {
@@ -263,9 +279,10 @@ export function resetFirefly(fd: FireflyData): void {
   fd.active = true;
   fd.respawnTimer = 0;
   fd.behavior = randomBehavior();
-  fd.behaviorCenter = randomSpawnPos();
+  // Same as createFirefly: orbit around where we just put it, not elsewhere.
+  fd.behaviorCenter.copy(pos);
   fd.behaviorAngle = Math.random() * Math.PI * 2;
-  fd.behaviorRadius = randomRange(0.8, 1.5);
+  fd.behaviorRadius = randomRange(ORBIT_RADIUS_MIN, ORBIT_RADIUS_MAX);
   fd.zigzagTimer = randomRange(1.0, 2.0);
   fd.zigzagDir = new Vector3(randomRange(-1, 1), randomRange(-0.5, 0.5), randomRange(-0.5, 0.5)).normalize();
   fd.sprite.visible = true;
