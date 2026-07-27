@@ -143,8 +143,13 @@ export function createToyCar(scene: Scene): void {
     mesh.userData.onClick = driveHandler;
   });
 
-  // Auto-activate after 15 seconds if not clicked
-  gsap.delayedCall(15, () => {
-    if (!driving) driveHandler();
-  });
+  // Auto-activate after 15 seconds if not clicked. Owned by the scene's idle
+  // animator for the same reason as the floor car — an unowned handle let this
+  // car's tap-confirmation sound play in the next scene, from a shelf the child
+  // had already walked away from. See `floorToys/toyCar.ts` for the measurement.
+  idle.register(
+    gsap.delayedCall(15, () => {
+      if (!driving) driveHandler();
+    }),
+  );
 }

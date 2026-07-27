@@ -59,6 +59,69 @@ export const FISH_COLORS: Color[] = [
 ];
 
 /**
+ * NOT HERE, DELIBERATELY: a five-species fish roster.
+ *
+ * `fish/species.ts` (152), `fish/meshes.ts` (399), `fish/schooling.ts` (230)
+ * and `waves/templates.ts` (182) — 963 lines — described clownfish, blue tang,
+ * pufferfish, seahorse and golden angelfish, each with its own colour palette,
+ * body shape, scale, speed, points value, movement model, dodge flag, rarity
+ * weight and school size, plus a named wave arc to introduce them. Nothing
+ * imported any of it: not the `fish/index.ts` barrel, not the spawner, not the
+ * renderer. Proved twice — by `.probe/static/r8-reachability.mjs` and
+ * independently by the real Rollup module graph.
+ *
+ * This is the most dangerous shape dead code comes in, and it is worth being
+ * precise about why. It is not a stub and not a fragment. It is complete,
+ * internally consistent, documented, and it answers a complaint the game has
+ * actually received — that the reef is monotonous. Every signal says
+ * "finished feature, someone forgot the wire". The obvious move is to plug it
+ * in. That instinct is the trap, and it took an instrument to see it.
+ *
+ * `.probe/render/r8-species-palette.mjs` rebuilds the render chain documented
+ * above, validates it by reproducing all eighteen numbers this file already
+ * records (five fish plus the sand, three channels each) to within one level
+ * per channel from two fitted terms, then scores both palettes the same way.
+ * On the clean axis — a fish against the seabed it swims over, which is the
+ * metric the search that produced FISH_COLORS was run to maximise:
+ *
+ *   LIVE  FISH_COLORS    worst fish-vs-sand  13.90 dE2000
+ *   DEAD  species.ts     worst fish-vs-sand   3.86 dE2000
+ *
+ * Wiring it in would have cost 72% of the reef's worst-case legibility. The
+ * offender is the pufferfish at albedo (0.82, 0.71, 0.55): sand-tan, rendering
+ * to rgb(115,138,114) against sand at rgb(117,132,103). A 2-point reward fish,
+ * functionally invisible. Two more species share one yellow verbatim —
+ * clownfish and seahorse both carry (1.0, 0.9, 0.2) — and that yellow is the
+ * exact hue the note above rules out as "unrecoverable against this sand".
+ *
+ * So the roster is not an unshipped improvement. It is the state this
+ * derivation was written to move away from, preserved intact in a file the
+ * derivation's author evidently never opened. More variety in the table, less
+ * variety on the screen: eleven albedos read as more colourful than five right
+ * up until they are put through the fog and the sand they are seen against.
+ *
+ * Two honesties about that measurement. The golden fish's material path is
+ * excluded from it — the fitted model fails to reproduce the dL* = +17.6
+ * recorded below, so that axis is not scored rather than scored on a guess.
+ * And the colour-vs-colour axis, where the dead set scores far worse still
+ * (0.90 vs 16.89 dE2000), is reported by the probe but NOT used here, because
+ * per-species meshes could rescue a shared colour and the probe cannot score
+ * silhouette. The verdict rests only on the axis that is clean.
+ *
+ * What the game actually ships instead: `FishKind = 'standard' | 'golden'`,
+ * two kinds woven through lifecycle, effects, waves, interactions, frenzy,
+ * HUD, celebrations and scoring. The monotony the roster looked like the cure
+ * for was real and was fixed by measured reef regions instead (spatial
+ * clustering r-squared 0.001 -> 0.806), which addressed it without giving the
+ * palette away.
+ *
+ * If a species roster is ever genuinely wanted, this deletion is not the
+ * obstacle: the work is a fresh palette search under the constraint above, not
+ * the recovery of these eleven albedos. `git log` has the file if the movement
+ * models are worth reading. Reviving the colours would reintroduce the bug.
+ */
+
+/**
  * Emissive fraction applied to standard fish skin, replacing the 0.04 that
  * `createSkinMaterial` bakes in for every game.
  *
@@ -224,7 +287,28 @@ export const MAX_EVASIVENESS = 1.0;
 
 // ── Golden fish ─────────────────────────────────────────────────────
 
-export const GOLDEN_SPAWN_INTERVAL = 12.0;
+/**
+ * NOT HERE, DELIBERATELY: the golden spawn interval.
+ *
+ * This block used to open with `export const GOLDEN_SPAWN_INTERVAL = 12.0`, and
+ * nothing read it. The interval the game actually runs on is `GOLDEN_INTERVAL`
+ * in `waves.ts`, which is 15.0 and module-private.
+ *
+ * The dead one was the more discoverable of the two by every signal a reader
+ * uses: exported rather than private, sitting in `types.ts` where this game
+ * keeps its tuning, directly beside the live `GOLDEN_SCALE` and
+ * `GOLDEN_SPAWN_RING`, and more specifically named than the value that wins.
+ * Anyone — human or model — asked "how often does the golden fish come?" finds
+ * 12 seconds here, and is wrong by three seconds and by an entire file.
+ *
+ * The same identifier is genuinely live in `fireflies/types.ts` at a third
+ * value (25), so a cross-game search does not disambiguate it either.
+ *
+ * Deleted rather than reconciled: the spawner owns its own cadence, and a
+ * second exported copy of a number the spawner does not import is not a
+ * constant, it is a rumour. If this interval ever needs to be shared, move the
+ * live `GOLDEN_INTERVAL` here and import it — do not re-declare it.
+ */
 export const GOLDEN_SCALE = 1.4;
 
 /**
@@ -299,9 +383,24 @@ export const SHARK_BODY_SCALE_X = 1.15;
 export const CAUSTIC_LIGHT_COUNT = 4;
 
 // ── Camera ──────────────────────────────────────────────────────────
-
-export const CAMERA_RADIUS_PORTRAIT = 13.0;
-export const CAMERA_RADIUS_LANDSCAPE = 10.0;
+//
+// NOT HERE, DELIBERATELY: CAMERA_RADIUS_PORTRAIT / CAMERA_RADIUS_LANDSCAPE.
+//
+// This section used to declare `CAMERA_RADIUS_PORTRAIT = 13.0` and
+// `CAMERA_RADIUS_LANDSCAPE = 10.0`, and nothing read either one. They are worse
+// than unused: as a *pair*, they assert that this game picks its camera
+// distance from screen orientation. It does not. There is no portrait/landscape
+// branch anywhere under `little-shark/`. The camera is one orbit pose declared
+// in `MiniGameManifest.ts` at distance 10.0, and the follow cam takes over from
+// there each frame — identically on a phone held either way.
+//
+// `bubble-pop/helpers.ts` records this exact pair being found dead and deleted
+// there, and `tests/framework/readme-citations.test.mjs` exists because of that
+// removal. Two games had inherited the same phantom.
+//
+// The 10.0 the manifest uses is a real number and stays real; it just lives at
+// its one call site instead of being mirrored under a name that promises
+// behaviour the game never implemented.
 
 // ── Fish state ──────────────────────────────────────────────────────
 

@@ -112,9 +112,18 @@ export function playAnimations(target: Object3D, animations: PropertyAnimation[]
 
   const tl = gsap.timeline({
     repeat: loop ? -1 : 0,
-    timeScale: speed,
     onComplete: !loop ? opts?.onEnd : undefined,
   });
+
+  // WHY `timeScale` IS SET BY METHOD AND NOT PASSED IN THE VARS OBJECT ABOVE.
+  // gsap's timeline constructor does not read `timeScale` out of its config —
+  // it silently drops it. Measured: `gsap.timeline({ timeScale: 4 }).timeScale()`
+  // returns 1, while `tl.timeScale(4)` returns 4. This function used to pass it
+  // in the vars, so `speed` was a fully documented, fully type-checked option
+  // that did nothing at all. Nothing passed it yet, which is the only reason it
+  // never shipped as a bug — the first caller to reach for `speed: 2` would have
+  // got a normal-speed animation and no error to explain it.
+  if (speed !== 1) tl.timeScale(speed);
 
   for (const anim of animations) {
     const timeline = keysToTimeline(anim.keys, fps);

@@ -560,6 +560,19 @@ export function buildGamePortal(scene: Scene, config: GamePortalConfig, nav: Nav
   });
 
   // ── Pick trigger callback (caller wires via raycaster) ──
+  //
+  // NOT HERE, DELIBERATELY: `setupMiniGameTrigger`, which used to live in
+  // `framework/useMiniGameLauncher.ts` and offered to make any mesh launch any
+  // game. Nothing imported it. It was not a duplicate of this — it was a
+  // SECOND, DIFFERENT mechanism for the same job, which is the more dangerous
+  // shape: it registered through `WorldTapDispatcher.register` rather than the
+  // `userData.onTap` convention the tap arbitration actually reads, and it
+  // played only `sfx_shared_tap_fallback`. A reader who reached for the
+  // obviously-named helper would have got a portal that registers down a
+  // different path and is silently missing `sfx_hub_toybox_open` — a bug that
+  // presents as "the sound is wrong sometimes", not as a crash.
+  //
+  // Launching a game is this function and the userData convention below it.
   const launchGame = () => {
     triggerSound('sfx_shared_tap_fallback');
     triggerSound('sfx_hub_toybox_open');

@@ -1,6 +1,7 @@
-import { Vector3, type Camera, type Object3D } from 'three';
+import { Vector3, type Camera, type Object3D, type Ray } from 'three';
 import { createDisposalScope } from '@app/utils/disposal';
-import { createInteractionController } from '@app/utils/interaction/interactionController';
+import { createInteractionController, type TapOptions } from '@app/utils/interaction/interactionController';
+import { soundsRequested, triggerSound } from '@app/assets/audio/sceneBridge';
 
 /**
  * Centralized tap dispatcher for world scenes.
@@ -14,9 +15,11 @@ import { createInteractionController } from '@app/utils/interaction/interactionC
  */
 export interface WorldTapDispatcher {
   /** Register a mesh as tappable. Returns an unregister function. */
-  register(target: Object3D, handler: () => void): () => void;
+  register(target: Object3D, handler: () => void, opts?: TapOptions): () => void;
   /** Register with world-space hit point (for floor tap / owl flyTo). */
-  registerWithPoint(target: Object3D, handler: (point: Vector3) => void): () => void;
+  registerWithPoint(target: Object3D, handler: (point: Vector3) => void, opts?: TapOptions): () => void;
+  /** Sets the handler for a tap that matched nothing at all. See the controller. */
+  setMissHandler(fn: ((ray: Ray) => void) | null): void;
   /** Remove all registrations and the canvas listener. */
   dispose(): void;
 }
@@ -30,19 +33,38 @@ export interface WorldTapDispatcher {
  */
 export function createWorldTapDispatcher(canvas: HTMLCanvasElement, camera: Camera): WorldTapDispatcher {
   const scope = createDisposalScope();
-  const controller = createInteractionController(canvas, camera, scope);
+  // The controller has always been able to enforce soul.md#6 ("Every Tap
+  // Matters") for itself, and until now nothing gave it the hooks to do it: this
+  // factory omitted the argument and `buildScene`, its only other caller, has no
+  // call sites at all. The result shipped: not one of the Nature scene's ~51
+  // registered tap targets plays any sound, so a child taps a mushroom, watches
+  // it bounce, and hears silence. The counter on the scene bridge closes that
+  // without touching a single prop — any handler that already makes its own
+  // noise ticks it and is left alone; every handler that does not gets the
+  // shared acknowledgement it was always supposed to have.
+  const controller = createInteractionController(canvas, camera, scope, {
+    soundCount: soundsRequested,
+    playFallback: () => triggerSound('sfx_shared_tap_fallback'),
+  });
   const scratch = new Vector3();
 
   return {
-    register(target: Object3D, handler: () => void): () => void {
-      return controller.register(target, () => handler());
+    register(target: Object3D, handler: () => void, opts?: TapOptions): () => void {
+      return controller.register(target, () => handler(), opts);
     },
-    registerWithPoint(target: Object3D, handler: (point: Vector3) => void): () => void {
-      return controller.register(target, (hit) => {
-        // Raycast gives the world hit point; the proximity fallback gives null,
-        // in which case use the target's own world position.
-        handler(hit.point ?? target.getWorldPosition(scratch));
-      });
+    registerWithPoint(target: Object3D, handler: (point: Vector3) => void, opts?: TapOptions): () => void {
+      return controller.register(
+        target,
+        (hit) => {
+          // Raycast gives the world hit point; the proximity fallback gives null,
+          // in which case use the target's own world position.
+          handler(hit.point ?? target.getWorldPosition(scratch));
+        },
+        opts,
+      );
+    },
+    setMissHandler(fn: ((ray: Ray) => void) | null): void {
+      controller.setMissHandler(fn);
     },
     dispose(): void {
       scope.dispose();

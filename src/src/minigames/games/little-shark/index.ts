@@ -446,9 +446,14 @@ export function createGame(context: MiniGameContext): IMiniGame {
   // ── Autonomous hunting ──────────────────────────────────────────────
 
   // How close a fish has to drift before the shark decides to go for it by
-  // itself. CAMERA_VIEW_RADIUS is 15, so 9 keeps the target comfortably on
-  // screen for the whole stalk instead of having the shark charge off toward
-  // something the child cannot see.
+  // itself. CAMERA_VIEW_RADIUS is 11 (waves.ts), so 9 keeps the target
+  // comfortably on screen for the whole stalk instead of having the shark
+  // charge off toward something the child cannot see.
+  //
+  // This comment said 15 until the sweep caught it. 9 was still inside the real
+  // radius, so the code was right and only the justification was wrong — which
+  // is the dangerous version: the next person to retune this reads a headroom
+  // of 6 units that is actually 2, and raises the number.
   const AUTO_HUNT_RADIUS = 9.0;
 
   // How long the shark waits, after the last time the child touched anything,

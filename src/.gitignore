@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 dist-v
 .tstest-tmp
+
+# Render-probe screenshots: 7 MB of PNGs, regenerable with `.probe/render/shoot.mjs`.
+.probe/render/out/

@@ -12,6 +12,29 @@
  *  3. Each descriptor agrees with `sceneCatalog.ts` (camera pose + audio ids) so
  *     the declarative registry and the generator-owned catalog can never drift;
  *     and every immersive-toybox scene in the catalog has a descriptor.
+ *  4. Each descriptor's lighting, ground, backdrop and portals are the SAME
+ *     OBJECTS the scene's own `environment.ts` declares — see below.
+ *
+ * WHY GUARANTEE 4 IS AN IDENTITY CHECK AND NOT A VALUE COMPARISON
+ * ---------------------------------------------------------------
+ * Guarantee 3 could only ever cover the camera and the audio, because those are
+ * the only scene values the catalog holds. Everything else in a descriptor
+ * mirrors the scene's `environment.ts`, and for a long time it mirrored it by
+ * hand, with nothing watching. Both registered scenes drifted: pirate-cove's
+ * descriptor still described a 16x14 ground after the hull was re-solved to
+ * 10x24, put its only portal at x 4.0 (0.7 units outboard of the rail — over the
+ * sea) when the scene had moved it to the centreline, lit at 0.85/0.4 against
+ * the scene's 1.3/0.26, and carried a comment saying the scene has no skydome
+ * while `index.ts` was building one. Nature's four portals had all been moved to
+ * keep them in frame on phones; none of the four moved here.
+ *
+ * `assert.equal` on the numbers would only re-create the same problem one level
+ * up: it would pass for a fresh hand-copy. `assert.strictEqual` on the OBJECT
+ * fails unless the descriptor is literally handing back the scene's own value,
+ * which is the property that actually prevents drift. That is why this suite
+ * loads the registry and the two environments through ONE `bundleEntry` — two
+ * separate bundles would hold two copies of each module and every identity check
+ * would fail against an otherwise-correct registry.
  *
  * Plus a source-contract check that `buildScene` composes the standardized
  * primitives (camera, lighting rig, scene-runtime publish, interaction
@@ -23,14 +46,30 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadTs } from './_tsload.mjs';
+import { loadTs, bundleEntry } from './_tsload.mjs';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const catalogSource = readFileSync(path.join(packageRoot, 'src', 'scenes', 'sceneCatalog.ts'), 'utf8');
 const buildSceneSource = readFileSync(path.join(packageRoot, 'src', 'utils', 'scene', 'buildScene.ts'), 'utf8');
 
 const { validateSceneDescriptor } = await loadTs('src/utils/scene/sceneDescriptor.ts');
-const { SCENE_DESCRIPTORS } = await loadTs('src/utils/scene/sceneDescriptors.ts');
+
+// One entry, so the registry and the environments share one instance of each
+// module — the identity assertions in section 3b depend on it.
+const { SCENE_DESCRIPTORS, NATURE_ENVIRONMENT, NATURE_SKY_FOG, PIRATE_COVE_ENVIRONMENT, PIRATE_COVE_SKY_FOG } = await bundleEntry(
+  'scene-descriptors',
+  `
+  export { SCENE_DESCRIPTORS } from './src/utils/scene/sceneDescriptors';
+  export { NATURE_ENVIRONMENT, NATURE_SKY_FOG } from './src/scenes/immersive-toybox-scenes/naturescene/environment';
+  export { PIRATE_COVE_ENVIRONMENT, PIRATE_COVE_SKY_FOG } from './src/scenes/immersive-toybox-scenes/pirate-cove/environment';
+`,
+);
+
+/** The scene-owned sources each descriptor must be reading, keyed by scene id. */
+const SCENE_SOURCES = {
+  nature: { env: NATURE_ENVIRONMENT, skyFog: NATURE_SKY_FOG },
+  'pirate-cove': { env: PIRATE_COVE_ENVIRONMENT, skyFog: PIRATE_COVE_SKY_FOG },
+};
 
 // ── Test fixtures (duck-typed to the validator's structural checks) ──────────
 const vec = (x, y, z) => ({ x, y, z, lengthSq: () => x * x + y * y + z * z });
@@ -211,6 +250,58 @@ test('every registered descriptor matches the catalog camera preset and audio', 
       Math.abs(d.camera.target.x - tx) < 1e-9 && Math.abs(d.camera.target.y - ty) < 1e-9 && Math.abs(d.camera.target.z - tz) < 1e-9,
       `descriptor "${id}" camera target drifted from the catalog`,
     );
+  }
+});
+
+// ── 3b. the half the catalog cannot cover: the scene's own environment ───────
+
+test('every descriptor reads its ground, backdrop and portals from the scene itself', () => {
+  for (const [id, d] of Object.entries(SCENE_DESCRIPTORS)) {
+    const src = SCENE_SOURCES[id];
+    assert.ok(src, `descriptor "${id}" has no registered scene source to check against — add one to SCENE_SOURCES`);
+
+    assert.strictEqual(
+      d.ground,
+      src.env.ground,
+      `descriptor "${id}" ground is a copy, not the scene's own. It reads ${d.ground.width}x${d.ground.depth}; the scene declares ${src.env.ground.width}x${src.env.ground.depth}.`,
+    );
+    assert.strictEqual(d.portals, src.env.portals, `descriptor "${id}" portals are a copy, not the scene's own array`);
+
+    // The backdrop is optional in the schema, but "this scene has no skydome" is
+    // a claim about `index.ts`, not a preference — and it was wrong for
+    // pirate-cove. If the scene declares a sky, the descriptor must carry it.
+    if (src.skyFog?.sky) {
+      assert.strictEqual(d.backdrop, src.skyFog.sky, `descriptor "${id}" backdrop is a copy of (or missing) the sky the scene actually builds`);
+    }
+  }
+});
+
+test('every descriptor lights the scene with the scene’s own rig', () => {
+  for (const [id, d] of Object.entries(SCENE_DESCRIPTORS)) {
+    const c = SCENE_SOURCES[id].env.lighting;
+    // The nesting differs between the two shapes, so this is the one place a
+    // value comparison is the honest check — but every leaf is still asserted by
+    // identity, so no number can be retyped here.
+    assert.strictEqual(d.lighting.key.direction, c.keyDirection, `descriptor "${id}" key direction is a copy`);
+    assert.strictEqual(d.lighting.key.color, c.keyColor, `descriptor "${id}" key colour is a copy`);
+    assert.equal(
+      d.lighting.key.intensity,
+      c.keyIntensity,
+      `descriptor "${id}" key intensity is ${d.lighting.key.intensity}; the scene lights at ${c.keyIntensity}`,
+    );
+    assert.strictEqual(d.lighting.fill.skyColor, c.fillColor, `descriptor "${id}" fill sky colour is a copy`);
+    // A scene with no `fillGroundColor` is asking for a flat ambient fill, which
+    // the rig spells `skyColor === groundColor`; that is the adapter's rule, so
+    // it is the rule asserted here.
+    assert.strictEqual(d.lighting.fill.groundColor, c.fillGroundColor ?? c.fillColor, `descriptor "${id}" fill ground colour is a copy`);
+    assert.equal(
+      d.lighting.fill.intensity,
+      c.fillIntensity,
+      `descriptor "${id}" fill intensity is ${d.lighting.fill.intensity}; the scene lights at ${c.fillIntensity}`,
+    );
+    assert.strictEqual(d.lighting.accents?.[0]?.position, c.accentPosition, `descriptor "${id}" accent position is a copy`);
+    assert.strictEqual(d.lighting.accents?.[0]?.color, c.accentColor, `descriptor "${id}" accent colour is a copy`);
+    assert.equal(d.lighting.accents?.[0]?.intensity, c.accentIntensity, `descriptor "${id}" accent intensity drifted from the scene`);
   }
 });
 

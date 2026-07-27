@@ -1,7 +1,8 @@
-import { Scene, Color, Mesh, Group, SphereGeometry, Vector3 } from 'three';
+import { Scene, Color, Mesh, Group, SphereGeometry } from 'three';
 import { createPlasticMaterial } from '@app/utils/materialFactory';
 import { createGradientSkydome } from '@app/utils/skyRig';
 import { seededRng } from '@app/utils/seededRng';
+import { NATURE_SKY_FOG } from '../../../environment';
 import { animateCloudDrift } from './animation';
 
 // ── Sky Backdrop ───────────────────────────────────────────────────────────────
@@ -25,14 +26,12 @@ export function createSkyBackdrop(scene: Scene): SkyBackdropCreateResult {
   // Gradient skydome via the shared sky rig (retires the old flat sky plane).
   // Origin-centred for the orbit scene camera; radius comfortably exceeds the
   // ~14u camera distance. See scene-rendering-standards.md and #scenedescriptor.
-  const sky = createGradientSkydome({
-    radius: 40,
-    center: new Vector3(0, 0, 0),
-    topColor: new Color(0.28, 0.48, 0.68),
-    horizonColor: new Color(0.4, 0.6, 0.72),
-    bottomColor: new Color(0.35, 0.5, 0.62),
-    horizonSharpness: 1.0,
-  });
+  //
+  // The gradient is NOT written here. It lives in `NATURE_SKY_FOG` next to the
+  // fog distances derived from it, because the dome's horizon colour and the
+  // scene's fog colour must be the same value and used to be two literals in two
+  // files. See `skyRig.ts#SceneSkyFogConfig`.
+  const sky = createGradientSkydome(NATURE_SKY_FOG.sky);
   sky.name = 'skyBackdrop';
   root.add(sky);
 

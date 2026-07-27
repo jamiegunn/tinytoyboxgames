@@ -69,11 +69,49 @@ export async function loadTs(relPath) {
  * @returns The loaded module namespace.
  */
 export async function bundleTs(relPath) {
-  mkdirSync(tmpDir, { recursive: true });
   const outName = relPath.replace(/[\\/]/g, '_').replace(/\.ts$/, '.bundle.mjs');
+  return runBundle({ entryPoints: [path.join(packageRoot, relPath)] }, outName);
+}
+
+/**
+ * Bundles a synthetic entry module — a snippet of TypeScript that exists only
+ * for the test — together with everything it imports, into ONE bundle.
+ *
+ * WHY THIS EXISTS, WHICH IS NOT OBVIOUS. `bundleTs` produces a self-contained
+ * module graph per call, so two `bundleTs` calls that both reach
+ * `src/utils/idle/registry.ts` end up with two copies of its module-private
+ * `WeakMap`. A test that bundles a scene rig one way and the registry another
+ * can call `setSceneIdleAnimator` all it likes: the rig's `getIdleAnimator`
+ * consults a different map, finds nothing, and silently falls back to the no-op
+ * animator. Every assertion still passes, because the no-op returns a well-formed
+ * handle for every preset — the test proves nothing while looking green.
+ *
+ * Passing one entry that re-exports both sides fixes that: internal singletons
+ * are shared because there is only one instance of each module.
+ *
+ * The entry is compiled from a string via esbuild's `stdin`, with `resolveDir`
+ * set to the package root, so its import specifiers are written exactly as a
+ * source file in the package root would write them (`./src/...`, or the
+ * `@app`/`@scenes`/`@game` aliases).
+ *
+ * @param name - Short slug used for the emitted temp filename; must be unique
+ *   per distinct source within a suite.
+ * @param source - TypeScript source of the entry module, typically a handful of
+ *   `export { … } from '…';` lines.
+ * @returns The loaded module namespace.
+ */
+export async function bundleEntry(name, source) {
+  return runBundle({ stdin: { contents: source, resolveDir: packageRoot, sourcefile: `${name}.ts`, loader: 'ts' } }, `entry_${name}.bundle.mjs`);
+}
+
+// Shared esbuild invocation for `bundleTs` and `bundleEntry`. The alias table
+// mirrors vite.config.ts; `three` and `gsap` stay external so the bundle and the
+// test share one instance of each (see bundleTs's docblock for why that matters).
+async function runBundle(inputOptions, outName) {
+  mkdirSync(tmpDir, { recursive: true });
   const outPath = path.join(tmpDir, outName);
   await esbuild.build({
-    entryPoints: [path.join(packageRoot, relPath)],
+    ...inputOptions,
     outfile: outPath,
     bundle: true,
     format: 'esm',

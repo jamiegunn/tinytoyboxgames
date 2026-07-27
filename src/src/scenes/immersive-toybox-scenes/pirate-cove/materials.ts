@@ -10,12 +10,21 @@
 
 import type { Material } from 'three';
 import { Color } from 'three';
-import { createFeltMaterial, createGlossyPaintMaterial, createPlasticMaterial, createWoodMaterial } from '@app/utils/materialFactory';
+import { createFeltMaterial, createGlossyPaintMaterial, createWoodMaterial } from '@app/utils/materialFactory';
 
-/** Scene-local collection of shared materials injected through `ComposeContext`. */
+/**
+ * Scene-local collection of shared materials injected through `ComposeContext`.
+ *
+ * NOT HERE, DELIBERATELY: `skyBackdrop`. This interface used to declare it and
+ * `createPirateCoveMaterials` used to build it — a plastic material at
+ * rgb(0.35, 0.5, 0.7) — on every scene load. Its only consumer was
+ * `factory/scaffold/skyBackdrop/create.ts`, which nothing imported, so the
+ * material was allocated, held for the life of the scene and disposed, without
+ * ever being bound to a mesh. The cove's sky is `createGradientSkydome` plus
+ * `createSkyMatchedFog` from `@app/utils/skyRig` (index.ts:113, :239), with
+ * clouds from `createCloudPuff` handed to `startAmbientMotion` (:154-159).
+ */
 export interface PirateCoveMaterials {
-  /** Sky backdrop gradient plane. */
-  skyBackdrop: Material;
   /** Ship railing walls — weathered wood. */
   shellWall: Material;
   /** Railing trim / posts — darker wood. */
@@ -35,7 +44,6 @@ export interface PirateCoveMaterials {
 const MATERIAL_PREFIX = 'pirate-cove';
 
 const PALETTE = {
-  skyBackdrop: new Color(0.35, 0.5, 0.7),
   shellWall: new Color(0.5, 0.35, 0.2),
   shellTrim: new Color(0.4, 0.28, 0.15),
   weatheredWood: new Color(0.6, 0.42, 0.25),
@@ -52,7 +60,6 @@ const PALETTE = {
  */
 export function createPirateCoveMaterials(): PirateCoveMaterials {
   return {
-    skyBackdrop: createPlasticMaterial(`${MATERIAL_PREFIX}_sky_backdrop_mat`, PALETTE.skyBackdrop),
     shellWall: createWoodMaterial(`${MATERIAL_PREFIX}_shell_wall_mat`, PALETTE.shellWall),
     shellTrim: createWoodMaterial(`${MATERIAL_PREFIX}_shell_trim_mat`, PALETTE.shellTrim),
     weatheredWood: createWoodMaterial(`${MATERIAL_PREFIX}_weathered_wood_mat`, PALETTE.weatheredWood),

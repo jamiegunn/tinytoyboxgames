@@ -13,6 +13,19 @@ let musicHandler: MusicHandler | null = null;
 let stopMusicHandler: StopMusicHandler | null = null;
 
 /**
+ * Monotonic count of sound effects requested through this bridge.
+ *
+ * Exists so the InteractionController can enforce soul.md#6 ("Every Tap
+ * Matters") without every tap handler having to remember it: the controller
+ * samples this before firing a handler and again after, and plays the shared
+ * fallback when the handler made no sound of its own. It counts REQUESTS, not
+ * audible output, and deliberately so — it must tick even when the handler is
+ * null (audio not yet armed) or the child has muted, because the question it
+ * answers is "did this interaction try to speak", not "was anything heard".
+ */
+let soundRequests = 0;
+
+/**
  * Registers the sound handler (called by AudioProvider on mount).
  *
  * @param fn - The sound handler callback to register.
@@ -61,7 +74,17 @@ export function unregisterStopMusicHandler(): void {
  * @param soundId - The sound identifier from the design inventory.
  */
 export function triggerSound(soundId: string): void {
+  soundRequests += 1;
   if (handler) handler(soundId);
+}
+
+/**
+ * Reads the monotonic sound-request counter.
+ *
+ * @returns The number of `triggerSound` calls made since load.
+ */
+export function soundsRequested(): number {
+  return soundRequests;
 }
 
 /**

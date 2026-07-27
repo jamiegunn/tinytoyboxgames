@@ -1,4 +1,4 @@
-import { Color, Vector3, SphereGeometry, CylinderGeometry, MeshStandardMaterial, Mesh, type Scene, type Object3D } from 'three';
+import { Color, Vector3, SphereGeometry, MeshStandardMaterial, Mesh, type Scene } from 'three';
 import { getSceneClock, getSceneDisposal } from '@app/utils/sceneRuntime';
 
 // ---------------------------------------------------------------------------
@@ -10,22 +10,6 @@ export interface BubbleTrail {
   /** Advance the trail by `dt` seconds. Returns false when all bubbles have expired. */
   update(dt: number): boolean;
   /** Immediately remove all bubble meshes from the scene. */
-  dispose(): void;
-}
-
-/** Handle for a persistent golden shimmer aura around a mesh. */
-export interface GoldenShimmer {
-  /** Advance the shimmer animation by `dt` seconds. */
-  update(dt: number): void;
-  /** Immediately remove all shimmer meshes from the scene. */
-  dispose(): void;
-}
-
-/** Handle for a caustic light ray that fades in and out. */
-export interface CausticRay {
-  /** Advance the ray animation by `dt` seconds. Returns false when fully faded out. */
-  update(dt: number): boolean;
-  /** Immediately remove the ray mesh from the scene. */
   dispose(): void;
 }
 
@@ -68,7 +52,6 @@ function makeUnpickable(mesh: Mesh): void {
 // Shared geometries (created once, reused across all effects)
 let _bubbleGeo: SphereGeometry | null = null;
 let _sparkleGeo: SphereGeometry | null = null;
-let _causticGeo: CylinderGeometry | null = null;
 
 function getBubbleGeometry(): SphereGeometry {
   if (!_bubbleGeo) _bubbleGeo = new SphereGeometry(1, 8, 6);
@@ -78,11 +61,6 @@ function getBubbleGeometry(): SphereGeometry {
 function getSparkleGeometry(): SphereGeometry {
   if (!_sparkleGeo) _sparkleGeo = new SphereGeometry(1, 6, 4);
   return _sparkleGeo;
-}
-
-function getCausticGeometry(): CylinderGeometry {
-  if (!_causticGeo) _causticGeo = new CylinderGeometry(1, 1, 1, 8, 1, true);
-  return _causticGeo;
 }
 
 // ---------------------------------------------------------------------------
@@ -406,168 +384,40 @@ export function createCatchExplosion(scene: Scene, pos: Vector3, fishColor: Colo
 }
 
 // ---------------------------------------------------------------------------
-// 3. Golden shimmer
+// NOT HERE, DELIBERATELY: createGoldenShimmer and createCausticRay
 // ---------------------------------------------------------------------------
-
-/**
- * Creates a persistent golden sparkle aura that orbits around a target mesh.
- *
- * Six tiny emissive gold spheres orbit the target in a ring with gentle scale pulsing.
- * The effect persists until `dispose()` is called.
- *
- * @param scene - The Three.js scene to add shimmer meshes to.
- * @param targetRoot - The Object3D to surround with the shimmer aura.
- * @returns A GoldenShimmer handle with `update(dt)` and `dispose()` methods.
- */
-export function createGoldenShimmer(scene: Scene, targetRoot: Object3D): GoldenShimmer {
-  const orbitCount = 6;
-  const orbitRadius = 0.25;
-  const baseScale = 0.015;
-  const geo = getSparkleGeometry();
-  const goldColor = new Color(1.0, 0.85, 0.2);
-
-  const orbiters: { mesh: Mesh; phaseOffset: number }[] = [];
-  let elapsed = 0;
-  let disposed = false;
-
-  // One material for all six orbiters. They were six separate
-  // MeshStandardMaterials built from identical descriptors, and unlike the
-  // burst particles above nothing ever writes to them — opacity stays at 0.9
-  // for the whole life of the shimmer, only position and scale animate. Six
-  // identical materials is six shader-uniform uploads and six state changes per
-  // frame for a sprite about two pixels across, and the golden fish carries this
-  // aura for as long as it is on the reef.
-  const mat = new MeshStandardMaterial({
-    color: goldColor,
-    emissive: goldColor,
-    emissiveIntensity: 0.8,
-    transparent: true,
-    opacity: 0.9,
-    depthWrite: false,
-  });
-
-  for (let i = 0; i < orbitCount; i++) {
-    const mesh = new Mesh(geo, mat);
-    mesh.scale.setScalar(baseScale);
-    makeUnpickable(mesh);
-    scene.add(mesh);
-
-    orbiters.push({
-      mesh,
-      phaseOffset: (i / orbitCount) * Math.PI * 2,
-    });
-  }
-
-  return {
-    update(dt: number): void {
-      if (disposed) return;
-
-      elapsed += dt;
-      const rotSpeed = 1.2; // radians per second
-      const targetPos = targetRoot.position;
-
-      for (const orb of orbiters) {
-        const angle = elapsed * rotSpeed + orb.phaseOffset;
-        orb.mesh.position.set(
-          targetPos.x + Math.cos(angle) * orbitRadius,
-          targetPos.y + Math.sin(elapsed * 2.0 + orb.phaseOffset) * 0.05,
-          targetPos.z + Math.sin(angle) * orbitRadius,
-        );
-
-        // Gentle scale pulsing
-        const pulse = 1.0 + Math.sin(elapsed * 3.0 + orb.phaseOffset) * 0.3;
-        orb.mesh.scale.setScalar(baseScale * pulse);
-      }
-    },
-
-    dispose(): void {
-      if (disposed) return;
-      disposed = true;
-      for (const orb of orbiters) {
-        scene.remove(orb.mesh);
-      }
-      mat.dispose();
-    },
-  };
-}
-
-// ---------------------------------------------------------------------------
-// 4. Caustic ray
-// ---------------------------------------------------------------------------
-
-/**
- * Creates a vertical light shaft simulating sunlight filtering through water.
- *
- * A tall translucent cylinder fades in over 1s, holds for 1s, then fades out over 1s
- * (3s total). Gently sways side to side. Self-disposes when the animation completes.
- *
- * @param scene - The Three.js scene to add the ray to.
- * @param x - World-space X position for the ray.
- * @param z - World-space Z position for the ray.
- * @returns A CausticRay handle with `update(dt)` and `dispose()` methods.
- */
-export function createCausticRay(scene: Scene, x: number, z: number): CausticRay {
-  const height = 4.0;
-  const radius = 0.08;
-  const totalLife = 3.0;
-  const fadeInEnd = 1.0;
-  const fadeOutStart = 2.0;
-  const maxOpacity = 0.15;
-
-  const geo = getCausticGeometry();
-  const mat = new MeshStandardMaterial({
-    color: new Color(0.85, 0.92, 1.0),
-    emissive: new Color(0.85, 0.92, 1.0),
-    emissiveIntensity: 0.4,
-    transparent: true,
-    opacity: 0.0,
-    depthWrite: false,
-    side: 2, // DoubleSide
-  });
-
-  const mesh = new Mesh(geo, mat);
-  mesh.scale.set(radius, height, radius);
-  mesh.position.set(x, height * 0.5, z);
-  makeUnpickable(mesh);
-  scene.add(mesh);
-
-  let elapsed = 0;
-  let disposed = false;
-  const swayPhase = Math.random() * Math.PI * 2;
-
-  return {
-    update(dt: number): boolean {
-      if (disposed) return false;
-
-      elapsed += dt;
-      if (elapsed >= totalLife) {
-        this.dispose();
-        return false;
-      }
-
-      // Opacity envelope: fade in, hold, fade out
-      let opacity: number;
-      if (elapsed < fadeInEnd) {
-        opacity = (elapsed / fadeInEnd) * maxOpacity;
-      } else if (elapsed < fadeOutStart) {
-        opacity = maxOpacity;
-      } else {
-        opacity = maxOpacity * (1.0 - (elapsed - fadeOutStart) / (totalLife - fadeOutStart));
-      }
-      mat.opacity = Math.max(opacity, 0);
-
-      // Gentle sway
-      const sway = Math.sin(swayPhase + elapsed * 1.5) * 0.04;
-      mesh.position.x = x + sway;
-
-      return true;
-    },
-
-    dispose(): void {
-      if (disposed) return;
-      disposed = true;
-      scene.remove(mesh);
-      mat.dispose();
-    },
-  };
-}
+//
+// This file used to also export two effect factories, each with a full handle
+// interface, JSDoc, pooled geometry and a working dispose path:
+//
+//   createGoldenShimmer(scene, targetRoot)  six orbiting emissive gold spheres
+//   createCausticRay(scene, x, z)           a 3 s fade-in/hold/fade-out shaft
+//
+// Nothing in the game constructed either one. They were not merely unused —
+// their documentation asserted behaviour the reef does not have. The shimmer's
+// docstring said the aura "persists until dispose() is called", which reads to
+// anyone auditing the golden fish as a description of what is on screen right
+// now. It is not: the golden fish is distinguished by GOLDEN_COLOR and
+// GOLDEN_SCALE alone (fish/lifecycle.ts:191,207), and there is no orbiting
+// sparkle ring anywhere in the build.
+//
+// Both effects also already have live replacements that work differently, so
+// wiring these in would have been a duplicate, not a completion:
+//
+//   caustics  ->  buildCausticLights (environment/scenery.ts:410), four moving
+//                 PointLights plus floor patches, driven by updateCausticLights,
+//                 with the god-ray planes billboarded each frame by
+//                 updateGodRays (environment/effects.ts:63). Their brightnesses
+//                 were derived against the fog and the sand in scenery.ts:73-79.
+//                 A translucent cylinder dropped in beside that rig would be a
+//                 second, uncalibrated light shaft.
+//   shimmer   ->  the golden fish's own colour and scale, chosen by the
+//                 CIEDE2000 separation work recorded in types.ts. Six emissive
+//                 spheres orbiting at radius 0.25 sit inside the fish's own
+//                 silhouette at GOLDEN_SCALE 1.4 and would blur the one shape
+//                 that palette work exists to keep distinct.
+//
+// Deleted rather than connected. The GoldenShimmer and CausticRay handle
+// interfaces, getCausticGeometry, the _causticGeo cache and the CylinderGeometry
+// import went with them; getSparkleGeometry stayed because createCatchExplosion
+// still uses it.

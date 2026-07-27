@@ -10,21 +10,25 @@
  * - ADR-0013: the template, generator, and tests must stay aligned
  */
 
-import { BoxGeometry, Color, Fog, type Camera, Mesh, MeshStandardMaterial, type PerspectiveCamera, Shape, ShapeGeometry, Vector3, type Scene } from 'three';
+import { BoxGeometry, Color, Group, type Camera, Mesh, MeshStandardMaterial, type PerspectiveCamera, Shape, ShapeGeometry, type Scene } from 'three';
 import type { NavigationActions } from '@app/types/scenes';
 import { createWorldScene } from '@app/utils/worldSceneFactory';
 import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
 import { createDisposeCollector } from '@app/utils/sceneHelpers';
 import { createWoodMaterial } from '@app/utils/materialFactory';
-import { createGradientSkydome, createCelestialBody, createCloudPuff, projectToView } from '@app/utils/skyRig';
-import { PIRATE_COVE_ENVIRONMENT } from './environment';
+import { createGradientSkydome, createCelestialBody, createCloudPuff, createSkyMatchedFog, projectAboveHorizon } from '@app/utils/skyRig';
+import { PIRATE_COVE_ENVIRONMENT, PIRATE_COVE_SKY_FOG } from './environment';
+import { HULL_OUTLINE, HULL_PLAN, hullZRangeAt } from './hullPlan';
 import { createPirateCoveMaterials } from './materials';
 import type { ComposeContext } from './types';
 import type { DisposeFn } from './factory/composeHelpers';
-import { createSceneShell } from './factory/scaffold/sceneShell';
+import { createSceneShell, setupSailTap } from './factory/scaffold/sceneShell';
+import { createOcean, setupSeaTap } from './factory/scaffold/sea';
+import { startAmbientMotion } from './factory/scaffold/ambientMotion';
 import { composeBarrels } from './factory/props/simple/barrels';
 import { composeAnchor } from './factory/props/simple/anchor';
 import { composeRopeCoils } from './factory/props/simple/ropeCoils';
+import { composeRailStowage } from './factory/props/simple/railStowage';
 import { composeParrots } from './factory/props/simple/parrot';
 import { composeCannons } from './factory/props/interactive/cannon';
 import { composeTreasureChests } from './factory/props/interactive/treasureChest';
@@ -63,6 +67,12 @@ export function createScene(scene: Scene, canvas: HTMLCanvasElement, nav: Naviga
         composeBarrels,
         composeAnchor,
         composeRopeCoils,
+        // Spare spars along both side rails. The only furniture allowed outboard
+        // of the narrowest shipping frame: it is elongated (7.2 : 1 against a
+        // barrel's 1.0 : 1), so the frame edge shortens it instead of mutilating
+        // it, and it is gone entirely by aspect 0.461 rather than lingering as a
+        // fragment. Measured by rendering, not argued — see `staging/railStowage.ts`.
+        composeRailStowage,
         composeParrots,
         // Interactive props
         composeCannons,
@@ -70,70 +80,97 @@ export function createScene(scene: Scene, canvas: HTMLCanvasElement, nav: Naviga
         composeShipWheels,
       ];
 
-      // Ship railings and mast
-      createSceneShell(sc, {
-        width: PIRATE_COVE_ENVIRONMENT.ground.width,
-        depth: PIRATE_COVE_ENVIRONMENT.ground.depth,
-        wallHeight: 2,
-        materials,
-      });
+      // Ship railings, mast, sail and rigging. The shell takes no dimensions:
+      // the hull lives in `./hullPlan` and nothing else is allowed to restate it.
+      const shellRoot = createSceneShell(sc, { wallHeight: 2, materials });
+      // The sail answers, as one target for both of its sheets. See
+      // `factory/scaffold/sceneShell/interaction.ts`.
+      const unsailTap = setupSailTap(dispatcher, shellRoot);
+      if (unsailTap) disposer.add({ dispose: unsailTap });
+
+      // Everything that is not the ship — sea, skydome, sun, clouds — hangs off
+      // one group so the ambient rig can roll and heave the world around a rigid
+      // deck. See factory/scaffold/ambientMotion for why that is the right way
+      // round.
+      const seaAndSky = new Group();
+      seaAndSky.name = 'sea_and_sky';
+      sc.add(seaAndSky);
+      const ocean = createOcean();
+      seaAndSky.add(ocean);
+      // The sea answers. It is registered as a BACKGROUND surface, so it is
+      // arbitrated after every prop and can never take a tap away from one —
+      // see `factory/scaffold/sea/interaction.ts` for the whole argument, and
+      // `.probe/render/r6-map.mjs` for the measurement that demanded it.
+      disposer.add({ dispose: setupSeaTap(dispatcher, ocean, seaAndSky, cam as PerspectiveCamera, cvs) });
 
       // Sky rig: a gradient skydome (afternoon blue → warm horizon → sea),
       // a warm sun, and drifting clouds — all placed in screen space against
       // the scene camera via the shared rig (see utils/skyRig).
       const skyCam = cam as PerspectiveCamera;
-      const skydome = createGradientSkydome({
-        radius: 60,
-        center: new Vector3(0, 0, 0),
-        topColor: new Color(0.26, 0.48, 0.82),
-        horizonColor: new Color(0.66, 0.82, 0.93),
-        bottomColor: new Color(0.13, 0.36, 0.48),
-        horizonSharpness: 1.5,
-      });
-      sc.add(skydome);
+      // The gradient lives in `PIRATE_COVE_SKY_FOG` next to the fog distances
+      // derived from it, so the dome's horizon colour and the scene's fog colour
+      // cannot become two different literals in two different files.
+      const skydome = createGradientSkydome(PIRATE_COVE_SKY_FOG.sky);
+      seaAndSky.add(skydome);
 
+      // Sun and clouds are placed by ELEVATION above the camera's horizontal
+      // plane, not by screen fraction. Over an infinite sea the horizon is
+      // exactly zero elevation at every camera pose, so this is the only
+      // placement rule under which "above the water" is true by construction.
+      // The previous rig authored screen y 0.10 / 0.20 / 0.30 for the clouds
+      // against a camera whose horizon sat at screen y 0.083; all three were
+      // below the waterline by arithmetic, and 4.82% of the portrait sea band
+      // rendered cloud-white. See `projectAboveHorizon` in utils/skyRig.
+      //
+      // The visible band of sky is narrow and its size is known: the camera
+      // pitches 18.4 degrees below horizontal and the vertical field of view is
+      // 50 degrees, so sky runs from 0 degrees of elevation (the horizon, at NDC
+      // y 0.713) to 6.6 degrees (the top edge). Every elevation below is inside
+      // that band with room for the element's own angular radius.
       const sun = createCelestialBody({
-        radius: 2.0,
-        color: new Color(1.0, 0.96, 0.82),
-        emissive: new Color(1.0, 0.9, 0.62),
-        emissiveIntensity: 1.2,
+        radius: 1.4,
+        color: new Color(1.0, 0.93, 0.74),
+        emissive: new Color(1.0, 0.84, 0.5),
+        // 1.2 blew the sun's modal pixel to a clipped (255, 255, 255) — a hole
+        // punched in the sky, only 72 RGB units from the clouds beside it. A sun
+        // has to be warmer than a cloud, which it cannot be once it saturates.
+        emissiveIntensity: 0.55,
         haloScale: 1.6,
-        haloColor: new Color(1.0, 0.86, 0.52),
-        haloOpacity: 0.22,
+        haloColor: new Color(1.0, 0.8, 0.42),
+        haloOpacity: 0.2,
       });
-      sun.root.position.copy(projectToView(skyCam, 0.76, 0.14, 34));
-      sc.add(sun.root);
+      sun.root.position.copy(projectAboveHorizon(skyCam, 0.82, 4.2, 36));
+      seaAndSky.add(sun.root);
 
       const cloudColor = new Color(0.99, 0.98, 0.96);
+      // screenX, elevation (degrees), distance, scale. Scale and distance set
+      // the puff's angular half-height (~0.66 * scale / distance radians below
+      // its centre); each elevation clears that with margin.
       const cloudSpots: Array<[number, number, number, number]> = [
-        [0.24, 0.2, 30, 1.8],
-        [0.5, 0.1, 33, 2.2],
-        [0.9, 0.3, 27, 1.5],
+        [0.16, 4.0, 30, 1.6],
+        [0.42, 5.0, 33, 2.0],
+        [0.62, 3.4, 27, 1.4],
       ];
-      for (const [sx, sy, dist, scl] of cloudSpots) {
+      const clouds: Group[] = [];
+      for (const [sx, elevation, dist, scl] of cloudSpots) {
         const cloud = createCloudPuff({ color: cloudColor, opacity: 0.92, scale: scl });
-        cloud.position.copy(projectToView(skyCam, sx, sy, dist));
-        sc.add(cloud);
+        cloud.position.copy(projectAboveHorizon(skyCam, sx, elevation, dist));
+        seaAndSky.add(cloud);
+        clouds.push(cloud);
       }
 
-      // Ship deck floor — hull-shaped wood plane matching the railing outline.
-      // Shape draws in x/y; after rotateX(-PI/2) shape-y maps to world -z,
-      // so we negate z when writing shape y-coordinates.
-      const wallInset = 0.5;
-      const halfW = Math.max(PIRATE_COVE_ENVIRONMENT.ground.width / 2 - wallInset, 0.5);
-      const halfD = Math.max(PIRATE_COVE_ENVIRONMENT.ground.depth / 2 - wallInset, 0.5);
-      const sternCut = halfW * 0.35;
-      const bowNarrow = halfW * 0.5;
-
-      // Hull outline — matches railRuns in sceneShell exactly.
-      // Shape y = -worldZ, so stern (world +z) → shape -y, bow (world -z) → shape +y.
+      // Ship deck floor — the hull outline, filled. Both the outline and the
+      // rails in `sceneShell` read the same `HULL_OUTLINE`; neither restates it.
+      // The old code derived five constants here and five identical constants
+      // there, under a comment asserting the two agreed.
+      //
+      // Shape draws in x/y; after rotateX(-PI/2) shape-y maps to world -z, so a
+      // shape vertex is (worldX, -worldZ).
       const hullShape = new Shape();
-      hullShape.moveTo(-(halfW - sternCut), -halfD); // stern left
-      hullShape.lineTo(halfW - sternCut, -halfD); // stern right
-      hullShape.lineTo(halfW, -(halfD - sternCut)); // stern-right diagonal end
-      hullShape.lineTo(halfW - bowNarrow, halfD); // bow right
-      hullShape.lineTo(-(halfW - bowNarrow), halfD); // bow left
-      hullShape.lineTo(-halfW, -(halfD - sternCut)); // left side up to stern-left diagonal
+      HULL_OUTLINE.forEach(([x, z], i) => {
+        if (i === 0) hullShape.moveTo(x, -z);
+        else hullShape.lineTo(x, -z);
+      });
       hullShape.closePath();
 
       const groundGeo = new ShapeGeometry(hullShape);
@@ -143,14 +180,10 @@ export function createScene(scene: Scene, canvas: HTMLCanvasElement, nav: Naviga
       ground.receiveShadow = true;
       sc.add(ground);
 
-      // Plank seam lines — thin dark strips running bow-to-stern (along z).
-      // Hull vertices (world x, z):
-      //   V0: (-(halfW-sternCut), halfD)   — stern left
-      //   V1: ((halfW-sternCut), halfD)    — stern right
-      //   V2: (halfW, halfD-sternCut)      — stern-right corner
-      //   V3: ((halfW-bowNarrow), -halfD)  — bow right
-      //   V4: (-(halfW-bowNarrow), -halfD) — bow left
-      //   V5: (-halfW, halfD-sternCut)     — stern-left corner
+      // Plank seam lines — thin dark strips running transom-to-stem (along z).
+      // They are the deck's own perspective cue: on a 1 : 2.40 hull the seams
+      // converge toward the stem alongside the rails instead of stopping short
+      // at a flat bow.
       const seamMat = new MeshStandardMaterial({
         color: new Color(0.18, 0.12, 0.07),
         metalness: 0,
@@ -160,38 +193,9 @@ export function createScene(scene: Scene, canvas: HTMLCanvasElement, nav: Naviga
       const seamW = 0.04;
       const seamY = 0.005;
 
-      // For a given |x|, compute [zFront, zBack] inside the hull.
-      const hullZRange = (ax: number): [number, number] | null => {
-        if (ax > halfW) return null;
-
-        // Back (stern) z limit — stern is at +z
-        let zBack: number;
-        if (ax <= halfW - sternCut) {
-          zBack = halfD; // under flat stern section
-        } else {
-          // On stern diagonal: x goes from (halfW-sternCut) to halfW,
-          // z goes from halfD down to (halfD-sternCut)
-          const t = (ax - (halfW - sternCut)) / sternCut;
-          zBack = halfD - t * sternCut;
-        }
-
-        // Front (bow) z limit — bow is at -z
-        let zFront: number;
-        if (ax <= halfW - bowNarrow) {
-          zFront = -halfD; // under full bow width
-        } else {
-          // On side edge: x goes from halfW down to (halfW-bowNarrow),
-          // z goes from (halfD-sternCut) down to -halfD.
-          // Parameterize by x: at ax=halfW → z=(halfD-sternCut), at ax=(halfW-bowNarrow) → z=-halfD
-          const t = (halfW - ax) / bowNarrow; // t=0 at halfW, t=1 at halfW-bowNarrow
-          zFront = halfD - sternCut + t * (-(halfD - sternCut) - halfD);
-        }
-
-        return zFront < zBack ? [zFront, zBack] : null;
-      };
-
-      for (let x = -(halfW - 0.1); x <= halfW - 0.1; x += plankWidth) {
-        const range = hullZRange(Math.abs(x));
+      const halfBeam = HULL_PLAN.beam / 2;
+      for (let x = -(halfBeam - 0.1); x <= halfBeam - 0.1; x += plankWidth) {
+        const range = hullZRangeAt(Math.abs(x));
         if (!range) continue;
         const [zMin, zMax] = range;
         const len = zMax - zMin - 0.2;
@@ -209,14 +213,30 @@ export function createScene(scene: Scene, canvas: HTMLCanvasElement, nav: Naviga
         disposer.add({ dispose: compose(ctx) });
       });
 
+      // Ambient motion LAST, because it animates the parrot and the parrot is
+      // staged by a composer. Every tween it starts is owned by the scene's
+      // disposal scope via the idle registry, so there is nothing to add to
+      // `disposer` here.
+      startAmbientMotion(sc, { seaAndSky, clouds, sun, shellRoot });
+
       return ground;
     },
   });
 
-  // Gentle depth fog matched to the clear colour: the camera orbits ~10 units
-  // out, so fog starts beyond the ship deck and only softens the sunset
-  // backdrop (~18 units away) into the ocean haze.
-  scene.fog = new Fog(PIRATE_COVE_ENVIRONMENT.clearColor.clone(), 14, 32);
+  // Fog must converge on a colour the player can actually see. The old fog was
+  // the environment's `clearColor` (0.05, 0.15, 0.25), which is never on screen
+  // for one frame: the skydome is built with `fog: false` (skyRig.ts) and is
+  // opaque, so the clear colour is painted over before anything reaches the
+  // canvas. The ocean therefore darkened as it receded while the sky above it
+  // brightened, and the horizon rendered as a 213-RGB-unit step across eight
+  // pixel rows -- the largest colour edge anywhere in the frame, larger than
+  // any material boundary on the ship.
+  //
+  // The fix is the skydome's own `horizonColor`, so the sea converges on the
+  // sky it meets. `createSkyMatchedFog` reads it from the same config object the
+  // dome is built from — the colour is not passed in and cannot be overridden.
+  // See docs review round 2 and `.probe/pc-seam.py`.
+  scene.fog = createSkyMatchedFog(PIRATE_COVE_SKY_FOG);
 
   return {
     cameraHandle: result.cameraHandle,

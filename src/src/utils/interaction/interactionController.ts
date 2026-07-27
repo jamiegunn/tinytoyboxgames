@@ -17,9 +17,15 @@
  * `pointercancel` (iPadOS system gestures). Torn down via the DisposalScope.
  */
 
-import { Raycaster, Vector2, Vector3, type Object3D, type Camera } from 'three';
+import { Raycaster, Vector2, Vector3, type Object3D, type Camera, type Ray } from 'three';
 import type { DisposalScope } from '@app/utils/disposal';
 import { classifyGesture, nearestPointWithin, PROXIMITY_PX, type ScreenPoint } from './gestureRules';
+
+/**
+ * `userData` key mirroring {@link TapOptions.background} onto a registered
+ * object, so the scene graph is inspectable without reaching into the registry.
+ */
+export const TAP_BACKGROUND_KEY = 'tapBackground';
 
 /** What a fired tap handler receives. */
 export interface TapHit {
@@ -41,6 +47,28 @@ export interface TapOptions {
    * no-dead-tap fallback should be suppressed for it. Defaults to false.
    */
   silent?: boolean;
+  /**
+   * An environment-scale surface — the ground, a stream — that is tappable but
+   * must never take a tap a small target could plausibly have been meant to
+   * receive. Defaults to false.
+   *
+   * WHY THIS EXISTS. `pickRegistered` runs first and returns on any hit, so a
+   * registered target that spans the whole frame silently disables the
+   * small-target forgiveness below it: a tap aimed at a mushroom and landing a
+   * finger-width off never "misses every mesh", it hits the FLOOR, and
+   * `pickByProximity` — the rule `gestureRules` documents as a core child-UX
+   * guarantee — is never consulted. Measured in Nature before this flag existed:
+   * the ground took 52-62% of the canvas at every shipping viewport, a flower's
+   * whole catchment was its own 36 px^2 silhouette, and a steady-handed child
+   * reaching for one hit it 2% of the time. Two leaves staged in the stream were
+   * literally untappable, because the transparent water plane above them is
+   * registered and the raycast does not care about transparency.
+   *
+   * The flag does not make the surface less tappable — open ground still fires
+   * the owl. It only moves it to the back of the queue, so it wins a tap that
+   * nothing smaller wanted.
+   */
+  background?: boolean;
 }
 
 /** Audio hooks that let the controller enforce the no-dead-tap rule. */
@@ -64,6 +92,16 @@ export interface InteractionController {
   register(obj: Object3D, handler: (hit: TapHit) => void, opts?: TapOptions): () => void;
   /** Overrides the proximity fallback radius (px). */
   setProximityRadiusPx(px: number): void;
+  /**
+   * Sets the handler for a tap that matched nothing at all — sky, treeline, the
+   * letterboxed margins. soul.md#6 makes this a contract, not an optimisation:
+   * "Every tap — whether it lands on a designated interaction or on empty space
+   * — must produce a response." The controller supplies the sound half itself;
+   * this is how a surface adds the visual half, which is the half that still
+   * works on a muted device. Receives the camera ray through the tap so the
+   * scene can place the acknowledgement at whatever depth suits it.
+   */
+  setMissHandler(fn: ((ray: Ray) => void) | null): void;
   /** Pauses or resumes tap delivery. */
   setPaused(paused: boolean): void;
 }
@@ -96,6 +134,7 @@ export function createInteractionController(canvas: HTMLCanvasElement, camera: C
   let lastY = 0;
   let totalDistance = 0;
   let proximityRadius = PROXIMITY_PX;
+  let missHandler: ((ray: Ray) => void) | null = null;
 
   /**
    * Fires an entry's handler and enforces the no-dead-tap rule.
@@ -112,29 +151,56 @@ export function createInteractionController(canvas: HTMLCanvasElement, camera: C
     }
   }
 
+  /** One resolved raycast match. */
+  interface Pick {
+    obj: Object3D;
+    entry: Entry;
+    point: Vector3;
+  }
+
   /**
-   * Raycasts the registry at a screen point.
+   * Raycasts the registry at a screen point, keeping the nearest ordinary match
+   * and the nearest background match separately.
+   *
+   * Splitting them is what un-drowns a small prop that sits under an
+   * environment-scale surface. Two leaves in the Nature stream are staged at
+   * y = 0.02 beneath a transparent water plane at y = 0.038; the plane is
+   * registered and the raycast does not care about transparency, so taking
+   * `intersects[0]` gave the water every single time and both leaves measured
+   * ZERO tappable pixels at every shipping viewport. Reading past the background
+   * surface returns the thing the child can actually see themselves aiming at.
    *
    * @param clientX - Pointer client X.
    * @param clientY - Pointer client Y.
-   * @returns The matched object + entry + world point, or null.
+   * @returns The nearest foreground and background matches (either may be null).
    */
-  function pickRegistered(clientX: number, clientY: number): { obj: Object3D; entry: Entry; point: Vector3 } | null {
-    if (registry.size === 0) return null;
+  function pickRegistered(clientX: number, clientY: number): { fg: Pick | null; bg: Pick | null } {
+    if (registry.size === 0) return { fg: null, bg: null };
     const rect = canvas.getBoundingClientRect();
     ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(ndc, camera);
     const intersects = raycaster.intersectObjects([...registry.keys()], true);
-    if (intersects.length === 0) return null;
-    // Walk ancestry of the closest hit to a registered object.
-    let obj: Object3D | null = intersects[0].object;
-    while (obj) {
-      const entry = registry.get(obj);
-      if (entry) return { obj, entry, point: intersects[0].point };
-      obj = obj.parent;
+    let fg: Pick | null = null;
+    let bg: Pick | null = null;
+    for (const intersect of intersects) {
+      // Walk ancestry of this hit to the registered object that owns it.
+      let obj: Object3D | null = intersect.object;
+      while (obj) {
+        const entry = registry.get(obj);
+        if (entry) {
+          if (entry.opts.background) {
+            bg ??= { obj, entry, point: intersect.point };
+          } else {
+            fg = { obj, entry, point: intersect.point };
+          }
+          break;
+        }
+        obj = obj.parent;
+      }
+      if (fg) break;
     }
-    return null;
+    return { fg, bg };
   }
 
   /**
@@ -151,7 +217,12 @@ export function createInteractionController(canvas: HTMLCanvasElement, camera: C
     const tapY = clientY - rect.top;
     const objs: Object3D[] = [];
     const points: ScreenPoint[] = [];
-    for (const [obj] of registry) {
+    for (const [obj, entry] of registry) {
+      // A background surface has no meaningful "centre" to be near — the ground
+      // plane's origin is the middle of the world, so leaving it in this contest
+      // would let it win taps near the centre of the frame and re-create exactly
+      // the problem `background` exists to solve.
+      if (entry.opts.background) continue;
       obj.getWorldPosition(worldPos);
       projected.copy(worldPos).project(camera);
       // Behind the camera → skip.
@@ -189,17 +260,55 @@ export function createInteractionController(canvas: HTMLCanvasElement, camera: C
 
     // Raycast first: if we hit a registered target, its own drag-support setting
     // decides tap-vs-drag. On a miss, treat as a non-draggable tap for wobble.
-    const picked = pickRegistered(e.clientX, e.clientY);
-    const supportsDrag = picked?.entry.opts.supportsDrag ?? false;
+    const { fg, bg } = pickRegistered(e.clientX, e.clientY);
+    const supportsDrag = (fg ?? bg)?.entry.opts.supportsDrag ?? false;
     if (classifyGesture(totalDistance, supportsDrag) !== 'tap') return;
 
-    if (picked) {
-      fire(picked.obj, picked.entry, picked.point);
+    // The order below IS the child-UX policy, so it is written out plainly:
+    //   1. a mesh the child could see themselves aiming at wins outright;
+    //   2. otherwise a small target near the finger wins, because that is what
+    //      the tap was for even though it landed beside the thing;
+    //   3. otherwise the environment surface under the finger wins, so open
+    //      ground and open water are still tappable;
+    //   4. otherwise nothing was hit at all, and soul.md#6 still owes the child
+    //      an answer.
+    if (fg) {
+      fire(fg.obj, fg.entry, fg.point);
       return;
     }
-    // Missed every mesh — proximity fallback for small targets.
     const near = pickByProximity(e.clientX, e.clientY);
-    if (near) fire(near.obj, near.entry, null);
+    if (near) {
+      fire(near.obj, near.entry, null);
+      return;
+    }
+    if (bg) {
+      fire(bg.obj, bg.entry, bg.point);
+      return;
+    }
+    acknowledgeMiss(e.clientX, e.clientY);
+  }
+
+  /**
+   * Answers a tap that matched nothing — sky, treeline, the empty margins.
+   *
+   * Before this existed a fifth to a quarter of the Nature canvas was inert at
+   * every shipping viewport (20.7%-25.9% measured), which soul.md#6 names as the
+   * one thing that breaks the spell: "A dead tap is a broken promise... Every
+   * tap — whether it lands on a designated interaction or on empty space — must
+   * produce a response. A sparkle, a ripple, a soft sound."
+   *
+   * @param clientX - Pointer client X.
+   * @param clientY - Pointer client Y.
+   */
+  function acknowledgeMiss(clientX: number, clientY: number): void {
+    if (missHandler) {
+      const rect = canvas.getBoundingClientRect();
+      ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(ndc, camera);
+      missHandler(raycaster.ray);
+    }
+    audio?.playFallback();
   }
 
   function onPointerCancel(): void {
@@ -221,12 +330,24 @@ export function createInteractionController(canvas: HTMLCanvasElement, camera: C
   return {
     register(obj, handler, opts): () => void {
       registry.set(obj, { handler, opts: opts ?? {} });
+      // Mirror the flag onto the object so the scene graph tells the whole
+      // truth about what is tappable and how. The registry is private, which is
+      // right, but it meant the single most consequential property of a
+      // registration was invisible to every tool that inspects the graph —
+      // tests, probes, the debug traversals — and a review spent four iterations
+      // measuring a rule the controller does not apply because of it. One
+      // documented key is a cheap price for making the graph self-describing.
+      obj.userData[TAP_BACKGROUND_KEY] = opts?.background === true;
       return () => {
         registry.delete(obj);
+        delete obj.userData[TAP_BACKGROUND_KEY];
       };
     },
     setProximityRadiusPx(px: number): void {
       proximityRadius = px;
+    },
+    setMissHandler(fn): void {
+      missHandler = fn;
     },
     setPaused(p: boolean): void {
       paused = p;

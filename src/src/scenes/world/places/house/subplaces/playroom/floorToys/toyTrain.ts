@@ -226,24 +226,46 @@ export function createToyTrain(scene: Scene, _keyLight: DirectionalLight): void 
     });
   };
 
-  // Start emitting puffs on a repeating timer
-  gsap.to(
-    {},
-    {
-      duration: 0.8,
-      repeat: -1,
-      onRepeat: emitPuff,
-      onStart: emitPuff,
-    },
+  // WHY THESE TWO TIMERS ARE REGISTERED AND THE ONES ABOVE ARE NOT. The puff
+  // tweens above are finite: they run 1.5s and end, so the worst a torn-down
+  // scene costs is one already-scheduled puff. The two below never end on their
+  // own — one is `repeat: -1`, the other reschedules itself forever — and both
+  // outlived the room. Measured (`.probe/render/r7-orphan-timers.mjs`): after
+  // `scope.dispose()` and `scene.clear()`, 15 gsap animations were still live
+  // and the horn kept sounding. A child who walks out to the beach hears a train
+  // from a playroom that no longer exists, every 12 to 20 seconds, forever.
+  //
+  // `register` hands the tween to the scene's disposal scope, which kills it on
+  // teardown. This module already used the owned path for the wheel spin at the
+  // top of the file; these two were the ones that got away.
+
+  // Start emitting puffs on a repeating timer.
+  const idle = getIdleAnimator(scene);
+  idle.register(
+    gsap.to(
+      {},
+      {
+        duration: 0.8,
+        repeat: -1,
+        onRepeat: emitPuff,
+        onStart: emitPuff,
+      },
+    ),
   );
 
   // ── Train horn — plays periodically ──
-  const hornInterval = () => {
+  // ONE registration that kills whichever call is currently pending, rather than
+  // registering each rescheduling. `DisposalScope.add` pushes onto an array that
+  // is never compacted (`utils/disposal.ts`), so registering every horn would
+  // trade the leak above for a slower one — a dead closure every 12 to 20
+  // seconds for as long as the child stays in the room. Killing the live handle
+  // ends the chain, because the only thing that schedules the next horn is the
+  // current one.
+  let hornCall = gsap.delayedCall(6, hornInterval);
+  function hornInterval(): void {
     triggerSound('sfx_hub_train_horn');
     // Schedule next horn between 12 and 20 seconds
-    const nextDelay = 12 + Math.random() * 8;
-    gsap.delayedCall(nextDelay, hornInterval);
-  };
-  // First horn after 6 seconds
-  gsap.delayedCall(6, hornInterval);
+    hornCall = gsap.delayedCall(12 + Math.random() * 8, hornInterval);
+  }
+  idle.register({ kill: () => hornCall.kill() });
 }

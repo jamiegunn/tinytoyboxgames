@@ -17,6 +17,7 @@ import {
   BackSide,
   BufferAttribute,
   Color,
+  Fog,
   Group,
   Mesh,
   MeshBasicMaterial,
@@ -44,6 +45,54 @@ export function projectToView(camera: PerspectiveCamera, screenX: number, screen
   const ndc = new Vector3(screenX * 2 - 1, -(screenY * 2 - 1), 0.5);
   ndc.unproject(camera);
   const dir = ndc.sub(camera.position).normalize();
+  return camera.position.clone().add(dir.multiplyScalar(distance));
+}
+
+/**
+ * Resolves a world position at a given horizontal screen fraction and a given
+ * *elevation above the camera's own horizontal plane*.
+ *
+ * WHY THIS EXISTS ALONGSIDE {@link projectToView}
+ * ----------------------------------------------
+ * `projectToView` is camera-pose-blind by design: it places by screen fraction,
+ * which is exactly right when there is nothing in the world the element has to
+ * clear. A sky element over an ocean is not that case. For an infinite sea
+ * plane the horizon sits at precisely the camera's zero elevation, at every
+ * pose, so "above the water" is a statement about elevation and cannot be
+ * expressed as a screen fraction — the screen row the horizon lands on moves
+ * with the camera's pitch.
+ *
+ * Pirate Cove shipped three clouds authored at screen y 0.10, 0.20 and 0.30
+ * against a camera whose horizon sat at screen y 0.083. All three were below the
+ * waterline by arithmetic, and 4.82% of the portrait sea band rendered as
+ * cloud-white. Placing by elevation makes that unrepresentable: any
+ * `elevationDeg > 0` is above the horizon by construction.
+ *
+ * The horizontal axis keeps screen-fraction authoring, because there is no
+ * horizontal invariant to respect and a screen fraction is what keeps an element
+ * in frame across aspect ratios. The returned point's actual NDC x drifts
+ * slightly from `screenX` (tilting the ray changes its depth along the camera
+ * axis); the drift is a few percent at sky elevations and is bounded by a
+ * contract test.
+ *
+ * @param camera - The active perspective camera.
+ * @param screenX - Horizontal screen fraction: 0 = left edge, 1 = right edge.
+ * @param elevationDeg - Angle above the camera's horizontal plane, in degrees.
+ * @param distance - Euclidean distance from the camera, in world units.
+ * @returns A world-space position at exactly that elevation from the camera.
+ */
+export function projectAboveHorizon(camera: PerspectiveCamera, screenX: number, elevationDeg: number, distance: number): Vector3 {
+  // The bearing comes from the camera's own unprojection rather than from a
+  // second copy of the fov/aspect trig — that duplication is the mistake this
+  // module exists to avoid. Mid-frame height only picks a ray; its pitch is
+  // discarded when the vertical component is dropped.
+  const ray = projectToView(camera, screenX, 0.5, 1).sub(camera.position);
+  const horizontal = new Vector3(ray.x, 0, ray.z);
+  if (horizontal.lengthSq() === 0) horizontal.set(0, 0, 1);
+  horizontal.normalize();
+
+  const elevation = (elevationDeg * Math.PI) / 180;
+  const dir = horizontal.multiplyScalar(Math.cos(elevation)).setY(Math.sin(elevation));
   return camera.position.clone().add(dir.multiplyScalar(distance));
 }
 
@@ -106,6 +155,46 @@ export function createGradientSkydome(options: SkydomeOptions): Mesh {
   mesh.renderOrder = -1;
   mesh.raycast = () => {};
   return mesh;
+}
+
+/**
+ * A scene's sky gradient together with the depth fog derived from it.
+ *
+ * Deliberately has no `fog.color`. The skydome built by
+ * {@link createGradientSkydome} uses `fog: false` and `side: BackSide`, so it is
+ * opaque and unfogged: it paints over the renderer's clear colour before the
+ * frame lands. Anything the scene fogs toward that is not the dome's own
+ * `horizonColor` therefore makes distant geometry recede toward a colour that is
+ * never rasterised — aerial perspective running backwards, visible as a hard
+ * seam where the fogged world meets the unfogged sky.
+ *
+ * Both scenes shipped exactly that bug, each fogging toward its
+ * `environment.clearColor`. In Pirate Cove the sea darkened as it receded (near
+ * luminance 136.6, far 100.5) while the sky above it sat at 223.4, and the
+ * horizon rendered as a 213-RGB-unit step across eight pixel rows — the largest
+ * colour edge anywhere in the frame, larger than any material boundary on the
+ * ship. Omitting the field is what makes that unrepresentable.
+ */
+export interface SceneSkyFogConfig {
+  /** The gradient skydome this scene draws. */
+  sky: SkydomeOptions;
+  /** Depth-fog distances. The colour is not configurable — see above. */
+  fog: {
+    /** Distance at which fog begins. Must clear the scene's own geometry. */
+    near: number;
+    /** Distance at which fog fully saturates. */
+    far: number;
+  };
+}
+
+/**
+ * Builds the depth fog for a scene, locked to its skydome's horizon colour.
+ *
+ * @param config - The scene's paired sky and fog configuration.
+ * @returns A `Fog` whose colour is the skydome's horizon colour.
+ */
+export function createSkyMatchedFog(config: SceneSkyFogConfig): Fog {
+  return new Fog(config.sky.horizonColor.clone(), config.fog.near, config.fog.far);
 }
 
 /** Options for {@link createCelestialBody}. */

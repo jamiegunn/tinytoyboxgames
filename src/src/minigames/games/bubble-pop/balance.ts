@@ -101,34 +101,43 @@ export function bubbleSpeedRange(ed: number, phase: GamePhase): [number, number]
 }
 
 /**
- * Sway amplitude scaled by difficulty.
- * @param ed - Effective difficulty (0–1).
- * @returns Sway amplitude (0.3–0.8).
+ * NOT HERE, DELIBERATELY: sway and chain-pop reach are NOT difficulty-scaled.
+ *
+ * This file used to also export `swayAmplitude(ed)` (0.3 → 0.8),
+ * `swayFrequency(ed)` (0.8 → 1.6) and `chainPopRadius(ed, n)` (2.0 → 3.0, x1.3
+ * under 8 active). Nothing imported any of the three. The game ran, and still
+ * runs, on three fixed constants — `SWAY_AMPLITUDE` 0.6, `SWAY_FREQUENCY` 1.2,
+ * `CHAIN_POP_RADIUS` 2.5 — each sitting at or beside the midpoint of the curve
+ * meant to replace it, which is what an unfinished swap looks like.
+ *
+ * That made them the exact defect the doctrine block in `types.ts` was written
+ * to end, only pointing the other way. That block says balance questions are
+ * answered by balance.ts — so a reader obeying it came here, found a documented
+ * difficulty ramp for sway, and was wrong about the game.
+ *
+ * THE REPAIR WAS NOT TO WIRE THEM IN, AND THAT IS MEASURED, NOT ASSUMED.
+ * `.probe/gameplay/r8-bubble-sway-lever.mjs` has the arithmetic:
+ *
+ *   - Sway is applied as a VELOCITY, not an offset — `updateBubbleMotion` does
+ *     `x += sin(t*F + phase) * A * 0.3 * dt` — so the excursion is its integral,
+ *     peak-to-peak `0.6 * A / F`, and it SHRINKS as frequency rises. The two
+ *     curves raise A and F in lockstep, so A/F runs 0.375 → 0.5 → 0.5: the hard
+ *     end of the ramp is arithmetically IDENTICAL to the constant already
+ *     shipping, and the top half of the ramp changes nothing whatsoever.
+ *   - The whole easy→hard ramp is worth 8.6 px of bubble travel at a phone
+ *     portrait viewport. The smallest bubble is 46 px across, a tap already
+ *     forgives 28 px of smear and reaches 70 px for proximity. The ramp is
+ *     smaller than the slop, so no child can see it or act on it.
+ *   - `chainPopRadius` IS perceptible — and points the wrong way. At ed = 0 with
+ *     a normal 13-bubble field it returns 2.00 against today's 2.50, a 20% cut
+ *     (57 px) in chain reach for the YOUNGEST player, which is backwards from
+ *     every generosity rule this codebase holds.
+ *
+ * So one curve was a lever too small to feel and the other was a lever pulled
+ * the wrong way. Both are gone rather than connected. Balance questions are
+ * still answered here — but a curve that nothing imports answers nothing, and
+ * is just the `types.ts` lie wearing this file's name.
  */
-export function swayAmplitude(ed: number): number {
-  return lerp(0.3, 0.8, ed);
-}
-
-/**
- * Sway frequency scaled by difficulty.
- * @param ed - Effective difficulty (0–1).
- * @returns Sway frequency multiplier (0.8–1.6).
- */
-export function swayFrequency(ed: number): number {
-  return lerp(0.8, 1.6, ed);
-}
-
-/**
- * Chain pop radius scaled by difficulty and bubble density.
- * @param ed - Effective difficulty (0–1).
- * @param activeBubbleCount - Current active bubble count.
- * @returns Chain pop radius in world units.
- */
-export function chainPopRadius(ed: number, activeBubbleCount: number): number {
-  const baseRadius = lerp(2.0, 3.0, ed);
-  const densityFactor = activeBubbleCount < 8 ? 1.3 : 1.0;
-  return baseRadius * densityFactor;
-}
 
 /**
  * Giant bubble tap count scaled by player profile.

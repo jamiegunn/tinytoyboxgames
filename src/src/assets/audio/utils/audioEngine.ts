@@ -6,8 +6,9 @@
  * Categories: music, ambient, sfx
  */
 
-const MAX_SIMULTANEOUS = 8;
-const MAX_SFX = 4;
+// There is no MAX_SFX / MAX_SIMULTANEOUS voice cap, and that is a measured
+// decision, not an omission. See `registerSound` below for the numbers and for
+// why reinstating one would take a sound away from a child's fifth tap.
 const DUCK_AMOUNT = 0.35;
 const DUCK_ATTACK = 0.08;
 const DUCK_RELEASE = 0.4;
@@ -193,35 +194,52 @@ export function isMuted(): boolean {
 }
 
 /**
- * Registers an active sound for polyphony tracking.
- * Returns false if the polyphony limit is exceeded and the sound should not play.
+ * Records an active sound so `stopCategory` and `disposeEngine` can reach it.
+ *
+ * THIS DOES NOT LIMIT POLYPHONY, AND DELIBERATELY SO — READ BEFORE "FIXING" IT.
+ *
+ * It used to look like it did. It carried a doc line promising "returns false
+ * if the polyphony limit is exceeded", a `MAX_SFX = 4` cap, and an eviction
+ * branch that called the oldest SFX's `stop()`. Every part of that was inert:
+ *
+ *   - The body had exactly one `return`, and it was `return true`. No caller
+ *     could ever be told to skip a voice, and none of the three call sites
+ *     checked the value anyway.
+ *   - Eviction only ever selected entries with `category === 'sfx'`, and every
+ *     SFX is registered with `AudioProvider`'s `const stopFn = () => {}`,
+ *     because the `SfxFn` contract (`assets/audio/index.ts`) returns no stop
+ *     handle. So "evicting" removed a row from an array and silenced nothing.
+ *
+ * So the question was never whether the cap worked — it plainly did not — but
+ * whether the uncapped pile-up it was supposed to prevent is audible. That was
+ * measured rather than argued: `.probe/audio/r7-sfx-pileup.mjs` renders the
+ * REAL graph built below through Chromium's OfflineAudioContext and reads the
+ * output samples. Twenty overlapping taps of `sfx_shared_tap_fallback` peak at
+ * -14.6 dBFS; twenty `sfx_shared_chomp` at -1.1 dBFS; twenty
+ * `sfx_cannonball_fire` at -8.0 dBFS. Nothing clips. The bus compressor below
+ * is what is actually protecting small ears, and it is doing it.
+ *
+ * The one sound that can exceed full scale is `sfx_shared_fanfare`, from twelve
+ * simultaneous copies. A fanfare comes only from `CelebrationSystem.milestone`,
+ * and no path fires more than two of those at once (two milestones peak at
+ * -13.5 dBFS), so twelve is not a gesture a child can make.
+ *
+ * AND ENFORCING THE CAP WOULD BE A REGRESSION, NOT A FIX. `activeSounds` drains
+ * on a five-second timer (`AudioProvider.playSound`), so a real `MAX_SFX = 4`
+ * would refuse a child's fifth tap in five seconds and return silence to a
+ * deliberate press. That is the exact failure this codebase spent a round
+ * removing from the water ripples. If a limiter is ever genuinely needed, the
+ * place for it is the compressor below, not a refusal to answer the child.
  *
  * @param id - Unique identifier for the sound.
  * @param category - The sound category (sfx, music, or ambient).
- * @param stopFn - Callback to stop the sound when evicted.
- * @returns Whether the sound was successfully registered.
+ * @param stopFn - Callback used by `stopCategory` / `disposeEngine`. For SFX
+ *   this is a no-op by construction; music and ambient pass real stops.
  */
-export function registerSound(id: string, category: 'sfx' | 'music' | 'ambient', stopFn: () => void): boolean {
-  // Clean up finished sounds (rough heuristic: older than 30s for SFX)
+export function registerSound(id: string, category: 'sfx' | 'music' | 'ambient', stopFn: () => void): void {
+  // Drops SFX rows the 5s unregister timer never got to (e.g. a tab backgrounded
+  // mid-tap), so the list stays bounded across a long session.
   pruneFinished();
-
-  const sfxCount = activeSounds.filter((s) => s.category === 'sfx').length;
-  const totalCount = activeSounds.length;
-
-  if (category === 'sfx' && sfxCount >= MAX_SFX) {
-    // Drop oldest non-looping SFX
-    const oldest = activeSounds.find((s) => s.category === 'sfx');
-    if (oldest) {
-      oldest.stop();
-      activeSounds.splice(activeSounds.indexOf(oldest), 1);
-    }
-  } else if (totalCount >= MAX_SIMULTANEOUS) {
-    const oldest = activeSounds.find((s) => s.category === 'sfx');
-    if (oldest) {
-      oldest.stop();
-      activeSounds.splice(activeSounds.indexOf(oldest), 1);
-    }
-  }
 
   activeSounds.push({
     id,
@@ -229,7 +247,6 @@ export function registerSound(id: string, category: 'sfx' | 'music' | 'ambient',
     startTime: ctx?.currentTime ?? 0,
     stop: stopFn,
   });
-  return true;
 }
 
 /**

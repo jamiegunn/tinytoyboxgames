@@ -239,7 +239,15 @@ export function wireFloorTap(
     owl.flyTo(point);
   };
 
-  const unregisters = targets.map((target) => dispatcher.registerWithPoint(target, onFloorTap));
+  // `background: true` is load-bearing, not cosmetic. The floor is one plane the
+  // size of the whole world — 28 x 32 in Nature — so registering it normally put
+  // a mesh under almost every pixel and, because `pickRegistered` returns on the
+  // first hit, silently switched OFF the small-target proximity forgiveness for
+  // every prop standing on it. Measured before the flag: the ground answered
+  // 52-62% of the canvas at the nine shipping viewports and a flower's entire
+  // catchment was its own 36 px^2 cap. The floor still fires and the owl still
+  // flies; it just no longer outranks the thing the child was reaching for.
+  const unregisters = targets.map((target) => dispatcher.registerWithPoint(target, onFloorTap, { background: true }));
 
   const cleanup = () => {
     unregisters.forEach((unregister) => unregister());

@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "../node_modules/.tmp/tsconfig.probe.tsbuildinfo",
+    "baseUrl": "..",
+    "paths": {
+      "@app/*": ["src/*"],
+      "@scenes/*": ["src/scenes/*"],
+      "@game/*": ["src/minigames/*"]
+    }
+  },
+  "include": ["render/**/*.ts", "../src/**/*.ts"]
+}

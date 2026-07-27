@@ -202,10 +202,24 @@ export const MAX_FLOAT_SPEED = 1.2;
 export const SPEED_VARIATION_MIN = 0.8;
 export const SPEED_VARIATION_MAX = 1.25;
 
-/** Horizontal sway amplitude. */
+/**
+ * Horizontal sway, as a VELOCITY coefficient in u/s — not a position offset.
+ *
+ * `updateBubbleMotion` applies it as `x += sin(t*F + phase) * A * 0.3 * dt`, so
+ * the excursion a child actually sees is the integral of that: peak-to-peak
+ * `0.6 * A / F` = 0.30 world units, about 34 px at a phone portrait viewport.
+ * Note the consequence — raising the FREQUENCY SHRINKS the travel.
+ *
+ * These two are fixed on purpose, and sway is the one balance question
+ * `balance.ts` does not answer. That file used to carry `swayAmplitude(ed)` and
+ * `swayFrequency(ed)` curves that nothing imported; they scaled A and F in
+ * lockstep, so `A / F` ran 0.375 → 0.5 → 0.5 and the hard end of the ramp
+ * reduced to exactly the pair below, while the whole easy→hard ramp came to
+ * 8.6 px — less than the 28 px of smear a tap already forgives. Measured in
+ * `.probe/gameplay/r8-bubble-sway-lever.mjs`; the full reasoning is kept in
+ * balance.ts where those curves used to be.
+ */
 export const SWAY_AMPLITUDE = 0.6;
-
-/** Sway frequency multiplier. */
 export const SWAY_FREQUENCY = 1.2;
 
 /**
@@ -287,7 +301,18 @@ export const SPAWN_SIDE_Y_MAX = 2.0;
 /** Probability of spawning from the bottom vs. a side edge. */
 export const SPAWN_BOTTOM_CHANCE = 0.7;
 
-/** Chain pop radius — bubbles within this distance are chain-popped by rainbow bubbles. */
+/**
+ * Chain pop radius — bubbles within this distance are chain-popped by rainbow
+ * bubbles. Flat across difficulty, and that is a decision.
+ *
+ * balance.ts used to export an unimported `chainPopRadius(ed, activeCount)`
+ * running 2.0 → 3.0 with a x1.3 bonus under 8 active. Unlike the sway curves it
+ * was easily perceptible (a 0.5 unit change is ~57 px at phone portrait), but it
+ * spent that on giving the EASIEST difficulty the SMALLEST reach: at ed = 0 with
+ * a normal 13-bubble field it returned 2.00 against the 2.5 shipping here, a 20%
+ * cut for the youngest player. A rainbow bubble is this game's biggest reward,
+ * and the child least able to earn one is the last who should get less of it.
+ */
 export const CHAIN_POP_RADIUS = 2.5;
 
 /** Wobble radius — nearby bubbles wobble when one pops. */
@@ -339,6 +364,17 @@ export const BUBBLE_POINTS: Record<BubbleKind, number> = {
  * Anyone — human or model — reading this file to learn the rules would have
  * come away with the wrong number for every rule it named. Balance questions
  * are answered by balance.ts; put new curves there, not new constants here.
+ *
+ * AND THE RULE RUNS BOTH WAYS, because it was later caught running backwards.
+ * balance.ts had accumulated three curves — `swayAmplitude`, `swayFrequency`,
+ * `chainPopRadius` — that nothing imported, while the game ran on
+ * `SWAY_AMPLITUDE`, `SWAY_FREQUENCY` and `CHAIN_POP_RADIUS` below. A reader who
+ * obeyed the paragraph above went to balance.ts, found a documented difficulty
+ * ramp for sway, and was wrong about the game. An unimported curve in the
+ * authority file is this same lie wearing the other file's name, and it is
+ * worse, because this block is what sends people there to be misled. Those
+ * three are deleted; see balance.ts for the measurements that decided deleting
+ * them beat wiring them in.
  */
 
 /** Primary spawn loop jitter in seconds. */

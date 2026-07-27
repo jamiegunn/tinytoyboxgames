@@ -276,8 +276,21 @@ export function createToyCar(scene: Scene, _keyLight: DirectionalLight): void {
     mesh.userData.onClick = driveHandler;
   });
 
-  // Auto-activate after 15 seconds if not clicked
-  gsap.delayedCall(15, () => {
-    if (!driving) driveHandler();
-  });
+  // Auto-activate after 15 seconds if not clicked.
+  //
+  // OWNED, BECAUSE AN UNOWNED ONE FOLLOWED THE CHILD OUT OF THE ROOM. A child
+  // who leaves the playroom inside 15 seconds used to hear this car's
+  // `sfx_shared_tap_fallback` — the sound that means "you tapped something" —
+  // in whatever scene they had walked into, with nothing tapped and nothing on
+  // screen to have made it. Measured in `.probe/render/r7-orphan-timers.mjs`.
+  //
+  // The orbit tween inside `driveHandler` was already safe: it goes through the
+  // scene's idle animator, and registering on a disposed scope kills immediately
+  // (`utils/disposal.ts`). So the animation self-cancelled and only the SOUND
+  // escaped, which is exactly why this was invisible to anyone reading the file.
+  getIdleAnimator(scene).register(
+    gsap.delayedCall(15, () => {
+      if (!driving) driveHandler();
+    }),
+  );
 }

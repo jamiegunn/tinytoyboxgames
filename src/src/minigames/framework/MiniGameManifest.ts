@@ -54,8 +54,12 @@ const manifest: MiniGameManifestEntry[] = [
     themeColor: '#1A6FB5',
     iconAssetId: 'little_shark_icon',
     musicId: 'mus_little_shark_background',
-    // Initial 3/4 overhead view (CAMERA_RADIUS_LANDSCAPE=10); the follow cam
-    // takes over each frame. azimuth π reproduces the old game camera's −Z.
+    // Initial 3/4 overhead view; the follow cam takes over each frame. azimuth
+    // π reproduces the old game camera's −Z. This 10.0 is the only camera
+    // distance the game has — it used to cite a `CAMERA_RADIUS_LANDSCAPE=10`
+    // constant in little-shark/types.ts, which nothing read and which implied
+    // a portrait counterpart the game never branched on. The constant is gone;
+    // the number lives here.
     camera: { kind: 'orbit', target: new Vector3(0, 0.5, 0), azimuth: Math.PI, polar: 0.95, distance: 10.0, fov: fovRadiansToDegrees(0.85) },
     comboWindowSeconds: 2.5,
     hasSpecialItems: true,
