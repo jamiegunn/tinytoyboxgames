@@ -117,8 +117,28 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     return () => {
       disposed = true;
       disarm();
-      audioCtxRef.current?.removeEventListener('statechange', handleStateChange);
+      const webAudioCtx = audioCtxRef.current;
+      webAudioCtx?.removeEventListener('statechange', handleStateChange);
       disposeEngine();
+      // Whoever constructs the context closes it. `disposeEngine` only drops the
+      // engine's references — `initEngine` receives a context it does not own, so
+      // it must not close one. This component made it, so this component ends it.
+      //
+      // Without the close, every Play→Back cycle leaks one live AudioContext
+      // (App.tsx mounts this provider only for scene routes, and the hash
+      // listeners unmount it on the back button). Chrome caps a document at six;
+      // the seventh constructor throws into the `catch {}` above and audio dies
+      // silently for the rest of the session.
+      //
+      // The ref is cleared as well as closed: React 19's StrictMode re-runs this
+      // effect on the same instance after cleanup, and a retained closed context
+      // would leave dev builds permanently silent.
+      audioCtxRef.current = null;
+      if (webAudioCtx && webAudioCtx.state !== 'closed') {
+        void webAudioCtx.close().catch(() => {
+          // Already closing, or the browser refused — nothing left to do.
+        });
+      }
     };
   }, []);
 

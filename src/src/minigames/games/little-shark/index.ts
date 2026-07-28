@@ -72,6 +72,7 @@ import {
   updateHuntFSM,
   triggerHunt,
   cancelHunt,
+  notifyHuntCatch,
   getHuntPhase,
   type HuntFSMState,
   // Expressions
@@ -335,7 +336,11 @@ export function createGame(context: MiniGameContext): IMiniGame {
   // shark into a fish by dragging still eats it through the collision path
   // below — that half of the toy is unchanged.
   function chaseFish(fish: FishState): void {
-    fish.isTargeted = true;
+    // This used to open `fish.isTargeted = true`, and the write could never be
+    // observed: `eatFishAction` two lines down sets `fish.active = false`, and
+    // the flag's only reader opens with `if (!fish.active ...) return`. Removed
+    // with the flag itself — see the NOT-HERE-DELIBERATELY note in types.ts.
+    //
     // The child has spoken, so whatever the shark had decided to do on its own
     // no longer owns the next catch.
     autoHuntActive = false;
@@ -350,6 +355,11 @@ export function createGame(context: MiniGameContext): IMiniGame {
 
   function eatFishAction(fish: FishState): void {
     fish.active = false;
+    // If this is the fish the hunt was after, the hunt earned its flourish. The
+    // FSM integrates positions and cannot see a collision, so the outcome has to
+    // be told to it from here or the terminal beat cannot tell a catch from a
+    // miss — which is how the shipped game came to barrel-roll over both.
+    if (huntState.targetFishRoot === fish.root) notifyHuntCatch(huntState);
     // A fish can now be caught mid-arrival, so clear the inbound flag or the
     // despawn/pool path would still treat it as flying in.
     fish.spawning = false;
@@ -475,6 +485,38 @@ export function createGame(context: MiniGameContext): IMiniGame {
   // the sofa comes back to life before it looks broken.
   const AUTO_HUNT_IDLE_DELAY = 3.5;
 
+  // The nearest a fish may be for the shark to decide to hunt it, and how long
+  // the shark rests between its own hunts.
+  //
+  // WHY THESE EXIST. The delay above fixed *when* the auto-hunt runs; it did
+  // nothing about what the auto-hunt does once it starts, and what it did was
+  // not a stalk. Instrumented over three unattended minutes it started 2,472
+  // hunts (824/min) at a mean acquisition distance of 1.56 units — already
+  // inside STRIKE_RANGE, and a third of the way inside FISH_HIT_RADIUS from the
+  // first frame. Mean hunt lifetime was 0.055s against the FSM's own designed
+  // 0.71s cycle, `celebrate` and `recovery` had 0.0% frame occupancy (the FSM
+  // never once reached its ending), and the loop closed on itself: contact
+  // squirted the fish clear, the squirt cancelled the hunt, and the next frame
+  // re-acquired the same fish. What a child who set the toy down actually saw
+  // was a shark swinging its nose 2.11 rad/s with 5.8 direction reversals a
+  // second, covering 1,683 units of ground to move 56, batting ~19 fish a
+  // second aside. That is the opposite of `soul.md` §5 — "never frantic...
+  // ambient animations breathe at the pace of a sleeping cat... the world waits
+  // patiently for the child to engage."
+  //
+  // Both numbers were swept rather than guessed (minRange 3-6 x cooldown
+  // 1.5-4.0, then the shortlist re-run over 8 seeds and judged on the WORST
+  // seed against criteria fixed in advance: acquisition >= 3u, lifetime >= the
+  // designed 0.71s, <= 2.0 reversals/s, <= 20 hunts/min, idle <= 75% so the fix
+  // is not just an off switch). All four finalists passed; 6.0/4.0 won on the
+  // one axis that separated them, fish displaced per minute — 58 against 82-127
+  // for the others, and 1,116 for the shipped game.
+  //
+  // 6.0 is chosen against AUTO_HUNT_RADIUS 9.0, so the shark hunts out of a
+  // 6-9 unit band and every hunt has an approach long enough to read.
+  const AUTO_HUNT_MIN_RANGE = 6.0;
+  const AUTO_HUNT_COOLDOWN = 4.0;
+
   // Seconds since the child last touched the screen. Starts at 0, so the first
   // few seconds of a session belong to the player rather than to the shark.
   let secondsSinceInput = 0;
@@ -505,6 +547,9 @@ export function createGame(context: MiniGameContext): IMiniGame {
   // that distinguishes them is who started it, so that is what gets recorded.
   let autoHuntActive = false;
 
+  // Seconds left before the shark is allowed to pick its own next target.
+  let autoHuntCooldown = 0;
+
   // Keeps the shark hunting on its own.
   //
   // Taps now resolve their own catch (see `chaseFish`), so without this the
@@ -515,7 +560,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
   //
   // Deliberately yields to the child: no auto-hunt while a drag or a lunge is
   // in flight, because those are direct instructions about where to go.
-  function maintainAutoHunt(): void {
+  function maintainAutoHunt(dt: number): void {
     // Drop a target that has been eaten, culled or recycled out from under us —
     // the FSM would otherwise steer at a pooled root sitting at the last
     // position it happened to be left in.
@@ -527,30 +572,66 @@ export function createGame(context: MiniGameContext): IMiniGame {
     // so the flag must drop here rather than only when a new hunt starts —
     // otherwise it latches true after the first auto-hunt and permanently
     // disables the drag-into-fish catch the child is entitled to.
-    if (getHuntPhase(huntState) === 'idle') autoHuntActive = false;
+    if (getHuntPhase(huntState) === 'idle') {
+      // A hunt of the shark's own that has just ended buys the rest. Set here
+      // rather than in the FSM because only this function knows whether the
+      // hunt that ended was the shark's idea or the child's — a tap-driven hunt
+      // must never leave the shark unable to respond to the next tap.
+      if (autoHuntActive) autoHuntCooldown = AUTO_HUNT_COOLDOWN;
+      autoHuntActive = false;
+    }
     if (getHuntPhase(huntState) !== 'idle') return;
     if (sharkMove.isBeingDragged || sharkMove.isLunging) return;
     // The attention gate. Everything below this line is attract behaviour for a
     // shark nobody is currently playing with.
     if (secondsSinceInput < AUTO_HUNT_IDLE_DELAY) return;
+    if (autoHuntCooldown > 0) {
+      autoHuntCooldown -= dt;
+      return;
+    }
 
     let best: FishState | null = null;
     let bestDistSq = AUTO_HUNT_RADIUS * AUTO_HUNT_RADIUS;
+    const minRangeSq = AUTO_HUNT_MIN_RANGE * AUTO_HUNT_MIN_RANGE;
     const consider = (fish: FishState | null): void => {
       if (!fish || !fish.active || fish.spawning) return;
       const dx = fish.root.position.x - sharkPos.x;
       const dz = fish.root.position.z - sharkPos.z;
       const d = dx * dx + dz * dz;
+      // A fish already under the shark's nose cannot be stalked, only bumped.
+      // Refusing it here is what turns the acquisition distance from 1.56 units
+      // into 6.4 and gives the hunt an approach the eye can follow.
+      if (d < minRangeSq) return;
       if (d < bestDistSq) {
         bestDistSq = d;
         best = fish;
       }
     };
     for (const f of fishArray) consider(f);
-    consider(goldenFish);
+    // The golden is deliberately NOT considered.
+    //
+    // This is a deduction, not a tuning preference. The harvest gate below is
+    // `isPlayerDriven(sharkMove) && !autoHuntActive`, and `autoHuntActive` is
+    // true for every frame from `triggerHunt` until the phase returns to idle.
+    // So an auto-hunt on the golden cannot end in a catch — not rarely, but
+    // never, by construction. What it CAN do is arrive, fail, and spend the
+    // fish: `dodgeCount` is a lifetime budget capped at `GOLDEN_MAX_DODGES`,
+    // and a staged encounter measured the shark burning all 2 of them before
+    // the child's finger ever touched the screen (200/200 trials, mean budget
+    // remaining at handover 0.00 against a control of 2.00).
+    //
+    // That is the whole of the golden fish's game handed to nobody. The prize
+    // fish belongs to the child; the shark may not spend it on an errand the
+    // rules forbid it from completing.
     if (!best) return;
     const target: FishState = best;
-    target.isTargeted = true;
+    // Deliberately does NOT mark the target. This used to write
+    // `target.isTargeted = true`, a flag meaning "the child has claimed this
+    // fish" whose only reader was the golden fish's dodge gate. The shark
+    // noticing a fish is not the child claiming it, and writing it here
+    // permanently disarmed the prize fish — over 200 seeded encounters, a golden
+    // the auto-hunt had glanced at dodged 0.00 times against a control of 1.00,
+    // in 200/200 trials. The flag is gone; see the note in types.ts.
     autoHuntActive = true;
     triggerHunt(huntState, target.root);
   }
@@ -564,7 +645,7 @@ export function createGame(context: MiniGameContext): IMiniGame {
    */
   function updateSharkMovement(dt: number): void {
     secondsSinceInput += dt;
-    maintainAutoHunt();
+    maintainAutoHunt(dt);
     const huntPhase = getHuntPhase(huntState);
 
     // Hunt FSM drives movement when not idle
@@ -576,6 +657,12 @@ export function createGame(context: MiniGameContext): IMiniGame {
         },
         onCelebrate: () => {
           triggerBarrelRoll(sharkAnim);
+        },
+        // The miss beat reuses the gesture the game already plays when the
+        // child's own lunge comes up empty (see the `wasLunging` branch below),
+        // so a shark that misses looks the same whoever was driving.
+        onMiss: () => {
+          triggerHeadLook(sharkAnim);
         },
       });
       // Face the direction of travel during the hunt.
@@ -934,6 +1021,15 @@ export function createGame(context: MiniGameContext): IMiniGame {
     // stalking a fish and having it slip away is a better thing for a three-year
     // -old to watch than the shark quietly eating the reef, and it leaves the
     // fish on screen for the child to claim.
+    //
+    // That defence was written about a stalk the game did not actually perform.
+    // The squirt used to cancel the hunt as well, and because STRIKE_RANGE (1.5)
+    // is larger than FISH_HIT_RADIUS (1.0), contact ALWAYS arrived before the
+    // 0.2s strike timer could expire — so the cancel was not an edge case, it
+    // was the universal terminator. Measured: 2,471 of 2,472 unattended hunts
+    // ended on contact and 0 ever reached `celebrate`. The shark never slipped;
+    // it was interrupted mid-swing, every time, by design it did not intend.
+    // The squirt now stands on its own and the hunt is allowed to finish.
     const canHarvest = isPlayerDriven(sharkMove) && !autoHuntActive;
     for (let i = fishArray.length - 1; i >= 0; i--) {
       const fish = fishArray[i];
@@ -945,7 +1041,6 @@ export function createGame(context: MiniGameContext): IMiniGame {
         eatFishAction(fish);
       } else {
         escapeFromShark(fish, sharkPos.x, sharkPos.z);
-        if (huntState.targetFishRoot === fish.root) cancelHunt(huntState);
       }
     }
     // Collision detection — golden fish
@@ -954,7 +1049,6 @@ export function createGame(context: MiniGameContext): IMiniGame {
       const gz = sharkPos.z - goldenFish.root.position.z;
       if (Math.sqrt(gx * gx + gz * gz) < GOLDEN_HIT_RADIUS) {
         escapeFromShark(goldenFish, sharkPos.x, sharkPos.z);
-        if (huntState.targetFishRoot === goldenFish.root) cancelHunt(huntState);
       }
     }
     if (canHarvest && goldenFish && goldenFish.active && !goldenFish.spawning) {

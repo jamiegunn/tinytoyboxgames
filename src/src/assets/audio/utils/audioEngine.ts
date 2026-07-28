@@ -197,6 +197,8 @@ export function isMuted(): boolean {
  * Records an active sound so `stopCategory` and `disposeEngine` can reach it.
  *
  * THIS DOES NOT LIMIT POLYPHONY, AND DELIBERATELY SO — READ BEFORE "FIXING" IT.
+ * See architecture-standards.md#nothinginert, "a guard that cannot fire is
+ * worse than no guard" — this is that section's worked example.
  *
  * It used to look like it did. It carried a doc line promising "returns false
  * if the polyphony limit is exceeded", a `MAX_SFX = 4` cap, and an eviction

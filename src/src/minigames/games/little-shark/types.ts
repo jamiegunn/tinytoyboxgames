@@ -450,8 +450,15 @@ export interface FishState {
   dodgeDirX: number;
   /** Unit Z of the in-flight dart direction. */
   dodgeDirZ: number;
-  /** Whether this fish is the current target of a player tap-lunge. */
-  isTargeted: boolean;
+  // NOT HERE DELIBERATELY: `isTargeted: boolean`, documented as "the current
+  // target of a player tap-lunge". It had two writers meaning different things
+  // — `chaseFish` ("the child claimed this fish") and the idle auto-hunt ("the
+  // AI selected this fish") — and one reader, the golden fish's dodge gate. The
+  // first write was unobservable, because the tap eats the fish on the very next
+  // statement and the reader bails on inactive fish. So the flag's only
+  // reachable effect in the shipped game was the second meaning disabling a
+  // behaviour written for the first: an auto-hunt glancing at the golden fish
+  // permanently switched off its evasion. See fish/effects.ts.
   /** Whether this fish is in spawn-arrival animation (not yet catchable). */
   spawning: boolean;
   /** Timer for spawn arrival animation. */

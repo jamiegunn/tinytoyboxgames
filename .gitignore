@@ -9,12 +9,19 @@ docs/*
 !docs/ai-guidance/
 !docs/controlled-terminology.md
 !docs/status/
+!docs/reviews/
 
 *.md
 !README.md
 !docs/controlled-terminology.md
 !docs/ai-guidance/*.md
 !docs/status/*.md
+# Review documents are the written record of why the code looks the way it
+# does — they are deliverables, not build output. Both `docs/*` and the blanket
+# `*.md` above were silently excluding every one of them, so they never entered
+# git and never reached the laptop in any shipped archive.
+!docs/reviews/*.md
+!docs/ai-guidance/reviews/*.md
 
 # Bun
 bun.lockb
@@ -55,3 +62,10 @@ src/tools/
 /_site/
 /node_modules/
 /package-lock.json
+
+# Probe output (screenshots, run logs) — regenerate with the probes in src/.probe/
+src/.probe/out/
+
+# Quarantine for files a sync had to remove. The device mount forbids unlink,
+# so deletions are staged here by `mv` instead; nothing in it belongs in git.
+_to_delete/

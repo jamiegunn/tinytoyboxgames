@@ -231,7 +231,6 @@ export function createFish(scene: Scene, sharkPos: Vector3, kind: FishKind, spaw
     dodgeTimer: -1,
     dodgeDirX: 0,
     dodgeDirZ: 0,
-    isTargeted: false,
     spawning: false,
     spawnTimer: 0,
     spawnEdgeX: 0,
@@ -267,7 +266,6 @@ export function resetFishForSpawn(fish: FishState, sharkPos: Vector3): void {
   fish.dodgeTimer = -1;
   fish.dodgeDirX = 0;
   fish.dodgeDirZ = 0;
-  fish.isTargeted = false;
   fish.spawning = false;
   fish.spawnTimer = 0;
   fish.spawnEdgeX = 0;

@@ -104,10 +104,89 @@ export async function bundleEntry(name, source) {
   return runBundle({ stdin: { contents: source, resolveDir: packageRoot, sourcefile: `${name}.ts`, loader: 'ts' } }, `entry_${name}.bundle.mjs`);
 }
 
-// Shared esbuild invocation for `bundleTs` and `bundleEntry`. The alias table
-// mirrors vite.config.ts; `three` and `gsap` stay external so the bundle and the
-// test share one instance of each (see bundleTs's docblock for why that matters).
-async function runBundle(inputOptions, outName) {
+/**
+ * Source of the fake `react` that `bundleComponent` substitutes for the real
+ * one. It is deliberately not a renderer: it implements the hooks the component
+ * under test uses and nothing else.
+ *
+ * WHY A STUB AND NOT REACT ITSELF. React's hooks dispatch through an internal
+ * renderer, so importing the real package and calling a component function
+ * throws "invalid hook call" — you need `react-dom` or `react-test-renderer` to
+ * supply a dispatcher, and this package ships neither. The stub gives the one
+ * thing a lifecycle test actually needs: `useEffect` bodies captured as values,
+ * so the test can run an effect, run its cleanup, and run it again — which is
+ * exactly what mount, unmount, and a StrictMode double-invoke do.
+ *
+ * `useState` returns the initial value and a no-op setter, so anything asserted
+ * must be observable OUTSIDE React state (a closed AudioContext, a removed
+ * listener). That is a feature: it keeps these tests pointed at real side
+ * effects rather than at re-render bookkeeping the stub cannot model.
+ */
+const REACT_STUB = `
+export const EFFECTS = [];
+export function __resetEffects() { EFFECTS.length = 0; }
+export function createContext(v) { const C = { _v: v }; C.Provider = (p) => ({ __provider: true, value: p.value }); return C; }
+export function useContext(C) { return C._v; }
+export function useRef(init) { return { current: init }; }
+export function useState(init) { return [typeof init === 'function' ? init() : init, () => {}]; }
+export function useCallback(fn) { return fn; }
+export function useMemo(fn) { return fn(); }
+export function useEffect(fn, deps) { EFFECTS.push({ fn, deps }); }
+export default { createContext, useContext, useRef, useState, useCallback, useMemo, useEffect };
+`;
+
+/** esbuild plugin swapping the real `react` for `REACT_STUB`. */
+const stubReactPlugin = {
+  name: 'stub-react',
+  setup(build) {
+    build.onResolve({ filter: /^react(\/jsx-runtime)?$/ }, () => ({ path: 'react', namespace: 'react-stub' }));
+    build.onLoad({ filter: /.*/, namespace: 'react-stub' }, () => ({ contents: REACT_STUB, loader: 'js' }));
+  },
+};
+
+/**
+ * Bundles a `.tsx` component together with a fake `react`, so a test can drive
+ * its effect lifecycle by hand.
+ *
+ * The entry is a synthetic module (as in `bundleEntry`) and must re-export both
+ * the component and the stub's `EFFECTS` / `__resetEffects`, e.g.
+ *
+ *   export { AudioProvider } from './src/components/AudioProvider';
+ *   export { EFFECTS, __resetEffects } from 'react';
+ *
+ * Re-exporting through the entry is not a style choice: an esbuild `footer` is
+ * appended AFTER bundling, so a `from 'react'` re-export written there would
+ * resolve to the real package at import time and fail to find the stub's names.
+ *
+ * JSX compiles to a plain object factory injected by the banner — the returned
+ * element is inspectable data, never rendered. `import.meta.env.DEV` is defined
+ * to `false` because `platform: 'neutral'` leaves `import.meta.env` undefined at
+ * runtime, which would throw inside any dev-only warning branch.
+ *
+ * @param name - Short slug for the emitted temp filename; unique per suite.
+ * @param source - TypeScript source of the synthetic entry module.
+ * @returns The loaded module namespace.
+ */
+export async function bundleComponent(name, source) {
+  return runBundle(
+    {
+      stdin: { contents: source, resolveDir: packageRoot, sourcefile: `${name}.ts`, loader: 'ts' },
+      jsx: 'transform',
+      jsxFactory: '__jsx',
+      jsxFragment: '__frag',
+      banner: { js: 'const __jsx = (type, props, ...children) => ({ type, props, children }); const __frag = "fragment";' },
+      define: { 'import.meta.env.DEV': 'false' },
+      plugins: [stubReactPlugin],
+    },
+    `component_${name}.bundle.mjs`,
+  );
+}
+
+// Shared esbuild invocation for `bundleTs`, `bundleEntry` and `bundleComponent`.
+// The alias table mirrors vite.config.ts; `three` and `gsap` stay external so
+// the bundle and the test share one instance of each (see bundleTs's docblock
+// for why that matters). Caller-supplied plugins run after the shader stub.
+async function runBundle({ plugins: extraPlugins = [], ...inputOptions }, outName) {
   mkdirSync(tmpDir, { recursive: true });
   const outPath = path.join(tmpDir, outName);
   await esbuild.build({
@@ -131,6 +210,7 @@ async function runBundle(inputOptions, outName) {
           build.onLoad({ filter: /.*/, namespace: 'glsl-stub' }, () => ({ contents: 'export default ""', loader: 'js' }));
         },
       },
+      ...extraPlugins,
     ],
     logLevel: 'silent',
   });

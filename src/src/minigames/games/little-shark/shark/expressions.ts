@@ -197,6 +197,12 @@ export function getMoodForPhase(phase: string): SharkMood {
     case 'celebrate':
     case 'recovery':
       return 'satisfied';
+    // A miss must not wear a satisfied face. The shark looks the way it looked
+    // when it first noticed the fish — still interested, still looking, not
+    // disappointed. `soul.md` line 25: nothing in the toybox is allowed to read
+    // as punishment or failure, so this is 'curious' and never a sad mood.
+    case 'miss':
+      return 'curious';
     default:
       return 'neutral';
   }

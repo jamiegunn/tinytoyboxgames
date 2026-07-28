@@ -1,6 +1,9 @@
 /**
  * The splash the sea makes when a child taps it.
  *
+ * See architecture-standards.md#screenspace — the general rule was written from
+ * this file, so the two should be changed together.
+ *
  * WHY THIS IS NOT A PARTICLE BURST, WHICH IS WHAT THE SIBLING SCENE USES.
  * Nature's stream answers a tap with `PARTICLES.waterRipple`, and the obvious
  * fix here was to copy that line. It was measured before it was written

@@ -28,12 +28,31 @@ const STRIKE_SPEED = 12.0;
 const STRIKE_RANGE = 1.5;
 
 /** Phases a fresh tap is allowed to interrupt — everything but the strike commitment. */
-const INTERRUPTIBLE_PHASES: readonly HuntPhase[] = ['idle', 'notice', 'pursuit', 'celebrate', 'recovery'];
+const INTERRUPTIBLE_PHASES: readonly HuntPhase[] = ['idle', 'notice', 'pursuit', 'celebrate', 'miss', 'recovery'];
+
+/**
+ * How long the shark holds the beat after a strike that caught nothing.
+ *
+ * Shorter than CELEBRATE_DURATION on purpose: a catch has earned a flourish, a
+ * miss has earned a moment of "where did it go" and then moving on. Made equal
+ * to the celebrate duration this reads as the shark congratulating itself for
+ * failing, which is the exact tone `soul.md` line 25 rules out.
+ */
+const MISS_DURATION = 0.45;
 
 // ── Types ───────────────────────────────────────────────────────────
 
-/** Phases of the shark hunt finite state machine. */
-export type HuntPhase = 'idle' | 'notice' | 'pursuit' | 'strike' | 'celebrate' | 'recovery';
+/**
+ * Phases of the shark hunt finite state machine.
+ *
+ * `celebrate` and `miss` are the two possible terminal beats, and which one runs
+ * is decided by `state.caught` rather than by the FSM's own kinematics — the FSM
+ * cannot see a collision, only the caller can. Before `miss` existed the strike
+ * always fell into `celebrate`, so on the one path where the shipped game ever
+ * reached the terminal beat the shark barrel-rolled over a fish it had not
+ * caught, and `getMoodForPhase` put a satisfied face on the failure.
+ */
+export type HuntPhase = 'idle' | 'notice' | 'pursuit' | 'strike' | 'celebrate' | 'miss' | 'recovery';
 
 /** Mutable state for the hunt FSM, stored in the game factory closure. */
 export interface HuntFSMState {
@@ -47,14 +66,24 @@ export interface HuntFSMState {
   pursuitSpeed: number;
   /** Time spent accelerating during pursuit (seconds). */
   pursuitAccelTime: number;
+  /**
+   * Whether the target was actually caught during this hunt.
+   *
+   * Set by the caller through `notifyHuntCatch` — the FSM integrates positions
+   * and has no idea whether the mouth closed on anything. Cleared by both
+   * `triggerHunt` and `cancelHunt` so it can never leak into the next hunt.
+   */
+  caught: boolean;
 }
 
 /** Callbacks invoked by the FSM at phase transitions. */
 export interface HuntFSMCallbacks {
   /** Called when the strike phase begins (shark lunges at fish). */
   onStrike: () => void;
-  /** Called when the celebrate phase begins (post-catch celebration). */
+  /** Called when the celebrate phase begins — the strike caught its fish. */
   onCelebrate: () => void;
+  /** Called when the miss phase begins — the strike resolved with nothing in the mouth. */
+  onMiss: () => void;
 }
 
 // ── Factory ─────────────────────────────────────────────────────────
@@ -70,7 +99,18 @@ export function createHuntFSMState(): HuntFSMState {
     targetFishRoot: null,
     pursuitSpeed: PURSUIT_SPEED_MIN,
     pursuitAccelTime: 0,
+    caught: false,
   };
+}
+
+/**
+ * Records that the hunt's target was eaten, so the terminal beat is a
+ * celebration rather than a miss.
+ *
+ * @param state - The hunt FSM state to mutate.
+ */
+export function notifyHuntCatch(state: HuntFSMState): void {
+  state.caught = true;
 }
 
 // ── External triggers ───────────────────────────────────────────────
@@ -92,6 +132,7 @@ export function triggerHunt(state: HuntFSMState, fishRoot: Object3D): boolean {
   state.phase = 'notice';
   state.phaseTimer = NOTICE_DURATION;
   state.targetFishRoot = fishRoot;
+  state.caught = false;
   // Keep whatever pursuit speed was already built up so a re-target reads as a
   // course correction mid-swim, not a fresh standing start.
   state.pursuitSpeed = Math.max(state.pursuitSpeed, PURSUIT_SPEED_MIN);
@@ -110,6 +151,7 @@ export function cancelHunt(state: HuntFSMState): void {
   state.targetFishRoot = null;
   state.pursuitSpeed = PURSUIT_SPEED_MIN;
   state.pursuitAccelTime = 0;
+  state.caught = false;
 }
 
 // ── Getter ──────────────────────────────────────────────────────────
@@ -225,15 +267,34 @@ export function updateHuntFSM(state: HuntFSMState, sharkMove: SharkMoveState, dt
 
       state.phaseTimer -= dt;
       if (state.phaseTimer <= 0) {
-        state.phase = 'celebrate';
-        state.phaseTimer = CELEBRATE_DURATION;
-        callbacks.onCelebrate();
+        // The strike is over; which beat follows is a question about the world,
+        // not about the FSM, so it is answered by the flag the caller set.
+        if (state.caught) {
+          state.phase = 'celebrate';
+          state.phaseTimer = CELEBRATE_DURATION;
+          callbacks.onCelebrate();
+        } else {
+          state.phase = 'miss';
+          state.phaseTimer = MISS_DURATION;
+          callbacks.onMiss();
+        }
       }
       break;
     }
 
     case 'celebrate':
       // Decelerate gently during celebration
+      sharkMove.velX *= 0.9;
+      sharkMove.velZ *= 0.9;
+      state.phaseTimer -= dt;
+      if (state.phaseTimer <= 0) {
+        state.phase = 'recovery';
+        state.phaseTimer = RECOVERY_DURATION;
+      }
+      break;
+
+    case 'miss':
+      // Same gentle deceleration, shorter beat, no flourish.
       sharkMove.velX *= 0.9;
       sharkMove.velZ *= 0.9;
       state.phaseTimer -= dt;

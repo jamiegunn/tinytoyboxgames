@@ -1,6 +1,9 @@
 /**
  * No module may be unreachable from the app without saying so out loud.
  *
+ * See architecture-standards.md#nothinginert — this file is the enforcing half
+ * of that section.
+ *
  * WHY THIS EXISTS
  * ---------------
  * A static-analysis sweep found 2,000+ lines under `src/` that nothing loads.
