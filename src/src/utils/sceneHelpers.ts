@@ -172,8 +172,6 @@ export interface FloorTapConfig {
   ceilingY?: number;
   /** Optional sound played the first time the floor tap path is used. */
   firstTapSoundId?: string;
-  /** Optional sound played on subsequent floor taps. */
-  repeatTapSoundId?: string;
   /** Particle effect to play on first tap. @default a sceneSparkle burst via getParticleEngine */
   particleFn?: (scene: Scene, point: Vector3) => void;
 }
@@ -226,6 +224,37 @@ export function wireFloorTap(
 
   let firstTapHandled = false;
 
+  // THERE IS NO `repeatTapSoundId`, AND ITS REMOVAL IS THE POINT OF THIS COMMENT.
+  //
+  // All three rooms used to set it to `sfx_shared_tap_fallback`, and so did the
+  // room-scene template, so every room built from the generator would have
+  // inherited it. Measured in `.probe/render/r2-floor.mjs` across Playroom,
+  // Living Room and Kitchen, the effect was identical in all three: the floor's
+  // first tap answered with `sfx_shared_sparkle_burst` and a burst, and every tap
+  // after it answered with the generic acknowledgement chirp and NO PARTICLES AT
+  // ALL.
+  //
+  // That is worse than it sounds, twice over. The floor is registered
+  // `background: true` and is one plane the size of the whole room, so it is the
+  // likeliest thing a child hits — and from the second tap onward it said exactly
+  // what empty space says. soul.md's Sound World clause makes the visual half the
+  // load-bearing one ("a muted experience must be fully playable and emotionally
+  // complete"): on a muted device the room's largest tap target did nothing,
+  // permanently, after one tap.
+  //
+  // AND IT DEFEATED THE CONTROLLER'S OWN SAFETY NET, which is the part worth
+  // remembering. `interactionController.fire` answers a handler that made no
+  // sound, and it detects that by counting sounds. A handler that plays the
+  // acknowledgement chirp ITSELF ticks that counter, so the controller concludes
+  // the prop answered for itself and correctly withholds the shared sparkle. The
+  // handler bought the cue at the price of the picture. Removing the option lets
+  // the repeat tap fall through silent, which is precisely the case the controller
+  // exists to catch: it now supplies the same chirp (no audible change) AND the
+  // sparkle (new), from one place, for every scene at once.
+  //
+  // Nature is the control that shows this was a deviation rather than a house
+  // style: it sets neither sound id, has always fallen through to the shared
+  // acknowledgement, and is the only floor that was already right.
   const onFloorTap = (point: Vector3) => {
     if (!firstTapHandled) {
       firstTapHandled = true;
@@ -233,8 +262,6 @@ export function wireFloorTap(
         triggerSound(config.firstTapSoundId);
       }
       emitParticle(scene, point);
-    } else if (config.repeatTapSoundId) {
-      triggerSound(config.repeatTapSoundId);
     }
     owl.flyTo(point);
   };

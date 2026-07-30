@@ -13,6 +13,7 @@ import {
   type SceneLighting,
 } from '@app/utils/sceneHelpers';
 import { createWorldTapDispatcher, type WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
+import { createMissAcknowledgement } from '@app/utils/interaction/missAcknowledgement';
 
 /**
  * Context object passed to a room scene's authored content builder.
@@ -141,6 +142,14 @@ export function createRoomScene(existingScene: Scene, canvas: HTMLCanvasElement,
   const content = config.buildContents({ scene, canvas, camera: cameraHandle.camera, keyLight: lighting.keyLight, dispatcher, nav, owl });
   const unregisterSceneClicks = config.enableLegacyClickScan ? registerUserDataClickTargets(scene, dispatcher) : undefined;
   const { cleanup: floorTapCleanup } = wireFloorTap(scene, dispatcher, content.floorTargets, config.floorTap, owl);
+
+  // soul.md#6: a tap that arbitration matched to nothing still owes the child an
+  // answer, and on a muted device the sparkle IS the answer. A room makes this
+  // harder than an outdoor scene — the shell is |x| <= 5.4-6.0 with a ceiling
+  // slab at y = 6.2-6.75, while the camera orbits at radius 14, so any depth
+  // chosen in advance puts some bursts behind the wall the child just tapped.
+  // The shared handler finds the depth from the geometry instead.
+  dispatcher.setMissHandler(createMissAcknowledgement(scene));
 
   const dispose = () => {
     unregisterSceneClicks?.();

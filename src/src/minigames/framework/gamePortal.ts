@@ -573,10 +573,99 @@ export function buildGamePortal(scene: Scene, config: GamePortalConfig, nav: Nav
   // presents as "the sound is wrong sometimes", not as a crash.
   //
   // Launching a game is this function and the userData convention below it.
+  //
+  // ROUND 4, 2026-07-30 — WHAT THIS USED TO BE, AND WHY IT IS NOT THAT ANY MORE.
+  //
+  //     const launchGame = () => {
+  //       triggerSound('sfx_shared_tap_fallback');
+  //       triggerSound('sfx_hub_toybox_open');
+  //       nav.launchMiniGame(gameId);
+  //     };
+  //
+  // Three synchronous statements, and `.probe/render/r4-portal.mjs` measured what
+  // they were worth. On the cove's portal, `__reactionScan(1.5, 0.15)` reported
+  // `propHigh = 0` against a displaced `sparkleHigh` of 132 — not a small reaction,
+  // NO reaction, in the same run where the chest scored 10.53x, the cannon 6.24x and
+  // the wheel 6.61x, so the instrument was demonstrably able to see a reaction that
+  // day. Nature's four portals returned the same zero. On a muted device the highest-
+  // stakes tap in this application changed nothing on screen whatsoever.
+  //
+  // The audible half was worse than silent. `__tapThroughCanvas` on the portal
+  // returned exactly `[sfx_shared_tap_fallback, sfx_hub_toybox_open]` and no
+  // particles: the FIRST thing a child heard on the door into a game was the cue
+  // for a tap that found nothing, and playing it suppressed the controller's own
+  // acknowledgement sparkle (`sceneHelpers.ts:245-253` — a handler that makes sound
+  // ticks the counter `fire` uses to decide whether the prop answered for itself).
+  // `interactionController.ts:343-351` defends that cue on two limbs: that it is the
+  // generic acknowledgement rather than the miss's private property, and that "the
+  // two events are the same event as the child experiences it: in both cases there
+  // was nothing more here". The first limb stands. The second is false at a portal
+  // by construction — there is a whole game here — which is what makes this the one
+  // site where the shared chirp cannot be the answer.
+  //
+  // The second cue was borrowed. `hub/hubSfx.ts:39-54` builds `sfx_hub_toybox_open`
+  // out of a 300Hz filtered noise burst and a 150Hz thump — its own docblock calls it
+  // a "creaky wooden thunk" — and its only other callers are a wooden toybox lid
+  // (`wireToyboxInteractions.ts:136`) and a wooden door (`interactiveDoorway.ts:181`).
+  // This is a glowing pedestal with a floating icon and no hinge, and the thunk fired
+  // at the instant of the tap with nothing opening.
+  //
+  // THE APP'S OWN CONTROL SHOWED THE SHAPE. `wireToyboxInteractions.ts:104-144` plays
+  // a tap voice immediately, runs a visible opening, and only in the innermost
+  // `onComplete` plays the open cue and navigates — the open cue is EARNED by an
+  // opening the child watched. That is what is below, in a portal's own vocabulary
+  // rather than a toybox's: a bright chime the moment the finger lands, a flare and
+  // a swell the child can see with the sound off, and the sparkle cascade at the top
+  // of the swell where the launch actually happens.
+  //
+  // The latch is not incidental. Without it a double-tap fired the pair of cues twice
+  // and called `launchMiniGame` twice; now the second tap during a launch is dropped.
+  let launching = false;
   const launchGame = () => {
-    triggerSound('sfx_shared_tap_fallback');
-    triggerSound('sfx_hub_toybox_open');
-    nav.launchMiniGame(gameId);
+    if (launching) return;
+    launching = true;
+
+    // The portal's own voice, on the frame the finger lands. `sfx_shared_star_chime`
+    // is not a fresh invention: it is what a lamp plays when it lights up
+    // (`floorLamp.ts:61`, `deskLamp.ts:97`) and what Star Catcher twinkles with, so a
+    // glowing pedestal brightening under a hand is already speaking it.
+    triggerSound('sfx_shared_star_chime');
+
+    // THE HALF THAT SURVIVES A MUTED DEVICE, which is the half soul.md's Sound World
+    // clause makes load-bearing. Scale is taken on `root`, and emissive on the
+    // pedestal, deliberately: the idle bob and spin own `icon.position` and
+    // `icon.rotation`, and animating those would fight tweens that are `repeat: -1`.
+    const flareFrom = pedestalMat.emissiveIntensity;
+    gsap.killTweensOf(root.scale);
+    gsap.killTweensOf(pedestalMat);
+    gsap.to(pedestalMat, { emissiveIntensity: flareFrom + 1.6, duration: 0.14, ease: 'power2.out' });
+    gsap.to(root.scale, {
+      x: 1.22,
+      y: 1.22,
+      z: 1.22,
+      duration: 0.14,
+      ease: 'back.out(2.6)',
+      onComplete: () => {
+        gsap.to(root.scale, {
+          x: 1,
+          y: 1,
+          z: 1,
+          duration: 0.2,
+          ease: 'power2.in',
+          onComplete: () => {
+            // Earned, like the toybox's: the cascade lands at the top of the swell,
+            // on the same tick as the navigation it is announcing.
+            triggerSound('sfx_shared_sparkle_burst');
+            nav.launchMiniGame(gameId);
+            // The scene is torn down behind us, but a portal that is re-entered
+            // without a rebuild must not be left latched shut.
+            pedestalMat.emissiveIntensity = flareFrom;
+            root.scale.set(1, 1, 1);
+            launching = false;
+          },
+        });
+      },
+    });
   };
 
   // Store the launch handler on each tappable mesh via userData
@@ -591,6 +680,10 @@ export function buildGamePortal(scene: Scene, config: GamePortalConfig, nav: Nav
   const dispose = () => {
     gsap.killTweensOf(icon.position);
     gsap.killTweensOf(icon.rotation);
+    // Round 4's launch flourish is finite, but a tap taken in the frame before a
+    // teardown leaves a live tween on a detached root and a detached material.
+    gsap.killTweensOf(root.scale);
+    gsap.killTweensOf(pedestalMat);
   };
 
   return { root, tappableMeshes, dispose };

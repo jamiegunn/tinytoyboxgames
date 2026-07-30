@@ -3,6 +3,8 @@ import { createGlossyPaintMaterial, createPlasticMaterial } from '@app/utils/mat
 import { triggerSound } from '@app/assets/audio/sceneBridge';
 import { BOOKSHELF_CENTER_X, BOOKSHELF_Z } from '../layout';
 import gsap from 'gsap';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 
 /** Scale multiplier — 3x bigger than original. */
 const S = 3;
@@ -82,7 +84,19 @@ export function createDeskLamp(scene: Scene, _keyLight: DirectionalLight): void 
     if (shining) return;
     shining = true;
 
-    triggerSound('sfx_shared_tap_fallback');
+    // This was `sfx_shared_tap_fallback` — the shared acknowledgement, which the miss
+    // path also plays — and this handler emitted no burst either. Since Round 1 gave
+    // a missed room tap a sparkle, FINDING the lamp was answered less than touching the
+    // shelf beside it. (Round 2 first wrote that cue up as "the miss's own cue".
+    // `uiSounds.ts` calls it "a gentle acknowledgement chirp for tap-fallback
+    // feedback" — the generic acknowledgement — so that half of the charge is
+    // refuted. The comparison is what survives, and the comparison is the charge.)
+    // `sfx_shared_star_chime` is not a fresh choice: it is what the
+    // Living Room's `floorLamp` already plays for the same object class doing the same
+    // thing. See docs/reviews/2026-07-30-rooms-five-rounds.md, Round 2.
+    triggerSound('sfx_shared_star_chime');
+    bulb.getWorldPosition(bulbWorldPos);
+    getParticleEngine(scene).emit(PARTICLES.sceneSparkle, bulbWorldPos.clone());
 
     // Tilt the arm pivot forward (toward camera / -Z) — enough to fully expose the bulb
     gsap.to(armPivot.rotation, {

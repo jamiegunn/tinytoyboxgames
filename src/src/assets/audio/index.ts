@@ -58,7 +58,7 @@ import {
 } from './bubblePop';
 
 // Pirate Cove
-import { playMusPirateCoveBackground, playAmbPirateCoveShore } from './pirateCove';
+import { playMusPirateCoveBackground, playAmbPirateCoveShore, playSfxPirateCoveWheelCreak } from './pirateCove';
 
 // Little Shark
 import {
@@ -116,6 +116,8 @@ export const SFX_REGISTRY: Record<string, SfxFn> = {
   sfx_hub_ambient_hop: playSfxHubAmbientHop,
   sfx_hub_train_horn: playSfxHubTrainHorn,
   sfx_hub_train_chugga: playSfxHubTrainChugga,
+  // Pirate Cove
+  sfx_pirate_cove_wheel_creak: playSfxPirateCoveWheelCreak,
   // Nature
   sfx_nature_mushroom_bounce: playSfxNatureMushroomBounce,
   sfx_nature_leaf_flip: playSfxNatureLeafFlip,

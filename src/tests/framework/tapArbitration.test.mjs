@@ -218,6 +218,115 @@ test('a handler that plays no sound of its own gets the shared fallback', () => 
   assert.equal(fallbacks, 1, 'the controller owes the acknowledgement when the handler is silent');
 });
 
+test('a tap that FOUND a prop is never answered with less than a tap that found nothing', () => {
+  // Round 2's surviving charge, stated as a comparison rather than an absolute:
+  // the test above proved a silent handler gets the CUE, and the test at the top
+  // of this section proved a miss gets the cue AND a visible acknowledgement. So
+  // for as long as `fire` played the cue inline, FINDING a prop that had nothing
+  // left to give produced strictly less than touching the wall behind it — and on
+  // a muted device, where the cue is the half that does not arrive, it produced
+  // nothing at all. Four Playroom props were measured in that state.
+  //
+  // THIS IS THE PIN THAT MATTERS. The source-text pins in tests/room can only see
+  // that `fire` CONTAINS a delegation to `acknowledgeTap`; the four convicted
+  // props all satisfied `prop-reaction-channels`'s `/PARTICLES\.\w+/` assertion
+  // while emitting nothing, because their emit sat downstream of a latch's early
+  // return. A pin that reads source cannot tell whether a body reaches the line it
+  // contains. This one drives the real controller and counts what came out.
+  const rays = [];
+  let fallbacks = 0;
+  const h = harness({ soundCount: () => 0, playFallback: () => (fallbacks += 1) });
+  h.controller.setMissHandler((ray) => rays.push(ray.clone()));
+
+  const cap = new Mesh(new SphereGeometry(0.12, 12, 8), new MeshBasicMaterial());
+  cap.position.set(1.5, 0.3, 1.0);
+  h.add('mushroom', cap);
+  const at = toScreen(h.camera, new Vector3(1.5, 0.3, 1.0));
+  tapAt(h.canvas, at.x, at.y);
+
+  assert.deepEqual(h.fired, ['mushroom'], 'the tap must genuinely have found the prop, or this proves nothing');
+  assert.equal(fallbacks, 1, 'the audible half');
+  assert.equal(rays.length, 1, 'and the VISIBLE half — the half a muted device is left with');
+
+  // The ray must be recomputed from THIS tap, not inherited. `pickRegistered` sets
+  // the shared raycaster and `pickByProximity` does not, so a `fire` that reused
+  // `raycaster.ray` would pass by the accident that `pickRegistered` runs first,
+  // and would misplace the sparkle the day someone reorders the arbitration.
+  const toProp = new Vector3(1.5, 0.3, 1.0).sub(h.camera.position).normalize();
+  assert.ok(rays[0].direction.dot(toProp) > 0.999, 'the acknowledgement must land where the child touched, not where the last raycast pointed');
+});
+
+test('a prop that answers for itself is not also handed the shared answer', () => {
+  // The other side of the same rule, and the reason the fix is a floor rather than
+  // a blanket: a prop with its own voice must not be talked over, visually either.
+  const rays = [];
+  let count = 0;
+  let fallbacks = 0;
+  const h = harness({ soundCount: () => count, playFallback: () => (fallbacks += 1) });
+  h.controller.setMissHandler((ray) => rays.push(ray));
+  const cap = new Mesh(new SphereGeometry(0.12, 12, 8), new MeshBasicMaterial());
+  cap.position.set(1.5, 0.3, 1.0);
+  h.scene.add(cap);
+  h.scene.updateMatrixWorld(true);
+  h.controller.register(cap, () => (count += 1));
+  const at = toScreen(h.camera, new Vector3(1.5, 0.3, 1.0));
+  tapAt(h.canvas, at.x, at.y);
+  assert.equal(count, 1);
+  assert.equal(fallbacks, 0, 'a handler with its own voice must not be talked over');
+  assert.equal(rays.length, 0, 'nor given a second, generic picture on top of the one it drew');
+});
+
+test('a LATCHED BACKGROUND surface still gets the shared answer on the tap its latch swallows', () => {
+  // This is the shape of the defect that got past the fix above, so it gets its own
+  // pin rather than being treated as covered by the foreground case.
+  //
+  // The room floors used to carry `repeatTapSoundId: 'sfx_shared_tap_fallback'` — in
+  // all three rooms AND in `templates/room-scene`, so the generator would have minted
+  // it into every new room. Measured in all three (`.probe/render/r2-floor.mjs`), the
+  // floor's first tap answered with `sfx_shared_sparkle_burst` and a burst and every
+  // tap after it answered with the generic acknowledgement chirp and NO PARTICLES.
+  //
+  // It got past `fire`'s safety net BY USING IT. The net detects an unanswered handler
+  // by counting sounds; a handler that plays the acknowledgement chirp ITSELF ticks
+  // that counter, so the controller concluded the prop had answered and correctly
+  // withheld the sparkle. The handler bought the cue at the price of the picture, and
+  // on a muted device the picture is the whole answer. Removing the option lets the
+  // repeat tap fall through genuinely silent, which is the case the net exists for.
+  //
+  // Two things make this different from the foreground test above and worth pinning
+  // separately: the floor reaches `fire` through `onPointerUp`'s THIRD branch (`bg`),
+  // not its first, and it is the one target a child is most likely to hit — one plane
+  // the size of the whole room.
+  const rays = [];
+  let taps = 0;
+  let fallbacks = 0;
+  let latched = false;
+  const h = harness({ soundCount: () => taps, playFallback: () => (fallbacks += 1) });
+  h.controller.setMissHandler((ray) => rays.push(ray));
+  const ground = flat(28, 0, undefined);
+  h.scene.add(ground);
+  h.scene.updateMatrixWorld(true);
+  // A floor that speaks for itself once and is silent forever after — `firstTapHandled`.
+  h.controller.register(
+    ground,
+    () => {
+      if (latched) return;
+      latched = true;
+      taps += 1;
+    },
+    { background: true },
+  );
+  const at = toScreen(h.camera, new Vector3(0, 0, 0));
+  tapAt(h.canvas, at.x, at.y);
+  assert.equal(taps, 1, 'the tap must genuinely have reached the background handler, or this proves nothing');
+  assert.equal(fallbacks, 0, 'the first tap answered for itself and must not be talked over');
+  assert.equal(rays.length, 0, 'nor handed a second picture on top of its own');
+  tapAt(h.canvas, at.x, at.y);
+  assert.equal(taps, 1, 'the latch must genuinely have swallowed the second tap, or this proves nothing');
+  assert.equal(fallbacks, 1, 'the audible half of the answer');
+  assert.equal(rays.length, 1, 'and the VISIBLE half — without it the largest target in the room is dead on a muted device');
+});
+
 test('a handler that plays its own sound is not doubled up', () => {
   let count = 0;
   let fallbacks = 0;

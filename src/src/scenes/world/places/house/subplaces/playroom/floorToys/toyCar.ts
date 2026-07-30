@@ -3,6 +3,8 @@ import { createGlossyPaintMaterial, createPlasticMaterial } from '@app/utils/mat
 import { triggerSound } from '@app/assets/audio/sceneBridge';
 import gsap from 'gsap';
 import { getIdleAnimator } from '@app/utils/idle/registry';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 
 /** Track radius — matches the train track. */
 const TRACK_RADIUS = 3.95;
@@ -188,6 +190,7 @@ export function createToyCar(scene: Scene, _keyLight: DirectionalLight): void {
 
   // ── Click interaction — hop onto tracks and chase the train ──
   let driving = false;
+  const baseScale = root.scale.x;
 
   // Find the train's orbit pivot so the car can follow at an offset
   const findTrainPivot = (): Group | null => {
@@ -195,11 +198,94 @@ export function createToyCar(scene: Scene, _keyLight: DirectionalLight): void {
     return pivot instanceof Group ? pivot : null;
   };
 
-  const driveHandler = () => {
-    if (driving) return;
-    driving = true;
+  /**
+   * The answer a tap gets once the car is already chasing the train.
+   *
+   * The chase orbits on a `repeat: -1` tween, so there is no completion to unlatch
+   * on. The tap gets its own answer on a channel the chase never writes: `root.scale`
+   * is untouched after build, while the chase owns position and rotation. Owned by
+   * the scene's idle animator for the reason recorded at the foot of this file — an
+   * unowned handle from this very builder followed a child into the next scene.
+   */
+  const bounce = () => {
+    gsap.killTweensOf(root.scale);
+    root.scale.setScalar(baseScale);
+    idle.register(
+      gsap.to(root.scale, {
+        x: baseScale * 1.15,
+        y: baseScale * 1.15,
+        z: baseScale * 1.15,
+        duration: 0.12,
+        ease: 'power2.out',
+        yoyo: true,
+        repeat: 1,
+      }),
+    );
+  };
 
-    triggerSound('sfx_shared_tap_fallback');
+  const driveHandler = () => {
+    // EVERY TAP IS ANSWERED. ONLY THE FIRST ONE STARTS THE CHASE.
+    //
+    // This used to open `if (driving) return;`, and that early return was a dead tap
+    // dressed as a guard. `driving` is set once and NEVER CLEARED — the two
+    // assignments in this file are the declaration and the `= true` — so from the
+    // first chase to the end of the visit every further tap on this car fell out of
+    // the handler before making a sound. `interactionController.fire` then counted
+    // zero sounds requested and played `sfx_shared_tap_fallback` — and nothing else.
+    //
+    // The cue is NOT the miss's private property; `uiSounds.ts` calls it "a gentle
+    // acknowledgement chirp for tap-fallback feedback", the generic acknowledgement,
+    // which the miss merely also uses. Round 2 first wrote the charge up as "answered
+    // with the miss's own cue" and that half is refuted. What survives is a
+    // comparison, and it is worse: since Round 1 gave a missed room tap a sparkle, a
+    // tap that FOUND the car got the cue and no picture where a tap that found
+    // nothing got the cue AND a picture. On a muted device that is nothing at all.
+    // Strictly less for finding something than for finding nothing.
+    //
+    // `interactionController.fire` now closes that floor for every prop at once, so
+    // this car can no longer fall below empty space however the guard is edited. The
+    // floor is not the point, though — it is what stops a dead tap being a lie. A
+    // prop that has more to give should still give it, which is what `bounce()` below
+    // is for.
+    //
+    // AND IT IS THE DEFAULT, NOT AN EDGE CASE. The `gsap.delayedCall` at the foot of
+    // this file drives the car for the child, so a child who spends the opening
+    // seconds looking around the room — the normal way to enter a room — arrives at
+    // a car that can no longer be tapped, having never tapped it. Measured in
+    // `.probe/render/r2-latch.mjs`: a fresh tap emits
+    // `sceneSparkle`, and a tap after the autoplay emits nothing at all.
+    const alreadyDriving = driving;
+
+    // This was `sfx_shared_tap_fallback` — the shared acknowledgement, which the miss
+    // path also plays — and this handler emitted no burst either. Since Round 1 gave
+    // a missed room tap a sparkle, FINDING the car was answered less than touching the
+    // floor beside it. `sfx_shared_whoosh` is this codebase's own motion cue and the
+    // burst matches every other room prop. See docs/reviews/2026-07-30-rooms-five-rounds.md.
+    // A tap on a car that is already going gets `sfx_shared_pop` instead: the whoosh
+    // means "off you go", and replaying it for a car that is already gone would
+    // promise a departure that does not happen.
+    triggerSound(alreadyDriving ? 'sfx_shared_pop' : 'sfx_shared_whoosh');
+    getParticleEngine(scene).emit(PARTICLES.sceneSparkle, root.getWorldPosition(new Vector3()).add(new Vector3(0, 0.18, 0)));
+
+    if (alreadyDriving) {
+      bounce();
+      return;
+    }
+
+    // THE PIVOT IS LOOKED UP BEFORE THE LATCH IS SET, NOT AFTER.
+    //
+    // This lookup used to sit thirty lines further down, past `driving = true` and
+    // past the exhaust starting, and `if (!trainPivot) return;` then left the car
+    // latched forever having never moved — puffing exhaust, refusing every later tap,
+    // for a train that was not in the scene. A guard that cannot succeed must not
+    // spend the state that says it did. Failing here instead leaves `driving` false
+    // and the tap still answered by the sound and burst above.
+    const trainPivot = findTrainPivot();
+    if (!trainPivot) {
+      bounce();
+      return;
+    }
+    driving = true;
 
     // Stop idle rocking, start exhaust
     rockTween.pause();
@@ -207,10 +293,7 @@ export function createToyCar(scene: Scene, _keyLight: DirectionalLight): void {
     exhaustRunning = true;
     exhaustTimer.play();
 
-    // The train sits at angle 0 on the orbit pivot. We'll place the car ~120° behind
-    const trainPivot = findTrainPivot();
-    if (!trainPivot) return;
-
+    // The train sits at angle 0 on the orbit pivot. We'll place the car ~120° behind.
     // Create an orbit pivot for the car, offset behind the train
     const carOrbitPivot = new Group();
     carOrbitPivot.name = 'carOrbitPivot';

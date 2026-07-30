@@ -9,9 +9,10 @@
  *
  * - **Smear-tap forgiveness** and **proximity fallback** come from the shared
  *   pure {@link classifyGesture} / {@link nearestPointWithin} in `gestureRules`.
- * - **No dead tap**: if a fired handler emits no audio, the controller plays the
- *   shared fallback sound itself, so the "every tap acknowledges" rule no longer
- *   has to be remembered at every call site.
+ * - **No dead tap**: if a fired handler emits no audio, the controller answers
+ *   the tap itself — with the same cue AND the same sparkle a tap on empty space
+ *   gets — so the "every tap acknowledges" rule no longer has to be remembered
+ *   at every call site, and no tap is ever answered with less than empty space.
  *
  * One canvas listener, one raycast per gesture, gesture state reset on
  * `pointercancel` (iPadOS system gestures). Torn down via the DisposalScope.
@@ -93,13 +94,20 @@ export interface InteractionController {
   /** Overrides the proximity fallback radius (px). */
   setProximityRadiusPx(px: number): void;
   /**
-   * Sets the handler for a tap that matched nothing at all — sky, treeline, the
-   * letterboxed margins. soul.md#6 makes this a contract, not an optimisation:
-   * "Every tap — whether it lands on a designated interaction or on empty space
-   * — must produce a response." The controller supplies the sound half itself;
-   * this is how a surface adds the visual half, which is the half that still
-   * works on a muted device. Receives the camera ray through the tap so the
-   * scene can place the acknowledgement at whatever depth suits it.
+   * Sets the visual half of the shared tap acknowledgement — see
+   * {@link acknowledgeTap}, which is what this handler is called from.
+   *
+   * soul.md#6 makes this a contract, not an optimisation: "Every tap — whether
+   * it lands on a designated interaction or on empty space — must produce a
+   * response." The controller supplies the sound half itself; this is how a
+   * surface adds the visual half, which is the half that still works on a muted
+   * device. Receives the camera ray through the tap so the scene can place the
+   * acknowledgement at whatever depth suits it.
+   *
+   * The setter keeps the name it was wired under, but the handler now answers
+   * two cases, not one: a tap that matched nothing at all, and a tap that
+   * matched a prop whose handler made no sound. A surface that installs this is
+   * covered for both; a surface that does not is left exactly where it was.
    */
   setMissHandler(fn: ((ray: Ray) => void) | null): void;
   /** Pauses or resumes tap delivery. */
@@ -139,15 +147,46 @@ export function createInteractionController(canvas: HTMLCanvasElement, camera: C
   /**
    * Fires an entry's handler and enforces the no-dead-tap rule.
    *
+   * AN UNANSWERED HIT USED TO BE ANSWERED WITH LESS THAN A MISS. This function's
+   * "handler made no sound" branch called `audio.playFallback()` and stopped
+   * there, while {@link acknowledgeTap}'s other caller — a tap that matched
+   * nothing at all — got the same cue AND a `sceneSparkle` from the scene's
+   * acknowledgement handler. So the two outcomes were not symmetric in the
+   * direction anyone would guess: FINDING a prop that had nothing left to give
+   * produced strictly less than touching the wall behind it. On a muted device,
+   * which the Sound World clause names as the case that must still be "fully
+   * playable and emotionally complete", it produced *nothing at all*.
+   *
+   * That is not hypothetical and it is not rare. Measured through the canvas in
+   * `.probe/render/r2-second-tap.mjs`, four Playroom targets answered an
+   * immediate second tap this way — `lampBase`, `webSlinger`, `floor`, and both
+   * toy cars before their own repair — because each guards its handler with a
+   * latch and returns early while the latch is held. A child taps a thing twice;
+   * that is what a child does.
+   *
+   * THE FIX IS THE CHOKE POINT, NOT THE PROPS. Patching props one at a time is
+   * what let this survive a round of review: `prop-reaction-channels.contract
+   * .test.mjs` asserts every reaction body mentions a `PARTICLES.*` preset, and
+   * every one of the four above passes that assertion — the emit is simply
+   * downstream of a `return`. A source-text pin cannot tell whether a body
+   * REACHES the line it contains. Answering here covers every prop, including
+   * the ones nobody has thought to look at yet.
+   *
+   * The floor this raises is a floor, not a delight: a prop that has more to
+   * give should still give it (see the toy cars' `bounce()`). What this
+   * guarantees is only that no tap is ever answered with less than empty space.
+   *
    * @param obj - The registered object that was tapped.
    * @param entry - Its registry entry.
    * @param point - World hit point, or null for a proximity match.
+   * @param clientX - Pointer client X, so the acknowledgement lands under the finger.
+   * @param clientY - Pointer client Y.
    */
-  function fire(obj: Object3D, entry: Entry, point: Vector3 | null): void {
+  function fire(obj: Object3D, entry: Entry, point: Vector3 | null, clientX: number, clientY: number): void {
     const before = audio && !entry.opts.silent ? audio.soundCount() : 0;
     entry.handler({ object: obj, point });
     if (audio && !entry.opts.silent && audio.soundCount() === before) {
-      audio.playFallback();
+      acknowledgeTap(clientX, clientY);
     }
   }
 
@@ -273,34 +312,55 @@ export function createInteractionController(canvas: HTMLCanvasElement, camera: C
     //   4. otherwise nothing was hit at all, and soul.md#6 still owes the child
     //      an answer.
     if (fg) {
-      fire(fg.obj, fg.entry, fg.point);
+      fire(fg.obj, fg.entry, fg.point, e.clientX, e.clientY);
       return;
     }
     const near = pickByProximity(e.clientX, e.clientY);
     if (near) {
-      fire(near.obj, near.entry, null);
+      fire(near.obj, near.entry, null, e.clientX, e.clientY);
       return;
     }
     if (bg) {
-      fire(bg.obj, bg.entry, bg.point);
+      fire(bg.obj, bg.entry, bg.point, e.clientX, e.clientY);
       return;
     }
-    acknowledgeMiss(e.clientX, e.clientY);
+    acknowledgeTap(e.clientX, e.clientY);
   }
 
   /**
-   * Answers a tap that matched nothing — sky, treeline, the empty margins.
+   * The shared answer to a tap nothing else answered.
    *
-   * Before this existed a fifth to a quarter of the Nature canvas was inert at
-   * every shipping viewport (20.7%-25.9% measured), which soul.md#6 names as the
-   * one thing that breaks the spell: "A dead tap is a broken promise... Every
-   * tap — whether it lands on a designated interaction or on empty space — must
-   * produce a response. A sparkle, a ripple, a soft sound."
+   * TWO CALLERS, ONE ANSWER, and the name says `Tap` rather than `Miss` because
+   * of the second one. The original caller is a tap that matched nothing — sky,
+   * treeline, the empty margins; before it existed a fifth to a quarter of the
+   * Nature canvas was inert at every shipping viewport (20.7%-25.9% measured),
+   * which soul.md#6 names as the one thing that breaks the spell: "A dead tap is
+   * a broken promise... Every tap — whether it lands on a designated interaction
+   * or on empty space — must produce a response. A sparkle, a ripple, a soft
+   * sound." The second caller is {@link fire}, for a tap that DID find a prop
+   * whose handler then did nothing; the reasoning is written out there.
+   *
+   * WHY THE TWO GET THE SAME ANSWER RATHER THAN DIFFERENT ONES. The tempting
+   * design is a distinct "you found something" cue, and it is wrong twice over.
+   * First, `sfx_shared_tap_fallback` is not the miss's private cue — `uiSounds
+   * .ts` calls it "a gentle acknowledgement chirp for tap-fallback feedback",
+   * the generic acknowledgement, which the miss merely also uses. Second, the
+   * two events are the same event as the child experiences it: in both cases
+   * there was nothing more here. Inventing a distinction the fiction does not
+   * contain is how "Nothing will confuse you" gets broken by a fix meant to keep
+   * it.
+   *
+   * The ray is recomputed from the client coordinates rather than reused from
+   * whatever `pickRegistered` last left in the shared `raycaster`. That is
+   * deliberate: the proximity path does not touch the raycaster, so reuse would
+   * work only by the accident that `pickRegistered` always runs first, and a
+   * later reordering would move the sparkle somewhere silently wrong instead of
+   * failing.
    *
    * @param clientX - Pointer client X.
    * @param clientY - Pointer client Y.
    */
-  function acknowledgeMiss(clientX: number, clientY: number): void {
+  function acknowledgeTap(clientX: number, clientY: number): void {
     if (missHandler) {
       const rect = canvas.getBoundingClientRect();
       ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;

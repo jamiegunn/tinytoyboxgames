@@ -29,6 +29,5 @@ export const ROOM_ENVIRONMENT: RoomEnvironmentConfig = {
     },
     ceilingY: CEILING_Y,
     firstTapSoundId: 'sfx_shared_sparkle_burst',
-    repeatTapSoundId: 'sfx_shared_tap_fallback',
   },
 };

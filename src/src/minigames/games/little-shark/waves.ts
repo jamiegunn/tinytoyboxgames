@@ -172,6 +172,52 @@ export const FISH_HARD_CEILING = (MAX_FISH_COUNT * 2 + REPLENISH_HEADROOM) * 3;
  */
 export const CULL_DISTANCE = 22;
 
+/**
+ * How often a surplus fish is retired, in seconds.
+ *
+ * The spawner had an appetite but no digestion. It fills toward a target every
+ * frame and nothing ever gave a fish back for being surplus, so the reef only
+ * ever ratcheted upward: measured over 300 s x 8 seeds x three tap cadences, the
+ * calm reef sat at 1.72x to 1.80x the calm target the spawner itself computed —
+ * the game asking for 19 fish and holding 33.
+ *
+ * That is not merely untidy. The frenzy's entire payoff is a doubled target for
+ * FRENZY_DURATION seconds, and a reef already sitting at 1.8x target has no room
+ * to double into. The first frenzy of a session raised the reef 2.18x and it
+ * never came back down; by the third, before/after was 0.86x. Against the 4:3
+ * ratio a three-year-old can actually discriminate (Halberda & Feigenson 2008,
+ * the same source frenzy.ts cites for never showing the goal as a numeral), only
+ * 39 of 69 frenzies at a 2 s tap cadence produced a change the child could see.
+ * The reward was firing, and more than half the time it was invisible.
+ *
+ * 0.25 s is a rate cap, not a rate. A reef that snapped back to target the
+ * instant the frenzy ended would read as confiscation; at four fish per second a
+ * doubling drains over roughly the afterglow, so the crowd ebbs rather than
+ * vanishes.
+ */
+export const SURPLUS_RETIRE_INTERVAL = 0.25;
+
+/**
+ * The inner edge of the band a surplus fish may be retired from.
+ *
+ * Set to CAMERA_VIEW_RADIUS deliberately: retirement may only ever take fish the
+ * child cannot see. The obvious implementation — retire the outermost fish
+ * INSIDE the visible band — was measured too, and it is better on every number
+ * in isolation (1.96x-2.04x realised against this arm's 1.79x-1.91x, and every
+ * cycle perceptible rather than 165 of 170). It was rejected because the closest
+ * it was ever observed retiring a fish was 4.5 units, against a view radius of
+ * 11: not the far edge at all, but squarely in front of the child, because when
+ * the outer reef is thin the "outermost fish inside the view" can be very near.
+ * A fish dissolving under a three-year-old's finger is a worse defect than the
+ * one being fixed, and no probe here could have exonerated it — the tap model
+ * always picks the NEAREST fish, so it structurally cannot tap what that arm
+ * retires. Absence of evidence, manufactured by the instrument.
+ *
+ * Taking from the offscreen 11-to-22 shell instead starves the inflow rather
+ * than editing the view. It is slower and weaker, and it cannot ever be seen.
+ */
+export const SURPLUS_RETIRE_MIN_DISTANCE = CAMERA_VIEW_RADIUS;
+
 /** Mutable state for the proximity spawner. */
 export interface ProximitySpawnState {
   /** Countdown until replacement fish appear. Negative means no pending replenish. */

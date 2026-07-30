@@ -40,6 +40,9 @@ import {
   GOLDEN_SPAWN_RING,
   MILESTONE_SCHEDULE,
   MILESTONE_REPEAT_INTERVAL,
+  FISH_BASE_SPEED_MIN,
+  FISH_BASE_SPEED_MAX,
+  MIN_SPEED_MULTIPLIER,
   type FishState,
   type FishKind,
 } from './types';
@@ -100,6 +103,8 @@ import {
   notifyGoldenLost,
   CAMERA_VIEW_RADIUS,
   CULL_DISTANCE,
+  SURPLUS_RETIRE_INTERVAL,
+  SURPLUS_RETIRE_MIN_DISTANCE,
   FISH_HARD_CEILING,
   type ProximitySpawnState,
 } from './waves';
@@ -177,6 +182,8 @@ export function createGame(context: MiniGameContext): IMiniGame {
   const fishArray: FishState[] = [];
   let goldenFish: FishState | null = null;
   let spawnState: ProximitySpawnState | null = null;
+  /** Countdown to the next surplus retirement. See SURPLUS_RETIRE_INTERVAL. */
+  let surplusRetireTimer = SURPLUS_RETIRE_INTERVAL;
   let surpriseState: SurpriseState | null = null;
   let frenzyState: FrenzyState | null = null;
   let frenzyHud: FrenzyHud | null = null;
@@ -283,18 +290,98 @@ export function createGame(context: MiniGameContext): IMiniGame {
   // from the fingertip. Left alone on purpose, not overlooked.
   const FISH_TAP_SNAP_RADIUS_PX = 120;
 
+  // ── Round 5: 120 px is the right number for a fish that is barely moving ──
+  //
+  // Everything above chose 120 px against fish at the BOTTOM of the difficulty
+  // ramp, and then round 3 wired that ramp up to speed. It only goes one way:
+  // `difficulty.level` is driven from the score, the score never falls (one
+  // `addPoints` site, every `FISH_POINTS` value positive, `reset()` off the frame
+  // path), and the shell's mapping is monotone — so the level is a ratchet. It
+  // reaches 1 after 89 s of 3.5 s-cadence play and a measured 73% of the session
+  // is spent at >= 0.9. The interesting number is what living up there costs.
+  //
+  // A tap lands only if the fish is still inside the snap circle when the finger
+  // ARRIVES, which is not when the child decided. So:
+  //
+  //   snap radius                                     1.34 world units
+  //   mean fish base drift  (1.0 + 1.8) / 2         = 1.40 units/second
+  //   distance covered inside a 0.6 s reaction:
+  //     level 0, x0.55  ->  0.46 u  =  34% of the snap radius
+  //     level 1, x1.45  ->  1.22 u  =  91% of the snap radius
+  //
+  // At the top of the ramp the fish very nearly clears the entire forgiveness
+  // circle inside the child's reaction time. The tap does not miss by bad luck,
+  // it misses by arithmetic — and the child earned that by succeeding. Measured
+  // at 24 seeds: dead taps 15.5% -> 23.8% between the ramp's two endpoints,
+  // "caught the fish I aimed at" 65.6% -> 47.9%.
+  //
+  // The obvious fix is to stop the ramp, and it was tried. Four damper arms —
+  // hard cap at 0.5, bubble-pop's accuracy-EMA damper at both its time constants,
+  // and that damper on the motor dials only — recovered 0.1 to 5.1 points against
+  // standard errors of 0.6 to 1.1. Capping speed alone was non-monotone within
+  // noise, and even gutting the speed ramp to x0.70 still left +3.0 points. None
+  // of them can restore contingency, and all of them spend the visible liveliness
+  // round 3 deliberately added.
+  //
+  // So instead: leave every fish exactly as it is and grow the forgiveness circle
+  // by exactly the extra distance a faster fish covers inside the reaction time.
+  // Nothing below is a chosen number — it is the miss arithmetic above, run
+  // backwards. Dead taps at the top of the ramp fall 23.8% -> 2.9%, which is
+  // better than the ramp's own FLOOR (15.5%), and the mean level is untouched.
+  //
+  // Priced, not just praised. index.ts's criterion for a snap radius is the GAP
+  // (aimed hits minus random-poke hits), and this widens the circle, so the gap
+  // has to be re-checked at every latency a three-year-old might have. The
+  // widening is sized from a FIXED assumption, never from the child in front of
+  // it — the shipped game cannot measure a reaction time — so every row but the
+  // middle one is the fix being wrong about the child:
+  //
+  //   child's real RT   dead @1   + fix    gap @1   gap + fix
+  //         0.3 s        17.5%     2.0%      53.0        46.9
+  //         0.6 s        23.8%     2.9%      46.5        46.3   <- assumed
+  //         1.0 s        34.2%     6.6%      36.3        42.6
+  //
+  // The error is asymmetric in the safe direction: the fix helps most exactly the
+  // slow children today's ramp hurts most, and what it costs, it costs the fast
+  // child who was already succeeding. The one row where the gap regresses
+  // describes a three-year-old faster than the developmental literature reports
+  // existing — ECITT (PMC8638877) puts mean median RT at 1,038 ms at 30 months
+  // and 1,089 ms at 24 months on a STATIONARY iPad target, so 0.6 s is already
+  // well under the floor, deliberately: over-assuming is paid for in the random
+  // column. Fully widened this reaches 188 px, still inside the 220 px the sweep
+  // above rejected, and only ever at the top of the ramp.
+  const ASSUMED_TOUCH_LATENCY_S = 0.6;
+  const MEAN_FISH_BASE_SPEED = (FISH_BASE_SPEED_MIN + FISH_BASE_SPEED_MAX) / 2;
+  // The same conversion the snap sweep above was computed in ("2.5 world units =
+  // 224 px" at the shark's depth). A single depth-independent figure is the right
+  // one here for the same reason it was right there: 120 px was itself chosen
+  // against the whole on-screen distribution of fish depths, and scaling the
+  // allowance per fish would be a different, unmeasured fix.
+  const PX_PER_WORLD_UNIT_AT_SHARK_DEPTH = 224 / 2.5;
+
+  /**
+   * Snap radius for a tap taken right now, widened for how fast the reef is currently swimming.
+   *
+   * @returns The forgiveness radius in canvas pixels: 120 at the bottom of the ramp, 188 at the top.
+   */
+  function tapSnapRadiusPx(): number {
+    const extraUnitsPerSecond = Math.max(0, getSpeedMultiplier(context.difficulty.level) - MIN_SPEED_MULTIPLIER) * MEAN_FISH_BASE_SPEED;
+    return FISH_TAP_SNAP_RADIUS_PX + extraUnitsPerSecond * ASSUMED_TOUCH_LATENCY_S * PX_PER_WORLD_UNIT_AT_SHARK_DEPTH;
+  }
+
   // Scratch for projecting a fish to screen space. See the note on tapRaycaster.
   const tapProjected = new Vector3();
 
   // Finds the fish whose screen position is closest to the tap, within
-  // FISH_TAP_SNAP_RADIUS_PX. Fish behind the camera are skipped: `project`
+  // tapSnapRadiusPx(). Fish behind the camera are skipped: `project`
   // mirrors those through the origin, so without the z guard a fish directly
   // behind the child's view would read as a near-perfect hit.
   function findFishNearTap(screenX: number, screenY: number): FishState | null {
     const rect = context.canvas.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return null;
     let best: FishState | null = null;
-    let bestDistSq = FISH_TAP_SNAP_RADIUS_PX * FISH_TAP_SNAP_RADIUS_PX;
+    const snapPx = tapSnapRadiusPx();
+    let bestDistSq = snapPx * snapPx;
     const consider = (fish: FishState | null): void => {
       if (!fish || !fish.active) return;
       tapProjected.copy(fish.root.position).project(shellCam);
@@ -850,6 +937,72 @@ export function createGame(context: MiniGameContext): IMiniGame {
       },
       targetNearby,
     );
+
+    // Give a fish back when the reef holds more than the target asked for.
+    //
+    // Without this the spawner is a ratchet: it fills toward `targetNearby` and
+    // the only ways out are being eaten or drifting past CULL_DISTANCE, so the
+    // population climbs and stays climbed. The cost lands on the frenzy, whose
+    // whole payoff is that same target doubling — a reef already sitting at 1.8x
+    // target cannot double into anything the child would notice. See
+    // SURPLUS_RETIRE_INTERVAL in waves.ts for the measurement.
+    //
+    // Three guards, each load-bearing:
+    //
+    //   Only fish beyond SURPLUS_RETIRE_MIN_DISTANCE, so nothing ever dissolves
+    //   in front of the child. This is the reason the fix is weaker than the
+    //   obvious one and the reason it is shippable.
+    //
+    //   Never the hunt target, which would dissolve the fish mid-chase and hand
+    //   the child a chase that ends in nothing.
+    //
+    // The golden is safe without a guard, but not by luck: it is not a member of
+    // `fishArray` at all (see the cull below, which needs its own separate branch
+    // for exactly this reason), so this loop cannot reach it. Should the golden
+    // ever join the array, it needs an explicit exclusion here — retiring the
+    // prize fish for being surplus would be an absurdity.
+    //
+    // `countNearbyFish` is reused rather than reimplemented so that the count
+    // being drained toward is exactly the count the spawner fills toward,
+    // including the in-flight fish. Two subtly different notions of "nearby"
+    // here would produce a spawner and a drain that argue with each other
+    // forever, each undoing the other's work every frame.
+    surplusRetireTimer -= dt;
+    if (surplusRetireTimer <= 0) {
+      surplusRetireTimer = SURPLUS_RETIRE_INTERVAL;
+      let nearby = 0;
+      for (const f of fishArray) {
+        if (!f.active) continue;
+        if (f.spawning) {
+          nearby++;
+          continue;
+        }
+        const dx = f.root.position.x - sharkPos.x;
+        const dz = f.root.position.z - sharkPos.z;
+        if (dx * dx + dz * dz < CAMERA_VIEW_RADIUS * CAMERA_VIEW_RADIUS) nearby++;
+      }
+      if (nearby > Math.round(targetNearby)) {
+        let farthest: FishState | null = null;
+        let farthestDistSq = -1;
+        for (const f of fishArray) {
+          if (!f.active || f.spawning) continue;
+          if (f.root === huntState.targetFishRoot) continue;
+          const dx = f.root.position.x - sharkPos.x;
+          const dz = f.root.position.z - sharkPos.z;
+          const distSq = dx * dx + dz * dz;
+          if (distSq < SURPLUS_RETIRE_MIN_DISTANCE * SURPLUS_RETIRE_MIN_DISTANCE) continue;
+          if (distSq >= CULL_DISTANCE * CULL_DISTANCE) continue;
+          if (distSq > farthestDistSq) {
+            farthestDistSq = distSq;
+            farthest = f;
+          }
+        }
+        if (farthest) {
+          farthest.active = false;
+          farthest.despawnTimer = FISH_DESPAWN_SCALE_DURATION;
+        }
+      }
+    }
 
     // Recycle fish that have fallen behind the shark, back into the pool.
     //

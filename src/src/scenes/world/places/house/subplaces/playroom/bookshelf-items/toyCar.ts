@@ -3,6 +3,8 @@ import { createGlossyPaintMaterial, createPlasticMaterial } from '@app/utils/mat
 import { triggerSound } from '@app/assets/audio/sceneBridge';
 import gsap from 'gsap';
 import { getIdleAnimator } from '@app/utils/idle/registry';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 
 /**
  * Creates a toy car on the bottom shelf of the bookshelf. Clicks to drive around the back of the room.
@@ -94,12 +96,87 @@ export function createToyCar(scene: Scene): void {
 
   // ── Click interaction — drive to floor and cruise back and forth ──
   let driving = false;
+  const baseScale = carBody.scale.x;
+
+  /**
+   * The answer a tap gets once the car is already driving.
+   *
+   * The car cruises on a `repeat: -1` timeline, so "wait for the drive to finish and
+   * unlatch" is not available — there is no finish. The tap therefore gets its own
+   * answer instead of the drive's: a squash-and-stretch on a channel the drive never
+   * touches. `carBody.scale` is written once at build (`setScalar(3)`) and by nothing
+   * else, so this cannot fight the position and rotation tweens that are in flight.
+   *
+   * `killTweensOf` then reset makes a rapid second tap restart the bounce from the
+   * base rather than compound onto a half-played one, and the handle is owned by the
+   * scene's idle animator for the reason written at the foot of this file: an unowned
+   * handle followed a child out of the room once already.
+   */
+  const bounce = () => {
+    gsap.killTweensOf(carBody.scale);
+    carBody.scale.setScalar(baseScale);
+    idle.register(
+      gsap.to(carBody.scale, {
+        x: baseScale * 1.15,
+        y: baseScale * 1.15,
+        z: baseScale * 1.15,
+        duration: 0.12,
+        ease: 'power2.out',
+        yoyo: true,
+        repeat: 1,
+      }),
+    );
+  };
 
   const driveHandler = () => {
-    if (driving) return;
-    driving = true;
+    // EVERY TAP IS ANSWERED. ONLY THE FIRST ONE STARTS THE DRIVE.
+    //
+    // This used to open `if (driving) return;`, and that early return was a dead tap
+    // dressed as a guard. `driving` is set once and NEVER CLEARED — the two
+    // assignments in this file are the declaration and the `= true` — so from the
+    // first drive to the end of the visit every further tap on this car fell out of
+    // the handler before making a sound. `interactionController.fire` then counted
+    // zero sounds requested and played `sfx_shared_tap_fallback` — and nothing else.
+    //
+    // The cue is NOT the miss's private property; `uiSounds.ts` calls it "a gentle
+    // acknowledgement chirp for tap-fallback feedback", the generic acknowledgement,
+    // which the miss merely also uses. Round 2 first wrote the charge up as "answered
+    // with the miss's own cue" and that half is refuted. What survives is a
+    // comparison, and it is worse: since Round 1 gave a missed room tap a sparkle, a
+    // tap that FOUND the car got the cue and no picture where a tap that found
+    // nothing got the cue AND a picture. On a muted device that is nothing at all.
+    // Strictly less for finding something than for finding nothing.
+    //
+    // `interactionController.fire` now closes that floor for every prop at once, so
+    // this car can no longer fall below empty space however the guard is edited. The
+    // floor is not the point, though — it is what stops a dead tap being a lie. A
+    // prop that has more to give should still give it, which is what `bounce()` below
+    // is for.
+    //
+    // AND IT IS THE DEFAULT, NOT AN EDGE CASE. The `gsap.delayedCall` at the foot of
+    // this file drives the car for the child, so a child who spends the opening
+    // seconds looking around the room — the normal way to enter a room — arrives at
+    // a car that can no longer be tapped, having never tapped it. Measured in
+    // `.probe/render/r2-latch.mjs`: a fresh tap emits
+    // `sceneSparkle`, and a tap after the autoplay emits nothing at all.
+    const alreadyDriving = driving;
 
-    triggerSound('sfx_shared_tap_fallback');
+    // This was `sfx_shared_tap_fallback` — the shared acknowledgement, which the miss
+    // path also plays — and this handler emitted no burst either. Since Round 1 gave
+    // a missed room tap a sparkle, FINDING the car was answered less than touching the
+    // wall behind it. `sfx_shared_whoosh` is this codebase's own motion cue and the
+    // burst matches every other room prop. See docs/reviews/2026-07-30-rooms-five-rounds.md.
+    // A tap on a car that is already going gets `sfx_shared_pop` instead: the whoosh
+    // means "off you go", and replaying it for a car that is already gone would
+    // promise a departure that does not happen.
+    triggerSound(alreadyDriving ? 'sfx_shared_pop' : 'sfx_shared_whoosh');
+    getParticleEngine(scene).emit(PARTICLES.sceneSparkle, carBody.getWorldPosition(new Vector3()).add(new Vector3(0, 0.12, 0)));
+
+    if (alreadyDriving) {
+      bounce();
+      return;
+    }
+    driving = true;
 
     // Start exhaust
     exhaustRunning = true;

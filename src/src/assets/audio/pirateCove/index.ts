@@ -5,7 +5,7 @@
  * gentle shore ambient with soft wave washes and distant gulls.
  */
 
-import { playTone, playFreqSweep, createPinkNoiseBuffer, midiToFreq, rand } from '@app/assets/audio/utils/synthHelpers';
+import { playTone, playFreqSweep, playFilteredNoiseBurst, createPinkNoiseBuffer, midiToFreq, rand } from '@app/assets/audio/utils/synthHelpers';
 import { startAudioLoop } from '@app/assets/audio/utils/loopScheduler';
 import { scheduleConcertinaNote } from '@app/assets/audio/utils/instruments';
 
@@ -183,4 +183,46 @@ export function playAmbPirateCoveShore(ctx: AudioContext, dest: AudioNode): () =
       scheduleGull(ctx, dest, startTime + rand(1, SHORE_CYCLE_S - 1.5));
     }
   });
+}
+
+/**
+ * Plays the ship wheel's creak: the sound its own docblock has promised since it
+ * was written, and which the code did not play until Round 3.
+ *
+ * The wheel previously called `sfx_shared_tap_fallback` — the cue the controller
+ * plays when a tap finds nothing at all. Measured in `.probe/render/r3-cove.mjs`:
+ * a tap on the wheel and a tap on empty sky produced the identical sound, while
+ * four of the cove's six other answers had a voice of their own.
+ *
+ * WHY THIS IS SYNTHESISED RATHER THAN BORROWED. Nothing in the shared catalogue
+ * creaks. `sfx_shared_whoosh` was the nearest fit and is disqualified twice over:
+ * the sail already uses it eight metres away, so the wheel would answer in another
+ * prop's voice, and a whoosh is air, not wood under load. A creak is a rising,
+ * slightly detuned squeak riding a low woody knock, so that is what this builds.
+ *
+ * Three layers, each doing one job:
+ *   - a low knock, the wheel's weight taking up on its axle;
+ *   - a rising detuned squeak, two sines a beat apart, which is what makes dry
+ *     wood sound like wood rather than like a whistle;
+ *   - a short filtered noise rasp under it for grain.
+ *
+ * It is deliberately quieter than the chest's chime. The chest is a reward and
+ * should ring; the wheel is a control being turned and should sound like effort.
+ *
+ * @param ctx - The Web Audio context.
+ * @param dest - The destination AudioNode to connect output to.
+ */
+export function playSfxPirateCoveWheelCreak(ctx: AudioContext, dest: AudioNode): void {
+  const now = ctx.currentTime;
+
+  // The axle taking the load.
+  playTone(ctx, dest, 'sine', 150 + rand(-15, 15), 0.005, 0.14, 0.09, now);
+
+  // The creak proper: two sines a few Hz apart so they beat against each other.
+  const squeak = 520 + rand(-60, 60);
+  playFreqSweep(ctx, dest, 'sine', squeak, squeak * 1.35, 0.02, 0.3, 0.05, now + 0.02);
+  playFreqSweep(ctx, dest, 'sine', squeak * 1.01, squeak * 1.36, 0.02, 0.3, 0.04, now + 0.02);
+
+  // Dry grain under the squeak.
+  playFilteredNoiseBurst(ctx, dest, 1400, 3, 0.02, 0.22, 0.03, now + 0.02);
 }
