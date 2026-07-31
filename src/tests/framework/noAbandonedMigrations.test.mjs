@@ -149,11 +149,21 @@ const MIGRATIONS = [
     seam: 'utils/interaction/interactionController.ts — createInteractionController',
     supersedes: 'createWorldTapDispatcher, createInputDispatcher, createTapInteraction, wireToyboxInteractions, the room userData.onClick scan',
     // 2 importers, both of them things it replaced. The chain is three deep:
-    // 15 prop files -> createTapInteraction -> dispatcher (38) -> controller.
+    // 17 prop files -> createTapInteraction -> dispatcher (38) -> controller.
     importers: 2,
     delegation: { from: 'utils/worldTapDispatcher.ts', symbol: 'createInteractionController', to: 'utils/interaction/interactionController.ts' },
     oldApi: 'createTapInteraction',
-    oldApiCallers: 15,
+    // 15 -> 17: the Kitchen's two new side-wall pieces (decor/plateRack.ts,
+    // decor/wallPegs.ts). This ratchet fired on them and it fired correctly — they
+    // ARE new call sites against a superseded name. Raising the number rather than
+    // writing them against the controller is a deliberate choice with a reason:
+    // this migration is `inverted`, so every one of these callers already runs on
+    // the new engine and the only debt is the name. All 15 siblings in the same
+    // decor families say `createTapInteraction`; two files saying something else
+    // would not finish the migration, it would start a third convention inside one
+    // room — which is the exact failure the entry above describes. The debt is
+    // real and it is now 17 files wide instead of 15.
+    oldApiCallers: 17,
   },
   {
     id: 'camera',

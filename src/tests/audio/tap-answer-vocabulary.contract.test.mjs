@@ -195,10 +195,20 @@ test('the literal scanner finds the call sites it claims to grade', () => {
   // the leaf and the stone name their cues as `tapSoundId` / `revealSoundId`
   // config fields rather than as calls, so this scanner cannot see them. The
   // Round 5 pin below reads those two files directly for exactly that reason.
-  assert.equal(SITES.length, 58, `expected 58 literal sound call sites, scanned ${SITES.length}`);
+  //
+  // FIX B MOVED THIS FROM 58 TO 60, AND AGAIN THE DELTA IS THE EVIDENCE. Two new
+  // `triggerSound` sites, both in the Kitchen, both answering a tap on side-wall
+  // dressing that did not exist before: the swinging mugs under the plate rack
+  // (`decor/plateRack.ts`) and the hanging cloths on the peg rail
+  // (`decor/wallPegs.ts`). Two and not four — the chalk menu board and the wall
+  // clock are set dressing and are deliberately silent, because a room where every
+  // object answers teaches nothing about which objects are worth touching. Both
+  // name `sfx_hub_toybox_tap`, which is what the pot rail overhead already answers
+  // with, so the Kitchen gains wall content without gaining a new voice.
+  assert.equal(SITES.length, 60, `expected 60 literal sound call sites, scanned ${SITES.length}`);
   const byCall = {};
   for (const s of SITES) byCall[s.call] = (byCall[s.call] ?? 0) + 1;
-  assert.deepEqual(byCall, { playSound: 27, triggerSound: 30, triggerMusic: 1 });
+  assert.deepEqual(byCall, { playSound: 27, triggerSound: 32, triggerMusic: 1 });
   // Five of those `playSound` sites are in `.tsx` — the scene-transition whooshes in
   // `SceneFrame.tsx` and the button presses in `UIOverlay.tsx`. They are scanned on
   // purpose: React UI resolves ids through the same registry with the same absent

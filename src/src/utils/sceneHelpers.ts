@@ -4,6 +4,7 @@ import { getParticleEngine } from './particles/registry';
 import { PARTICLES } from './particles/presets';
 import { createLightingRig, type LightingDescriptor } from './lighting/lightingRig';
 import { createDisposalScope, type DisposalScope } from './disposal';
+import { DEFAULT_ENV_INTENSITY } from './rendererFactory';
 import { createOwlCompanion, type OwlCompanion } from '@app/entities/owl';
 import { triggerSound } from '@app/assets/audio/sceneBridge';
 import type { OwlFlightBounds } from '@app/entities/owl/types';
@@ -43,6 +44,25 @@ export interface LightingConfig {
   /** Colour of the key light. */
   keyColor: Color;
 
+  /**
+   * Optional bounce — a second directional light with no shadow. See
+   * {@link LightingDescriptor.bounce}, which is where the reasoning lives.
+   *
+   * Omit `bounceDirection` to get the default construction, the key's
+   * horizontal components negated with its Y kept, which lights exactly the
+   * faces the key misses and is exactly zero on the ones it hits. Scenes should
+   * normally take the default and set only `bounceIntensity`: choosing a
+   * direction by hand gives up the negative controls that construction buys.
+   *
+   * Omit `bounceIntensity` — or leave it at 0 — and no bounce light is built at
+   * all, so every scene that has not asked for one is bit-for-bit unchanged.
+   */
+  bounceIntensity?: number;
+  /** Colour of the bounce. @default `keyColor` */
+  bounceColor?: Color;
+  /** Direction the bounce travels. @default `keyDirection` with X and Z negated */
+  bounceDirection?: Vector3;
+
   /** Intensity of the ambient fill light. */
   fillIntensity: number;
   /** Colour of the fill light. */
@@ -50,6 +70,33 @@ export interface LightingConfig {
 
   /** Optional colour for the ground fill (used by some world scenes). */
   fillGroundColor?: Color;
+
+  /**
+   * Optional override for `scene.environmentIntensity` — the image-based fill
+   * from the shared PMREM room environment.
+   *
+   * This belongs here, next to the other three intensities, because it is one of
+   * them in every respect that matters and was previously the only one you could
+   * not see from a scene's own environment file. `applyDefaultEnvironment`
+   * applies 0.24 to every world scene, and measurement showed that term alone
+   * carries **73% of the kitchen's luminance**: rendering the room with
+   * `keyIntensity`, `fillIntensity` and every accent set to zero still produced a
+   * fully lit room, retaining 77% of the luminance on the wall the key does not
+   * reach. Tuning the values above while the dominant term lived in another file
+   * moved the room's shadow coverage by three points and then stopped.
+   *
+   * The environment is a PMREM of three.js's `RoomEnvironment`, a white studio
+   * box, so its contribution is flat in every channel — little-shark's rig
+   * derivation already wrote that down as `env = environmentIntensity * E, flat
+   * in every channel`. Flat in every channel is what makes an interior read as a
+   * photographic backdrop rather than a room with a window in it. Two minigames
+   * found this independently and dialled the default down locally (little-shark
+   * 0.012, star-catcher 0.06); the room scenes inherited 0.24, because nothing in
+   * a room's environment file mentioned that there was anything to inherit.
+   *
+   * Omit to keep the shared default.
+   */
+  environmentIntensity?: number;
 
   /** Position of the accent (point) light. Omit to skip accent light. */
   accentPosition?: Vector3;
@@ -92,6 +139,13 @@ export interface SceneLighting {
  * @returns The lighting objects (only `keyLight` is consumed downstream).
  */
 export function createSceneLighting(scene: Scene, config: LightingConfig, scope: DisposalScope): SceneLighting {
+  // ALWAYS assigned, never left alone when the config omits it. SceneFrame
+  // builds ONE Scene at mount and reuses it for every world scene, so a
+  // conditional assignment would let the last room that set a value keep
+  // dimming every scene the player walked into afterwards — a lighting change
+  // that only shows up after navigation, in scenes that never asked for it.
+  scene.environmentIntensity = config.environmentIntensity ?? DEFAULT_ENV_INTENSITY;
+
   const accents: LightingDescriptor['accents'] = [];
   if (config.accentPosition) {
     accents.push({ position: config.accentPosition, intensity: config.accentIntensity ?? 0.15, color: config.accentColor ?? new Color(1, 1, 1) });
@@ -105,6 +159,13 @@ export function createSceneLighting(scene: Scene, config: LightingConfig, scope:
     scene,
     {
       key: { direction: config.keyDirection, intensity: config.keyIntensity, color: config.keyColor },
+      bounce: config.bounceIntensity
+        ? {
+            direction: config.bounceDirection ?? new Vector3(-config.keyDirection.x, config.keyDirection.y, -config.keyDirection.z),
+            intensity: config.bounceIntensity,
+            color: config.bounceColor ?? config.keyColor,
+          }
+        : undefined,
       // No ground colour → sky === ground → a flat fill identical to the old AmbientLight.
       fill: { skyColor: config.fillColor, groundColor: config.fillGroundColor ?? config.fillColor, intensity: config.fillIntensity },
       accents,

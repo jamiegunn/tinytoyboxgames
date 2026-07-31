@@ -202,12 +202,18 @@ test('the handler parser finds the room reactions it claims to grade', () => {
   // Without this, every assertion below passes vacuously the moment the source
   // moves to a registration form the parser does not know. The counts are pinned
   // by value, not by ">= 1", so ADDING an unparsed prop is also a failure here.
-  assert.equal(HANDLERS.length, 12, `expected 12 room tap handlers, parsed ${HANDLERS.length}`);
+  //
+  // 12 -> 14, Fix B: the Kitchen's side walls gained two tappable families, the
+  // mugs under the plate rack and the cloths on the peg rail. The Kitchen goes
+  // 3 -> 5 and is no longer the least reactive room in the house, which was half
+  // the point — its side walls measured 88.1% flat tiles above the furniture line
+  // and answered nothing at all.
+  assert.equal(HANDLERS.length, 14, `expected 14 room tap handlers, parsed ${HANDLERS.length}`);
   for (const h of HANDLERS) assert.ok(h.body, `${h.room}/${h.file}:${h.line} handler body did not brace-match`);
   const perRoom = Object.fromEntries(ROOMS.map((r) => [r, HANDLERS.filter((h) => h.room === r).length]));
-  assert.deepEqual(perRoom, { playroom: 5, kitchen: 3, 'living-room': 4 });
+  assert.deepEqual(perRoom, { playroom: 5, kitchen: 5, 'living-room': 4 });
   // Both mechanisms must still be represented, or the parser has gone half-blind.
-  assert.equal(HANDLERS.filter((h) => h.kind === 'createTapInteraction').length, 7);
+  assert.equal(HANDLERS.filter((h) => h.kind === 'createTapInteraction').length, 9);
   assert.equal(HANDLERS.filter((h) => h.kind.startsWith('userData.onClick')).length, 5);
   assert.equal(HANDLERS.filter((h) => h.kind.includes('->')).length, 2, 'both named-const handlers must resolve');
 });

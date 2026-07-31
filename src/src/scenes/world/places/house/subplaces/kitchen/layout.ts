@@ -88,3 +88,32 @@ export const TOYBOX_ROTATION_Y = Math.PI + Math.PI / 6;
 
 /** Z position of the doorway back to the Living Room on the left wall. */
 export const LIVING_ROOM_DOOR_Z = 2.4;
+
+// ── Side wall slots ─────────────────────────────────────────────────────────
+//
+// The side walls are ~48% of this room's frame and, until these slots existed,
+// carried a baseboard and one door between them. Measured on the render above
+// the furniture line (y >= 2.2), the RIGHT wall was 97.7% flat tiles and the
+// LEFT 80.7% — against the Playroom's decorated left wall at 32.3% under the
+// same camera preset. The Playroom is the reference because it is the same
+// house, the same camera, and it was not built to prove anything.
+//
+// Everything here hangs in that band deliberately. Below it the wall competes
+// with the floor toys the child is meant to reach for; above it is the wall the
+// camera actually shows.
+
+/** Plate rack on the right wall: rack center Z and lower plank height. */
+export const PLATE_RACK_Z = 4.6;
+export const PLATE_RACK_Y = 3.15;
+
+/** Framed chalk menu board on the right wall, nearer the camera than the rack. */
+export const MENU_BOARD_Z = 0.4;
+export const MENU_BOARD_Y = 3.3;
+
+/** Peg rail with hanging cloths on the left wall, behind the doorway. */
+export const PEG_RAIL_Z = 5.6;
+export const PEG_RAIL_Y = 3.05;
+
+/** Wall clock on the left wall, forward of the doorway. */
+export const WALL_CLOCK_Z = 0.1;
+export const WALL_CLOCK_Y = 3.9;

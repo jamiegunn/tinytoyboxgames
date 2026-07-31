@@ -42,6 +42,34 @@ export interface LightingDescriptor {
   /** Directional key light. `direction` is the direction the light travels (need not be unit). */
   key: { direction: Vector3; intensity: number; color: Color };
   /**
+   * Optional second directional light — a bounce card. Same convention as
+   * `key.direction`: the direction the light travels. Casts no shadow, because
+   * a second shadow-caster costs a second map and reads as two suns.
+   *
+   * This exists because one directional light leaves every surface facing away
+   * from it lit by the flat terms only, and in the three house rooms that
+   * surface is a whole wall. All three set a key travelling toward −X while
+   * `LEFT_WALL_FACE_X` is positive, so the left wall's Lambert term is exactly
+   * `max(0, dot((-1,0,0), (0.45, 0.82, -0.35))) = 0`. Measured in the linear
+   * domain — where light adds up, unlike in the sRGB bytes, which understated
+   * this by more than half — the Kitchen's left wall sat at 23% of the right
+   * wall's luminance and 40% of its colourfulness. It did not shade what was
+   * placed on it, it drained it.
+   *
+   * A bounce is NOT interchangeable with raising `fill.intensity` or
+   * `scene.environmentIntensity`, and is deliberately not a way to walk those
+   * back: both are flat in every channel and were cut hard in `bc4d01f`
+   * precisely because they carried 73% of a room's luminance while shaping
+   * nothing. This has a direction, so it shades.
+   *
+   * Point it wherever a scene needs, but negating the key's horizontal
+   * components and keeping its Y is the construction that can be checked rather
+   * than trusted: the bounce's Lambert term is then exactly zero on every face
+   * the key already lights, which makes those faces usable as negative controls
+   * when measuring what it did.
+   */
+  bounce?: { direction: Vector3; intensity: number; color: Color };
+  /**
    * Hemisphere fill. `skyColor === groundColor` reproduces a flat ambient fill
    * (how the mini-games were lit); different colours give the classic
    * sky-above / ground-bounce diorama fill the room/world scenes use.
@@ -56,6 +84,8 @@ export interface LightingDescriptor {
 /** The live lights of a rig (all already added to the scene and scope-owned). */
 export interface LightingRig {
   key: DirectionalLight;
+  /** The bounce, when the descriptor asked for one. `null` otherwise. */
+  bounce: DirectionalLight | null;
   fill: HemisphereLight;
   accents: PointLight[];
 }
@@ -106,6 +136,22 @@ export function createLightingRig(scene: Scene, d: LightingDescriptor, scope: Di
   scope.object3D(key);
   scope.add(() => key.target.removeFromParent());
 
+  // Optional bounce. Built exactly like the key minus the shadow config, and
+  // placed on its own target rather than reusing the key's, because two lights
+  // sharing one target object is a coupling that only shows itself when someone
+  // later animates one of them.
+  let bounce: DirectionalLight | null = null;
+  if (d.bounce) {
+    bounce = new DirectionalLight(d.bounce.color, d.bounce.intensity);
+    bounce.position.copy(d.bounce.direction.clone().normalize()).multiplyScalar(-KEY_DISTANCE);
+    bounce.target.position.set(0, 0, 0);
+    scene.add(bounce);
+    scene.add(bounce.target);
+    scope.object3D(bounce);
+    const b = bounce;
+    scope.add(() => b.target.removeFromParent());
+  }
+
   // Hemisphere fill (flat when sky === ground).
   const fill = new HemisphereLight(d.fill.skyColor, d.fill.groundColor, d.fill.intensity);
   scene.add(fill);
@@ -125,5 +171,5 @@ export function createLightingRig(scene: Scene, d: LightingDescriptor, scope: Di
     return light;
   });
 
-  return { key, fill, accents };
+  return { key, bounce, fill, accents };
 }

@@ -319,9 +319,40 @@ test('the unenforced tiers are still the size this file says they are', () => {
   // That is the corpus-word rule doing exactly its job: the probe is the
   // consumer, and a function whose whole purpose is to stop documentation from
   // transcribing a number by hand has no runtime caller by design.
+  //
+  // 2026-07, the room lighting round, +1 consumed:
+  //
+  //   DEFAULT_ENV_INTENSITY         utils/rendererFactory.ts           -> consumed
+  //
+  // It was already the default argument of `applyDefaultEnvironment` in that
+  // file; the export is new because `createSceneLighting` in utils/sceneHelpers
+  // now imports it to restore the shared baseline for any scene that does not
+  // override `environmentIntensity`. It lands in `consumed` rather than
+  // `internal` for exactly that reason — a real app importer, not a probe.
+  //
+  // Why it needed exporting is the finding of that round. This constant was
+  // measured to carry 73% of the kitchen's luminance while being invisible from
+  // every file that owns lighting, and two minigames had already responded by
+  // hand-copying a local override rather than importing anything. That is the
+  // same failure `TONE_MAPPING_EXPOSURE` was exported to stop, three entries
+  // above, in the same file.
+  //
+  // 2026-07, Fix B (the Kitchen's side walls), +10 consumed and nothing else:
+  //
+  //   PLATE_RACK_Z, PLATE_RACK_Y, MENU_BOARD_Z, MENU_BOARD_Y,
+  //   PEG_RAIL_Z, PEG_RAIL_Y, WALL_CLOCK_Z, WALL_CLOCK_Y   kitchen/layout.ts
+  //   createPlateRack                        kitchen/decor/plateRack.ts
+  //   createWallPegs                         kitchen/decor/wallPegs.ts
+  //
+  // Every one lands in `consumed` because it has a real app importer: the eight
+  // slot constants are read by the two new decor files, and the two factories by
+  // `kitchen/decor/index.ts`. That all ten are consumed and none internal is the
+  // check that matters here — a new decor file that exported a factory nothing
+  // composed would show up as `dead`, which is precisely how a piece of scenery
+  // gets built, measured on paper, and never actually rendered.
   assert.deepEqual(
     TIER_COUNTS,
-    { consumed: 1737, reexport: 86, internal: 139, spared: 4, laundered: 0, dead: 0 },
+    { consumed: 1748, reexport: 86, internal: 139, spared: 4, laundered: 0, dead: 0 },
     'the tier populations moved; say which symbol moved and why, then update this',
   );
 });

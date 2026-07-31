@@ -18,10 +18,25 @@ import { ACESFilmicToneMapping, PCFSoftShadowMap, PMREMGenerator, Scene, SRGBCol
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { getMaxPixelRatio } from './qualityTier';
 
-/** Default environment intensity — subtle fill, not a lighting takeover. Kept
- * low so the directional key light (not the flat IBL) shapes form and the soft
- * shadows read; the per-scene hemisphere fill supplies the rest. */
-const DEFAULT_ENV_INTENSITY = 0.24;
+/**
+ * Default environment intensity.
+ *
+ * The comment that used to sit here said this was "subtle fill, not a lighting
+ * takeover… kept low so the directional key light (not the flat IBL) shapes
+ * form". Measurement says otherwise for interiors: with the kitchen's key, fill
+ * and every accent set to zero, this term alone still rendered a fully lit room
+ * holding 73% of the base luminance, and 77% of the luminance on the wall the
+ * key cannot reach. For an interior it *is* the lighting takeover, and it is
+ * flat in every channel, so it takes over with no shape at all.
+ *
+ * 0.24 remains the default because outdoor scenes and minigames are built
+ * against it. Interiors override it via `LightingConfig.environmentIntensity`.
+ *
+ * Exported so scenes can reason about — and restore — the shared baseline
+ * rather than hard-coding a copy of this number, which is how it came to be
+ * invisible to every room in the first place.
+ */
+export const DEFAULT_ENV_INTENSITY = 0.24;
 
 /** Options for {@link createConfiguredRenderer}. */
 export interface RendererOptions {
