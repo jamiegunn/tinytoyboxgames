@@ -10,6 +10,7 @@ import { playSfxSharedTapFallback, playSfxSharedButtonPress } from './shared/uiS
 import { playSfxSharedTransitionWhoosh, playSfxSharedTransitionArrive } from './shared/transitionSounds';
 import { playSfxSharedOwlHoot, playSfxSharedOwlHappyChirp, playSfxSharedOwlPoint, playSfxSharedOwlSleepy } from './shared/owlSounds';
 import { playSfxSharedSparkleBurst, playSfxSharedStarChime } from './shared/rewardSounds';
+import { playSfxSharedCritterScurry } from './shared/critterSounds';
 import {
   playSfxSharedPop,
   playSfxSharedChime,
@@ -29,7 +30,6 @@ import {
   playSfxHubToyboxOpen,
   playSfxHubMusicPlayerTap,
   playSfxHubMusicPlayerTune,
-  playSfxHubAmbientScurry,
   playSfxHubAmbientHop,
   playSfxHubTrainHorn,
   playSfxHubTrainChugga,
@@ -43,6 +43,9 @@ import {
   playSfxNatureLeafFlip,
   playSfxNatureStreamSplash,
   playSfxNatureButterflyFlutter,
+  playSfxNatureStoneShift,
+  playSfxNatureLogKnock,
+  playSfxNatureFireflyTwinkle,
 } from './nature';
 
 // Bubble Pop
@@ -100,6 +103,8 @@ export const SFX_REGISTRY: Record<string, SfxFn> = {
   // Shared Rewards
   sfx_shared_sparkle_burst: playSfxSharedSparkleBurst,
   sfx_shared_star_chime: playSfxSharedStarChime,
+  // Shared Critters
+  sfx_shared_critter_scurry: playSfxSharedCritterScurry,
   // Shared Celebrations (CelebrationSystem sound map)
   sfx_shared_pop: playSfxSharedPop,
   sfx_shared_chime: playSfxSharedChime,
@@ -112,7 +117,6 @@ export const SFX_REGISTRY: Record<string, SfxFn> = {
   sfx_hub_toybox_open: playSfxHubToyboxOpen,
   sfx_hub_music_player_tap: playSfxHubMusicPlayerTap,
   sfx_hub_music_player_tune: playSfxHubMusicPlayerTune,
-  sfx_hub_ambient_scurry: playSfxHubAmbientScurry,
   sfx_hub_ambient_hop: playSfxHubAmbientHop,
   sfx_hub_train_horn: playSfxHubTrainHorn,
   sfx_hub_train_chugga: playSfxHubTrainChugga,
@@ -123,6 +127,9 @@ export const SFX_REGISTRY: Record<string, SfxFn> = {
   sfx_nature_leaf_flip: playSfxNatureLeafFlip,
   sfx_nature_stream_splash: playSfxNatureStreamSplash,
   sfx_nature_butterfly_flutter: playSfxNatureButterflyFlutter,
+  sfx_nature_stone_shift: playSfxNatureStoneShift,
+  sfx_nature_log_knock: playSfxNatureLogKnock,
+  sfx_nature_firefly_twinkle: playSfxNatureFireflyTwinkle,
   // Bubble Pop
   sfx_bubble_pop_pop_small: playSfxBubblePopPopSmall,
   sfx_bubble_pop_pop_medium: playSfxBubblePopPopMedium,

@@ -14,6 +14,20 @@
  * Every light (and the key's target) is registered on the supplied
  * {@link DisposalScope}, so scene switches no longer leak directional-light
  * shadow-map render targets — the leak DisposalScope was built to kill.
+ *
+ * NOT HERE DELIBERATELY: `utils/lighting/index.ts`, the public-surface barrel.
+ * Deleted at 0 live importers.
+ *
+ * This module has two live importers and they are the two hubs: `sceneHelpers`
+ * for scenes and `minigames/shared/sceneSetup` for games. `createGameLighting`,
+ * named above as one of the two rigs this replaced, is not a survivor — it now
+ * builds its lights by calling `createLightingRig` and keeps its old signature
+ * for its 5 game-side callers. The paragraph above is therefore true, and the
+ * import count that would seem to test it (2) has nothing to do with why.
+ *
+ * Do not read a low importer count here as an unadopted migration, and do not
+ * read a high one as an adopted one. The counts and what they mean are in
+ * noAbandonedMigrations.test.mjs.
  */
 
 import { DirectionalLight, HemisphereLight, PointLight, Color, Vector3, type Scene } from 'three';

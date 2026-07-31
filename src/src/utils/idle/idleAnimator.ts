@@ -37,6 +37,23 @@
  * amplitude. The documentation and the code had disagreed for the whole life of
  * the module, and the contract test agreed with the documentation because it
  * tested a copy of the formula rather than the animator.
+ *
+ * NOT HERE DELIBERATELY: `utils/idle/index.ts`, the public-surface barrel.
+ * Deleted at 0 importers of any kind — not one live file, not one dead one.
+ *
+ * The reachability allowlist justified it in one sentence — "all 17 consumers
+ * import utils/idle/idleAnimator directly" — and that sentence was false. This
+ * file has exactly ONE importer, `utils/idle/registry.ts`. The 17 import the
+ * registry and call `getIdleAnimator` / `setSceneIdleAnimator`; not one of them
+ * names this module. The barrel was not bypassed by 17 files that preferred a
+ * deep path. It was dead because the registry is already the public surface and
+ * a second one had nothing to offer.
+ *
+ * The 17 was a grep count, and grep counts a file that mentions a name the same
+ * as a file that imports it. Both numbers are real and they answer different
+ * questions; the allowlist quoted one and drew the other's conclusion. The
+ * register (noAbandonedMigrations.test.mjs) counts import EDGES for exactly
+ * this reason, and it holds both numbers where they can be compared.
  */
 
 import gsap from 'gsap';

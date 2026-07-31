@@ -26,9 +26,26 @@
  * imported `FishSpeciesId` from `fish/species.ts`, so species.ts looked
  * referenced from two directions while all three were orphans together.
  *
- * The same hole is live in the allowlist below. Three of the four `utils/*`
- * barrels ARE imported — only by `utils/scene/`, which is itself unreachable.
- * One connected dead component, not four independent facts.
+ * That hole used to be live in the allowlist below: three of the four `utils/*`
+ * barrels were imported, only by `utils/scene/`, which is itself unreachable —
+ * one connected dead component wearing four independent-looking entries. All
+ * four barrels have since been deleted, along with five other entries.
+ *
+ * THE LIMIT THIS FILE HIT, AND WHERE IT IS ANSWERED
+ * -------------------------------------------------
+ * The allowlist got to thirteen entries and 862 lines before anyone read it as
+ * a whole, and read whole it said something none of its entries said: this repo
+ * starts unifications and does not finish them, and the per-file format is what
+ * kept that invisible. Thirteen specific true sentences average out to no claim
+ * at all. Worse, one of them was not true — "all 17 consumers import
+ * utils/idle/idleAnimator directly" described a grep count as an import count;
+ * exactly one file imports it — and a wrong sentence in a list of thirteen is
+ * indistinguishable from a right one, because nothing checks the sentences.
+ *
+ * `noAbandonedMigrations.test.mjs` is the answer to that. It holds the same
+ * subject matter aggregated by MIGRATION rather than by file, and every claim
+ * in it carries a number that a test recomputes. Entries leave this file for
+ * that one when what is wrong with them is not "unreachable" but "unfinished".
  *
  * WHAT THIS CAN AND CANNOT PROVE
  * ------------------------------
@@ -60,12 +77,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const SRC = path.join(ROOT, 'src');
+import { ROOT, SRC, walk, reachFrom } from './_moduleGraph.mjs';
 
 /**
  * Modules the app never loads, each with the reason it is still here.
@@ -74,113 +87,30 @@ const SRC = path.join(ROOT, 'src');
  * enough that a reader can act on it without re-deriving the analysis.
  */
 const ALLOWED = {
-  // ── One connected dead component: a generic descriptor-driven scene builder,
-  // plus the three barrels whose ONLY importer is that builder. The standards
-  // doc already discloses this cluster ("the schema and builder exist; nothing
-  // calls the builder") — every scene composes imperatively instead. Listed
-  // per-file so that partially reviving it cannot pass unnoticed.
-  'utils/scene/buildScene.ts': 'Descriptor-driven scene builder; every scene composes imperatively instead. Disclosed in architecture-standards.md.',
-  'utils/scene/sceneDescriptor.ts': 'Schema for the unused builder above.',
-  'utils/scene/sceneDescriptors.ts': 'Per-scene data for the unused builder above.',
-  'utils/scene/index.ts': 'Barrel for the unused builder above.',
-  'utils/camera/index.ts':
-    'Public-surface barrel. Sole importers are utils/scene/*, which is itself dead; live code imports utils/camera/cameraDescriptor directly.',
-  'utils/interaction/index.ts': 'Public-surface barrel. Sole importers are utils/scene/*, which is itself dead; live code imports the deep paths directly.',
-  'utils/lighting/index.ts':
-    'Public-surface barrel. Sole importers are utils/scene/*, which is itself dead; live code imports utils/lighting/lightingRig directly.',
-  'utils/idle/index.ts': 'Public-surface barrel with NO importer at all, dead or alive: all 17 consumers import utils/idle/idleAnimator directly.',
-
-  // ── Known debt, triaged and not yet resolved. Each of these is a candidate
-  // for the same delete-with-doctrine treatment the species roster got; none
-  // has been measured yet, and none is being wired in on a hunch.
-  'minigames/games/bubble-pop/animation/spring.ts': 'Spring solver; bubble-pop animates from balance curves instead.',
-  'minigames/games/bubble-pop/animation/index.ts': 'Barrel for the spring solver above.',
-  'utils/animationPresets.ts': 'Preset table; scenes call the idle animator directly.',
-  'utils/scatterDecoratives.ts': 'Scatter helper; scenes place decoratives explicitly.',
-  'scenes/immersive-toybox-scenes/pirate-cove/parent-scene-stubs/playroom.toybox.stub.ts': 'Generator-emitted parent-scene stub.',
+  // ── The descriptor-driven scene builder, and only it. KEPT, not parked: it
+  // is the one place in the repo that states the intended scene composition in
+  // a single readable form, and the repo has two imperative roots instead
+  // (createWorldScene ×2, createRoomScene ×3) plus per-game environment
+  // modules. Deleting these three files is the cheapest way to make this
+  // allowlist empty, and it would delete the only written statement of the
+  // target while leaving every root, every disposal mechanism and the unused
+  // SceneLifecycle parameter exactly where they are — the codebase would be
+  // measurably tidier and strictly less honest.
+  //
+  // Its adoption is tracked as a MIGRATION, with numbers a test recomputes, in
+  // noAbandonedMigrations.test.mjs → entry 'scene-composition'. Do not wire it
+  // in from this comment; the entry says what wiring it in would have to prove.
+  'utils/scene/buildScene.ts':
+    'Descriptor-driven scene builder, 0 importers. Kept as the written form of the intended composition — see noAbandonedMigrations.test.mjs.',
+  'utils/scene/sceneDescriptor.ts': 'Schema for the builder above.',
+  'utils/scene/sceneDescriptors.ts':
+    'Per-scene data for the builder above. Holds almost no independent information: lighting, ground, backdrop and portals are references to the live scenes own objects, which sceneDescriptor.test.mjs asserts by identity rather than by value.',
 };
-
-const EXTS = ['.ts', '.tsx', '.mjs', '.js', '.jsx'];
-const ALIASES = [
-  ['@app/', 'src/'],
-  ['@scenes/', 'src/scenes/'],
-  ['@game/', 'src/minigames/'],
-];
-
-/** Every source file under a directory, recursively. */
-function walk(dir, out = []) {
-  if (!existsSync(dir)) return out;
-  for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry === 'out') continue;
-    const full = path.join(dir, entry);
-    if (statSync(full).isDirectory()) walk(full, out);
-    else if (EXTS.includes(path.extname(entry))) out.push(full);
-  }
-  return out;
-}
-
-const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-
-/** Static import specifiers in a file, plus any computed `import()` found. */
-function specifiersOf(src) {
-  const body = stripComments(src);
-  const literal = [];
-  const patterns = [
-    /(?:^|\n)\s*import\s[^;'"]*?from\s*['"]([^'"]+)['"]/g,
-    /(?:^|\n)\s*import\s*['"]([^'"]+)['"]/g,
-    /(?:^|\n)\s*export\s[^;'"]*?from\s*['"]([^'"]+)['"]/g,
-    /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
-  ];
-  for (const re of patterns) for (const m of body.matchAll(re)) literal.push(m[1]);
-  const computed = [...body.matchAll(/\bimport\s*\(\s*[^'")][^)]*\)/g)].map((m) => m[0].trim());
-  return { literal, computed };
-}
-
-/** Resolves a specifier to a real file, or null for anything outside the repo. */
-function resolve(spec, fromFile) {
-  let rel = null;
-  if (spec.startsWith('.')) {
-    rel = path.resolve(path.dirname(fromFile), spec);
-  } else {
-    for (const [alias, target] of ALIASES) {
-      if (spec.startsWith(alias)) {
-        rel = path.join(ROOT, target, spec.slice(alias.length));
-        break;
-      }
-    }
-    if (rel === null) return null;
-  }
-  if (existsSync(rel) && statSync(rel).isFile()) return rel;
-  for (const ext of EXTS) if (existsSync(rel + ext)) return rel + ext;
-  for (const ext of EXTS) {
-    const idx = path.join(rel, 'index' + ext);
-    if (existsSync(idx)) return idx;
-  }
-  return null;
-}
 
 const computedImports = [];
 
-/** Walks the import graph from a set of roots and returns every file reached. */
-function reachFrom(roots, recordComputed) {
-  const seen = new Set();
-  const queue = roots.filter((r) => existsSync(r));
-  while (queue.length) {
-    const file = queue.pop();
-    if (seen.has(file)) continue;
-    seen.add(file);
-    const { literal, computed } = specifiersOf(readFileSync(file, 'utf8'));
-    if (recordComputed) for (const c of computed) computedImports.push({ file: path.relative(ROOT, file), expr: c });
-    for (const spec of literal) {
-      const target = resolve(spec, file);
-      if (target) queue.push(target);
-    }
-  }
-  return seen;
-}
-
-const appReach = reachFrom([path.join(SRC, 'main.tsx'), path.join(SRC, 'main.ts')], true);
-const otherReach = new Set([...reachFrom(walk(path.join(ROOT, 'tests')), false), ...reachFrom(walk(path.join(ROOT, '.probe')), false)]);
+const appReach = reachFrom([path.join(SRC, 'main.tsx'), path.join(SRC, 'main.ts')], computedImports);
+const otherReach = new Set([...reachFrom(walk(path.join(ROOT, 'tests'))), ...reachFrom(walk(path.join(ROOT, '.probe')))]);
 
 const unreachable = walk(SRC)
   .filter((f) => !appReach.has(f) && !otherReach.has(f))

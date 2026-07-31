@@ -2,10 +2,26 @@ import { Vector3, type Mesh, type Scene } from 'three';
 import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
 import { getParticleEngine } from '@app/utils/particles/registry';
 import { PARTICLES } from '@app/utils/particles/presets';
+import { triggerSound } from '@app/assets/audio/sceneBridge';
 import { createTapInteraction } from '@app/utils/tapInteraction';
 
 /**
- * Registers a tap handler on the stream that triggers a water ripple burst effect.
+ * Registers a tap handler on the stream that splashes and triggers a water
+ * ripple burst effect.
+ *
+ * `sfx_nature_stream_splash` has existed in `assets/audio/nature/index.ts` since
+ * the scene was built and was called zero times until Round 5 of
+ * `docs/reviews/2026-07-30-rooms-five-rounds.md`. Wiring it needed no new synth
+ * and no argument about which cue fits: it is named for this prop, it is the
+ * only water sound in the bank, and the ripple it now accompanies was already
+ * here.
+ *
+ * NOTE THE INTERACTION WITH `background: true` BELOW. This surface is a lid over
+ * two of the three leaves, so a tap that lands on leaf geometry passes THROUGH
+ * the water and plays the leaf's cue, not this one. That is the correct
+ * ordering — the child aimed at the leaf — and it means the splash answers only
+ * taps on open water.
+ *
  * @param scene - The Three.js scene for particle effects
  * @param dispatcher - The world tap dispatcher
  * @param tapTarget - The water surface mesh used as the tap target
@@ -16,6 +32,7 @@ export function setupStreamTap(scene: Scene, dispatcher: WorldTapDispatcher, tap
     dispatcher,
     tapTarget,
     () => {
+      triggerSound('sfx_nature_stream_splash');
       getParticleEngine(scene).emit(PARTICLES.waterRipple, tapTarget.getWorldPosition(new Vector3()));
     },
     // The water is environment-scale — 2.8 x 11.3 units, the largest single

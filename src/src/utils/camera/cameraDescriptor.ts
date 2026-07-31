@@ -17,6 +17,21 @@
  * - **fov is stored in degrees** (three.js native). The Babylon radians→degrees
  *   conversion lives only in the builder that ports legacy game presets
  *   ({@link fovRadiansToDegrees}).
+ *
+ * NOT HERE DELIBERATELY: `utils/camera/index.ts`, the public-surface barrel.
+ * Deleted at 0 live importers. Its only importers were `utils/scene/*`, which
+ * is itself unreachable, so the barrel looked referenced while being dead — the
+ * two-orphans-cite-each-other shape the reachability guard exists for.
+ *
+ * The claim at the top of this file is the one to be careful with. This module
+ * has 3 live importers and all three are `minigames/framework`. No scene
+ * imports it: the five scenes reach their cameras through
+ * `utils/cameraPresets.createSceneCamera`, and unlike lighting and interaction
+ * — where the old API was rewritten to call the new engine — `cameraPresets`
+ * does not call anything here. So "the single source of truth" describes the
+ * games and not the scenes, and this is the one of the three unified-module
+ * claims that is still half true in the ordinary way. Counted in
+ * noAbandonedMigrations.test.mjs.
  */
 
 import { PerspectiveCamera, Vector3 } from 'three';

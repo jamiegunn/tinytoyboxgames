@@ -73,25 +73,26 @@
  * `frame-bands.mjs` goes and gets.
  */
 
-import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
+import { bundleEntry } from '../../tests/framework/_tsload.mjs';
 
-const PULLBACK_REFERENCE_ASPECT = 0.75;
-
-/**
- * The shipped proximity radius, READ OUT OF SOURCE rather than copied here, so
- * this probe cannot drift from the app the way its first version did.
- *
- * @returns the numeric value of `PROXIMITY_PX` as declared in `gestureRules.ts`.
- */
-const shippedProximityPx = () => {
-  const src = readFileSync(new URL('../../src/utils/interaction/gestureRules.ts', import.meta.url), 'utf8');
-  const m = /export const PROXIMITY_PX = (\d+(?:\.\d+)?)/.exec(src);
-  if (!m) throw new Error('PROXIMITY_PX not found in gestureRules.ts -- fix this probe, do not guess');
-  return Number(m[1]);
-};
-
-const READABLE_PX = shippedProximityPx();
+// Both constants are IMPORTED, not restated. Round 11 found PROXIMITY_PX
+// obtained four different ways across seventeen sites — six hard literals, eight
+// hand-rolled regex resolvers, and two real imports — with the correct mechanism
+// already present and adopted twice. A regex over the source cannot survive the
+// constant becoming an expression; a literal cannot survive anything.
+//
+// This file is the one that proved the name-matching scan partial: it binds the
+// proximity radius as READABLE_PX, a DIFFERENT name for the same number, and was
+// invisible to every scan that looked for the name. It surfaced only because it
+// shared a regex resolver with six siblings.
+const RULES = await bundleEntry(
+  'r11_frame_census_rules',
+  `export { PROXIMITY_PX } from './src/utils/interaction/gestureRules';
+   export { PULLBACK_REFERENCE_ASPECT } from './src/utils/cameraPresets';`,
+);
+const READABLE_PX = RULES.PROXIMITY_PX;
+const { PULLBACK_REFERENCE_ASPECT } = RULES;
 
 const SCENES = [
   ['NATURE', 'http://localhost:5199/.probe/render/nature.html', 10, null],

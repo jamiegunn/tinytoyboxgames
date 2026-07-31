@@ -17,6 +17,11 @@ what arbitration fired, whether a particle burst was emitted, and whether that b
 reachable from the camera. Nature is run alongside the three rooms as a control, because it is
 the scene that already had the feature under test.
 
+Rounds 6 onward leave the rooms and turn on the apparatus itself — the pre-commit gate (6), the
+reachability guard's blind spot (7), and the migration register (8) — because by Round 5 the
+instruments had produced more wrong verdicts than the product had defects, and the register at the
+foot of this document is the reason that shift was not optional.
+
 ---
 
 ## Round 1 — The answer that was emitted and could not be seen
@@ -1454,6 +1459,1693 @@ Suite total: **402/402**, up from 400.
 
 ---
 
+## Round 5 — The scene whose only sound was the sound for failure
+
+### The charge, pre-registered before it was measured
+
+`.probe/render/r5-nature-voice.mjs` was written and committed before any number existed, because
+four rounds have now produced two published refutations of my own charges and both were only
+survivable because the bars were fixed in advance.
+
+The Nature scene has eight interactive props, and they are among the best-authored tap reactions
+in the app. Tap a mushroom and it squashes, stretches and glows. Tap a flower and its petals
+stagger open. Tap a leaf and it **flips over to reveal a ladybug**, which then crawls away.
+
+Every one of those was answered, audibly, with `sfx_shared_tap_fallback` — the cue
+`interactionController.acknowledgeTap` plays for a tap that hit **nothing**.
+
+The source half was flatly countable and needed no instrument: **zero** calls to `triggerSound`
+anywhere under `naturescene/`, against twelve under `pirate-cove/`. The runtime half is the table
+below.
+
+### Why this is a real defect and not a matter of taste
+
+soul.md §6, _Every Tap Matters_: "A dead tap is a broken promise." soul.md, _The Promise_:
+"Nothing will confuse you." A child taps a leaf, watches a ladybug walk out from under it, and
+hears the noise the app uses to mean _there was nothing there_. The same app is telling them two
+contradictory things about the same event at the same moment, and the one they can hear is the
+one that is wrong.
+
+vision.md's _Sound World_ requires that a muted experience be fully playable and emotionally
+complete. That clause is sometimes read as licence to under-invest in audio. It says the opposite
+of what this scene did: it asks that sound be **redundant with** the picture, not **contradictory
+to** it.
+
+### The aggravating fact, which is why this is the round
+
+The sounds already existed. `assets/audio/nature/index.ts` defined four one-shot effects and
+`assets/audio/index.ts` registered all four:
+
+| id                             | described as                    | call sites before Round 5 |
+| ------------------------------ | ------------------------------- | ------------------------- |
+| `sfx_nature_mushroom_bounce`   | springy, rubbery bounce (boing) | **0**                     |
+| `sfx_nature_leaf_flip`         | papery leaf flip                | **0**                     |
+| `sfx_nature_stream_splash`     | gentle stream splash            | **0**                     |
+| `sfx_nature_butterfly_flutter` | airy wingbeat flutter           | **0**                     |
+
+They are named after the exact props that exist, and they are not sketches. The mushroom boing is
+a 600→200 Hz sine sweep **with a second, softer re-trigger at +0.15 s** — a sound written for a
+two-stage squash-and-stretch. The mushroom's animation is exactly two stages: `BOUNCE_WIDE_FRAME =
+8`, `BOUNCE_TALL_FRAME = 16`, `BOUNCE_RESET_FRAME = 24`. Somebody designed the picture and the
+sound together, against the same curve, and then the wire between them was never run.
+
+Correcting a number carried in from an earlier round: `SFX_REGISTRY` held **45** ids, of which
+**11** were unreached — not the "37 of 51" an earlier summary asserted. Four of the eleven were
+Nature's, and Nature was the only scene in the app where **100%** of its bespoke sounds were
+stranded.
+
+### The anticipated defence, and why I reject it
+
+This round has a real defendant, not a straw man, and the defence is written into the codebase in
+so many words. `utils/worldTapDispatcher.ts:36-44` carries a docblock from an **earlier round**
+that already states the finding:
+
+> not one of the Nature scene's ~51 registered tap targets plays any sound, so a child taps a
+> mushroom, watches it bounce, and hears silence.
+
+So the fallback is not an oversight. It is a **deliberate prior fix** — a choke-point repair that
+closed a scene-wide hole without touching a single prop, and the round that shipped it was right
+to. The defence is therefore: this was already found, already fixed, and Round 5 is relitigating
+settled work.
+
+I reject it on one narrow ground. The choke-point fix was **correct as a floor and wrong as an
+answer**. It gave all eight props the _same_ cue, and the cue it gave them is the one that means
+_you touched nothing_. A floor that says "at least make a noise" is worth having; a floor that
+says "make the noise for failure" converts a silence into a false statement. Silence is
+ambiguous — a child can read it as the app being quiet. `sfx_shared_tap_fallback` is not
+ambiguous: it is a specific, learned signal, and by the time a child has played for ten minutes
+they have learned it means _nothing there_. The prior round upgraded a gap into a contradiction.
+
+There is a second, sharper reason it cannot stand. The four bespoke sounds were **already
+written** when the choke-point fix shipped. The floor was installed over the top of the real
+answer without anyone noticing the real answer was sitting in the next directory.
+
+### The apparatus lied first, and it lied in the direction that flattered the code
+
+Run 1 of the voice probe printed **`H2 REFUTED`** — that is, it declared my charge false — and it
+was wrong.
+
+Its predicate for "this tap hit nothing" was: exactly one sound, that sound is the miss cue, and a
+sparkle was emitted. That is a true description of a genuine miss. It is **also** a true
+description of every voiceless Nature prop, which is precisely the finding. The exclusion
+criterion and the charge were the same predicate — apparatus defect (iii) recurring, four rounds
+after it was first written down. The run discarded 34 of its 35 rows as misses and graded the
+survivor.
+
+It was repaired by adding **positive identification** rather than by patching the predicate:
+`__tapThroughCanvas` now wraps every live-registry handler for the duration of the tap and returns
+`hit: string | null`, so `hit === null` means the controller picked nothing and can mean nothing
+else, and a non-null `hit` that is not the aimed-at prop is an **aim artefact** rather than
+evidence. That is registered below as **(xv)**.
+
+Run 2, with positive identification, reported `gradeable rows: 34 of 35 (0 real misses, 1 aim
+drift)`, `rows whose FIRST cue is the miss cue: 34 of 34`, `rows that produced ANY non-miss cue: 0
+of 34` — **`H2 CONFIRMED`**.
+
+### The mechanism that shaped the fix, found before it could be walked into
+
+Three findings during reconnaissance changed the fix's design, and each of them would have
+produced a defective repair if assumed instead of read.
+
+**One: `fire` withholds the sparkle from anything that speaks.**
+
+```ts
+const before = audio && !entry.opts.silent ? audio.soundCount() : 0;
+entry.handler({ object: obj, point });
+if (audio && !entry.opts.silent && audio.soundCount() === before)
+  acknowledgeTap(clientX, clientY);
+```
+
+This is correct and deliberate — a handler that answered for itself should not also get the
+generic acknowledgement. But it means **every prop that gains a voice loses the shared sparkle**,
+so a repair that only added sounds could silently subtract pictures. That is what bar (b) exists
+for.
+
+**Two: the reveal props pay off on a delay.** `createRevealInteraction` spawns its creature inside
+`playAnimation(...).onEnd`, hundreds of milliseconds after the tap. A single tap-time cue would
+have announced a creature that does not exist yet — **Round 4's exact crime**, re-committed inside
+the round that cites it. Hence two fields, `tapSoundId` and `revealSoundId`, on two different
+frames.
+
+**Three: the flowers did not need a new sound.** `sfx_shared_sparkle_burst` is four tones from a
+C-pentatonic pool, staggered 50 ms apart, always cascading upward. The bloom staggers its petals
+the same way — `BLOOM_FRAME_BASE + i * BLOOM_FRAME_STAGGER`. Same structure, n discrete events
+each later and higher than the last. Writing a fifth synth there would have been craftsmanship for
+its own sake.
+
+### The three bars, fixed in advance
+
+**(a)** Every interactive Nature prop's **first** cue on a real canvas tap is not
+`sfx_shared_tap_fallback`.
+**(b)** The prop's **visible** answer must not regress — re-measured in **pixels**, still clearing
+`propHigh > sparkleHigh`.
+**(c)** The sound must be the sound written **for that prop** where one exists. Wiring
+`sfx_shared_pop` to all eight would clear (a) and (b) and be a worse app.
+
+### The fix
+
+All eight props given a voice, and every choice argued in place at the call site.
+
+| prop      | cue                                                  | authored?                | the alternative, and why it was refused                                                                                                                                                                                                |
+| --------- | ---------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| mushroom  | `sfx_nature_mushroom_bounce`                         | existed, stranded        | —                                                                                                                                                                                                                                      |
+| leaf      | `sfx_nature_leaf_flip` + `sfx_shared_critter_scurry` | existed, stranded        | —                                                                                                                                                                                                                                      |
+| stream    | `sfx_nature_stream_splash`                           | existed, stranded        | —                                                                                                                                                                                                                                      |
+| butterfly | `sfx_nature_butterfly_flutter`                       | existed, stranded        | —                                                                                                                                                                                                                                      |
+| flower    | `sfx_shared_sparkle_burst`                           | **shared, deliberately** | nothing refused; the shared cue is structurally right (see above)                                                                                                                                                                      |
+| stone     | `sfx_nature_stone_shift`                             | **new**                  | `sfx_shared_chomp` is the shared celebration cue for **eating**; a stone that says "chomp" in the source is a trap for the next reader. `sfx_shared_pop` refused because stones do not chirp.                                          |
+| log       | `sfx_nature_log_knock`                               | **new**                  | `sfx_hub_toybox_tap` is a close enough knock — refused **on identity, not timbre**. It is a named prop's voice and it is in use. A child who taps the toybox and the log and hears the same thing has been taught the log is a toybox. |
+| firefly   | `sfx_nature_firefly_twinkle`                         | **new**                  | `sfx_shared_chime` is a near-twin of `sfx_shared_star_chime`, and that is the voice Round 4 gave the **game portals**. A firefly that sounds like the door into a minigame is exactly the confusion The Promise forbids.               |
+
+The firefly cue is deliberately the quietest in the bank (peak 0.07, octave 0.02). There are
+fourteen fireflies and they drift within reach of one another, so it is the one prop a child can
+plausibly fire five times in two seconds; at normal level it would have stacked into noise.
+
+**One rename, gated on a proof rather than an assumption.** The leaf's ladybug and the stone's grub
+both needed "small creature feet", and a function for it already existed as
+`playSfxHubAmbientScurry` / `sfx_hub_ambient_scurry` — called, in its whole life, zero times.
+Leaving a `hub_` prefix on a cue whose only two callers are in the forest would have planted
+exactly the kind of misleading source this review keeps finding. It was safe to rename because it
+was **provably** unreferenced: a grep across `.ts`, `.tsx`, `.mjs` and `.md` returned the registry
+line and nothing else. It moved to `shared/critterSounds.ts` as `sfx_shared_critter_scurry`, with
+its body byte-identical and a comment recording that it was deliberately **not** retuned in the
+same commit that gave it its first callers. `sfx_hub_ambient_hop` remains stranded and was
+deliberately left alone.
+
+Both reveal props share that one scurry on purpose: the forest should say the same thing whenever
+a small thing runs out from under something, and a rule is worth more here than two separately
+clever choices.
+
+### Evaluating the fix against bar (a) — measured, same instrument
+
+`.probe/render/r5-nature-voice.mjs`, post-fix:
+
+```
+  gradeable rows: 34 of 35 (0 real misses, 1 aim drift)
+  distinct props reached: mush_cap, flower_center, leaf_cover, stone_cover, bfly_body, firefly
+  rows whose FIRST cue is the miss cue: 0 of 34      (was 34 of 34)
+  rows that produced ANY non-miss cue:  34 of 34     (was 0 of 34)
+```
+
+The probe printed `H2 REFUTED`, and that is the correct and intended reading rather than an
+embarrassment: **H2 was the charge**, the fix landed, so the charge is now false. A probe whose
+verdict flips when the defect is repaired is a probe that works.
+
+### Two props the census structurally could not reach, and the round nearly claimed them anyway
+
+The run above grades six distinct props, not eight. Left there, Round 5 would have claimed eight
+props on six props' worth of evidence. Both gaps are instrument defects and both are registered.
+
+**(xvi)** The `log` row aimed at the log's centroid and hit `portal_bubble-pop_b`, which sits in
+front of it. Both runs produced the identical drift, so this is geometry, not noise. The pass
+correctly refused to grade the row — but **"ungraded" was silently doing duty for "untested"**, and
+the log is one of the three props this round authored a new synth for.
+
+**(xvii)** The census filters out `background: true`, which is right for every purpose it was built
+for and wrong for this one. The stream is marked background precisely so raycasts read **past** it
+to the leaves staged underneath, so it is excluded by construction — but it has a tap handler and a
+voice, and "excluded from the census" must not read as "has no answer".
+
+A dated addendum was **appended** to the probe rather than edited into it; nothing above its line
+was touched. It rings out from each centroid until an aim positively lands on the prop, and reports
+`UNREACHABLE` as an honest third answer rather than as a pass:
+
+```
+  log                  reached at centroid+(0.02, 0.00) — sounds=[sfx_nature_log_knock] emits=[sceneSparkle]
+  stream               reached at centroid+(0.00, 0.15) — sounds=[sfx_nature_stream_splash] emits=[waterRipple]
+
+  BAR (a), WHOLE SCENE: 0 of 36 graded rows still answer a real tap with the miss cue,
+  across 8 distinct props.
+```
+
+**Bar (a) cleared, all eight props, 0 of 36.**
+
+### I named the wrong prop as the risk, and the measurement said so
+
+The pre-registration named the **butterfly** as the round's single highest bar-(b) exposure, on the
+stated ground that it "emits no particles of its own: its whole visible answer is the flee". Its
+docblock said so in the committed source before any number existed.
+
+That premise was false. `butterflies/animation.ts` hands
+`particleFn: (s, p) => emit(PARTICLES.sceneSparkle, p)` to the idle-interruptible, and
+`fleeHandle.trigger()` fires it. All four `bfly_body` rows in the voice run emit `sceneSparkle`.
+Nothing was traded away there at all.
+
+The error is an ordinary and repeatable one, and it is recorded rather than quietly deleted: **I
+named the at-risk prop from reading the file I was editing, and the risk lived in the sibling file
+I had not opened.** The docblock has been corrected in place to state the overturn.
+
+The props actually at risk are the **leaf** and the **stone** — the two `createRevealInteraction`
+props, whose own particles are deferred into `onEnd` and which are consequently the only two graded
+rows in the voice run reading `emits (none)` at tap time. They are what bar (b) measures.
+
+### Evaluating the fix against bar (b) — measured in pixels
+
+The bar, as pre-registered and quoted in the butterfly's own committed docblock before any number
+existed:
+
+> (b) The prop's VISIBLE answer must not regress. Round 3 nearly shipped a fix that bought a cue at
+> the price of the picture: a handler that plays any sound ticks `fire`'s counter and the controller
+> then correctly withholds its shared sparkle. So every prop that gains a voice must be re-measured
+> in PIXELS, and must still clear `propHigh > sparkleHigh`.
+
+**It failed.** `.probe/render/r5-nature-picture.mjs`, run against the fixed scene:
+
+```
+  rows measured: 15 (expected 4)
+  rows clearing propHigh > sparkleHigh: 6 of 15
+  BAR (b) FAILED for mush_cap ×5, leaf_cover, stone_cover, bfly_body ×2
+```
+
+That output is printed above the addendum in the probe file and is left there, unedited, because the
+standing rule is that a pre-registered failure is published as loudly as a confirmation and a probe's
+stated premise is never back-edited. What follows is not a defence of the code against the bar. It is
+two separate findings: **seven of those nine rows were my instrument failing, and two were the app
+failing** — and the app's two are exactly the pair this round had named as at risk after correcting
+its earlier butterfly error.
+
+### Seven of the nine failures were mine, and the harness had already said so in writing
+
+`propHigh` is measured **with the particle engine muted**. `room.ts` documents the consequence at
+length, and it was written before I wrote the probe that ignored it:
+
+> A prop that emits `sceneSparkle` with no overrides draws the miss's own burst and then moves itself
+> as well, so its answer contains the miss's answer and cannot be smaller than it — no framebuffer
+> required. The rows where that deduction is unavailable are exactly the rows that emit nothing, or
+> emit something else, or emit the same preset with the count turned down, and for those the
+> numerator really is `propHigh` alone against `sparkleHigh`.
+
+So for a sparkle-emitting prop the ratio compares the prop's **tween alone** against a **whole
+burst**, while the thing the child sees is the tween _and_ that same burst. It is not a strict test,
+it is a **malformed** one: the numerator is missing a term the denominator has. `mush_cap` at 0.20
+does not mean the mushroom's bounce moves a fifth of a sparkle's worth of pixels. It means the bounce
+alone does, on top of the sparkle it also draws.
+
+This is filed as apparatus defect **(xviii)**, and it is filed as a defect rather than a typo because
+of what it would have done had the fix been perfect. A corrected run in which every prop passed would
+_still_ have printed FAILED for the sparkle-emitting majority — and the natural response to a bar
+that fails on props nobody touched is to conclude the bar is too strict and relax it. The failure
+mode is not a wrong number; it is **a wrong number aimed at the bar itself**. The noise ran three and
+a half times louder than the signal it sat on.
+
+### And one place the harness's own scope was genuinely too narrow
+
+Applying the documented rule correctly still left the **stone** graded on the ratio, because the
+stone answers with `sceneDust` and the deduction as written covers only the miss's own preset. That
+is not bookkeeping either. With `propHigh` particle-muted, the stone's shift was being compared
+against a whole burst while the dust it actually draws counted for nothing — a bar shaped so that it
+could be satisfied by **drawing fairy sparkle over soil**. An instrument that pushes the app toward a
+worse-fitting frame in order to be measurable is worse than no instrument, because it is persuasive.
+
+So `__reactionScan` grew a **fourth pass** in this round. `__replayAsked` re-emits the captured
+`particles.emit` argument tuples into the live engine under the miss pass's own frozen conditions,
+yielding `ownHigh`, and the deduction generalises from "draws the miss's burst" to "draws a burst no
+smaller than the miss's". It is a **replay and not a re-fire** on purpose: re-firing is barred by the
+handler latches — a reveal reveals once — and would re-run the tween, mixing the two terms the
+decomposition exists to separate. What it still cannot say is stated where it is used: it shows the
+burst the prop **asked for** is at least as large as the miss's, not that the prop drew it on the tap
+frame. That the handler asked at all is the muted pass's finding, and the two together are the claim.
+Filed as **(xix)**.
+
+### The two real failures, and the fix they forced
+
+```
+  run 1 — after the voice, before any tap-time burst
+  row               ratio   edge   emits
+  leaf_cover         0.89      0   (none)
+  stone_cover        0.27      0   (none)
+```
+
+(Ratios only. This run predates the fourth pass; its two ratios are the numbers quoted in the
+committed docblock in `revealInteraction.ts`, and the pixel columns behind them are not reproduced
+here rather than reconstructed from memory.)
+
+`leaf_cover` and `stone_cover` were the **only two graded rows in the entire voice run reading
+`emits (none)`**, and that is not a coincidence — it is the mechanism. Both are
+`createRevealInteraction` props. Their particles live inside `playAnimation(...).onEnd`, hundreds of
+milliseconds after the finger lands. Round 5 gave them a voice; `interactionController.fire` therefore
+stopped drawing its shared acknowledgement sparkle; and nothing replaced it. **For one round, the
+frame the child's finger landed on answered in nothing at all.** That is the exact trade bar (b)
+exists to forbid, pre-registered before the fix was written, and it caught it.
+
+The fix is in `revealInteraction.ts`: a `tapParticleFn`, emitted on the same frame as `tapSoundId`,
+defaulting to the miss's own `sceneSparkle` — the burst the controller stopped drawing. Three things
+about it are deliberate and each is defended in the source:
+
+- **It is gated on `tapSoundId`, and the gate is the whole argument.** A cue at tap time is exactly
+  when the controller stops paying. A cover configured with no tap cue is silent on that frame, still
+  gets `fire`'s sparkle, and must not be paid twice — which is why the emit sits _inside_ the `if`
+  rather than beside it.
+- **It is not `particleFn`.** That one is the creature's arrival burst. Drawing it at tap time would
+  announce the payoff before the payoff — the precise defect Round 4 found in the portal's audio, and
+  the last thing Round 5 should reintroduce in pixels.
+- **The stone overrides it, and the leaf does not override it at all.** A leaf turning over does not
+  raise dust the way a stone grinding through soil does, and inventing a leaf-specific burst to look
+  thorough would be decorating a frame instead of answering it.
+
+### The first fix was measured and refuted, by the pass built to grade it
+
+The stone's override was, at first, **dust alone** — on exactly the reasoning in the bullet above,
+which reads well and was wrong. Run 2 is the first run with the fourth pass in it, and the fourth
+pass is what caught it:
+
+```
+  run 2 — leaf at the default sparkle; stone overriding with dust ALONE
+  exempt — draw a burst no smaller than the miss's AND move as well: 12
+  graded on the ratio: 3
+      stone_cover         1389 /     454 = 3.06   own  50 px (1 replayed)   PASS
+      stone_cover          918 /     506 = 1.81   own  47 px (1 replayed)   PASS
+      stone_cover          387 /     417 = 0.93   own  42 px (1 replayed)   FAIL
+
+  BAR (b) FAILED for stone_cover
+```
+
+**The leaf half of the fix is proven by this run**: `leaf_cover` moved from `emits (none)` to
+`emits sceneSparkle` and is exempt by deduction on all three of its rows. The stone half is refuted
+by it, and the refutation is more interesting than the ratio that reports it.
+
+Read the `own` column against the `sparkleHigh` column: the stone's dust burst moves **42–50 px**
+where the sparkle it displaced moved **417–506 px**. A tenth. And the preset source predicts the
+same factor without touching a framebuffer — `SCENE_SPARKLE` is `count: 40`, `opacity: [0.8, 1]`,
+**additive**, bright yellow; `SCENE_DUST` is `count: 12`, `opacity: [0.25, 0.4]`, **normal**-blended,
+brown, on a brown forest floor. Two independent methods agreeing is worth more than either alone.
+
+That measurement also reframes what the failure _is_. `propHigh` — the stone's shift — sits on
+**both sides** of the before/after comparison, because the shift happened before this round too.
+What Round 5 changed at tap time is which burst is drawn. So the honest statement of the regression
+is not "one stone instance scored 0.93 and two scored above 1" but **"every stone traded a
+460-pixel answer for a 45-pixel one"**. The instance split in the ratio was an artefact of how far
+each stone happens to slide, and reading the pass/fail column instead of the pixels would have
+shipped two thirds of a regression as a pass.
+
+So the stone now draws **both**: the acknowledgement it would have been given, and its own dust on
+top. Keep what you had, add what you earned. The argument is that `fire`'s `soundCount` check is a
+**proxy** — it takes "answered somehow" for "answered enough" — and for a prop whose own burst is a
+tenth of what it displaced, the proxy is simply wrong and the prop has to pay the difference itself.
+Rejected on the way: brightening `sceneDust`. `EmitOverrides` accepts only `colors` and `count`,
+`count` is silently capped by `capacity: 24`, and opacity and blending are not overridable at all —
+so "make the dust louder" means authoring a second dust preset to satisfy an instrument, which is
+the tail wagging the dog.
+
+### Run 3: the bar clears, and it clears without needing the ratio at all
+
+```
+  row               propHigh  sparkleHigh    ratio  edge   emits
+  mush_cap               233          295     0.79     0   sceneSparkle
+  mush_cap               127          331     0.38     0   sceneSparkle
+  mush_cap                92          375     0.25     0   sceneSparkle
+  mush_cap                63          265     0.24     0   sceneSparkle
+  mush_cap               170          247     0.69     0   sceneSparkle
+  leaf_cover             105          141     0.74     0   sceneSparkle
+  leaf_cover             480          351     1.37     0   sceneSparkle
+  leaf_cover             568          335     1.70     0   sceneSparkle
+  stone_cover           1142          484     2.36     0   sceneSparkle,sceneDust
+  stone_cover            916          498     1.84     0   sceneSparkle,sceneDust
+  stone_cover            330          424     0.78     0   sceneSparkle,sceneDust
+  bfly_body              181          165     1.10     0   sceneSparkle
+  bfly_body              168          118     1.42     0   sceneSparkle
+  bfly_body              246          227     1.08     0   sceneSparkle
+  bfly_body              213          226     0.94     0   sceneSparkle
+
+  exempt — draw a burst no smaller than the miss's AND move as well: 15
+  graded on the ratio — draw nothing the miss's burst can be deduced from: 0
+
+  BAR (b) CLEARED BY DEDUCTION ALONE
+```
+
+**Every one of the fifteen rows is exempt, and zero rows are graded on the ratio.** That is a
+stronger result than fifteen passing ratios would have been, and it is worth being precise about
+why, because the raw `ratio` column still shows eight rows below 1.00 and a careless reading of this
+table says the round failed.
+
+The exemption is a deduction, not a dispensation. `propHigh` is measured with the particle engine
+**muted**. A row that emits the miss's own preset unmodified draws the miss's burst _and then moves
+itself as well_, so its answer **contains** the miss's answer and cannot be smaller than it — no
+framebuffer required, and no ratio required either. `mush_cap` at 0.24 does not mean the mushroom's
+bounce is a quarter of an acknowledgement; it means the bounce **alone** is, on top of the sparkle
+the same row also draws. The eight sub-1.00 ratios are not near-misses. They are the numerator of a
+comparison the harness's own documentation says not to make.
+
+The three `stone_cover` rows are the ones this round had to earn: they read `sceneSparkle,sceneDust`
+and are exempt on the sparkle, with the dust as the thing the stone added rather than the thing it
+substituted. `edge` is 0 on every row, so nothing was clipped by the crop.
+
+One honest note on coverage. Because every row exempted on the deduction path, the fourth pass's
+`ownHigh` was **not consulted in this run** — it did its work in run 2, where it refuted the fix, and
+sat idle here. A pass that only ever speaks when something is wrong is easy to leave broken; it
+should be exercised deliberately in a later round rather than assumed still sound because the run it
+sat out came back green.
+
+### What the fix does not fix, on the record
+
+- **The flower's repeat tap over-promises.** The bloom happens once; every later tap only puffs
+  pollen but hears the same full cue. The honest repair is a second, smaller cue for the puff, and
+  that is a sound to author and defend on its own rather than guess at. Filed, not patched.
+- **The leaf's post-reveal tap falls to the controller floor by design.** A flipped leaf has
+  nothing left to give, so `repeatOnTap: false` keeps it silent and it takes the shared
+  acknowledgement. That is the honest answer for a prop that genuinely did nothing, and it is the
+  one place in the scene where the fallback is still correct.
+- **`sfx_hub_ambient_hop` is still stranded**, and was deliberately not touched in this round.
+- **The three new synths have never been heard by a human.** They are defended on structure —
+  frequency content, envelope, and their relationship to the animation curve — not on taste. That
+  is the strongest claim a text-only process can make and it is weaker than listening.
+
+### What is pinned, so this cannot silently regress
+
+One new test in `tests/audio/tap-answer-vocabulary.contract.test.mjs`, plus two updated counts.
+
+**The counts moved 52 → 58, and the delta is itself the evidence.** Six new `triggerSound` sites,
+every one in the Nature scene, because before this round that scene contained **zero** literal
+sound call sites. It is six and not eight because the leaf and stone name their cues as
+`tapSoundId` / `revealSoundId` config fields rather than as calls, which the literal scanner cannot
+see — so the new pin reads those two files directly.
+
+- _every interactive Nature prop answers in a voice of its own, and four of them use the sound
+  written for them_ — for all eight props: the cue is named in **code** and not only in prose, the
+  miss cue appears nowhere in the file, and the id is **registered**. Plus: exactly one prop may use
+  a shared cue (so a future round cannot quietly turn the flower's argued exception into a default);
+  both reveal props name the shared scurry; the reveal cue's **single** call site is ordered after
+  `onEnd` and after `scene.add(creature)`; the cover cue is ordered before the cover animation; and
+  all three new synth functions actually exist rather than merely being named by a registry line.
+
+And a second pin, added after bar (b) failed, because the fix bar (b) forced is exactly the kind of
+thing a later tidy-up deletes as redundant:
+
+- _the tap-time burst is paired to the tap-time cue_ — `tapFn(scene, …)` must exist; it must sit
+  **after** `triggerSound(config.tapSoundId)` and **before** `playAnimation(config.coverMesh…)`,
+  which is how a source-text pin says "inside the branch that creates the debt" without writing a
+  second, worse copy of the compiler; the default must be the miss's own `sceneSparkle`, since that
+  default is what makes "no regression" a deduction rather than a hope; and the stone's override
+  must draw **both** `sceneSparkle` and `sceneDust`, read from a slice of the file that excludes
+  `particleFn` — the reveal burst is also dust, and a whole-file regex would pass on the strength of
+  the wrong emit.
+
+**That last assertion is a pin that was wrong once, and the wrongness is left standing in its own
+comment.** Its first version read `tapParticleFn: (s, p) => …emit(PARTICLES.sceneDust, p)` and was
+defended in prose about stones raising dust and leaves not. It was pinning a regression — and
+nothing in the source could have said so. Only the harness's fourth pass could, which is the
+concrete argument for why a source-text pin is the junior partner here and never the evidence.
+
+This is a **source-text pin** — apparatus defect (xi) — and it says so where it is used. The runtime
+evidence is the tables above; the pin's job is to stop a specific known-bad refactor.
+
+**A first draft of the pin failed on correct code, twice, and both failures were informative.** It
+matched `'sfx_nature_log_knock'` against the registry source and failed on all eight props, because
+the registry writes its keys **bare**; the fix was to use the same `registeredIds()` parser every
+other test here uses instead of a hand-rolled second one. And it asserted the reveal cue appeared
+within 400 characters of `onEnd`, which is a pin on formatting pretending to be a pin on behaviour;
+it was replaced with an **ordering** assertion.
+
+**Four mutations, all killed.** Deleting the log's `triggerSound` call failed with "the log must
+name `sfx_nature_log_knock` in code, not only in prose". Handing the butterfly `sfx_shared_pop`
+instead of its own cue failed the same way. Restoring the **miss cue** to the mushroom failed _two
+independent tests_ — the Round 3 vocabulary pin and this one. And moving the reveal cue from `onEnd`
+up to the tap — Round 4's exact defect, reintroduced — failed with "a payoff cue before the payoff
+is the defect Round 4 found".
+
+**And four more against the tap-burst pin, all killed**, chosen to be the four ways the fix could
+decay rather than four ways to break the file: dropping the stone's sparkle emit (the regression
+this round measured, restored); dropping its dust emit (fairy sparkle over soil, the shape defect
+(xix) was filed against); collapsing the whole override back to the one-line sparkle-only arrow;
+and deleting the override entirely so the stone falls to the default. Each failed on its own
+message.
+
+**The suite is 403 tests, all passing** — the same count as before this round, because the two new pins are assertions inside an existing test rather than new cases, and every one of them was mutation-verified before being counted. `tsc -b` and the probe tsconfig are both clean.
+
+---
+
+---
+
+## Round 6 — The gate that was supposed to enforce all of it
+
+Five rounds of review produced, among other things, a body of contract pins: assertions that the
+Nature stone speaks in its own voice, that the portal's cue does not announce the payoff before the
+payoff, that no interactive prop falls back to the shared miss sound. Each was written deliberately,
+most were mutation-verified, and every one of them is checked into `src/tests/`.
+
+Before writing a line of Round 6's fix, the obvious question was the one nobody had asked in five
+rounds: **what runs them?**
+
+### The finding
+
+`src/scripts/precommit-check.cjs` opens like this, and the first sentence is the defect:
+
+> Pre-commit quality gate. A commit is blocked unless ALL of these pass:
+>
+> 1. Prettier --check on staged source files
+> 2. ESLint --max-warnings 0 on staged source files
+> 3. ESLint on the whole package
+> 4. tsc -b
+> 5. vite build
+
+`node --test` is not on that list. Neither is the probe harness's type-check — `src/tsconfig.json`
+references only `tsconfig.app.json` and `tsconfig.node.json`, so `.probe/tsconfig.probe.json` is
+invisible to `tsc -b`, and the instrument that grades every round of this review was the one body of
+code in the repository that nothing type-checked at all.
+
+### Defending it — two mutations, because a reading of the source is not a finding
+
+The standing rule from Round 1 onward is that a claim about what code does is worth what its
+verification is worth, and reading a file is not verification. Both halves were therefore proven by
+mutation against the real gate:
+
+```
+Mutation A — const __gateProbe: number = 'this is a string, not a number';   in .probe/render/room.ts
+  tsc -p .probe/tsconfig.probe.json --noEmit  →  error TS2322: Type 'string' is not assignable to type 'number'.
+  precommit-check.cjs, that file staged       →  "pre-commit: all gates passed."   GATE_EXIT=0
+
+Mutation B — tapSoundId: 'sfx_shared_tap_fallback'   in the Nature stone's interaction.ts
+  npm test                                    →  not ok 20 — every interactive Nature prop answers
+                                                 in a voice of its own…      402 pass / 1 fail
+  precommit-check.cjs, that file staged       →  "pre-commit: all gates passed."   GATE_EXIT=0
+```
+
+Mutation B is chosen rather than invented. It is the **exact Round 3 defect** — the stone answering
+in the sound written for a miss — that this review spent a round diagnosing, a round fixing, and a
+pin preventing. The gate let it through wearing a pass.
+
+So the honest statement of the suck is not "the gate is missing a step". It is: **every pin written
+across five rounds was enforced by my remembering to type `npm test`.** Including the pins written to
+catch the failures I had already made once. A pin nobody runs is a comment with heavier syntax.
+
+And the docblock is not incidental to that — it is the mechanism. A list that reads as exhaustive is
+how a missing gate stays missing, because every reader who checks the documentation comes away
+reassured. Five rounds of reviewers, all of them me, all reassured.
+
+### The fix
+
+`scripts/precommit-check.cjs` grows two gates, placed after `tsc -b` and before `vite build` — tests
+are fast and by far the most informative failure a commit can get, while the bundle build is the
+slowest gate and the least likely to be the broken thing, so a failing test no longer pays for it:
+
+```js
+runCheck("TypeScript (probe project)", tscBin, [
+  "-p",
+  PROBE_TSCONFIG_REL,
+  "--noEmit",
+]);
+runNode("Tests (node --test)", ["--test", TEST_GLOB]);
+```
+
+Three smaller things travel with it, and each is a defect in its own right rather than tidying:
+
+- **`package.json`'s `test` script stopped enumerating directories.** It listed eight test
+  directories by name. There are exactly eight, so it had no live gap — it had a latent one, of the
+  family this review has now filed four times: an exclusion criterion doing unchecked work. A ninth
+  directory would have been silently untested. It is now the same `tests/**/*.test.mjs` glob the gate
+  runs, so the two cannot drift.
+- **`result.status !== 0` rather than `> 0`.** `spawnSync` reports `status === null` for a process
+  killed by a signal. An out-of-memory `tsc` would otherwise have waved a commit through wearing a
+  pass — the same false-pass shape as the finding itself, one layer down.
+- **A missing `.probe/tsconfig.probe.json` now blocks the commit by name.** Otherwise deleting the
+  probe project turns a gate into a confusing tooling error, and the tempting repair for a confusing
+  tooling error is to delete the gate.
+
+### Evaluating the fix against the suck
+
+The fix is not proven by the file containing the new lines. That is apparatus defect (xi) exactly: a
+source-text claim cannot tell whether a body is reached. It is proven only when the same two
+mutations that walked straight through are stopped **by name**:
+
+```
+Mutation A, re-run against the fixed gate:
+  == pre-commit: TypeScript (tsc -b) ==            (passes — tsc -b still cannot see the probe)
+  == pre-commit: TypeScript (probe project) ==
+  .probe/render/room.ts(2249,7): error TS2322: Type 'string' is not assignable to type 'number'.
+  pre-commit failed during TypeScript (probe project).      GATE_EXIT=1
+
+Mutation B, re-run against the fixed gate:
+  == pre-commit: Tests (node --test) ==
+  not ok 20 - every interactive Nature prop answers in a voice of its own, and four of them use
+              the sound written for them
+  # pass 402   # fail 1
+  pre-commit failed during Tests (node --test).             GATE_EXIT=1
+```
+
+Both blocked, each at the gate added for it. Mutation A's run is doubly informative: `tsc -b` printed
+and passed immediately before the probe gate caught the error, which is the third independent
+confirmation that the build project genuinely cannot reach the harness.
+
+Clean-tree baseline, with everything restored: **7 gates, 403 tests, 0 failures, GATE_EXIT=0.**
+
+**Cost.** The two new gates add **~30s** to every commit — 4.9s for the probe type-check, 25.3s for
+the suite — taking the gate from roughly 74s to a measured **104s**. That is a real 40% tax on every
+commit and it is worth naming rather than burying, because the argument for paying it is not "tests
+are good". It is that the alternative was measured: the untaxed gate shipped the Round 3 defect back
+into the tree without comment.
+
+### And a pin on the gate, with its limits stated
+
+`tests/framework/precommitGate.test.mjs` pins five things: the test gate exists, the probe gate
+exists, the gate's glob and `package.json`'s agree and neither enumerates, the exit check is
+`!== 0`, and — the assertion aimed most precisely at the actual defect — **the docblock's numbered
+list has exactly as many entries as the file has gate invocations.** That last one looks like
+pedantry about a comment and is not: overclaiming prose is the mechanism by which the two missing
+gates stayed missing for months.
+
+All five were mutation-verified individually, each killed by its own targeted mutation and by no
+other:
+
+```
+delete the tests gate           → not ok 1  (and not ok 4, the count)
+delete the probe gate           → not ok 2  (and not ok 4)
+restore the enumerated script   → not ok 3
+add a gate, not the doc line    → not ok 4
+weaken !== 0 to > 0             → not ok 5
+restored                        → 5 pass, 0 fail
+```
+
+The file states its own ceiling in its docblock, because it has one: it is a source-text pin, so
+every assertion in it would still pass if the whole gate list were wrapped in `if (false)`. The pin
+is not the proof — the two mutations are. What the pin adds is the thing a one-time mutation run
+cannot give: it notices the day someone quietly deletes a line. Neither half is sufficient alone,
+which is itself the lesson Round 1 learned about `propHigh` and the muted pass, arriving again in
+different clothes.
+
+### (xx) — filed against this round's own instrument
+
+The docblock-count assertion failed on its first run, reporting **eight gates against seven claimed**.
+There are seven. The regex `run(Check|Node)\(` also matched `runNode(label, ...)` inside `runCheck`'s
+own body — the delegation between the two helpers — so the instrument counted plumbing as coverage.
+Requiring a quoted literal label fixed it.
+
+It is a one-character fix and it is filed anyway, because of its direction: the miscount said
+**"you have more coverage than you do."** That is the same sentence as the finding this entire round
+is about, produced by the test written to prevent it, within a minute of writing it. Twenty
+instrument defects now, against roughly a dozen product ones.
+
+## Round 7 — The guard that watched the door while the house filled up
+
+### The finding
+
+`tests/framework/noUnreachableModules.test.mjs` is the best instrument in this repo. It was written
+after a static sweep found 2,000+ lines nothing loads, and its founding story is the little-shark
+species roster: 963 lines, five species, complete, documented, internally consistent, answering a
+complaint the game had actually received, and loaded by nothing. Every signal said _finished
+feature, someone forgot the wire_. The guard exists so that can never sit unnoticed again.
+
+It asks one question. **Does the app reach this FILE?**
+
+`src/minigames/shared/animalBuilder.ts` answers yes. The app reaches it, honestly and continuously:
+`buildShark` and `buildFish` are live, called by the little-shark game every session. Behind that
+yes, in the same file, sat nine complete cartoon animal builders — bunny, kitten, puppy, panda,
+hamster, frog, bear, cat, elephant. Each one built, named, documented, given default colours to
+three decimal places. **About 920 lines. Nothing anywhere calls one of them.**
+
+That is the same shape, the same quality of finish, and within five percent of the same size as the
+roster whose deletion motivated the guard — hiding in the one place the guard structurally cannot
+look, and passing CI in silence ever since.
+
+### The defence
+
+The obvious objection is that this is tidiness dressed up as a defect. Dead code costs nothing at
+runtime; the bundler drops it; a child never sees it. Why is this worth a round?
+
+Because the cost was never runtime. It is the same cost the module guard's own docblock names and
+then fails to collect: _unused code that READS AS SHIPPED, so the next reader concludes the app does
+something it does not, or worse, helpfully connects it._ Every word of that applies here and lands
+harder, because these nine sat next to two functions that genuinely ship. The roster at least had
+the decency to live in files nothing imported. These had a live neighbour vouching for them.
+
+And the "helpfully connects it" half is not hypothetical. The measured lesson from the roster was
+that wiring it in would have cost **72% of the reef's worst-case legibility** — the obviously-good
+connection was the expensive one. A future reader reaching for `buildPanda` because the playroom
+"needs an animal" would be making that same trade blind: the playroom's critters are built
+elsewhere, independently, because they answer to scene lighting and idle-animation conventions these
+builders never knew about. `buildPanda` would give you a panda that ignores every one of them.
+
+The second half of the defence is the one that generalises. The module guard is not weak — it is
+**precisely scoped, and its scope is invisible from its output.** A green run says "no module is
+unreachable." A reader hears "no dead code." Lines 20–31 of that file say plainly that it does not
+check unused exports, and I had read those lines in an earlier round and still did not go looking.
+Prose disclosing a limit does not defend against it. Only a second instrument does.
+
+### The fix
+
+`tests/framework/noUnusedExports.test.mjs`, built on `tests/framework/_moduleGraph.mjs` — the
+resolver lifted out of the module guard and now shared by both, because two guards that disagree
+about what the app loads are worse than one: whichever is wrong is the one you will believe. The
+module guard was refactored onto it in the same commit, and **its twelve-entry allowlist passing
+unchanged in both directions is the evidence the lift changed no verdict.**
+
+The new guard flags exports that (a) live in a module the app reaches, (b) no other module imports
+by name, and (c) are not referenced inside their own file either. Same ADMISSIONS convention, same
+both-direction staleness check.
+
+### Evaluating the fix against the "suck" — the part that mattered
+
+The first run returned **263 names**, including `createScene` for the kitchen, the living room and
+the playroom. Three scenes the game ships and a child can walk into.
+
+The length was the tell. A guard whose output is too long to check by hand is a guard nobody checks,
+and the instrument was wrong in the worst possible direction — **condemning live code**. Acting on
+that verdict would have deleted three working scenes, and `tsc` would have stayed green, because the
+only reference to them is a string. Three defects, all found by running it rather than by reasoning
+about it:
+
+**(xxii)** A literal `import('x')` resolves to a **namespace**, naming no export in any brace list.
+`sceneCatalog.ts` lazy-loads every scene exactly that way. Fixed by `opaqueTargetsOf`, which treats
+`import()`, `import * as ns`, and `export * from` alike: whole surface consumed, no names written
+down. Mutating that pattern back out breaks three of the four tests, so the fix is load-bearing, not
+decorative.
+
+**(xxiii)** `tests/room/scene-sky-fog-contract.test.mjs` writes a synthetic entry module as a
+**template literal** and bundles it. Its `export {...} from './src/utils/cameraPresets'` inside that
+string resolves against the test's own directory, hits nothing, and the usage vanished — condemning
+two live camera helpers. Fixed by refusing to resolve on the test side at all: any exported name
+appearing as a whole word anywhere in the test/probe corpus counts as used. A deliberate
+over-approximation, wrong only in the direction that spares a symbol.
+
+**(xxiv)** And then the one worth the round on its own. With those fixed, the staleness check failed
+on all four allowlist entries at once — each naming a symbol it declared dead, and each therefore
+**marking that symbol as used**, because the allowlist keys are string literals inside a file that is
+itself part of the test corpus. An allowlist that self-destructs on contact. The symptom is comic;
+the general form is not: **any dead symbol named in the guard that reports it would have been
+silently spared, and the guard would have grown quieter the more debt it recorded.** Direction:
+flattering. Fixed by excluding the guard's own source from its own corpus, in writing, with the
+reason.
+
+Three instrument defects, in one instrument, before it caught a single thing it was built for. The
+final list was **32 names** — and it matched, name for name, an independent audit run earlier by a
+separate agent through a completely different method. Two instruments, no shared code, same answer.
+That convergence is the only reason I believed the number.
+
+### What was deleted, and what it cost to delete it
+
+Twenty-eight of the 32 went, with NOT-HERE-DELIBERATELY blocks: nine animal builders (~970 lines
+with their private helpers), five mesh builders, six materials, `getGamesForScene` and `SCENE_IDS`,
+four audio-engine exports including a fully-tuned `duck()` that was never once audible, two synth
+helpers, one owl `jitter`. Four remain allowlisted as genuine judgement calls, named with reasons.
+
+**1,551 lines deleted against 108 added.**
+
+Three things happened during the deletion that are worth more than the line count:
+
+The cutter **over-ate**, silently swallowing `isSceneId` — a live function — along with `SCENE_IDS`
+above it. `tsc` caught it immediately. The gate Round 6 fixed did its job on the very next round,
+against a defect introduced by the person who fixed it.
+
+**Dead code hides dead code.** Removing the nine animals orphaned three material factories whose
+only callers they had been. A single sweep finds one layer; the guard has to be re-run to fixpoint,
+which is how `createFurMaterial`, `createInnerEarMaterial` and `createAccessoryMaterial` were caught
+on the second pass.
+
+And `readme-citations.test.mjs` — an instrument from an earlier round, unprompted — failed on
+`buildSkyGradient`, still cited in backticks in bubble-pop's README. A guard nobody was thinking
+about caught documentation drift caused by a deletion nobody had told it about. That is what the
+apparatus is supposed to feel like when it is working.
+
+### What this round does NOT claim
+
+The docblock states the two tiers it does not enforce, with counts measured the same day: **69 dead
+re-export lines** (a barrel exporting `x` that nothing imports through it, while live code imports
+the deep path — the line is dead, `x` is alive) and an unmeasured **exported-but-internal** tier
+where the `export` keyword is superfluous but the code runs every frame. Enforcing one tier and
+naming the other two is the whole discipline, because the failure this suite keeps rediscovering is
+prose that reads as exhaustive when the code beneath it is not. **Nobody should read a green run
+here as "no dead exports."**
+
+### The clause this round adds
+
+Round 6 ended with _after you have proven the instrument, prove that something other than your own
+memory runs it._ Round 7 found the next gap in that sentence. Something did run this instrument. It
+ran on every commit, it passed, and it was answering a narrower question than anyone reading its
+output believed.
+
+**A guard's blind spot is invisible from its output — a pass looks identical whether the question
+was broad or narrow.** So the rule takes one more clause: **state what an instrument does not check,
+in the instrument, next to the count of what it is missing.** A limit disclosed in prose that carries
+no number is a limit nobody will act on. I had read this guard's disclosure of exactly this gap in an
+earlier round, and it did not send me looking, because it did not say _920 lines._
+
+## Round 8 — The migrations that looked abandoned because they had succeeded
+
+### The finding, as first charged
+
+Round 7 left the reachability allowlist at thirteen entries and 862 lines, and the round opened by
+reading it as a whole rather than entry by entry. Read whole it said something none of its thirteen
+entries said: **this repo starts unifications and does not finish them.** Four `utils/*` barrels at
+zero. A descriptor-driven scene builder at zero. A `scatterDecoratives` helper at zero. An
+`animationPresets` module at zero next to an `animationRunners` module that eleven files import. A
+Pirate Cove parent-scene stub. A spring-physics module inside bubble-pop that the bubbles do not use.
+
+The opening thesis was therefore: **the repo's dead code is about seven abandoned migrations, and
+their safety mechanism is their concealment mechanism** — every one had been left in place _so that
+nothing broke_, and being left in place is exactly what made each of them read as a live alternative
+to whatever ships. Thirteen specific true sentences, each individually unarguable, averaging out to
+no claim at all.
+
+### The measurement that falsified most of it
+
+The thesis was testable and I tested it, and it was mostly wrong.
+
+The instrument was the wrong one first. The prior round's tables had been built on `grep -c`, and
+Round 7 had already logged what that costs — "duck" matching 36 rubber ducks, "lifecycle" matching a
+docblock sentence. So this round rebuilt the count on **import edges** out of
+`tests/framework/_moduleGraph.mjs`: for every file under `src/`, every named import, resolved to a
+target module, so that "17 files import X" means seventeen `import { … } from 'X'` statements and
+cannot mean seventeen files that happen to mention the word.
+
+The edges said this:
+
+| seam                                      | live importers                | old API                  | its callers | state                    |
+| ----------------------------------------- | ----------------------------- | ------------------------ | ----------- | ------------------------ |
+| `lightingRig.createLightingRig`           | 2                             | `createGameLighting`     | 3           | **inverted**             |
+| `disposal.createDisposalScope`            | 17                            | `createDisposeCollector` | 5           | **inverted**             |
+| `interaction.createInteractionController` | 2                             | `createTapInteraction`   | 15          | **inverted**             |
+| `camera.cameraDescriptor`                 | 3 (all `minigames/framework`) | `createSceneCamera`      | 2           | **split**                |
+| `scene.buildScene`                        | **0**, live or dead           | `createWorldScene`       | 2           | **abandoned**            |
+| `SceneLifecycle` 4th argument             | n/a — an arity, not an edge   | —                        | —           | **abandoned, 0 of 5**    |
+| the barrels (five, not four)              | 0                             | —                        | —           | **resolved by deletion** |
+
+Two importers for the lighting rig looks like an unadopted migration. It is not one.
+`minigames/shared/sceneSetup.ts:47` opens with `const rig = createLightingRig(` — **inside
+`createGameLighting`**, the very function the rig was written to replace. The old name stayed, the
+old signature stayed, all three callers kept the import they already had, and the new engine ended up
+with two importers while running 100% of the lighting in the app. `utils/sceneHelpers.ts:351` does
+the same for disposal (`const scope = createDisposalScope();` inside `createDisposeCollector`), and
+`utils/interaction/worldTapDispatcher.ts:45` does it for interaction, describing itself in its own
+docblock as "a thin adapter over the unified `createInteractionController`".
+
+**This codebase completes migrations by inversion.** The old function keeps its name and its
+signature and its body is rewritten onto the new engine. It is a good pattern — no call-site churn,
+no flag day — and it has one cost, which is that it makes a finished migration look stillborn from
+the outside. Three of the seven "abandoned migrations" I opened the round with were finished.
+
+So the round's real finding is not about dead code at all. It is an instrument finding:
+**an importer count is evidence of nothing on its own.** It is only meaningful next to the answer to
+_"and does the old API call the new one?"_
+
+### The defence
+
+The first objection is that this makes the round's opening charge a false alarm and the whole thing a
+wash. It does not, for two reasons.
+
+The first is that the falsification was itself the deliverable. Six months of this document's
+reasoning about `utils/` had been built on counts nobody had checked the meaning of, and the
+correction is not "three numbers were off" but **"the quantity we were reasoning with does not
+measure the thing we were reasoning about."** Every future reader of this repo who sees a
+two-importer module in `utils/` is one grep away from concluding it is dead. That is exactly what I
+concluded, in writing, three times in one afternoon (see (xxvii)).
+
+The second is that stripping the six false alarms out left the two real ones **isolated and much
+sharper than they were inside a list of thirteen**. `buildScene` is at zero by every path. And the
+`SceneLifecycle` fourth argument is worse than dead — it is _passed_. `SceneFrame.tsx:186` calls
+`module.createScene(scene, canvas, nav, { clock, disposal })` on every single scene load, and all
+five exported `createScene` functions take **three** parameters. A lifecycle object is constructed
+and dropped on the floor five times. It type-checks because `sceneCatalog.ts:88` types its loaders
+`() => Promise<unknown>`, `SceneFrame.tsx:145` casts, and the parameter is declared optional with the
+comment _"scenes that ignore it keep working."_ Six green instruments cannot see a 0%-adopted
+optional parameter, and the comment that makes it safe is the sentence that guarantees the next scene
+written will omit it too.
+
+The third and sharpest item was not a migration at all. `playroom/toyboxes/pirate-cove/parent-scene-stubs/`
+held a manifest stub in which **every field differed from the live Pirate Cove manifest**, including a
+`z: -6.88` sitting deep in −z where the frustum is narrowest. It was not inert documentation. It was
+a live instruction to undo tuned work, sitting one obedient copy-paste away from doing it.
+
+### The fix
+
+Two halves, and the split between them is the point.
+
+**Deleted, each with a NOT-HERE-DELIBERATELY block:** the five `utils/*` barrels
+(`camera`, `lighting`, `interaction`, `idle`, `scene`), `bubble-pop/animation/{spring,index}.ts`,
+`utils/animationPresets.ts`, `utils/scatterDecoratives.ts`, and the Pirate Cove parent-scene stub.
+About 399 lines. Each block states what the module claimed, what is true instead, and — where it
+applies — why adopting it would have been a regression rather than an improvement.
+`scatterDecoratives` is the one to read: it claimed to replace naturescene's placement loops, and
+those loops use `seededRng(placementSeed(position, tag))` while the helper used bare `Math.random()`,
+so adopting it would have made decor twitch between reloads. A tidying that ships a visual
+regression.
+
+**Kept, and moved to a different instrument:** `utils/scene/{buildScene,sceneDescriptor,sceneDescriptors}.ts`.
+Deleting these three is the cheapest way to empty the allowlist, and it would delete the only written
+statement of the intended scene composition while leaving both imperative roots, every disposal
+mechanism and the unused `SceneLifecycle` parameter exactly where they are — **measurably tidier and
+strictly less honest.** That argument is now written in the allowlist next to the entries, so the
+next reader reaching for the cheap win meets it first.
+
+The new instrument is `tests/framework/noAbandonedMigrations.test.mjs`. It holds the same subject
+matter **aggregated by migration rather than by file**, which is the format change the thirteen-entry
+list needed; every claim carries a number a test recomputes from import edges; and — the part that
+matters most — **it asserts the delegation edges themselves**, because that is the one failure an
+importer count cannot see. Pasting the light-building back into `createGameLighting` would leave
+every importer number in this repo correct and every other test green. Five tests: adoption counts,
+old-API caller counts, delegation edges, the two-imperative-roots composition, and the `createScene`
+arity at 0 of 5. Both load-bearing assertions were mutation-verified — broken deliberately, confirmed
+to fire, confirmed to name the exact site.
+
+The reachability allowlist went from **thirteen entries to three**.
+
+### Evaluating the fix against the "suck"
+
+The charge was that the repo leaves unfinished migrations lying around and that the per-file allowlist
+format made that invisible. After the fix: six of the seven were not unfinished, and the two that are
+now sit in a file whose whole shape is _one row per migration, with recomputed numbers_ — the exact
+format whose absence let thirteen true sentences add up to nothing. That is answered.
+
+What is **not** answered, and is stated in the instrument rather than here: two of the seven seams
+are unguarded by any behavioural contract. Disposal has one. Lighting and camera do not. So the
+delegation assertion for lighting is a source-level edge check — an import edge, which is stronger
+than the source-text pins of defect (xi), but still not a proof that the running body reaches the
+call. And the camera seam is worse: it is the one migration that did **not** invert, so the two
+conventions are both live, and inverting it today would be unpinned at precisely the seam that
+matters. That is now item 1 of the open-work list in `architecture-standards.md`, with the
+prerequisite stated: **write the contract test before inverting, not after.**
+
+### What this round does NOT claim
+
+It does not claim the three `utils/scene/` files should be wired in. It claims they should not be
+deleted **silently**, which is a different and much weaker claim, and the register entry states what
+wiring them in would have to prove.
+
+It does not claim the delegation edges are behaviourally correct — only that they exist. An edge says
+`createGameLighting` imports and names `createLightingRig`. It does not say the rig it builds is the
+rig the games used to get.
+
+And it does not claim the migration register is complete. Seven seams are named; the repo has more
+duplications than that (`lerp` is still defined four times, `disposeMeshDeep` still has 23 call
+sites). Two of seven are unguarded by a behavioural contract, and that gap is stated in the
+instrument **next to its size**, per Round 7's clause.
+
+### The clause this round adds
+
+Round 7's clause was _state what an instrument does not check, next to a number._ Round 8 found the
+failure that survives it: I stated numbers, and the numbers measured the wrong quantity, and being
+numbers is what made them persuasive.
+
+Every wrong claim this round produced had a figure attached. "All 17 consumers import
+`utils/idle/idleAnimator` directly" shipped inside the allowlist and was false — one file imports it,
+sixteen mention it. My own three doctrine blocks were written from remembered counts before I
+measured, and measurement falsified all three. The register's own first draft filled its
+`oldApiCallers` fields with **module** importer counts instead of **symbol** caller counts, and its
+own second test rejected all three checkable entries on the first run.
+
+So the clause: **a number is not a measurement until you can say what would have to be true of the
+world for it to come out differently.** An importer count of 2 and an importer count of 17 are the
+same evidence about adoption — which is to say, none — until the delegation question is answered. The
+quantity has to be tied to the claim, and "it is a number, and I measured it" is precisely the form of
+confidence that got three doctrine blocks written wrong and one falsehood shipped into a guard.
+
+## Round 9 — The guard that was defeated by the exact habit it existed to punish
+
+Round 7 built `noUnusedExports.test.mjs` to catch a dead symbol hiding inside a live file. Round 8
+found a fabricated count inside a neighbouring guard. Round 9 charged the thing both rounds walked
+past: **the tiers that guard discloses but does not enforce, and the four judgement calls parked in
+its allowlist.** The docblock names three populations of unconsumed export, enforces one, and states
+the size of the other two. Stating the size of what you do not check is the discipline this whole
+review has been converging on, so the guard looked like the safest file in the repository.
+
+It was the file with the most unchecked prose in it.
+
+### The finding, as first charged
+
+The allowlist held four entries. Each was a sentence explaining why a dead export was allowed to
+stay dead. The charge was narrow and mechanical: **an allowlist reason is a hypothesis with nothing
+checking it, so resolve all four.** Not "some of these are probably stale" — the specific claim that
+prose sitting next to a passing test acquires the authority of the test without acquiring any of its
+verification, and that four sentences written at four different times could not all still be true.
+
+### The measurement, which falsified three of the four in their MECHANISM
+
+Not their verdicts. Every one of the four symbols really was dead. What measurement destroyed was the
+stated reason, and all three failures leaned the same way — toward the codebase being better organised
+than it is.
+
+`getManifest` was parked as _"callers read the exported array directly"_. `MiniGameManifest.ts:6`
+declares `const manifest`, not `export const`. **No caller could ever have read it directly.** The
+sentence describes a program that has never existed. Both importers of that module
+(`SceneRouter.tsx:4`, `MiniGameRouter.tsx:2`) take `getGameEntry`, and neither wants the catalogue.
+
+`INACTIVE_ICON_BUILDERS` was parked as serving _"portals in the inactive state, which no portal
+currently enters"_. **There is no inactive state.** Before the deletion, the string `inactive`
+appeared exactly once in `minigames/framework/` — in the constant's own name. The real
+unregistered-game path is one line, `ICON_BUILDERS[gameId] ?? buildFallbackSparkIcon`, and it does not
+consult the map. Worse, the map's own docblock said it kept eight icon builders _"while still
+satisfying the repo's unused-symbol checks"_ — which is a written confession. Eight individually
+reportable dead functions were bundled behind one exported name so the guard counted one instead of
+eight, and that one name was then allowlisted so it counted none. 237 lines, laundered through a
+wrapper whose stated purpose was to beat the check, in the same repository where ~920 lines of
+finished animal builders once hid the same way.
+
+`HIT_RADIUS` was parked as _"suspected genuine tuning drift"_ — the honest-sounding entry, the one
+that admits uncertainty. It was not drift. It was the losing half of a **completed** world-space to
+screen-space migration, labelled `(world-space, legacy)` three lines above the live `HIT_RADIUS_PX =
+80` that `fireflies/index.ts:787` seeds `nearestDist` from and that `index.ts:57` derives
+`SCENERY_HIT_RADIUS_PX = 95` from. That is architecture-standards.md §11 applied to hit-testing: a
+radius in world units shrinks on a phone exactly where a small finger needs it most. Admitting
+uncertainty is not the same as having none of the wrong kind.
+
+`MEAN_TRAVEL_DISTANCE` was the only entry whose facts held.
+
+Then the tiers themselves. Measured across the 543 modules reachable from `main.tsx`:
+
+| tier                  | docblock claimed        | measured     |
+| --------------------- | ----------------------- | ------------ |
+| DEAD (enforced)       | **32**                  | **4**, now 0 |
+| DEAD RE-EXPORT        | **69**                  | **86**       |
+| EXPORTED-BUT-INTERNAL | _no number_             | **136**      |
+| spared-by-corpus      | _tier not named at all_ | **3**        |
+
+The 32 is self-refuting and always was. If 32 dead exports existed, the test three lines below the
+sentence claiming it would have failed on 28 undeclared names, and the suite ran green. **A number
+was sitting inside the one file in the repository best equipped to disprove it, and the file
+disproved it every single run without anybody reading the output.**
+
+The 69 is the more interesting one, because it was not simply wrong. A scratch script written this
+round to check it reproduced 69 exactly — and the guard's own counter, once the tiering was made
+countable, says 86. Both are right. `testWords` used to be consulted **first**, so any name appearing
+anywhere in the test corpus was excluded before the re-export and internal tiers were counted at all.
+Those two tiers were silently reporting _"…and not named in any test"_, a qualifier nobody had
+written down and nobody could have inferred from the docblock. Moving the corpus check last leaves the
+DEAD set bit-identical and grows the other two by 17 and 23. Neither count was a mistake. **The pair
+of them without a stated ordering was.**
+
+### The defect underneath all of it
+
+The guard spares any export whose **name** appears anywhere in the test/probe corpus. The docblock
+discloses this, and discloses it well: _"a deliberate over-approximation, wrong only in the direction
+that spares a symbol, never the direction that condemns one."_ That sentence is true. Round 7 earned
+it the hard way — resolving specifiers on the test side had just condemned two live camera helpers,
+because a room test writes its entry module as a template literal.
+
+It is true and it is not enough, and the gap between those is this round's contribution.
+
+**Stating which way an over-approximation errs says nothing about what sets it off.** This one's
+trigger population is not random. The likeliest way for a name to appear in the corpus without being
+imported is a probe hand-copying a tuning constant — `const VISIBLE_BAND_HEIGHT = 7.08; // types.ts`.
+And a duplicated tuning number is the **single strongest available evidence that the original has no
+readers**. The thing that fires the exemption is anti-correlated with the risk the guard measures. A
+guard against unused tuning constants was being switched off, one symbol at a time, by copies of
+unused tuning constants.
+
+Verified by mutation, both halves. Renaming that probe's local to `BAND_H`, touching nothing under
+`src/`, flipped the real export into the enforced dead list. Changing the probe's literal `7.08` to
+`99.99` left **all 24 framework test files at zero failures** — so the copied name is load-bearing for
+the guard and the copied value is pinned by nothing at all.
+
+### The fix, and why it is small
+
+53 top-level declarations across `tests/` and `.probe/` shadow a `src` export. That number invites a
+53-site migration, which would be the wrong fix: most are coincidental collisions on generic helper
+names — `clamp`, `pick`, `seeded`, `rand`, `smooth01` — that are spared by real imports anyway.
+**Exactly one of the 53 was load-bearing.** So the fix is not a migration, it is a new enforced tier
+plus a standing hazard: a symbol is condemned only when a bare redeclaration is the _sole_ reason it
+was spared.
+
+The evidence used is brace-list membership — does any `import {…} from` or `export {…} from` anywhere
+in the corpus take this name from anywhere — and it stays **text-matched rather than resolved on
+purpose**, because resolving is precisely what produced Round 7's false condemnation, and the
+template-literal cases are the ones that must keep being spared. A brace list is the weakest evidence
+that is still evidence of an _edge_.
+
+The four parked entries were then resolved for real rather than re-parked: three deletions carrying
+NOT-HERE-DELIBERATELY blocks, and `MEAN_TRAVEL_DISTANCE` resolved by converting the prose derivation
+under it into arithmetic the program performs — `MIN_FLOAT_SPEED` and `MAX_FLOAT_SPEED` now divide
+`VISIBLE_BAND_HEIGHT` by named crossing times instead of asserting in a comment that they came from
+it. All three resulting values proved bit-identical to the literals they replaced: 0.6, 1.2, 0.77.
+`ALLOWED` is now `{}`, and the enforced DEAD tier is 0.
+
+### Evaluating the fix against the "suck"
+
+The first attempt to prove the new check fires **failed**, and the failure is the most useful thing in
+this round.
+
+The plan was to reproduce the original mutation: restore the probe's hand-copied
+`VISIBLE_BAND_HEIGHT` and watch the new tier catch it. All six tests passed. Not because the check is
+broken — because the _other_ repair in the same round retired the symbol. Making the derivation
+executable gave `VISIBLE_BAND_HEIGHT` a reader inside its own module, moving it from the laundered
+tier into the internal tier, which nothing enforces. The mutation was true of the tree it was run
+against and false of the tree ninety minutes later, and **the thing that invalidated it was my own
+fix, in the same round, in a different file.**
+
+So the check had to be proved a different way. `classifyExport` was extracted as a pure function of
+five facts, a synthetic canary — `export const R9_LAUNDER_CANARY` appended to a live module, a bare
+`const R9_LAUNDER_CANARY` appended to a probe — was confirmed against the repository to make the check
+fail naming that exact symbol, and then confirmed to pass again when the probe's copy was changed to a
+brace list. Both mutations were reverted. Because that experiment is not repeatable in CI, its shape
+is preserved as a test that drives the real classifier over one input per tier, including the two
+orderings that are load-bearing: a real import must beat a shadowing redeclaration, and an in-file use
+must beat one too. Without those two lines, 52 harmless collisions become 52 false condemnations.
+
+And the tier counts are no longer prose. They are asserted — `{ consumed: 1737, reexport: 86,
+internal: 136, spared: 3, laundered: 0, dead: 0 }` — exactly rather than as bounds, so that movement
+has to be read by a human. That is the direct answer to the 32: the docblock cannot be wrong about a
+number it no longer states.
+
+### What this round does NOT claim
+
+It does not claim the repository has no dead exports. It claims two tiers of six are enforced and the
+other four are counted. `internal` at 136 is not audited at all, and `reexport` at 86 is 86 barrel
+lines nobody has read.
+
+It does not claim the 53 shadowing declarations are fine. It claims 52 of them are currently harmless
+_for this guard_, which is a different sentence. `PROXIMITY_PX` is hand-copied 13 times across the
+probes and **nothing pins any copy to `gestureRules.ts`** — every one can drift silently, and the new
+tier will not say a word, because `PROXIMITY_PX` has real importers.
+
+> **Correction, added by Round 11; the sentence above is left standing per the rule against
+> back-editing a premise.** The number 13 is right and the words around it are not. It counts the
+> probe files that obtain `PROXIMITY_PX` **locally** — 6 literals plus 7 regex resolvers — and
+> "hand-copied" unions two mechanisms that need opposite fixes. It also **undercounts the population
+> by four**: it misses `render/frame-census.mjs`, which binds the same value as `READABLE_PX` and is
+> invisible to a name scan; the IIFE in `tests/framework/pirateCoveInteraction.test.mjs`, which is not
+> under `.probe/`; and the two sites that were already importing correctly. The true population was
+> seventeen sites across four mechanisms. See Round 11 and register entry (xxxix).
+
+It does not claim the brace-list test is sound in general. It is a text match; a name inside a string
+that merely looks like an import will spare a symbol. That is deliberate, it is the same
+over-approximation as before, and it is now the _smaller_ one.
+
+### The clause this round adds
+
+Round 7 learned to state what an instrument does not check, next to a number. Round 8 learned that a
+number is not a measurement until you can say what would have to be true of the world for it to come
+out differently. Round 9 turns the instrument on those two rules and finds them insufficient in the
+same way: the 32 was a number, attached to a limit, disclosed honestly, and false; the corpus-word
+exemption was a limit, disclosed honestly, with the safe direction correctly named, and it was the
+hole through which the round's largest deletion was hiding.
+
+What both missed is **population**. So: **for every approximation, name not only which way it errs
+but what kind of thing sets it off — because an exemption whose trigger correlates with the defect
+is not a limitation, it is a blind spot pointed at the target.**
+
+And a second, smaller clause, earned by the mutation that stopped reproducing: **a mutation is a
+statement about a tree, and a tree edited by the same round can stop being the tree the statement was
+about.** Evidence that lives in the repository expires when the repository is edited. Evidence that
+lives in a test does not. That is why the canary's shape is now a test and not a paragraph — including
+this one.
+
+## Round 10 — The copies the new tier could not see, and the digit that hid inside a rounding
+
+Round 9 built the `laundered` tier to catch a hand-copy that had silenced the dead-export guard.
+It works, and its reach is exactly one population: copies of exports **nothing else uses**. A copy of
+a *live* export is structurally invisible to it, because the original has real importers and the guard
+has nothing to complain about.
+
+That is the dangerous population, not the safe one. A dead constant copied into a probe is a nuisance.
+A **live** constant copied into a probe is a probe reporting on the running game from a number the
+running game does not have — with full confidence, on every run, forever. Round 10 charged that:
+**find whether any hand-copied constant in the tests or probes has already drifted from its source.**
+
+### The measurement, which came back split
+
+Two scans, both over `tests/` and `.probe/`.
+
+Scan A looked for the obvious shape: a `SCREAMING_CASE` const bound to a numeric literal whose name
+matches an export under `src/`. **Eight hits, zero drift.** Seven are `PROXIMITY_PX = 70`; one is
+`PULLBACK_REFERENCE_ASPECT = 0.75` in `render/frame-census`.
+**[Correction, added by Round 11; original left standing.** Scan A's stated predicate returns **six**
+`PROXIMITY_PX = 70` literals, not seven, and seven hits, not eight. The seven counted here are the
+files carrying a bespoke `shippedProximityPx()` **regex resolver** — which are neither `= 70` nor
+literals. The count is of one population and the sentence describes another, and because the sentence
+is what the next round reads, Round 11 was briefed to fix six literals and found seventeen sites
+across four mechanisms. See (xxxix).**]** And the *sources* are genuinely pinned —
+mutating `gestureRules.ts` from 70 to 31 fails the suite four times over, starting with
+`not ok 60 - thresholds are the documented 10 / 28 / 70 px`. What is pinned by nothing is the copies:
+every one can drift silently in the other direction, and the round found none that had. Filed, not
+fixed.
+
+Scan B looked for the honest shape instead — any literal whose trailing comment *names a `.ts` file*,
+which is what a careful author writes when there is nothing to import. **Six hits, all in one block**,
+`.probe/render/r8-species-palette.mjs:66-72`, under the header:
+
+```
+// ── The rig, verbatim from the live scene ───
+```
+
+Three of the six cite a **docblock**, not code. Their values exist nowhere in the program:
+`IRRADIANCE // types.ts:16`, `FISH_DEPTH // types.ts:24`, `SAND_RENDERED // types.ts:25`. And the
+first of those was wrong.
+
+### The chain, and the arithmetic that took two attempts to get right
+
+The reef's rig irradiance is the input to every colour decision in the game — the fish palette, the
+sand albedo, the water. Until this round it was **derived in a comment** and existed nowhere else:
+
+```
+setup.ts   exposure-budget table                 (0.2226, 0.2540, 0.2883)
+types.ts   fish-palette docblock                 (0.2225, 0.2540, 0.2889)   hand transcription
+.probe/render/r8-species-palette.mjs             cites `// types.ts:16`     copied the copy
+```
+
+Three hops, corruption at hop two, a probe treating hop three as source. That much was right on the
+first pass. **The mechanism I wrote down was not**, and it had already been written into two source
+files before anything checked it. The claim was that the blue had drifted 0.00067 and the red 0.0001,
+"in opposite directions, which is what hand-copying looks like and what no rounding rule produces."
+
+The test written to pin the table refuted it, on its first run, before it shipped:
+
+```
+    the exposure budget table no longer adds up to the total it states
+    + actual - expected
+      [ '0.2226', + '0.2540', - '0.2541', '0.2883' ]
+```
+
+Computing everything exactly:
+
+```
+|dir.y| exact                          = 0.7367094686837572   (the table labelled it 0.737)
+key row at full precision              = 0.1688, 0.1621, 0.1486   <- matches the printed row
+key row at the LABEL 0.737             = 0.1689, 0.1622, 0.1486   <- does not
+hemi row                               = 0.0095, 0.0477, 0.0955
+env  0.012 * 3.68                      = 0.0442 flat
+
+full precision, rounded once at the end  ->  0.2226, 0.2540, 0.2882
+the printed rows, added as printed       ->  0.2225, 0.2540, 0.2883
+what the total row actually said         ->  0.2226, 0.2540, 0.2883
+```
+
+**The total row took its red from the first method and its blue from the second.** One method per
+channel. Both methods are individually correct; taking one digit from each is not, and no reader could
+possibly have caught it, because the table never said which addition it meant.
+
+Which changes the verdict on `types.ts`. Its red, 0.2225, is the **honest row-sum reading** — a
+careful reader arrives at it correctly. It never drifted. Its blue is the entire defect: 0.2889
+against a table saying 0.2883 and an expression saying 0.2882. **One hand-changed digit, worth
+0.00067, hiding inside exactly the last-place ambiguity the mixed-method total had opened up.**
+
+### The defence — why this is an apparatus defect and not a typo
+
+Two things, neither of which is the size of the error.
+
+First, **the probe had been reporting this on every run and nobody could tell.** It prints a
+self-check — `worst channel error across 18 recorded values` — which read **1 level**. That is the
+probe disclosing its own contamination, honestly, in its own output, and **attributing it to its own
+model**. The fitted `LIGHT_GAIN = 1.66` had quietly absorbed most of the rest. A residual credited to
+the wrong cause is not a disclosure; it is a number that makes a reader feel informed.
+
+Second, **the probe's header was the actual defect**, not the seven literals under it. `The rig,
+verbatim from the live scene` covered two kinds of number that must be handled in *opposite* ways:
+
+- **Program constants** — things the running game reads. A copy is a fork with no merge. These must be
+  imported, always.
+- **Recorded observations** — numbers read off a real rendered frame. These are **data** and must
+  **stay literals**, because a measurement that recomputes itself from current code is a tautology. The
+  probe's entire claim to be trusted is that two fitted terms reproduce eighteen recorded values to
+  within a level; recompute the eighteen and it reproduces nothing.
+
+One heading over both is what let a program constant sit as a literal without anyone flinching. And
+hand-copying was, at the time, **the only honest option available** — every one of those constants was
+an inline literal inside a function body. There was nothing to import.
+
+### The fix
+
+Make the constants importable, make the derivation an expression, and split the header.
+
+`environment/setup.ts` gains `REEF_RIG` (key direction, intensities, the four colours, environment
+intensity, and the fitted environment radiance — flagged as the one fitted term) and `REEF_WATER`
+(background colour and fog density, previously inline literals unreachable by anything wanting to check
+a colour). `utils/rendererFactory.ts` gains `TONE_MAPPING_EXPOSURE = 1.15`, named because it is the
+last term in the colour chain and therefore every rendered figure recorded anywhere in this repository
+is a measurement taken *through* it.
+
+And `reefIrradiance()`, which performs the derivation the comment used to. It is **not consumed at
+runtime** — three.js does the shading, not us — and that is the point: it exists so the number the
+docs and probes quote is *produced* rather than transcribed.
+
+It takes the rig **as a parameter**, with a default, though there is only ever one rig. That is
+Round 9's lesson applied before it could bite: a pin on a returned number cannot tell you whether the
+expression behind it is the expression you think it is, and Round 9's mutation-based evidence expired
+the moment the tree was edited. With the rig as an argument, a test perturbs one field at a time and
+proves every term load-bearing — including the negative case, that swapping x and z in the key
+direction must be **invisible** to nine decimal places, or the cosine is being taken from the wrong
+quantity.
+
+The probe's copies become an import; its seven literals become four imported constants and three
+literals under a second heading that says they are **recorded observations** and must not be
+recomputed. The exposure-budget table stays, as the derivation's *shape*, with the mixed-method
+history stated inside it rather than quietly corrected away.
+
+### Evaluating the fix against the "suck"
+
+The materiality verdict does not move: 72% palette loss either way, 10.04 → 10.06 dE2000. If that were
+the whole measurement the honest conclusion would be that this was bookkeeping.
+
+It is not, because **the probe's own self-check moved from 1 level to 0**. Predicted during the
+measurement phase, then confirmed by running the fixed probe. The residual was never the model's. It
+was the input's, and the fit had been eating it.
+
+Five tests pin the result. Four passed as written. The fifth is the one that matters, and it is
+described below.
+
+### What this round does NOT claim
+
+It does not claim the hand-copy problem is solved. `PROXIMITY_PX` is still copied into seven probes
+with **nothing pinning any copy** — the source is pinned, every copy is free to drift, and the
+`laundered` tier cannot see it because `PROXIMITY_PX` has real importers. Same for
+`PULLBACK_REFERENCE_ASPECT`. This round fixed the copies it caught drifting, and named the population
+it did not fix.
+
+It does not claim `reefIrradiance()` models the light. It states, next to the number, that it is flat
+sand only — any tilted surface takes a different key cosine and a blend of sky and ground — and that it
+omits the accent point light entirely.
+
+It does not claim the environment radiance is derived. `3.68` is **fitted** against measured pixels of
+a shipped build. It is the least certain term in the rig and is labelled as such where it lives.
+
+### The clause this round adds
+
+Round 8: a number is not a measurement until you can say what would have to be true of the world for it
+to come out differently. Round 9: for every approximation, name not only which way it errs but what
+kind of thing sets it off.
+
+Round 10 adds the one it learned about **precision**: **a rounded retelling of a computation is not a
+record of it, because a rounded table admits more than one correct last digit, and every extra correct
+answer is a place a wrong one can hide unchallenged.** The corrupted blue was worth 0.00067 and
+survived three hops and several readings precisely because the table's own last place was ambiguous by
+about that much. The repair is not "round more carefully" — it is that the derivation must exist as an
+expression somewhere, so the prose becomes a *claim about* a computation with something enforcing it,
+rather than the only copy of it.
+
+And a second clause, earned the hard way and the best thing this round produced: **write the check
+before you believe your own account of the defect.** The mechanism above was reasoned out, found
+convincing, and written into two source files — and it was wrong. The test built to pin the table
+refuted it within a minute of first running. Not the verdict; the *story*. Which is the same failure
+this review has now recorded at four scales — doctrine blocks (xxvii), allowlist reasons (xxx),
+docblock counts (xxviii), and now a round's own freshly-written correction. **Prose written next to a
+check inherits the check's authority without inheriting any of its verification, and that remains true
+when the prose is mine and five minutes old.**
+
+## Round 11 — One constant, four mechanisms, and a migration that stopped at two
+
+### The charge
+
+Round 10 found the copies its new tier could not see, fixed the one that had drifted, and filed the
+rest: `PROXIMITY_PX` and `PULLBACK_REFERENCE_ASPECT`, restated by hand across the probes, with the
+sources pinned by the suite and the copies pinned by nothing. "Filed, not fixed" is a promissory note.
+Round 11 is the round that pays it.
+
+### The contradiction noticed before anything was measured
+
+Reading back for the charge, the review states the size of this population **twice, in two rounds, and
+the two numbers disagree**:
+
+> Round 9, _What this round does NOT claim_: "`PROXIMITY_PX` is hand-copied **13 times** across the
+> probes"
+
+> Round 10, _The measurement, which came back split_: "**Eight hits**, zero drift. **Seven** are
+> `PROXIMITY_PX = 70`"
+
+Thirteen against seven, in the same document, about the same constant, three hundred lines apart, and
+nothing in the repository checks either. So this round opened by writing down what it expected to find,
+in `/tmp/r11/hypothesis.md`, before running anything — because a round that measures a contradiction it
+has already decided the meaning of will find that meaning:
+
+> **H1.** The two counts measure DIFFERENT THINGS and both are right. […] If so the defect is not
+> arithmetic, it is that the review reuses one phrase — "hand-copied N times" — for two different
+> predicates. **H2.** One of them is simply wrong. *I expect H1. I expect it strongly enough that I am
+> writing it down, which is the point.*
+
+And a second prediction, about the fix rather than the finding:
+
+> The guard above can only see copies that KEPT THE NAME. A copy that renames — `const NEAR = 70;` —
+> is invisible to it, and renaming is what a careful probe author does when the local meaning differs
+> slightly. So I expect the guard to be a partial instrument, and I expect the honest version of this
+> round to be the one that measures HOW partial.
+
+Both of those turned out to matter, in opposite directions. The first was half right. The second was
+right, and a real instance of it was sitting in the tree.
+
+### The measurement — four mechanisms for one number
+
+A census over `src/` and over the **191** files under `tests/` and `.probe/` matching
+`/\.(mjs|js|tsx?)$/`, classifying every binding by **mechanism** rather than by name. The `src/` side
+needs three numbers, not one, and the difference between them is a finding in its own right:
+
+| count | predicate |
+| --- | --- |
+| **530** | export **sites** binding a SHOUT_CASE name to a numeric literal |
+| **488** | distinct **names** among those sites |
+| **460** | of those names exported with a single agreed value |
+| **28** | exported by two or more modules with values that **disagree** |
+
+The first draft of this section said "488 numeric-literal exports", which is the name count wearing the
+site count's sentence. Both numbers were right; the noun between them was not. What the gap turned out
+to conceal is in entry (xlii). `PROXIMITY_PX`
+(`src/utils/interaction/gestureRules.ts`, `= 70`, the radius the tap controller treats as "near
+enough") was obtained **four different ways across seventeen sites**:
+
+| mechanism | what it is | sites |
+| --- | --- | --- |
+| MODULE | a real import through `bundleEntry` | 2 |
+| REGEX-BESPOKE | a 6-line `shippedProximityPx()` resolver, duplicated **verbatim** | 7 |
+| REGEX-GENERIC | a local `shipped(file, name)` reader | 1 |
+| REGEX-INLINE | an IIFE doing the same thing | 1 |
+| LITERAL | `const PROXIMITY_PX = 70;` | 6 |
+
+**Zero had drifted.** Every one of the seventeen said 70.
+
+That is the uncomfortable result, and it is worth being precise about why it is not a clean bill of
+health. Seventeen copies agreeing is not seventeen copies being correct; it is seventeen copies that
+have not yet been asked a hard question. The question gets asked the first time somebody changes 70,
+and on that day fifteen of them are silently wrong and six of them do not even have the decency to
+throw.
+
+### The finding that actually matters, which is not "copies drifted"
+
+The right instrument **already existed**. `bundleEntry`, in `tests/framework/_tsload.mjs`, esbuild-
+bundles a string of re-exports with `resolveDir` at the package root, so it resolves the `@app`,
+`@scenes` and `@game` aliases and hands back a real module namespace. It works. It is documented. Two
+sites out of seventeen use it.
+
+So this is not a repository that lacks a way to do the thing properly. It is a repository that **built
+the right instrument and then stopped migrating at 12%**, and the fifteen sites left behind did not
+merely fail to improve — they became the majority convention. A newcomer reading the probes to learn
+how one fetches a shipped constant finds a `shippedProximityPx()` resolver seven times before finding
+an import once, and copies the resolver. That is how the population grew to seventeen.
+
+Which is Round 8's lesson running backwards. Round 8 found migrations that **looked** abandoned and had
+actually completed, and drew from it that a migration completes by **inversion** — the old way has to
+become unavailable, not merely discouraged. Round 11 is the other half of that sentence: a migration
+that never inverts does not sit still at 12%, it **loses ground**, because every new site copies what
+it sees and what it sees is the old way.
+
+### The defence — why each of the three wrong mechanisms is wrong
+
+**The literal is indefensible and needs no argument.** `const PROXIMITY_PX = 70;` in a probe that then
+reports on how the shipped controller behaves is a probe grading the code against a number the code no
+longer has to agree with.
+
+**The regex resolvers are the interesting case, because they are careful.** Here is the shape,
+duplicated verbatim seven times:
+
+```js
+const shippedProximityPx = () => {
+  const src = readFileSync(path.join(packageRoot, 'src/utils/interaction/gestureRules.ts'), 'utf8');
+  const m = /export const PROXIMITY_PX = (\d+(?:\.\d+)?)/.exec(src);
+  if (!m) throw new Error('PROXIMITY_PX not found in gestureRules.ts -- fix this probe, do not guess');
+  return Number(m[1]);
+};
+```
+
+This round predicted, in writing, that these would have a silent fallback — that a miss would default
+to 70 and the probe would sail on. **That prediction was false.** Every one of them throws, and the
+error message is better than most error messages in this repository: it names the file, tells you what
+to do, and explicitly forbids the thing an author under time pressure would do next. Whoever wrote it
+was thinking about exactly the right failure.
+
+It is still the wrong mechanism, and for a reason the author could not have designed around: **a regex
+over source text cannot survive the constant becoming an expression.** The day someone writes
+`export const PROXIMITY_PX = BASE_TOUCH_PX * 2;` — a perfectly ordinary refactor — all seven resolvers
+throw simultaneously, in seven probes, and the failure is not "the constant moved" but "seven probes
+are broken", which is a much worse thing to read on a Tuesday. An import resolves the expression
+because an import runs the program. The resolver is a careful implementation of a mechanism that has a
+ceiling; the import has no ceiling.
+
+**And the resolvers cost something else that only showed up when counting.** Six lines duplicated
+seven times is forty-two lines whose only job is to avoid one import statement, and — this is the part
+the census made visible — because they are seven *separate* copies, nothing was keeping them the same.
+They happened to be identical. Nothing checked.
+
+### What the two contradictory counts turned out to be
+
+Both numbers are real counts. Neither counts what its sentence says it counts, and the decomposition
+is exact:
+
+```
+17 sites obtaining PROXIMITY_PX     =  6 LITERAL
+                                    +  7 REGEX-BESPOKE
+                                    +  1 REGEX-GENERIC
+                                    +  1 REGEX-INLINE   (tests/, not .probe/)
+                                    +  2 MODULE
+
+Round 9's "13"  = 6 LITERAL + 6 REGEX-BESPOKE + 1 REGEX-GENERIC
+                = the probe files that obtain it LOCALLY, minus the one that renames
+Round 10's "7"  = the REGEX-BESPOKE files
+```
+
+So **H1 was right about Round 9 and wrong about Round 10.**
+
+Round 9's thirteen is reproducible to the file: `git grep -lE "(const|let) +PROXIMITY_PX *= *([0-9]|shipped)"`
+over `.probe/` at `6e58b5b` returns exactly those thirteen paths. The number is correct. What is loose
+is the word: "**hand-copied** 13 times" spans two mechanisms that need opposite fixes — six literals
+that are simply wrong, and seven resolvers that are careful and merely capped. Calling them one thing
+is what let the whole population be filed as one problem.
+
+Round 10's seven is where it goes properly wrong. It reports "Seven are `PROXIMITY_PX = 70`", and only
+**six** are; the seven it counted are the *resolvers*, which are not `= 70` and are not literals. Its
+stated predicate — "a `SCREAMING_CASE` const bound to a numeric literal" — returns six, not seven, and
+its headline "eight hits" returns seven. **The count was of one population and the description was of
+another**, and because the description is what the next round reads, Round 11 was charged with fixing
+"seven hand-copied literals" and found seventeen sites across four mechanisms.
+
+And Round 9's thirteen misses `frame-census.mjs` for **precisely the reason this round wrote down
+before measuring**: that file binds the same constant as `READABLE_PX`, a different name for the same
+number, and is invisible to every name-matching scan. It surfaced only because it happened to share a
+regex resolver with six siblings — that is, by luck. The predicted blind spot was not hypothetical; it
+was already occupied.
+
+### The fix
+
+**All fifteen non-MODULE sites migrated to `bundleEntry`.** Thirteen probes, `frame-census.mjs` (whose
+`PULLBACK_REFERENCE_ASPECT` literal was folded into the same bundle), and
+`tests/framework/pirateCoveInteraction.test.mjs`, where the IIFE was replaced by appending one line to
+the `bundleEntry` call the file **already made** for six other symbols. Seventeen of seventeen now
+import. Forty-two lines of duplicated resolver, and the six literals, are gone.
+
+**And the old way made unavailable** — `tests/framework/noCopiedConstants.test.mjs`, three tests, which
+fails when any file under `tests/` or `.probe/` binds a SHOUT_CASE name to a numeric literal where
+`src/` exports that same name. It fails on **existence, not on disagreement**, because this round's
+whole finding is that agreement today is not protection: the message says so in as many words, and
+tells you what to write instead.
+
+It is an **AST walk over `ts.createSourceFile`**, not a regex, and that decision was forced by this
+round's own instrument failing three times:
+
+1. it matched `PROXIMITY_PX = (\d+)` inside **the resolvers' own regex literals**, inventing eight
+   copies that were the *search for* copies;
+2. it matched `VISIBLE_BAND_HEIGHT = 7.08` inside a **template literal** — the error message in
+   `noUnusedExports.test.mjs` that warns against this exact practice;
+3. it matched `GOLDEN_DODGE_DURATION = 0.3` inside a **docblock** in `little-shark-dodge.test.mjs`,
+   which quotes the declaration it documents and imports the real one on line 42.
+
+Three false positives, every one from source that was *discussing* a constant rather than binding one.
+A guard with a 100% false-positive rate on its first run acquires an allowlist within a week, and this
+review already knows what lives in allowlists — see (xxx), three entries describing programs that never
+existed. A comment is not a node and a string is not an initializer, so `ts` cannot make any of the
+three mistakes by construction.
+
+### Evaluating the fix against the "suck"
+
+Not by reading it. By breaking it.
+
+**The guard was mutation-tested.** Two copies were appended to `.probe/render/r6-band.mjs` — one
+agreeing, one drifted — and it caught both, named both, and distinguished them:
+
+```
+not ok 1 - no test or probe restates a constant that src/ exports
+  .probe/render/r6-band.mjs:125  const PROXIMITY_PX = 70;      (…gestureRules.ts — agrees today)
+  .probe/render/r6-band.mjs:126  const VISIBLE_BAND_HEIGHT = 99.9;  (…bubble-pop/types.ts — ALREADY DRIFTED, src says 7.08)
+```
+
+**The guard has a test against being vacuously green**, because Round 9's lesson is that a green
+assertion over an empty set is indistinguishable from a green assertion over a set that was never
+populated: it asserts `src/` yields more than a hundred constants, that `PROXIMITY_PX` is still among
+them, and that the walk finds synthesised copies both at top level and nested inside a function. And a
+third test pins the three false-positive shapes above as fixtures that must stay invisible.
+
+**A migrated probe was run end-to-end**, not merely parsed — `.probe/render/r6-band.mjs` under
+playwright, printing `proximity radius 70px (shipped)` from the imported value and completing its full
+census. `node --check` proves a file parses; it does not prove `bundleEntry` survives a probe's
+top-level await, and the difference between those two claims is the whole point of this round.
+
+**The temporal-dead-zone bug this predicted, it had.** `frame-census.mjs` ended up destructuring
+`RULES` seven lines *before* `const RULES = await bundleEntry(...)` declared it — a `ReferenceError` at
+load that `node --check` passes cheerfully, because it is a scoping error and not a syntax error.
+Caught by reading the diff for it specifically, having written down that it was the likely failure.
+
+Full suite **428 pass, 0 fail** (was 425; the guard adds three). `tsc -b` clean, ESLint clean, Prettier
+clean.
+
+### What this round does NOT claim
+
+It does not claim the corpus no longer restates shipped constants. The guard has four blind spots, and
+they are written into the file next to it rather than left to be discovered:
+
+- **Renamed copies.** `const READABLE_PX = 70;` is invisible to it. This is not a hypothetical — it is
+  the exact shape of `frame-census.mjs`, which escaped every scan in this round and surfaced by luck.
+  A probe author renames when the local meaning differs slightly, which is *good practice*, so this
+  blind spot sits precisely where careful people work.
+- **Bare inline literals.** `if (distance < 70)` binds nothing. Measured at **42** lines, under this
+  predicate and no other:
+
+  ```
+  grep -rInE '(^|[^A-Za-z0-9_.])70([^0-9.]|$)' tests .probe \
+    --include='*.mjs' --include='*.js' --include='*.ts' --include='*.tsx' --include='*.cjs' \
+    | grep -v PROXIMITY_PX | wc -l
+  ```
+
+  The predicate is written out because the first attempt returned **85**, and the 43-line difference
+  was 48 PNGs and 10 probe `.txt` logs under `.probe/*/out/` — grep matching bytes inside binaries,
+  and matching a probe's **recorded output** as though it were source. A probe log reading
+  `within 70?` is an observation *of* the program, not a copy of a constant, and the distinction is
+  the same one Round 10 drew between a program constant and a recorded observation. Of the 42, ten are
+  in `gestureRules.test.mjs` — which tests the function, so passing it 70 is a *pin*, not a copy —
+  three are in the guard's own footer, which is to say the measurement counts its own documentation,
+  and most of the rest are docblock prose and `console.log` column headers. A value-based scan cannot
+  tell a copy from a coincidence. That is not a threshold to tune; it is what a bare number **is**.
+  Hence a fix that makes copying unnecessary rather than a better detector.
+- **Exports that are expressions.** `export const X = BASE * 2;` is not collected, so a copy of X's
+  value is not flagged. Self-limiting in a useful direction: an expression is exactly what a resolver
+  could never have read either.
+- **Anything outside `tests/` and `.probe/`.**
+- **Names that are not constants.** Added after the guard was written, green, and believed finished:
+  **28** SHOUT_CASE names are exported by more than one module with *different* values — `CEILING_Y`,
+  `FLOOR_WIDTH`, `ROOM_DEPTH` and six more across the three room layouts; `BODY_HEIGHT`, `CAP_RADIUS`,
+  `STEM_Y` and a dozen more across sibling prop folders. For these, "the value `src/` exports" does not
+  exist, so the guard declines to have an opinion and a probe copying the kitchen's `CEILING_Y` is not
+  caught. That is the honest trade, and it is better than what the guard did before: see (xlii).
+
+It does not claim `PULLBACK_REFERENCE_ASPECT` received the same treatment. Its one literal was folded
+into `frame-census.mjs`'s bundle; nobody surveyed it the way `PROXIMITY_PX` was surveyed.
+
+It does not claim the census that produced the four-mechanism table is sound as a general instrument.
+It was wrong three times in one afternoon and has been retired in favour of the AST walk.
+
+### The clause this round adds
+
+Round 8: a number is not a measurement until you can say what would have to be true of the world for it
+to come out differently. Round 9: for every approximation, name not only which way it errs but what
+kind of thing sets it off. Round 10: a rounded retelling of a computation is not a record of it; and
+write the check before you believe your own account of the defect.
+
+Round 11 adds the one about **counts**: **a count is a predicate plus a number, and shipping the number
+without the predicate is shipping nothing, because the next reader will supply a predicate of their
+own and it will not be yours.** Round 9's thirteen and Round 10's seven were both *correct*. Both were
+described in words that named a different population than the one counted, and the cost was not a wrong
+figure in a document — it was that Round 11 was dispatched to fix six literals and found seventeen sites
+across four mechanisms. **The prose around a number is not commentary on the measurement. For every
+subsequent reader, it *is* the measurement.**
+
+And a second clause, which this round earned by committing the offence it was in the middle of
+diagnosing. Mid-migration, "for consistency", thirteen probes were switched from the `./src/…`
+specifier form to the `@app/…` alias — a form used by **37 of 510** specifiers in the corpus, against
+473 for the one being abandoned. A round whose entire subject is *migrations that stop partway leave
+two conventions and hand the majority to the wrong one* had just moved thirteen files to the 10%
+convention and would have shipped it. It was caught by a grep for leftovers that returned the
+leftovers as the **majority**. **Before changing a convention, count both conventions; "for
+consistency" is a claim about a distribution and is worthless until the distribution is on the
+screen.**
+
+And a third, which arrived last and nearly did not arrive at all. The sweep run to verify this
+section's own numbers reported three of them wrong. Two were. The third — 488 — was correct, and the
+sweep had reached its contradiction by silently counting export *sites* where the text counted
+*names*. The first clause above, applied to the instrument enforcing the first clause above. Had the
+correction been applied as reported, a right number would have been replaced with a wrong one under
+the banner of verification. But the useful part is what happened when the disagreement was
+investigated rather than resolved by seniority: the 42-declaration gap between the two counts turned
+out to be twenty-eight names that `src/` exports with *conflicting values*, which meant the guard —
+already written, already green, already mutation-tested — was resolving `CEILING_Y` by directory-walk
+order and stood ready to accuse a probe of drifting from a room it had never referenced. So:
+**a disagreement between two measurements is itself a measurement, and the first question is never
+which one is right, it is which predicate each one used.** The corollary, from the defect it turned
+up: **an anti-vacuity check proves the instrument is looking at something; it does not prove the
+instrument's data structure can represent what it is looking at.** `shipped.size > 100` was a real
+check that a `Map` was populated, and it could not notice that keying by name had encoded the
+assumption that a name identifies a thing — an assumption already false twenty-eight times before the
+first assertion ran.
+
 ## The apparatus register
 
 Every defect this review found **in its own instrument**, in discovery order, with the round that
@@ -1547,12 +3239,477 @@ misattribution the fix itself created, one round after being fixed. The general 
 down is broader than the bug — **any probe that taps a deferred-navigation prop and then measures
 something else owes a drain.**
 
+**(xv) The exclusion criterion and the finding were the same predicate — again, four rounds after
+(iii).** _(Round 5.)_ `r5-nature-voice.mjs` run 1 printed **`H2 REFUTED`** when the charge was true.
+Its test for "this tap hit nothing" was: exactly one sound, that sound is the miss cue, a sparkle
+was emitted. That is a true description of a genuine miss — and **also** a true description of every
+voiceless Nature prop, which was the entire finding. The run discarded 34 of its 35 rows as misses
+and graded the survivor. Repaired not by patching the predicate but by adding **positive
+identification**: `__tapThroughCanvas` now wraps every live-registry handler for the duration of the
+tap and returns `hit: string | null`, so `hit === null` means the controller picked nothing and can
+mean nothing else, and a non-null `hit` that is not the aimed-at prop is an **aim artefact**. The
+general form is worth more than the instance: **whenever a probe infers "nothing happened" from a
+signature, check that a broken prop does not produce the same signature.** This is (iii) wearing a
+different coat, and it was written down in Round 1.
+
+**(xvi) A single centroid aim cannot reach an occluded prop, and reports it as DRIFTED rather than
+as UNREACHABLE.** _(Round 5.)_ The `log` row aimed at the log's centroid and hit
+`portal_bubble-pop_b`, which sits in front of it; both runs produced the identical drift, so it is
+geometry and not noise. The census then **correctly** refused to grade the row — the failure is one
+level up, in the reader: "ungraded" was silently doing duty for "untested", and the round would have
+claimed a prop it never fired. Repaired by an appended pass that rings out from the centroid until an
+aim positively lands, and that reports `UNREACHABLE` as an honest third answer. The general rule:
+**a count of graded rows is not a count of covered props, and a probe that cannot say which props it
+failed to reach is not reporting its own coverage.**
+
+**(xvii) The census filter that is right everywhere else and wrong here.** _(Round 5.)_
+`__propTargets` consumers filter out `background: true`. That is correct for every purpose the
+filter was built for — background props exist so raycasts read **past** them — but the stream is
+marked background and still has a tap handler and a voice of its own, so it was excluded from the
+voice census **by construction** and its answer was never measured. Recorded because it is the
+mirror image of (iii): not an exclusion that swallows the finding, but an exclusion that swallows a
+subject, silently, on a criterion that has nothing to do with the question being asked.
+
+**(xviii) I read a number the harness reports without reading the scope the harness documents for
+it, and nine rows failed a bar that applies to two.** _(Round 5.)_ `r5-nature-picture.mjs` graded
+every measured row on `propHigh > sparkleHigh` and printed **`BAR (b) FAILED for mush_cap ×5,
+leaf_cover, stone_cover, bfly_body ×2`**. `room.ts` had already documented, before that file was
+written, why the ratio is not universal: `propHigh` is measured **with the particle engine muted**,
+so for a prop that draws the miss's own burst the ratio compares the prop's tween _alone_ against a
+whole burst, while what the child sees is the tween **and** that burst. "A prop that emits
+`sceneSparkle` with no overrides… contains the miss's answer and cannot be smaller than it — no
+framebuffer required. The rows where that deduction is unavailable are exactly the rows that emit
+nothing." Seven of the nine reported failures were that malformed comparison; `mush_cap` at 0.20 does
+not mean the bounce moves a fifth of a sparkle's pixels, it means the bounce _alone_ does, on top of
+the sparkle it also draws. **The two survivors were real**, and were the two the round had predicted
+after correcting its earlier butterfly error.
+
+It is filed as an apparatus defect rather than a typo because of what it would have done had the fix
+been good. A corrected run in which every prop passed would still have printed FAILED for the
+sparkle-emitting majority, and the natural response to a bar that fails on props nobody touched is to
+conclude the bar is too strict and relax it. The failure mode is not a wrong number but **a wrong
+number aimed at the bar itself**, and the noise ran three and a half times louder than the signal it
+sat on. It joins (iii) and (xv) as a third instance of one family: the predicate deciding _who is
+graded_ doing work it was never checked to be capable of. The rule worth keeping: **when a harness
+documents the scope of its own verdict, the scope is part of the measurement** — reading the number
+without the scope is not a shortcut, it is a different experiment.
+
+**(xix) The deduction was genuinely too narrow, and fixing my reading of it exposed that.** _(Round
+5.)_ Applying (xviii)'s corrected rule left the **stone** still graded on the ratio, because it
+answers with `sceneDust` and the documented deduction covers only the miss's own preset. That is not
+bookkeeping. `propHigh` is particle-muted, so the stone's shift was being compared against a whole
+burst while the dust it actually draws counted for nothing — a bar shaped to be satisfied by
+**drawing fairy sparkle over soil**. An instrument that pushes the app toward a worse-fitting frame
+in order to be measurable is worse than no instrument, because it is persuasive. Repaired by growing
+`__reactionScan` a **fourth pass**: `__replayAsked` re-emits the captured `particles.emit` argument
+tuples into the live engine under the miss pass's own frozen conditions, giving `ownHigh`, and the
+deduction generalises from "draws the miss's burst" to "draws a burst no smaller than the miss's". It
+is a replay and not a re-fire on purpose — re-firing is barred by the handler latches (a reveal
+reveals once) and would re-run the tween, mixing the two terms the decomposition exists to separate.
+What it still cannot say is stated where it is used: it shows the burst the prop **asked for** is at
+least as large as the miss's, not that the prop drew it on the tap frame; that the handler asked at
+all is the muted pass's finding, and the two together are the claim.
+
+**(xx) The test written to prevent overclaiming overclaimed, within a minute of being written.**
+_(Round 6.)_ `precommitGate.test.mjs`'s docblock-count assertion failed on its first run, reporting
+**eight gates against seven claimed**. There are seven. The regex `run(Check|Node)\(` also matched
+`runNode(label, ...)` inside `runCheck`'s own body — the delegation between the two helpers — so the
+instrument counted plumbing as coverage. Requiring a quoted literal label (`run(Check|Node)\('`)
+fixed it. A one-character repair, filed anyway because of its **direction**: the miscount said _"you
+have more coverage than you do"_, which is the same sentence as the finding the whole round is about,
+reproduced by the pin built to prevent it. The generalisation is uncomfortable and worth keeping: a
+test that counts things is itself a measuring instrument and inherits every hazard in this register —
+including the one it was written to close.
+
+**(xxi) A repo-wide grep counted generated bundles as evidence, and reported dead code as live.**
+Round 7, verifying a subagent's audit. My own sweep grepped `src/` and appeared to contradict it on
+`getMasterGain`, `getMusicGain`, `getAmbientGain` and `SCENE_IDS`, showing live references. Every hit
+was inside `src/.tstest-tmp/` — a gitignored directory of generated test bundles. The subagent was
+right and my instrument was the defective one. Direction: **flattering** — a sweep that includes
+build artifacts reports "nothing to do here."
+
+**(xxii) The export guard called three shipping scenes dead.** Round 7, first run. A literal
+`import('x')` resolves to a namespace object and names no export in any brace list; `sceneCatalog.ts`
+lazy-loads every scene that way, so `createScene` for the kitchen, living room and playroom all read
+as unreferenced. Direction: **condemning** — acting on it would have deleted three scenes a child can
+walk into, with a green build, because the only reference is a string.
+
+**(xxiii) A test that bundles source from a template literal is invisible to a resolver.**
+Round 7. `tests/room/scene-sky-fog-contract.test.mjs` builds a synthetic entry module as a string;
+its `export {...} from './src/utils/cameraPresets'` resolves against the test's own directory, hits
+nothing, and the usage disappears — condemning two live camera helpers. Direction: **condemning**.
+Fixed by refusing to resolve on the test side and over-approximating instead.
+
+**(xxiv) The allowlist marked its own subjects as alive.** Round 7, and the one worth the entry on
+its own. The new guard treats any name appearing in the test corpus as used; its own ALLOWED keys are
+string literals in a file inside that corpus. Every entry therefore declared a symbol dead and, by
+declaring it, made it look alive — failing the staleness check on all four at once. The symptom is
+comic. The general form is not: **any dead symbol named in the guard that reports it would be
+silently spared, and the guard would grow quieter the more debt it recorded.** Direction:
+**flattering**. Fixed by excluding the guard's own source from its own corpus, with the reason
+written next to the exclusion.
+
+**(xxv) A grep count shipped inside a guard, dressed as an import count, and stood for months.**
+_(Round 8.)_ The reachability allowlist's `utils/idle/idleAnimator.ts` entry read _"all 17 consumers
+import `utils/idle/idleAnimator` directly"_ — offered as the reason the `utils/idle/index.ts` barrel
+was unnecessary. **Exactly one file imports it.** The other sixteen mention it, and reach the animator
+through `utils/idle/registry.ts`, which is already the public surface — which is the real reason a
+second one had nothing to offer. The conclusion was right and the evidence for it was fabricated by
+the instrument. What makes this an apparatus defect rather than a typo is where it lived: inside a
+list of thirteen sentences that **nothing checks**, so a false sentence and a true one are
+typographically identical and no reader can tell them apart. Direction: **flattering** — it made the
+codebase's routing look better understood than it was. Fixed by moving the subject matter into
+`noAbandonedMigrations.test.mjs`, where every claim carries a number a test recomputes from import
+edges. This is the third wrong verdict grep has produced in this review (after Round 7's rubber ducks
+and the `lifecycle` docblock match) and the first one that shipped.
+
+**(xxvi) The new register made the exact substitution it was built to prevent, on its first run.**
+_(Round 8.)_ `noAbandonedMigrations.test.mjs` exists to keep module-importer counts and symbol-caller
+counts apart, because conflating them is what produced (xxv). Its own first draft filled the
+`oldApiCallers` fields with **module** counts — 5, 3, 4 — and its second test rejected all three
+checkable entries immediately: `createGameLighting` has 3 callers not 5, `createSceneCamera` 2 not 3,
+`createWorldScene` 2 not 4. The instrument caught its author inside sixty seconds. Filed for the same
+reason (xx) was: **a test that counts things inherits every hazard in this register, including the one
+it was written to close**, and the only thing that separated this instance from (xxv) is that this
+one recomputes. The distinction has now cost this review two wrong tables, so it is asserted in the
+file rather than trusted. Direction: **condemning**, and caught by design.
+
+**(xxvii) I wrote three doctrine blocks from remembered numbers, before measuring, and measurement
+falsified all three.** _(Round 8.)_ The NOT-HERE-DELIBERATELY blocks for the idle, interaction and
+lighting barrels were written first, each explaining a deletion in terms of an adoption count I was
+confident of (idle 0-vs-17, interaction 0-vs-7, lighting 0-vs-1). Every one was wrong, and the
+lighting and interaction ones were wrong in a way that _inverted the conclusion_ — I had written them
+as evidence of unadopted migrations, and they are finished migrations that completed by inversion.
+Each block was rewritten, and the falsehood recorded **inside** the corrected text rather than
+quietly replaced, per the standing rule against back-editing a stated premise. Direction:
+**flattering** — a doctrine block is written to be believed by the next reader precisely because
+nothing checks it, which is the same structural defect as (xxv) at the scale of a single file.
+The rule this one earns is the round's own clause: **state the suspected mechanism before measuring,
+so that measurement can embarrass you** — which it did, three times, on paper, which is the only place
+it is cheap.
+
+**(xxviii) The guard stated a dead-export count that its own green run disproved, every run, for
+months.** _(Round 9.)_ `noUnusedExports.test.mjs`'s docblock read _"DEAD (32 names, ENFORCED
+BELOW)"_ while `ALLOWED` held four entries and the suite passed. Those two facts cannot both be true:
+32 dead exports with 4 declared would have failed the test on 28 undeclared names. The measured count
+was 4. What makes this an apparatus defect rather than a stale comment is **where** it sat — inside
+the one file in the repository best equipped to refute it, being refuted on every CI run, with nobody
+reading the refutation, because a passing test prints nothing. Direction: **flattering** — it made the
+enforced tier look eight times larger and therefore eight times more diligent than it was. Fixed by
+deleting every number from the docblock and asserting the six tier populations in a test instead.
+
+**(xxix) An over-approximation disclosed its safe direction and concealed its trigger, and the
+trigger was the defect.** _(Round 9, and the one worth the entry on its own.)_ Round 7 fixed (xxiii)
+by refusing to resolve specifiers on the test side: any exported name appearing as a whole word
+anywhere in the test/probe corpus counts as used. The docblock says so plainly — _"wrong only in the
+direction that spares a symbol, never the direction that condemns one."_ True, and useless, because
+the population it spares is not random. **The likeliest way for a name to enter that corpus without
+an import is a probe hand-copying a tuning constant, and a duplicated tuning number is the strongest
+available evidence that the original has no readers.** A guard against unused constants was being
+silenced by copies of unused constants. Verified by two mutations: renaming a probe's local
+`VISIBLE_BAND_HEIGHT`, touching nothing under `src/`, flips the real export into the enforced dead
+list; changing that same local's value from `7.08` to `99.99` leaves all 24 framework test files at
+zero failures, so the name is load-bearing and the value is pinned by nothing. Direction:
+**flattering**. Fixed by a new enforced tier that fires only when a bare redeclaration is the sole
+reason a symbol was spared — 53 declarations shadow a `src` export, exactly one was load-bearing,
+which is why the repair is 30 lines and not a 53-site migration.
+
+**(xxx) Three of four allowlist reasons named mechanisms that do not exist in the codebase.**
+_(Round 9.)_ `getManifest` — _"callers read the exported array directly"_; the array is `const`, not
+`export const`, so no caller ever could. `INACTIVE_ICON_BUILDERS` — _"portals in the inactive
+state"_; before the deletion the word `inactive` appeared exactly once in `minigames/framework/`, in
+the constant's own name. `HIT_RADIUS` — _"suspected genuine tuning drift"_; it was the losing half of
+a finished world-space to screen-space migration, doc-labelled `legacy` three lines above its live
+replacement. Only `MEAN_TRAVEL_DISTANCE` held. All three failures leaned the same way. This is (xxv)
+and (xxvii) at a third scale — an allowlist reason is a doctrine block with an even better disguise,
+because it sits inside a test file, and the reader's eye grants it the test's authority without the
+test granting it any verification. Direction: **flattering**. Fixed by resolving all four for real
+and emptying `ALLOWED`, with the falsified mechanisms recorded in the file rather than deleted.
+
+**(xxxi) A wrapper existed for the stated purpose of defeating the check, and said so in its own
+docblock.** _(Round 9.)_ `INACTIVE_ICON_BUILDERS` bundled eight dead icon builders — 237 lines —
+behind one exported name, and its docblock explained that this kept them _"while still satisfying the
+repo's unused-symbol checks"_. Eight individually reportable symbols became one; that one was then
+allowlisted and became none. Not a measurement error and not a false verdict: **a structure whose
+function is to reduce a guard's reported count without reducing what the guard exists to find.** It is
+listed here because the register is for things that make the apparatus lie, and a laundering step
+makes it lie more efficiently than any bug in it could. It is also the exact shape of the ~920 lines
+of animal builders that motivated the guard in the first place, which means the defect class survived
+its own countermeasure by wrapping itself. Direction: **flattering**. Fixed by deleting all 237 lines,
+with the recovery route recorded; `tsc` then found `createBox`, a second-order dead helper one level
+away that no reviewer had looked for.
+
+**(xxxii) The round's own fix retired the round's own mutation, and the mutation still passed.**
+_(Round 9.)_ (xxix) was proved by a mutation on the r8 bubble probe. Re-run at the end of the round to
+confirm the new check fires, it passed — the check did not catch the restored hand-copy. The check was
+correct: a _different_ repair in the same round had made `VISIBLE_BAND_HEIGHT` readable inside its own
+module, moving it into the unenforced internal tier before the new check could see it. Filed because
+the failure mode is invisible in exactly the wrong circumstance: **a green run of a check that cannot
+fire is indistinguishable from a green run of a check that can**, and the thing that had disabled it
+was my own commit an hour earlier. Direction: **flattering** — it would have licensed shipping an
+unverified guard while believing it verified. Fixed by extracting `classifyExport` as a pure function
+and proving all six tiers reachable in a test, after first confirming the two enforcing tiers against
+the live repository with a planted-and-removed canary.
+
+**(xxxiii) The probe reported the defect on every run, as a residual it credited to its own model.**
+_(Round 10, and the one that would have been caught soonest by anyone actually reading output.)_
+`.probe/render/r8-species-palette.mjs` prints a self-check — _"worst channel error across 18 recorded
+values"_ — and it read **1 level** for as long as its rig block was a hand-copy. That single level was
+not model error. It was the copy: the probe's `IRRADIANCE` was transcribed from `types.ts:16`, whose
+blue channel is wrong by 0.00067, and the fitted `LIGHT_GAIN = 1.66` had absorbed most of the rest of
+the discrepancy into itself. Importing the real value drops the self-check to **0 levels** —
+predicted before the fix, confirmed after. Direction: **flattering**, in the subtlest available way:
+the probe was disclosing its own contamination, honestly, in its own printed output, while
+**attributing it to the wrong cause**. A residual credited to the wrong term is not a disclosure; it
+is a number that makes a reader feel informed. The rule: **a self-check is only a check if you can say
+what would have to be true for its residual to be zero.**
+
+**(xxxiv) A four-decimal table took one channel from one rounding method and another channel from a
+different one, and nothing in the repository could disagree.** _(Round 10.)_ The exposure budget in
+`environment/setup.ts` printed three rows and a total. Computing at full precision and rounding once
+gives `0.2226, 0.2540, 0.2882`; adding the printed rows as printed gives `0.2225, 0.2540, 0.2883`.
+The total row said `0.2226, 0.2540, 0.2883` — **red from the first method, blue from the second**.
+Both methods are correct, the table never said which it meant, and no reader could have caught the
+mix. That is the entry: not the inconsistency itself, which is worth 0.0001, but that it opened a
+**last-place ambiguity of about 0.00067 in every channel**, and the one genuinely hand-corrupted digit
+downstream — `types.ts`'s blue, `0.2889` — is worth exactly 0.00067 and hid inside it. The tidy
+diagnosis, that `types.ts` had drifted in *both* red and blue, is false; its red is an honest row-sum
+reading. Direction: **flattering** — a derivation stated to four places reads as more rigorous than a
+derivation stated to one, and the extra digits were doing the opposite of rigour. Fixed by making the
+derivation an expression (`reefIrradiance()`) and asserting every printed row against it.
+
+**(xxxv) One header covered two kinds of number that must be handled in opposite ways.** _(Round 10.)_
+`// ── The rig, verbatim from the live scene ───` sat over seven literals. Four were **program
+constants** — things the running game reads, where a copy is a fork with no merge and the only correct
+handling is to import. Three were **recorded observations** — values read off a real rendered frame,
+which are data and must **stay** literals, because a measurement that recomputes itself from current
+code is a tautology, and this probe's entire claim to be trusted is that two fitted terms reproduce
+eighteen recorded values to within a level. Mixing them under one heading is what let a program
+constant sit as a literal for months without anyone flinching, and it is why the fix is a *split
+header* rather than "import everything". Not a wrong number and not a wrong verdict: **a category
+error in the apparatus's own labelling, which made the right handling of each kind unavailable to the
+reader.** Aggravating circumstance, and the reason this is filed against the apparatus rather than the
+author: hand-copying was the only honest option available at the time — every one of the four
+constants was an inline literal inside a function body, and there was nothing to import.
+
+**(xxxvi) The round's own correction was falsified by the round's own test, after being written into
+two source files.** _(Round 10.)_ The mechanism of (xxxiv) was reasoned out, found convincing, and
+committed to prose in `setup.ts` and `types.ts`: that the blue had drifted 0.00067 and the red 0.0001
+"in opposite directions, which is what hand-copying looks like and what no rounding rule produces."
+Then test 5 of `little-shark-rig.test.mjs` ran for the first time and returned
+`expected '0.2541', actual '0.2540'`, and the exact recomputation that followed showed the red had
+never drifted at all. Nothing was wrong with the *verdict* — the blue really was hand-changed — and
+everything was wrong with the *story*, which is the more durable of the two, because it is what the
+next reader inherits. Direction: **flattering**, and specifically flattering to the round writing it.
+Filed because it is the fourth scale at which this review has now recorded one mechanism: doctrine
+blocks (xxvii), allowlist reasons (xxx), a guard's own docblock count (xxviii), and now a correction
+five minutes old. **Prose next to a check inherits the check's authority without inheriting its
+verification, and that stays true when the prose is yours and you have just finished reasoning it
+out.** Fixed by rewriting the prose in all three files, recording the falsification *inside* the
+corrected text per the standing rule against back-editing a stated premise, and rewriting the test to
+check the table against the **expression** rather than against itself.
+
+**(xxxvii) The round's own census was a regex, and it was wrong three times, in three different
+ways, all of them the same way.** _(Round 11.)_ The instrument built to measure how the corpus obtains
+shipped constants matched `(?:const|let) +([A-Z][A-Z0-9_]*) *= *(...)` over raw source, and therefore
+counted: eight bindings inside **the resolvers' own regex literals** (`/export const PROXIMITY_PX = (\d+)/`
+— i.e. it counted the search for copies as copies); one inside a **template-literal error message** in
+`noUnusedExports.test.mjs`, which is the string warning authors not to do this; and one inside a
+**docblock** in `little-shark-dodge.test.mjs` that quotes the declaration it documents while importing
+the real one nine lines later. Direction: **inflating**, and inflating in favour of the round — a
+larger population is a better finding. Corrected by hand mid-round (16 real bindings, not 24), and
+then structurally: the guard that shipped is an AST walk over `ts.createSourceFile`, which cannot make
+any of the three mistakes, **because a comment is not a node and a string is not an initializer.** The
+sharpest thing about this entry is its subject: the round arguing that source must be *imported rather
+than pattern-matched* was pattern-matching source to make the argument.
+
+**(xxxviii) The round's stated hypothesis about the resolvers was falsified, in the flattering
+direction, by the code being better than predicted.** _(Round 11.)_ Written down before measuring: that
+the seven duplicated `shippedProximityPx()` readers would carry a silent fallback, defaulting to 70 on
+a miss and sailing on. Every one of them throws, with a message that names the file, says what to do,
+and explicitly forbids guessing. Filed as an instrument defect and not as a happy surprise, because the
+prediction was doing work: it was the reason the resolvers were classed as *dangerous* rather than as
+*capped*, and a round that had not written the prediction down would have quietly inherited its
+conclusion while believing it had measured one. The real objection to a resolver survived — a regex
+cannot read a constant that becomes an expression — but it is a **ceiling**, not a trap, and those
+warrant different urgency. Recorded per the standing discipline of stating the suspected mechanism
+before measuring **so that measurement retains the ability to embarrass you.**
+
+**(xxxix) Two rounds counted this population, both counts were right, and both sentences described a
+different population than the one counted.** _(Round 11, against Rounds 9 and 10.)_ Round 9:
+"`PROXIMITY_PX` is hand-copied **13 times** across the probes." Round 10: "**Eight hits** […] **Seven**
+are `PROXIMITY_PX = 70`." Both numbers reproduce exactly — 13 is the probe files that obtain the
+constant locally (6 literals + 7 resolvers), 7 is the bespoke-resolver files. Neither sentence is true
+of what it counted: Round 9's "hand-copied" silently unions two mechanisms needing opposite fixes, and
+Round 10's seven are resolvers, not `= 70` literals, of which there are six — its own stated predicate
+returns 6 and its headline returns 7, not 8. Direction: **flattering**, by making a four-mechanism
+seventeen-site population read as a handful of sloppy literals — which is why it was *filed* rather
+than fixed, and why the round dispatched to fix it was briefed wrong. Neither number was checked by
+anything, in a document that by then contained thirty-six entries about numbers not being checked by
+anything. Fixed by decomposing the population exactly, in the round text, and by leaving both original
+sentences standing with the correction beside them, per the rule against back-editing a stated premise.
+
+**(xl) The round committed, mid-flight, the exact defect it was written to diagnose.** _(Round 11.)_
+Having migrated fifteen sites to `bundleEntry`, and "for consistency", thirteen of them were switched
+from the `./src/…` specifier form to the `@app/…` alias. The corpus uses `./src/…` **473 times** and
+the aliases **37**; inside `.probe/` it is 420 against 31. So a round whose central finding is *a
+migration that stops partway leaves two conventions and gives the majority to the wrong one* had just
+moved thirteen files onto the 10% convention, and was one commit from shipping it under the word
+"consistency". It was caught only because a grep for stragglers returned the stragglers as **the
+majority**. Direction: **flattering** — it would have shipped as tidying. Reverted; the thirteen probes
+match their 420-strong local convention and the one test file keeps `@app`, matching the six sibling
+specifiers in its own `bundleEntry` call. **And there is a tail to this entry, which is the entry
+again.** The first counts written into this paragraph were 460 and 50, taken from a grep run while the
+thirteen edited files were still edited — a distribution measured on the mutated tree and quoted as
+the baseline. Reverting first and re-measuring gives 473 and 37. So the sentence demanding the
+distribution be on the screen was, in its first draft, reporting a distribution that included the
+change it was arguing against. The lesson is not "pick a convention", it is that
+**"for consistency" is a claim about a distribution, and it is worthless until the distribution is on
+the screen.**
+
+**(xli) The round's closing verification sweep falsified three of the round's own freshly-written
+numbers, and was itself wrong about one of them.** _(Round 11.)_ The write-up was finished and about to
+be committed when a sweep re-ran its figures. It reported 530 SHOUT_CASE numeric exports against the
+stated 488, 191 corpus files against 190, and 85 bare-`70` lines against 44. Two of the three were
+straightforward: 190 was measured before this round's own guard file existed and 44 came from a grep
+that was reading 48 PNGs and 10 probe `.txt` logs as source — the round about instruments counting
+their own reflection had counted a probe's recorded output as a copy of the constant that probe was
+measuring. The third was not straightforward, and matters more: **488 was never wrong.** It is the
+distinct-name count, exactly what the guard consults; 530 is the export-site count. The sweep sent to
+falsify a number under-specified predicate had itself supplied a different predicate and reported a
+contradiction. Direction: **inflating the error** — the correction was more wrong than the text it
+corrected, and had it been applied as instructed, a correct number would have been replaced by a
+number that did not describe the guard's behaviour. Fixed by publishing all three counts as a table
+with a predicate on each row rather than choosing between them. Recorded here rather than as a
+correction-beside, because unlike the Round 9 and 10 corrections this text had never been committed
+and so was never a record anyone relied on — but the register is where the episode survives, and
+deleting a wrong number from a draft is not the same as never having written it.
+
+**(xlii) Chasing the discrepancy in (xli) found a real defect in the guard that had already passed
+mutation testing, an anti-vacuity test, and a full-suite run.** _(Round 11.)_ The 530-vs-488 gap is 42
+repeat declarations, and asking what happened to them exposed that `shippedConstants` was a plain
+`found.set(name, …)` Map: when two modules export the same name with different values, **the last one
+the directory walk reached silently won**. Twenty-eight names are in that state. `CEILING_Y` is 6.2 in
+the kitchen and living room and 6.75 in the playroom; `BODY_HEIGHT` is 0.15 on a butterfly and 0.18 on
+a parrot. A probe binding `const CEILING_Y = 6.2` would have been reported as
+`ALREADY DRIFTED, src says 6.75`, citing the playroom — **a false accusation of drift, about a file the
+author never touched, with the cited authority chosen by filesystem ordering.** The guard was green
+only because no corpus file happens to bind one of the twenty-eight today; the second test asserted
+`shipped.size > 100` and never asked what `.size` had collapsed. Direction: **flattering** — it shipped
+as a working guard. Fixed by splitting the map into `shipped` and `ambiguous`, declining to judge the
+ambiguous, adding a fourth test that fails if the collision path is ever unexercised, and stating the
+blind spot in the footer. The mutation test confirms the fourth test catches the original behaviour.
+The lesson this one adds: **an anti-vacuity check proves the instrument is looking at something; it
+does not prove the instrument's data structure can represent what it is looking at.** A `Map` keyed by
+name encodes the assumption that a name identifies a thing, and that assumption was false 28 times
+before the first assertion ran.
+
 ### What the register is for
 
-Fourteen instrument defects against roughly a dozen product defects. Nine of the fourteen — (i),
-(iii), (iv), (v), (vi), (vii), (xii), the idle hazard, and (xiv) — could have produced a **confident
-wrong verdict**, and four of those nine would have produced a wrong verdict _in the direction that
-flattered the round_: a pass. That ratio is the single most useful thing this review has learned, and
-it is the reason the standing rule is not "measure before you claim" but the stricter one:
-**interrogate whether your instrument can produce the failure it reports — and the false pass it
-could produce.**
+Forty-two instrument defects against roughly a dozen product defects. Thirty-five of the
+forty-two — (i), (iii), (iv), (v), (vi), (vii), (xii), the idle hazard, (xiv), all five of Round
+5's, (xx), all four of Round 7's, (xxv), (xxvii), all five of Round 9's, all four of Round 10's, and
+five of Round 11's six — could have produced a **confident wrong verdict**, and twenty-six of those
+thirty-five would have produced a wrong verdict _in the direction that flattered the round_: a pass.
+
+Round 11's exceptions are instructive about why the others are the rule. (xxxviii) and (xli) are the
+only two entries in forty-two where the instrument erred in the direction that made things look
+**worse** than they were — a prediction that the resolvers hid a silent fallback, refuted by seven
+resolvers that all throw; and a verification sweep that reported a correct number as wrong because it
+had quietly substituted its own predicate. They are also the only two that were caught **before** they
+could reach a verdict, and the mechanism is the same in both: the claim was written down where
+something else could reach it. (xxxviii) was a prediction recorded before measuring, so measurement
+could embarrass it. (xli) was a sweep whose *output was read* rather than applied, so the text could
+embarrass the sweep. Everything in this register that reached a verdict got there by being the last
+word on itself.
+
+And (xlii) is the reason (xli) belongs here at all. A wrong correction is normally just noise to be
+discarded; this one was noise that, when its own discrepancy was chased instead of dismissed, exposed
+a live defect in a guard that had already passed a mutation test, an anti-vacuity test, and a
+428-test suite. Two of the three numbers the sweep challenged were genuinely wrong, one was not, and
+**the one it was wrong about was the one worth investigating.** The discipline this argues for is not
+"trust the sweep" and not "trust the text" — it is that a disagreement between two measurements is
+itself a measurement, and the cheapest thing to do with it is the thing that gets done least: find out
+which predicate each one used before deciding who was right.
+
+Round 9 did not move that ratio so much as explain it. All five of its entries are flattering, and
+four of the five share one mechanism: **a true sentence written next to a check, inheriting the
+check's authority without inheriting any of its verification.** A docblock count the test refutes on
+every run. An over-approximation that names its safe direction and not its trigger. Three allowlist
+reasons describing programs that never existed. The prose is not decoration around the instrument —
+in this repository it is load-bearing, and it is the only part of the instrument that nothing runs.
+
+Round 10 supplies the case that closes the argument, because in it the unverified prose is **mine, and
+five minutes old**. (xxxvi) is a correction to a defect, written by the round that found the defect,
+reasoned carefully, committed to two source files, and false — refuted by the first run of the test the
+same round wrote to pin it. No amount of care in the writing substitutes for something that runs. That
+is also why (xxxiii) belongs beside it: the probe was printing its own contamination as a number, every
+run, and the number was believed to mean something else. **Between an honest disclosure and an
+enforced one, only the second survives contact with an author who is confident.**
+
+That ratio is the single most useful
+thing this review has learned, and it is the reason the standing rule is not "measure before you
+claim" but the stricter one: **interrogate whether your instrument can produce the failure it
+reports — and the false pass it could produce.**
+
+Round 7 is the first to contribute defects in the OTHER direction that were not merely harmless.
+(xxii) and (xxiii) each condemned code that ships — three scenes and two camera helpers — and unlike
+the wrong-fail of (xviii), acting on them would have left the build green. A wrong fail that deletes
+a working feature and passes CI is not the safe direction; it is the same false confidence pointed at
+the product instead of the verdict.
+
+Round 5 added a second direction the earlier tally had no room for, and it is worth stating on its
+own because the instinct it defeats is a good one. **(xviii) produced a confident wrong FAIL** —
+nine rows failing a bar that applied to two — and a wrong fail looks harmless beside a wrong pass,
+since nobody ships on the strength of one. But the natural response to a bar that fails on props
+nobody touched is to conclude the bar is too strict and relax it, and a relaxed bar is a false pass
+with the evidence removed. **(xix)** is the same hazard one turn further on: a bar whose scope was
+too narrow did not merely mismeasure the stone, it applied _pressure toward a worse fix_, because the
+cheapest way to satisfy it was to draw fairy sparkle over soil. An instrument that can be satisfied
+by making the product worse is more dangerous than one that is merely wrong, because it is
+persuasive. So the standing rule grows a clause: **ask what the cheapest way to satisfy your bar
+would do to the product, and whether a failing bar's most natural repair is a repair to the bar.**
+
+Round 6 adds the clause that the previous nineteen entries could not have produced, because they all
+assume the instrument runs. **An instrument nobody invokes has no defects, and no value either.**
+Every hazard in this register — false pass, false fail, malformed scope, pressure toward a worse fix
+— presupposes a measurement actually taken. Five rounds were spent making the measurements
+trustworthy and none on making them unavoidable, and the gap between those two was wide enough for
+the Round 3 defect to walk back through wearing a pass. So the standing rule takes a final clause:
+**after you have proven the instrument, prove that something other than your own memory runs it.**
+
+Round 7 closes the loop that clause opened, and the closing is uncomfortable. Something _did_ run the
+module-reachability guard. It ran on every commit, it passed every time, and roughly 920 lines of
+finished, uncalled animal builders sat inside a file it had just certified as live. The guard was not
+broken and was not skipped. It was answering a narrower question than its green tick appeared to
+answer, and **a pass looks identical whether the question was broad or narrow.**
+
+That is the last blind spot the previous clauses leave open. Proving an instrument works, and proving
+something runs it, together still say nothing about what it declines to ask. The scope of a check is
+invisible from its output, and it is invisible precisely at the moment of success — which is the
+moment nobody is looking. So the standing rule takes its last clause: **state what an instrument does
+not check, inside the instrument, next to a NUMBER for what it is missing.**
+
+The number is the whole of it. This guard already disclosed this exact gap in prose, at lines 20–31,
+and I had read those lines in an earlier round and did not go looking. A disclosed limit carrying no
+magnitude reads as a footnote. `920 lines` would have read as an alarm.
+
+Round 8 takes that clause and turns it over. If a number is what makes a limit legible, a number is
+also what makes a wrong claim credible — and every wrong claim of Round 8 arrived with one attached.
+`17 consumers` sat inside a guard for months and was false. `5, 3, 4` were the register's own first
+draft, and were module counts wearing symbol counts' clothes. Three doctrine blocks were written from
+remembered figures and all three were falsified within the hour.
+
+The common defect is not carelessness, it is that **the quantity was never tied to the claim.** An
+importer count of 2 and an importer count of 17 say the same thing about whether a migration was
+adopted — nothing — because this repo finishes migrations by rewriting the old function's body onto
+the new engine and leaving its name alone, so the module that runs everything keeps the two importers
+it started with. Six of seven seams read as abandoned and were finished. The count was real; it
+answered a question nobody had asked.
+
+So the standing rule's last clause needs one behind it: **a number is not a measurement until you can
+say what would have to be true of the world for it to come out differently.** For an adoption count,
+that is the delegation question — _does the old API call the new one?_ — and it is the one thing an
+importer count structurally cannot answer, which is why the register asserts the delegation edges
+themselves rather than inferring them. `920 lines` reads as an alarm. `17 consumers` read as an alarm
+too, and there was no fire.

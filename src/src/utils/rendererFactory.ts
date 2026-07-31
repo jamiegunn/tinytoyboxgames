@@ -30,6 +30,19 @@ export interface RendererOptions {
 }
 
 /**
+ * ACES filmic exposure, applied to every scene in the project.
+ *
+ * Named rather than inlined because it is not a renderer detail: it is the last
+ * term in the colour chain, so every rendered figure recorded anywhere in this
+ * repository — the fish palette in `little-shark/types.ts`, the sand and slope
+ * measurements in `terrain.ts`, the region ablation table — is a measurement
+ * taken THROUGH this number. Round 10 found it hand-copied into a probe as
+ * `const EXPOSURE = 1.15; // utils/rendererFactory.ts:50-52`, which was the only
+ * honest option available at the time because there was nothing to import.
+ */
+export const TONE_MAPPING_EXPOSURE = 1.15;
+
+/**
  * Creates a WebGLRenderer with the app-wide quality configuration applied.
  *
  * @param canvas - The target canvas element.
@@ -49,7 +62,7 @@ export function createConfiguredRenderer(canvas: HTMLCanvasElement, options: Ren
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
+  renderer.toneMappingExposure = TONE_MAPPING_EXPOSURE;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = PCFSoftShadowMap;
   return renderer;

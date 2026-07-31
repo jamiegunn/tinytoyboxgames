@@ -38,11 +38,46 @@
  * Run from inside the package: `node .probe/gameplay/r8-bubble-sway-lever.mjs`
  */
 
-const SWAY_COEFF = 0.3; // the literal `* 0.3` in updateBubbleMotion
-const VISIBLE_BAND_HEIGHT = 7.08; // types.ts — world units spanning the 60deg fov
-const SIZE_VARIANTS = [0.2, 0.32, 0.45]; // types.ts — rendered bubble radii
-const PROXIMITY_PX = 70; // gestureRules.ts — tap-forgiveness radius
-const WOBBLE_TAP_TOLERANCE_PX = 28; // gestureRules.ts — smear-tap slop
+// These five used to be hand-copied literals with `// types.ts —` comments
+// pointing at their sources. Four of them are now imported from those sources
+// instead, and the numbers are unchanged — this is a repair to how the probe
+// READS its inputs, not a revision of what it measured. Round 9 found the
+// reason: a hand-copy is not merely untidy, it is load-bearing in the wrong
+// direction. `noUnusedExports.test.mjs` counts any identifier appearing in the
+// test/probe corpus as a use, so `const VISIBLE_BAND_HEIGHT = 7.08` here was
+// the only thing keeping the real export out of the enforced dead list — a
+// duplicate of a tuning number was silencing the guard against unused tuning
+// numbers. Verified by mutation: renaming this local, touching nothing under
+// src/, makes the export fail the guard.
+//
+// THAT MUTATION NO LONGER REPRODUCES, and the sentence above is left standing
+// because it was true of the tree it was run against. What retired it was a
+// second repair in the same round: `VISIBLE_BAND_HEIGHT` is now READ inside its
+// own module (MIN_FLOAT_SPEED and MAX_FLOAT_SPEED derive from it in code rather
+// than in prose), so it has left the tier this probe's copy was silencing and
+// entered the exported-but-internal tier, which nothing enforces. Re-running the
+// rename today therefore proves nothing — not because the finding was wrong, but
+// because the finding was fixed twice over from two directions at once.
+//
+// The lesson is about evidence, not about this constant: a mutation is a
+// statement about a tree, and a tree edited by the same round can stop being the
+// tree the statement was about. The laundering check in noUnusedExports.test.mjs
+// is consequently verified against a synthetic canary it plants and removes,
+// not against this file — see the test named "this laundering check can
+// actually fire".
+//
+// SWAY_COEFF stays a literal because it IS one: `* 0.3` written inline in
+// updateBubbleMotion, exported by nothing. That it cannot be imported is the
+// finding, not an exception to it.
+import { bundleEntry } from '../../tests/framework/_tsload.mjs';
+
+const { VISIBLE_BAND_HEIGHT, SIZE_VARIANTS, PROXIMITY_PX, WOBBLE_TAP_TOLERANCE_PX } = await bundleEntry(
+  'r8_bubble_sway_inputs',
+  `export { VISIBLE_BAND_HEIGHT, SIZE_VARIANTS } from './src/minigames/games/bubble-pop/types';
+   export { PROXIMITY_PX, WOBBLE_TAP_TOLERANCE_PX } from './src/utils/interaction/gestureRules';`,
+);
+
+const SWAY_COEFF = 0.3; // the literal `* 0.3` in updateBubbleMotion — not exported by anything
 
 // Live values (types.ts) and the curve endpoints (balance.ts).
 const LIVE = { A: 0.6, F: 1.2, label: 'live constants' };

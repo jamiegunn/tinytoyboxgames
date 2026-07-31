@@ -16,12 +16,12 @@
  */
 
 import type { Color, Vector3, PerspectiveCamera, Mesh } from 'three';
-import type { CameraDescriptor } from '@app/utils/camera';
-import type { LightingDescriptor, LightingRig } from '@app/utils/lighting';
+import type { CameraDescriptor } from '@app/utils/camera/cameraDescriptor';
+import type { LightingDescriptor, LightingRig } from '@app/utils/lighting/lightingRig';
 import type { SkydomeOptions } from '@app/utils/skyRig';
 import type { FrameClock } from '@app/utils/frameClock';
 import type { DisposalScope } from '@app/utils/disposal';
-import type { InteractionController, InteractionAudio } from '@app/utils/interaction';
+import type { InteractionController, InteractionAudio } from '@app/utils/interaction/interactionController';
 import type { SceneId } from '@app/scenes/sceneCatalog';
 
 /** The ground plane of a scene. */

@@ -43,16 +43,6 @@ export interface SceneCameraPresetDefinition {
 }
 
 /**
- * Returns the mini-game ids that a scene is allowed to launch.
- *
- * @param sceneId - Registered scene identifier.
- * @returns Read-only array of game ids registered for that scene.
- */
-export function getGamesForScene(sceneId: SceneId): readonly string[] {
-  return SCENE_CATALOG[sceneId].games ?? [];
-}
-
-/**
  * Returns true when a scene is allowed to launch the given game.
  *
  * @param sceneId - Registered scene identifier.
@@ -63,6 +53,16 @@ export function isGameInScene(sceneId: SceneId, gameId: string): boolean {
   const games: readonly string[] = SCENE_CATALOG[sceneId].games ?? [];
   return games.includes(gameId);
 }
+
+// NOT HERE DELIBERATELY: getGamesForScene(sceneId).
+//
+// It returned `SCENE_CATALOG[sceneId].games ?? []` and nothing called it. The
+// line directly above re-inlines that same expression rather than calling it,
+// which is the tell: the accessor existed, the one place that wanted the value
+// did not use it, and neither reader noticed the other.
+//
+// If a caller ever needs the list rather than a membership test, restore it AND
+// make isGameInScene call it, so the two cannot drift apart again.
 
 /** Optional scene-level music and ambient bed identifiers. */
 export interface SceneAudioDefinition {
@@ -251,9 +251,6 @@ void _sceneDefinitionContract;
 /** Default scene loaded when a route is absent or invalid. */
 export const DEFAULT_SCENE_ID: SceneId = 'playroom';
 
-/** Stable array of scene ids for route validation and tooling. */
-export const SCENE_IDS = Object.keys(SCENE_CATALOG) as SceneId[];
-
 /**
  * Returns true when the provided string matches a registered scene id.
  *
@@ -263,6 +260,18 @@ export const SCENE_IDS = Object.keys(SCENE_CATALOG) as SceneId[];
 export function isSceneId(candidate: string): candidate is SceneId {
   return candidate in SCENE_CATALOG;
 }
+
+// NOT HERE DELIBERATELY: SCENE_IDS.
+//
+// It called itself the "stable array of scene ids for route validation and
+// tooling". Route validation is `isSceneId` immediately above, which asks
+// `candidate in SCENE_CATALOG` and needs no array. There was no tooling. Nothing
+// imported it.
+//
+// Two derived lists of one truth is one too many: the moment a scene is added,
+// SCENE_IDS and SCENE_CATALOG can disagree, and the array is the one that reads
+// as authoritative. If an array is genuinely needed later, derive it at the call
+// site rather than restoring a second source of truth.
 
 /**
  * Looks up the lazy loader for a scene.

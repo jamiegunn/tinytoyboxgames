@@ -187,8 +187,8 @@ The game depends on abstractions (`MiniGameContext`, `EntityPool<T>`, `AudioBrid
 
 Cross-cutting concerns live in `@app/minigames/shared/`:
 
-- `materials` — reusable material factories (e.g., `createBubbleMaterial`)
-- `meshBuilders` — common geometry (e.g., `buildSkyGradient`)
+- `materials` — reusable material factories (e.g., `createCoralMaterial`, `createLeafMaterial`). Not bubbles: this game's shader is its own, in `bubbles/bubbleMaterial.ts`, and the shared `createBubbleMaterial` it forked from was removed once the fork left it with no consumers.
+- `meshBuilders` — common geometry (e.g., `buildDetailedTree`). buildSkyGradient was removed on 2026-07-31 as an uncalled export; sky comes from utils/skyRig.ts.
 
 Particle effects come from the per-scene ParticleEngine (`@app/utils/particles`,
 see `docs/ai-guidance/architecture-standards.md#particleengine`): call
@@ -231,7 +231,7 @@ All spawn timing is delegated to `context.spawner`. The framework handles timer 
 ### Shared Libraries (cross-game reuse)
 
 - `@app/minigames/shared/materials` — entity material factories
-- `@app/minigames/shared/meshBuilders` — sky gradients, common geometry
+- `@app/minigames/shared/meshBuilders` — common geometry. Not sky gradients any more: buildSkyGradient was removed on 2026-07-31 as an uncalled export, and sky comes from `utils/skyRig.ts`. (Plain text, not backticks, deliberately — readme-citations.test.mjs reads backticks as a claim that the name exists, and it caught this line the first time it was written.)
 - `@app/utils/particles` — per-scene ParticleEngine (`getParticleEngine(scene).emit(PARTICLES.x, pos)`)
 
 ### Internal (game-specific)

@@ -54,7 +54,7 @@
 import { Vector3 } from 'three';
 import type { SceneId } from '@app/scenes/sceneCatalog';
 import type { LightingConfig } from '@app/utils/sceneHelpers';
-import type { LightingDescriptor } from '@app/utils/lighting';
+import type { LightingDescriptor } from '@app/utils/lighting/lightingRig';
 import { NATURE_ENVIRONMENT, NATURE_SKY_FOG } from '@app/scenes/immersive-toybox-scenes/naturescene/environment';
 import { PIRATE_COVE_ENVIRONMENT, PIRATE_COVE_SKY_FOG } from '@app/scenes/immersive-toybox-scenes/pirate-cove/environment';
 import type { SceneDescriptor } from './sceneDescriptor';

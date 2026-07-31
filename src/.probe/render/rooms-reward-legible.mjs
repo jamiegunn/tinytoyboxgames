@@ -185,24 +185,23 @@ import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { bundleEntry } from '../../tests/framework/_tsload.mjs';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-/**
- * Reads a shipped constant instead of restating it.
- *
- * @param file - Path under the package's `src`.
- * @param name - Exported constant name.
- * @returns The number.
- */
-const shipped = (file, name) => {
-  const src = readFileSync(path.join(packageRoot, 'src', file), 'utf8');
-  const m = new RegExp(`export const ${name} = (\\d+(?:\\.\\d+)?)`).exec(src);
-  if (!m) throw new Error(`${name} is no longer an exported numeric constant in ${file}`);
-  return Number(m[1]);
-};
-
-const PROXIMITY_PX = shipped('utils/interaction/gestureRules.ts', 'PROXIMITY_PX');
+// PROXIMITY_PX is IMPORTED, not restated. Round 11 found this one constant
+// obtained four different ways across seventeen sites — six hard literals, eight
+// hand-rolled regex resolvers, and two real imports — with the correct mechanism
+// already present and adopted twice. A regex over the source cannot survive the
+// constant becoming an expression; a literal cannot survive anything.
+//
+// The bundle slug is deliberately shared with the twelve sibling probes that
+// need the same constant. bundleEntry emits `.tstest-tmp/entry_<slug>.bundle.mjs`,
+// so a shared slug means a shared temp file — safe here only because the entry
+// source below is byte-identical everywhere it appears. If you change this
+// entry, change it in all of them or give yours a different slug.
+const RULES = await bundleEntry('r11_gesture_rules', `export { PROXIMITY_PX } from './src/utils/interaction/gestureRules';`);
+const PROXIMITY_PX = RULES.PROXIMITY_PX;
 const STEADY_PX = 24;
 const AMBIENT_MARGIN = 4;
 
@@ -301,8 +300,19 @@ const answerFailures = [];
  *
  * Bar (d) compares a hit's burst against the miss's burst, so the miss's burst has
  * to come from the miss's own source. If `missAcknowledgement.ts` ever emits
- * something else, this throws instead of silently grading against a stale name —
- * the same rule as `shipped()` above: no default, no fallback.
+ * something else, this throws instead of silently grading against a stale name:
+ * no default, no fallback.
+ *
+ * This one stays a source read on purpose, and it is worth saying why, because
+ * round 11 replaced the OTHER reader in this file — a generic `shipped(file,
+ * name)` regex that fetched PROXIMITY_PX — with a real import. The difference is
+ * what is being asked. PROXIMITY_PX is a VALUE the probe needs, so importing it
+ * is strictly better: an import survives the constant becoming an expression and
+ * a regex does not. This block asks a question about the SHAPE of the source —
+ * that exactly one preset is emitted, and that it is emitted with no overrides —
+ * and no import can answer that. A claim about how code is written has to read
+ * the code. That is the line round 11 drew, and it is the reason this file now
+ * contains one of each.
  */
 const MISS_PRESET = (() => {
   const src = readFileSync(path.join(packageRoot, 'src', 'utils/interaction/missAcknowledgement.ts'), 'utf8');

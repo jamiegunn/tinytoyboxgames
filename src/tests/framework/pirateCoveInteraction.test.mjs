@@ -52,12 +52,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PerspectiveCamera, Scene, Group, Mesh, SphereGeometry, MeshStandardMaterial, MeshBasicMaterial, Vector3, Box3, Raycaster } from 'three';
 import gsap from 'gsap';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { bundleEntry } from './_tsload.mjs';
 
-const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SCAFFOLD = '@scenes/immersive-toybox-scenes/pirate-cove/factory/scaffold';
 
 const M = await bundleEntry(
@@ -69,20 +65,14 @@ const M = await bundleEntry(
     `export { createOcean, OCEAN_Y } from '${SCAFFOLD}/sea/create';`,
     `export { setupSeaTap } from '${SCAFFOLD}/sea/interaction';`,
     `export { createSeaRipples } from '${SCAFFOLD}/sea/ripple';`,
+    `export { PROXIMITY_PX } from '@app/utils/interaction/gestureRules';`,
   ].join('\n'),
 );
 
-/**
- * The shipped proximity radius, read out of source rather than typed in — the
- * whole point of tests C1/C2 is that the ripple tracks THIS number, so a copy of
- * it here would make them tautological.
- */
-const PROXIMITY_PX = (() => {
-  const src = readFileSync(path.join(packageRoot, 'src/utils/interaction/gestureRules.ts'), 'utf8');
-  const m = /export const PROXIMITY_PX = (\d+(?:\.\d+)?)/.exec(src);
-  if (!m) throw new Error('PROXIMITY_PX not found in gestureRules.ts — fix this test, do not guess');
-  return Number(m[1]);
-})();
+// The shipped proximity radius, IMPORTED — tests C1/C2 assert the ripple tracks
+// THIS number, so a copy here would make them tautological. Round 11 replaced a
+// local regex reader with the same bundle the rest of this file already loads.
+const { PROXIMITY_PX } = M;
 
 const WIDTH = 1280;
 const HEIGHT = 720;

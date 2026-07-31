@@ -3,7 +3,9 @@
  * All sounds are procedurally generated via Web Audio synthesis — no audio files.
  */
 
-import { playTone, playFilteredNoiseBurst, playFreqSweep, midiToFreq, pentatonicScale, pick, rand } from '@app/assets/audio/utils/synthHelpers';
+// `rand` left with the scurry when it moved to `shared/critterSounds.ts` — it
+// was this file's only consumer of it.
+import { playTone, playFilteredNoiseBurst, playFreqSweep, midiToFreq, pentatonicScale, pick } from '@app/assets/audio/utils/synthHelpers';
 
 /** Minimum fade-in time in seconds to avoid clicks (per spec). */
 const MIN_ATTACK_S = 0.005;
@@ -117,31 +119,13 @@ export function playSfxHubMusicPlayerTune(ctx: AudioContext, dest: AudioNode): v
   }
 }
 
-/**
- * Plays a whimsical tiny scurry sound (like small creature feet).
- * Duration: ~0.7s. Quick bursts of high-frequency filtered noise with rapid on-off envelope pattern.
- *
- * @param ctx - The Web Audio context
- * @param dest - The destination AudioNode to connect output to
- */
-export function playSfxHubAmbientScurry(ctx: AudioContext, dest: AudioNode): void {
-  const now = ctx.currentTime;
-
-  // Create a rapid series of tiny noise bursts to simulate scurrying feet
-  const burstCount = pick([5, 6, 7, 8]);
-  const totalDuration = rand(0.5, 0.9);
-  const burstSpacing = totalDuration / burstCount;
-
-  for (let i = 0; i < burstCount; i++) {
-    const burstFreq = rand(3000, 5000);
-    const burstTime = now + i * burstSpacing;
-    const burstAttack = MIN_ATTACK_S;
-    const burstRelease = burstSpacing * 0.5;
-    const burstGain = rand(0.06, 0.12);
-
-    playFilteredNoiseBurst(ctx, dest, burstFreq, 3, burstAttack, burstRelease, burstGain, burstTime);
-  }
-}
+// `playSfxHubAmbientScurry` USED TO LIVE HERE. It moved to
+// `shared/critterSounds.ts` as `playSfxSharedCritterScurry` in Round 5, because
+// its first two callers turned out to be in the Nature scene — the ladybug
+// under a leaf and the grub under a stone — and a `sfx_hub_*` id heard only in
+// the forest is a lie told to the next reader. It was unreferenced when it
+// moved (zero call sites anywhere), so nothing changed but the address. The hub
+// may still call it; that is what `shared/` is for.
 
 /**
  * Plays a toy train horn — a cheerful two-tone toot.

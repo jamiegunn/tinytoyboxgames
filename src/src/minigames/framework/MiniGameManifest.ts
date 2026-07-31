@@ -113,17 +113,17 @@ const manifest: MiniGameManifestEntry[] = [
   // __MINIGAME_GENERATOR_ENTRY_MARKER__
 ];
 
-/**
- * Returns the full mini-game manifest as a read-only array.
- *
- * @returns All registered mini-game manifest entries.
- */
-export function getManifest(): ReadonlyArray<MiniGameManifestEntry> {
-  // Return a copy so callers can never mutate the canonical registry — the
-  // manifest is a static, generator-owned catalog (like SCENE_CATALOG), not a
-  // runtime-mutable list. The `registerManifestEntry` escape hatch was removed.
-  return [...manifest];
-}
+// NOT HERE DELIBERATELY: `getManifest(): ReadonlyArray<MiniGameManifestEntry>`,
+// which returned `[...manifest]` so callers could not mutate the registry.
+// Nothing ever called it. The allowlist entry that parked it said "callers read
+// the exported array directly" — that was never possible: `manifest` above is
+// declared `const`, not `export const`, so there is no direct read to prefer.
+// Both importers of this module take `getGameEntry` (SceneRouter.tsx:4,
+// MiniGameRouter.tsx:2) and neither wants the whole list.
+//
+// The defensive copy it existed to provide is not owed to anyone yet. If a
+// caller ever does need the whole catalog, reinstate this rather than exporting
+// `manifest` — a shared mutable array is the failure the copy was guarding.
 
 /**
  * Looks up a single manifest entry by mini-game identifier.

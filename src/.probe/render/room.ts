@@ -975,6 +975,45 @@ const handlerKeys = new Map<unknown, number>();
  */
 const PRESET_KEYS: ReadonlyMap<unknown, string> = new Map(Object.entries(PARTICLES).map(([key, preset]) => [preset as unknown, key]));
 
+/**
+ * The exact argument tuples of the last muted fire, kept so the burst a prop asked
+ * for can be REPLAYED into the live engine and measured.
+ *
+ * 2026-07-30, Round 5 — WHY THIS EXISTS. Bar (d)'s deduction (see `__reactionScan`)
+ * exempts a prop that draws the miss's own burst unmodified, and `room.ts` has
+ * always been explicit that the deduction is unavailable for a prop that "emits
+ * something else". Round 5 shipped exactly such a prop: the stone answers a tap
+ * with `sceneDust`, because a stone grinding through soil raises dust and not
+ * fairy sparkle, and the previous instrument could say nothing about whether that
+ * dust is worth as much picture as the sparkle it replaced. So the ratio was
+ * applied to it, and a prop was one arithmetic step from being told to draw a
+ * worse-fitting effect in order to satisfy a measurement — the tail wagging the
+ * dog, in the only way that actually matters.
+ *
+ * The replay closes it. The serialized `asked` deliberately loses information —
+ * `tinted` is a boolean where the real override is a colour array — so a replay
+ * built from it would be an approximation of the thing under test. These are the
+ * arguments themselves, untouched, never crossing the evaluate boundary.
+ */
+let lastAskedRaw: Array<Parameters<typeof particles.emit>> = [];
+
+/**
+ * Re-emits the last muted fire's bursts into the LIVE engine, changing nothing else.
+ *
+ * Fired with gsap frozen and the tween window closed, so the pixels that follow are
+ * the prop's own burst and nothing else — the same conditions under which the miss's
+ * reference burst is measured, which is the whole point: two numbers are only
+ * comparable if they were taken the same way.
+ *
+ * @returns How many bursts were replayed. Zero means the prop asked for nothing —
+ *   which the caller must treat as "no evidence", not as "measured and found empty",
+ *   since a zero-burst prop and a prop whose handler threw produce the same count.
+ */
+(window as unknown as { __replayAsked?: () => number }).__replayAsked = () => {
+  for (const args of lastAskedRaw) particles.emit(...args);
+  return lastAskedRaw.length;
+};
+
 (
   window as unknown as {
     __firePropMuted?: (index: number) => Array<{ at: [number, number, number]; preset: string; count: number | null; tinted: boolean }>;
@@ -986,8 +1025,15 @@ const PRESET_KEYS: ReadonlyMap<unknown, string> = new Map(Object.entries(PARTICL
   if (!entry) throw new Error(`no registered target at index ${index}`);
   const [object, { handler }] = entry;
   const asked: Array<{ at: [number, number, number]; preset: string; count: number | null; tinted: boolean }> = [];
+  // Reset per fire, and reset HERE rather than after a successful handler call, so a
+  // handler that throws leaves an empty replay buffer instead of the previous prop's.
+  lastAskedRaw = [];
   const saved = particles.emit;
   particles.emit = (preset, position, overrides) => {
+    // `position` is cloned: the engine's callers routinely hand it a scratch vector
+    // they go on to mutate, and a replay of a mutated vector would draw the burst
+    // somewhere the prop never asked for.
+    lastAskedRaw.push([preset, position.clone(), overrides]);
     asked.push({
       at: [position.x, position.y, position.z],
       // An unrecognised preset is named, not silently coerced to a known one: a
@@ -1062,13 +1108,40 @@ const PRESET_KEYS: ReadonlyMap<unknown, string> = new Map(Object.entries(PARTICL
  * movement past a threshold as a drag rather than a tap, and a probe that jittered
  * the pointer would measure the drag path instead of the tap path.
  *
+ * ── `hit`, ADDED 2026-07-30 BY ROUND 5 (apparatus defect (xv)) ────────────────
+ *
+ * The returned `sounds`/`emits` pair cannot say WHETHER THE TAP LANDED, and Round 5's
+ * first run proved that the hard way. Its probe tried to infer a miss from the
+ * signature "one sound, and it is the fallback, and a sparkle was emitted" — and that
+ * predicate is ALSO satisfied by a prop that fired perfectly, emitted its own sparkle
+ * and simply has no voice, which in Nature is every prop in the scene. The run
+ * reported 34 of 35 rows as unreachable aim artefacts and declared the round's charge
+ * REFUTED. The charge was true. **The instrument's error ran in the direction that
+ * discards the finding**, which is the expensive direction, and it is the second time
+ * in this review (after Round 1's defect (iii)) that an exclusion predicate and the
+ * thing being excluded turned out to be the same predicate.
+ *
+ * The repair is to stop inferring and record it. Every registered handler is wrapped
+ * for the duration of the tap and reports the name of the object whose handler
+ * actually ran. That is a POSITIVE identification: `hit === null` means the controller
+ * picked nothing, which is a miss and nothing else; a non-null `hit` means that named
+ * prop's handler ran, whatever it did or did not sound like afterwards. It also
+ * catches the opposite artefact, which the same run also produced: the row labelled
+ * `log` came back with `sfx_shared_star_chime`, a cue no Nature prop can play — the
+ * aim point had landed on a game portal, and the row would have been published as a
+ * genuine refutation of the round's own charge.
+ *
+ * The wrapper is installed and removed inside the `try`/`finally` below, so a throw
+ * cannot leave the shipped registry holding probe closures.
+ *
  * @param ndcX - Prop centre, normalised device X, from `__propTargets`.
  * @param ndcY - Prop centre, normalised device Y.
- * @returns Every sound id triggered, in order, and every burst emitted.
+ * @returns Every sound id triggered, every burst emitted, and the name of the prop
+ *          whose handler actually ran (`null` if the tap picked nothing).
  */
 (
   window as unknown as {
-    __tapThroughCanvas?: (ndcX: number, ndcY: number) => { sounds: string[]; emits: string[] };
+    __tapThroughCanvas?: (ndcX: number, ndcY: number) => { sounds: string[]; emits: string[]; hit: string | null };
   }
 ).__tapThroughCanvas = (ndcX, ndcY) => {
   const rect = canvas.getBoundingClientRect();
@@ -1076,6 +1149,7 @@ const PRESET_KEYS: ReadonlyMap<unknown, string> = new Map(Object.entries(PARTICL
   const clientY = rect.top + ((1 - ndcY) / 2) * rect.height;
   const sounds: string[] = [];
   const emits: string[] = [];
+  let hit: string | null = null;
   const savedEmit = particles.emit;
   particles.emit = (preset, _position, _overrides) => {
     emits.push(PRESET_KEYS.get(preset as unknown) ?? 'unregistered');
@@ -1083,15 +1157,35 @@ const PRESET_KEYS: ReadonlyMap<unknown, string> = new Map(Object.entries(PARTICL
   registerSoundHandler((id: string) => {
     sounds.push(id);
   });
+
+  // Wrap every registered handler so the one that runs names itself.
+  captureRegistry();
+  const registry = liveRegistry;
+  const restore: Array<() => void> = [];
+  if (registry) {
+    for (const [object, entry] of registry) {
+      const original = entry.handler;
+      const label = object.name || `(unnamed ${object.type})`;
+      entry.handler = ((...a: unknown[]) => {
+        if (hit === null) hit = label;
+        return (original as (...args: unknown[]) => unknown)(...a);
+      }) as typeof entry.handler;
+      restore.push(() => {
+        entry.handler = original;
+      });
+    }
+  }
+
   const opts = { clientX, clientY, pointerId: 1, isPrimary: true, bubbles: true, button: 0 };
   try {
     canvas.dispatchEvent(new PointerEvent('pointerdown', opts));
     canvas.dispatchEvent(new PointerEvent('pointerup', opts));
   } finally {
+    restore.forEach((r) => r());
     unregisterSoundHandler();
     particles.emit = savedEmit;
   }
-  return { sounds, emits };
+  return { sounds, emits, hit };
 };
 
 /**
@@ -1374,6 +1468,22 @@ const changed = (
  * this function already measures. So bar (d) needs no new pass — it needs the emit
  * arguments, which is why `emits` is now reported alongside the counts.
  *
+ * 2026-07-30, Round 5 — THE ABOVE IS LEFT STANDING AND IS NOW HALF TRUE. "Bar (d)
+ * needs no new pass" was correct for the rooms that existed when it was written,
+ * where every emitting prop drew the miss's own preset. Round 5 shipped a prop that
+ * does not: the stone answers with `sceneDust`, on the deliberate ground that a
+ * stone grinding through soil raises dust rather than sparkle. That lands it in the
+ * "or emit something else" clause above, where the numerator is `propHigh` alone —
+ * a comparison of the stone's shift, particles muted, against a whole burst. The
+ * child sees the shift AND the dust, so the ratio was being asked to grade a frame
+ * with one of its two halves removed, and the pressure that puts on the app is the
+ * wrong way round: it would have been satisfied by making the stone draw a
+ * worse-fitting effect. Hence the fourth pass, `ownHigh` — the prop's own asked-for
+ * burst, replayed into the live engine under the same frozen conditions as the miss
+ * pass. It generalises the deduction from "draws the miss's burst" to "draws a burst
+ * at least as large as the miss's", which is what the deduction was always about.
+ * `propHigh` is unchanged and still particle-muted; nothing above is retracted.
+ *
  * The deduction rests on a premise about shipped code — that the miss emits one
  * unmodified preset — so that premise is MEASURED rather than assumed. `missEmits`
  * reports what the real `createMissAcknowledgement` asked for at this very prop, and
@@ -1427,6 +1537,10 @@ const changed = (
       ambientHigh: number;
       ambientBbox: number;
       ambientInMask: number;
+      ownReplayed: number;
+      ownLow: number;
+      ownHigh: number;
+      ownEdge: number;
       sparkleLow: number;
       sparkleHigh: number;
       sparkleBbox: number;
@@ -1807,6 +1921,38 @@ const changed = (
     // and the changed pixels are the burst and nothing else.
     const sparkle = sweep(beforeSparkle, box, false);
     advance(steps * 2);
+    settle();
+
+    // THE PROP'S OWN BURST, MEASURED THE SAME WAY THE MISS'S WAS — Round 5.
+    //
+    // This is the fourth pass, and it exists to answer the one question the other
+    // three cannot: when a prop answers with a burst that is NOT the miss's preset,
+    // is that burst worth as much picture as the one it replaced? The bar-(d)
+    // deduction above covers props that draw `sceneSparkle` unmodified. It says
+    // nothing about a prop that draws `sceneDust`, and Round 5 shipped one — so the
+    // instrument either grows a pass or the round grades a prop on a comparison
+    // that structurally cannot include half of what the child sees.
+    //
+    // It is a REPLAY, not a re-fire, and the distinction is the whole safety
+    // argument. Re-firing the handler live is barred by the latches documented on
+    // `__firePropMuted` — a reveal reveals once — and would also re-run the tween,
+    // so the pixels would be prop-plus-burst with no way to separate them. The
+    // replay re-emits the captured `particles.emit` arguments and touches nothing
+    // else: no handler, no latch, no tween. gsap is not advanced, exactly as in the
+    // miss pass, so `ownHigh` and `sparkleHigh` differ in one term only — which
+    // preset was asked for.
+    //
+    // WHAT IT STILL CANNOT SAY, because a replayed burst is not a proof about the
+    // shipped frame: it shows the burst the prop asked for is at least as large as
+    // the miss's, not that the prop DREW it on the tap frame. That the handler
+    // asked at all is the muted pass's finding, and the two together are the claim.
+    // A prop whose emit is unreachable would report `asked: []` there and `replayed:
+    // 0` here, and a zero replay is reported rather than folded into a pass.
+    draw();
+    const beforeOwn = grab(box);
+    const replayed = (window as unknown as { __replayAsked: () => number }).__replayAsked();
+    const own = sweep(beforeOwn, box, false);
+    advance(steps * 2);
 
     // THE FENCE. A ROW MAY NOT INHERIT THE PREVIOUS ROW'S REACTION, AND THE PREVIOUS
     // ROW'S NAVIGATION MAY NOT BE CHARGED TO IT.
@@ -1866,6 +2012,10 @@ const changed = (
       ambientHigh: ambient.high,
       ambientBbox: ambient.bbox,
       ambientInMask: ambient.scoredMax,
+      ownReplayed: replayed,
+      ownLow: own.low,
+      ownHigh: own.high,
+      ownEdge: own.edge,
       sparkleLow: sparkle.low,
       sparkleHigh: sparkle.high,
       sparkleBbox: sparkle.bbox,

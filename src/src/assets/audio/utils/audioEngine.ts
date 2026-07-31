@@ -9,9 +9,17 @@
 // There is no MAX_SFX / MAX_SIMULTANEOUS voice cap, and that is a measured
 // decision, not an omission. See `registerSound` below for the numbers and for
 // why reinstating one would take a sound away from a child's fifth tap.
-const DUCK_AMOUNT = 0.35;
-const DUCK_ATTACK = 0.08;
-const DUCK_RELEASE = 0.4;
+// NOT HERE DELIBERATELY: duck(), and the DUCK_AMOUNT / DUCK_ATTACK /
+// DUCK_RELEASE constants that only it read.
+//
+// Ducking pulls the music bed down under a loud effect. It was written, tuned
+// to three decimal places, and never called from anywhere -- so the tuning was
+// never heard. The mix currently works by holding MUSIC_LEVEL low enough that
+// taps sit above it without anything moving, which is a real decision recorded
+// a few lines down.
+//
+// Restoring ducking means choosing what triggers it and LISTENING to the result,
+// not reinstating three numbers that were never audible.
 const CROSSFADE_DURATION = 1.5;
 
 /** Base category levels. Music sits close enough to SFX to stay audible under taps. */
@@ -137,33 +145,6 @@ export function getCtx(): AudioContext | null {
 }
 
 /**
- * Returns the master gain node.
- *
- * @returns The master GainNode, or null if not initialized.
- */
-export function getMasterGain(): GainNode | null {
-  return masterGain;
-}
-
-/**
- * Returns the music gain node.
- *
- * @returns The music GainNode, or null if not initialized.
- */
-export function getMusicGain(): GainNode | null {
-  return musicGain;
-}
-
-/**
- * Returns the ambient gain node.
- *
- * @returns The ambient GainNode, or null if not initialized.
- */
-export function getAmbientGain(): GainNode | null {
-  return ambientGain;
-}
-
-/**
  * Returns the SFX gain node.
  *
  * @returns The SFX GainNode, or null if not initialized.
@@ -273,16 +254,6 @@ export function stopCategory(category: 'sfx' | 'music' | 'ambient'): void {
     const idx = activeSounds.indexOf(s);
     if (idx !== -1) activeSounds.splice(idx, 1);
   }
-}
-
-/** Ducks music and ambient volumes briefly (for prominent SFX). */
-export function duck(): void {
-  if (!ctx || !musicGain || !ambientGain) return;
-  const t = ctx.currentTime;
-  musicGain.gain.setTargetAtTime(MUSIC_LEVEL * DUCK_AMOUNT, t, DUCK_ATTACK);
-  ambientGain.gain.setTargetAtTime(AMBIENT_LEVEL * DUCK_AMOUNT, t, DUCK_ATTACK);
-  musicGain.gain.setTargetAtTime(MUSIC_LEVEL, t + DUCK_ATTACK + 0.2, DUCK_RELEASE);
-  ambientGain.gain.setTargetAtTime(AMBIENT_LEVEL, t + DUCK_ATTACK + 0.2, DUCK_RELEASE);
 }
 
 /**

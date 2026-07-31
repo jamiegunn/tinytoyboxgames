@@ -16,6 +16,30 @@ import type { ToyboxSpec } from '@app/toyboxes/framework';
  * frustum, so the room is much narrower on screen near the camera (-z) than at
  * the back wall (+z): a toybox may reach x 3.52 at z -4 but x 6.52 at z +8.
  * `.probe/ndcunder.mjs` prints the margin for a candidate placement.
+ *
+ * NOT HERE DELIBERATELY: pirate-cove/parent-scene-stubs/playroom.toybox.stub.ts.
+ *
+ * A generator-emitted `PLAYROOM_TOYBOX_STUB`, 44 lines, described in its own
+ * docblock as "ready-to-copy" and "copyable immediately", naming THIS FILE as
+ * its copy target by path. Nothing imported it. It was on the reachability
+ * allowlist under six words -- "Generator-emitted parent-scene stub." -- which
+ * read as harmless, and it was not harmless.
+ *
+ * Its copy had already been made and then tuned, and every field had since
+ * moved: placement (3.67, 0.01, -6.88) against the live (4.05, 0.01, 2.7),
+ * rotationY PI+PI/4 against -PI/2, a purple/green palette against red/yellow,
+ * emblem 'heart' against 'stars'. Pasting it in as instructed would have
+ * reverted the portrait-clipping fix recorded above, put the box back where it
+ * sinks a corner into the rug, and changed the art. Its z of -6.88 is the exact
+ * mistake the paragraph above warns about: deep in -z, where the frustum is
+ * narrowest, with no evidence anyone ran ndcunder.mjs on it.
+ *
+ * So it was not inert dead code. It was a live instruction to undo tuned work,
+ * and it had been sitting one obedient copy-paste away from doing it.
+ *
+ * If the generator emits another, delete it once its values are here and tuned.
+ * A spent copy-source outranks its copy in exactly one respect -- it looks
+ * official -- and that is the whole of the danger.
  */
 export const PLAYROOM_TOYBOXES: ToyboxSpec[] = [
   {

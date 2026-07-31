@@ -16,6 +16,27 @@
  *
  * One canvas listener, one raycast per gesture, gesture state reset on
  * `pointercancel` (iPadOS system gestures). Torn down via the DisposalScope.
+ *
+ * NOT HERE DELIBERATELY: `utils/interaction/index.ts`, the public-surface
+ * barrel. Deleted at 0 live importers.
+ *
+ * Read "Subsumes" above as fact, but not the fact it looks like. This module
+ * has TWO live importers, and both are things it supposedly replaced:
+ * `worldTapDispatcher` ("now a thin adapter over the unified
+ * createInteractionController") and `tapInteraction`, which takes only the
+ * `TapOptions` type. Every tap in the game does route through here — the two
+ * child-UX rules really are universal — but it arrives via a chain: 15 prop
+ * files call `createTapInteraction`, which calls the dispatcher, which has 38
+ * live importers of its own, which calls this.
+ *
+ * So by import count this module is at 2 and looks abandoned, and by behaviour
+ * it is at 100% and is finished. Both readings are available from the graph and
+ * they point opposite ways. That is the shape this codebase's migrations take —
+ * the new module becomes the engine of the old API, every call site keeps the
+ * import it already had, and nothing anywhere records that the door was moved.
+ * What is genuinely left here is three names for one entrance, which is a
+ * naming debt, not an unfinished migration. Counted, with both numbers, in
+ * noAbandonedMigrations.test.mjs.
  */
 
 import { Raycaster, Vector2, Vector3, type Object3D, type Camera, type Ray } from 'three';

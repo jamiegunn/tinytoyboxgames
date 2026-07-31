@@ -14,13 +14,13 @@
  */
 
 import { Mesh, MeshStandardMaterial, PlaneGeometry, type Scene } from 'three';
-import { createCamera } from '@app/utils/camera';
-import { createLightingRig } from '@app/utils/lighting';
+import { createCamera } from '@app/utils/camera/cameraDescriptor';
+import { createLightingRig } from '@app/utils/lighting/lightingRig';
 import { createGradientSkydome } from '@app/utils/skyRig';
 import { createFrameClock } from '@app/utils/frameClock';
 import { createDisposalScope, type DisposalScope } from '@app/utils/disposal';
 import { setSceneRuntime } from '@app/utils/sceneRuntime';
-import { createInteractionController } from '@app/utils/interaction';
+import { createInteractionController } from '@app/utils/interaction/interactionController';
 import type { SceneDescriptor, SceneBuildContext, SceneRuntime, GroundDescriptor } from './sceneDescriptor';
 
 /**

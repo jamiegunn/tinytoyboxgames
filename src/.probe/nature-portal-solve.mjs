@@ -68,7 +68,19 @@ const M = await bundleEntry(
 `,
 );
 
-const PROXIMITY_PX = 70;
+// PROXIMITY_PX is IMPORTED, not restated. Round 11 found this one constant
+// obtained four different ways across seventeen sites — six hard literals, eight
+// hand-rolled regex resolvers, and two real imports — with the correct mechanism
+// already present and adopted twice. A regex over the source cannot survive the
+// constant becoming an expression; a literal cannot survive anything.
+//
+// The bundle slug is deliberately shared with the twelve sibling probes that
+// need the same constant. bundleEntry emits `.tstest-tmp/entry_<slug>.bundle.mjs`,
+// so a shared slug means a shared temp file — safe here only because the entry
+// source below is byte-identical everywhere it appears. If you change this
+// entry, change it in all of them or give yours a different slug.
+const RULES = await bundleEntry('r11_gesture_rules', `export { PROXIMITY_PX } from './src/utils/interaction/gestureRules';`);
+const PROXIMITY_PX = RULES.PROXIMITY_PX;
 const PORTAL_Y = 0.3;
 /** Minimum world separation between a portal and any other tappable prop. */
 const CLEARANCE = 0.9;

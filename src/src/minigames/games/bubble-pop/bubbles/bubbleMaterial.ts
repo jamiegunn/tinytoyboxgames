@@ -3,8 +3,13 @@ import { ShaderMaterial, DoubleSide, type Color } from 'three';
 /**
  * Bubble-pop's own soap-bubble shader.
  *
- * Forked from `@app/minigames/shared/materials`'s `createBubbleMaterial`
- * (bubble-pop was its only consumer) because that version was tuned for a
+ * Forked from a `createBubbleMaterial` that USED TO live in
+ * `@app/minigames/shared/materials` and no longer does: bubble-pop was its only
+ * consumer, so the fork left the original at zero and it was removed. Do not
+ * read that path as a live one — the module's exports today are skin, cartoon
+ * eye/pupil/nose, metal, leaf, coral and iris.
+ *
+ * The fork happened because the shared version was tuned for a
  * bright scene: it composed `opacity = uAlpha * (0.1 + 0.5 * fresnel)` at
  * uAlpha 0.5/0.6 and `finalColor = baseColor * 0.4 + rim + spec`, so a bubble
  * facing the camera was 5% opaque and 40%-lit against this game's night sky

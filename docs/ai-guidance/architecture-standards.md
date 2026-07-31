@@ -64,16 +64,16 @@ The duplication was not random — it was exactly one scenes-version and one
 minigames-version of each subsystem. This table is the **historical diagnosis**;
 the "Now" column records where each concern actually stands today.
 
-| Concern        | Scenes stack (was)                                                                 | Minigames stack (was)                                                | Now                                                                                                                                                                                                           |
-| -------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Disposal       | `disposeSceneResources`, `createDisposeCollector` (`utils/sceneHelpers.ts`)        | `disposeMeshDeep` (`minigames/shared/disposal.ts`), `disposeGameRig` | **partial** — `DisposalScope` (§1) is canonical and `createDisposeCollector` is an adapter over it, but `disposeMeshDeep` is still an independent implementation with 23 call sites; `disposeGameRig` deleted |
-| Frame loop     | per-effect `requestAnimationFrame`                                                 | per-effect `requestAnimationFrame`                                   | **in force** — one `FrameClock` per surface (§2)                                                                                                                                                              |
-| Particles      | `utils/particles.ts`, `utils/particleFactory.ts`                                   | `minigames/shared/particleFx.ts`                                     | **in force** — one engine (§4); all 3 legacy modules deleted                                                                                                                                                  |
-| Idle animation | `utils/animationPresets.ts` + raw `gsap`                                           | raw `gsap`                                                           | **in force** — `IdleAnimator` (§5); the last un-killed `repeat: -1` was closed in `c8cacc5`                                                                                                                   |
-| Lighting       | `createSceneLighting` (`LightingConfig`)                                           | `createGameLighting` (`GameLightingOptions`, Babylon "hemispheric")  | **in force** — one `LightingRig` (§6); both legacy entry points are now adapters                                                                                                                              |
-| Camera         | `createSceneCamera` (orbit, Babylon spherical, +π θ)                               | shell fixed camera + `createGameCamera` (beta/radius; often dead)    | **in force** — one `CameraDescriptor` (§7); `createGameCamera` deleted                                                                                                                                        |
-| Interaction    | `createWorldTapDispatcher`, `wireToyboxInteractions`, room `userData.onClick` scan | `createInputDispatcher` (tap/drag + forgiveness)                     | **partial** — one controller (§8); no-dead-tap is enforced and measured (`7e3d6b0`), but only world scenes get the visible half — rooms have the audible half alone                                           |
-| Math           | `utils/mathHelpers.ts` (`lerp`)                                                    | `minigames/shared/mathUtils.ts` (`lerp` again)                       | **partial** — `utils/math.ts` is canonical, but both shims are still imported and `lerp` is defined **four** times (§3)                                                                                       |
+| Concern        | Scenes stack (was)                                                                 | Minigames stack (was)                                                | Now                                                                                                                                                                                                                                                                                                            |
+| -------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Disposal       | `disposeSceneResources`, `createDisposeCollector` (`utils/sceneHelpers.ts`)        | `disposeMeshDeep` (`minigames/shared/disposal.ts`), `disposeGameRig` | **partial** — `DisposalScope` (§1) is canonical and `createDisposeCollector` is an adapter over it, but `disposeMeshDeep` is still an independent implementation with 23 call sites; `disposeGameRig` deleted                                                                                                  |
+| Frame loop     | per-effect `requestAnimationFrame`                                                 | per-effect `requestAnimationFrame`                                   | **in force** — one `FrameClock` per surface (§2)                                                                                                                                                                                                                                                               |
+| Particles      | `utils/particles.ts`, `utils/particleFactory.ts`                                   | `minigames/shared/particleFx.ts`                                     | **in force** — one engine (§4); all 3 legacy modules deleted                                                                                                                                                                                                                                                   |
+| Idle animation | `utils/animationPresets.ts` + raw `gsap`                                           | raw `gsap`                                                           | **in force** — `IdleAnimator` (§5); the last un-killed `repeat: -1` was closed in `c8cacc5`; `animationPresets.ts` reached 0 importers against `animationRunners.ts`'s 11 and was deleted (§10)                                                                                                                |
+| Lighting       | `createSceneLighting` (`LightingConfig`)                                           | `createGameLighting` (`GameLightingOptions`, Babylon "hemispheric")  | **in force** — one `LightingRig` (§6); both legacy entry points are now adapters, verified as delegation edges rather than inferred (§10)                                                                                                                                                                      |
+| Camera         | `createSceneCamera` (orbit, Babylon spherical, +π θ)                               | shell fixed camera + `createGameCamera` (beta/radius; often dead)    | **split** — `CameraDescriptor` (§7) is canonical for the 3 `minigames/framework` modules; the 5 scenes still reach cameras through `utils/cameraPresets.createSceneCamera`, which calls nothing in `utils/camera/`. `createGameCamera` deleted. Unlike lighting and interaction, this one never inverted (§10) |
+| Interaction    | `createWorldTapDispatcher`, `wireToyboxInteractions`, room `userData.onClick` scan | `createInputDispatcher` (tap/drag + forgiveness)                     | **partial** — one controller (§8); no-dead-tap is enforced and measured (`7e3d6b0`), but only world scenes get the visible half — rooms have the audible half alone                                                                                                                                            |
+| Math           | `utils/mathHelpers.ts` (`lerp`)                                                    | `minigames/shared/mathUtils.ts` (`lerp` again)                       | **partial** — `utils/math.ts` is canonical, but both shims are still imported and `lerp` is defined **four** times (§3)                                                                                                                                                                                        |
 
 ---
 
@@ -103,9 +103,9 @@ Phase 7  SceneDescriptor (capstone) + sky-rig migration of Nature/rooms
 | 2     | ParticleEngine                       | **in force** — `utils/particles/{engine,presets,texture,registry}.ts`; one clock-driven, scope-disposed engine per scene reached via `getParticleEngine(scene)`; all 3 legacy modules deleted. **57 `emit`/`stream` call sites across 35 files** (`grep -rn "\.emit(PARTICLES\|\.stream(PARTICLES" src/`) — the "~35" in the original plan predated the owl and celebration migrations, and the "54 across 33" of the previous revision predated Round 6. Contract test in `tests/particles/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | 3     | IdleAnimator                         | **in force.** `utils/idle/{idleAnimator,registry}.ts` is reached via `getIdleAnimator(scene)`, wired into both shells, contract-tested in `tests/framework/`. Decor idles use presets (spinningTop, hangingMobile, catPlush, rubberDuck, toyBall, toyTrain's orbit spin) and `register()` covers the keyframe loops (hoppingChick, windUpMouse, toy cars ×2, musicPlayer, animalVisitors). The last un-killed leak — `playroom/floorToys/toyTrain.ts`'s puff tween and self-rescheduling horn — was closed in `c8cacc5` and is pinned by `tests/room/playroom-timer-ownership.test.mjs`; the rule it produced is in §5. The other raw `repeat: -1` sites (owl `entities/owl/idle.ts`, raccoon, snail, skyBackdrop, gamePortal, `living-room/decor/fireplace.ts:137`/`:162`, `animalVisitors.ts:581`, `utils/animationHelpers.ts:161`) each self-manage via a returned cleanup, a `cleanups` array, or a tracked handle — verified individually, not assumed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | 4     | LightingRig                          | **in force** — `utils/lighting/lightingRig.ts` (`createLightingRig(scene, descriptor, scope)`: directional key + hemisphere fill + point accents, shadow map size from qualityTier, all scope-disposed). `createSceneLighting` and `createGameLighting` are now thin vocabulary adapters onto the one rig — the duplicate rig/shadow implementations are gone and the directional shadow-map leak is fixed. bubble-pop's dead (never-added) game lights were removed. Contract test in `tests/framework/`; parity verified across all **5 scenes + 5 games**. Known limitation: the rig always casts shadows (see §6)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| 5     | CameraDescriptor                     | **in force** — `utils/camera/cameraDescriptor.ts` (the ONE three.js `Spherical` convention: θ=0→+Z, θ=π→−Z; `createCamera` for fixed/orbit; fov in degrees). Behavioural test pins it against three.js and both legacy formulas. Games declare a `camera?` descriptor in the manifest; the shell builds and applies it (default `DEFAULT_GAME_CAMERA`, fixed (0,2,5)); the dead never-applied cameras (bubble-pop, fireflies) and the Babylon `createGameCamera`/`disposeGameRig` are deleted. Scene presets fold the old `θ+π` into a native-θ `azimuth: π`. Verified pixel-identical across all 5 scenes + 5 games                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 5     | CameraDescriptor                     | **split — canonical for games, never adopted by scenes.** `utils/camera/cameraDescriptor.ts` has 3 live importers and all 3 are `minigames/framework`; no scene imports it. The 5 scenes build cameras through `utils/cameraPresets.createSceneCamera`, and `cameraPresets.ts` imports only `three`, `sceneCatalog` and `types/scenes` — it does not call `createCamera`, `sphericalPosition` or anything else here. Lighting and interaction finished by INVERSION (old name kept, body rewritten to call the new engine); camera did not, so the two conventions still both run. Tracked with recomputed numbers in `tests/framework/noAbandonedMigrations.test.mjs` → `camera-unification`. What follows is true of the games' half — `utils/camera/cameraDescriptor.ts` (the ONE three.js `Spherical` convention: θ=0→+Z, θ=π→−Z; `createCamera` for fixed/orbit; fov in degrees). Behavioural test pins it against three.js and both legacy formulas. Games declare a `camera?` descriptor in the manifest; the shell builds and applies it (default `DEFAULT_GAME_CAMERA`, fixed (0,2,5)); the dead never-applied cameras (bubble-pop, fireflies) and the Babylon `createGameCamera`/`disposeGameRig` are deleted. Scene presets fold the old `θ+π` into a native-θ `azimuth: π`. Verified pixel-identical across all 5 scenes + 5 games                                                                                                                                                                                                                                                                                                                                                                                              |
 | 6     | InteractionController                | **in force.** `utils/interaction/` owns gesture handling: `createWorldTapDispatcher` is a thin adapter over `createInteractionController`, so scene props, `createTapInteraction`, `wireToyboxInteractions`, and the room `userData.onClick` scan all flow through it with shared rules; `createInputDispatcher` (games) imports the same thresholds. Smear-tap forgiveness, proximity fallback and `pointercancel` reset are live and exhaustively tested via pure `gestureRules.ts`. **No-dead-tap is wired in every scene that owns a dispatcher, and the acknowledgement's depth is now found rather than chosen**: `sceneBridge` supplies the `InteractionAudio` implementation, `worldTapDispatcher` passes it (11758 silent taps of 12500 before, 0 after), and both `worldSceneFactory` and `roomSceneFactory` install the one shared `createMissAcknowledgement(scene)`. The rooms had the audible half and no visual half at all — 26.2–49.7% of the canvas answered nothing a muted child could see — and the obvious repair of copying Nature's fixed `ray.at(12)` depth was **also** wrong: a render probe that raycasts camera→burst found the copied constant invisible over up to 22.0% of a room frame and found Nature's own already-shipped handler invisible over **11.6%** of its landscape frame, behind its own trunks. Anchoring on the raycast hit point and standing off 0.45 units along the world face normal takes the worst room viewport to 0.5% and Nature to 0.3%, with ≥0.866 of the sampled burst core visible everywhere. **`TapOptions.background`** stops an environment-scale surface from eating the small-target forgiveness beneath it (median p(hit) for a steady hand: 0–5.5% → 51–82%). See §8 |
-| 7     | SceneDescriptor + backdrop migration | **landed, not wired — the capstone has never executed.** `utils/scene/{sceneDescriptor,buildScene,sceneDescriptors}.ts` exist and are internally coherent, and Nature's flat `PlaneGeometry` sky _was_ migrated to `createGradientSkydome` (screenshot-verified). But **`buildScene` has zero call sites in `src/`** and so does `getSceneDescriptor` (`grep -rn "buildScene\|getSceneDescriptor" src/` matches only `utils/scene/` itself and the unrelated `buildSceneBase`). Nature still builds via `buildSceneBase` + a bespoke `environment.ts`. The contract test does **not** run the builder: `tests/framework/sceneDescriptor.test.mjs:30` reads `buildScene.ts` as **text** and asserts on substrings (`:244`), so it would pass unchanged if the function were deleted from every code path — which is the current state. The descriptors validate, but nothing stops them drifting from what actually renders. See §9                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 7     | SceneDescriptor + backdrop migration | **landed, not wired — the capstone has never executed.** `utils/scene/{sceneDescriptor,buildScene,sceneDescriptors}.ts` exist and are internally coherent, and Nature's flat `PlaneGeometry` sky _was_ migrated to `createGradientSkydome` (screenshot-verified). But **`buildScene` has zero importers — live or dead** — and so does `getSceneDescriptor`. That is now an import-EDGE count out of `tests/framework/_moduleGraph.mjs`, not the `grep -rn` this row used to cite: grep counts a file that mentions a name the same as a file that imports it, and it has produced three wrong verdicts in this repo's review history (§10). Nature still builds via `buildSceneBase` + a bespoke `environment.ts`. The contract test does **not** run the builder: `tests/framework/sceneDescriptor.test.mjs:30` reads `buildScene.ts` as **text** and asserts on substrings (`:244`), so it would pass unchanged if the function were deleted from every code path — which is the current state. The descriptors validate, but nothing stops them drifting from what actually renders. See §9                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 ---
 
@@ -474,8 +474,12 @@ them to the scene's lifetime.
 randomized per instance (via `seek`) so a shelf of toys doesn't pulse in
 lockstep. `spin` is linear: `rotation += (2π / period)·dt`.
 
-**Migration.** The `animationPresets.ts` keyframe helpers stay for one-shot
-reactions (squash/hop/splat), which are not leaks. The last un-adopted raw site,
+**Migration.** `animationPresets.ts` is **deleted**. This paragraph used to say
+its keyframe helpers stayed for one-shot reactions (squash/hop/splat), which are
+not leaks — true, and it stayed for nobody: seven exported builders, zero
+importers, sitting one directory away from `animationRunners.ts`'s eleven. A bet
+on shared vocabulary that lost, next to a bet on shared machinery that won, in
+the same folder. The last un-adopted raw site,
 `playroom/floorToys/toyTrain.ts`, was closed in `c8cacc5`; the migration is
 complete and `tests/room/playroom-timer-ownership.test.mjs` keeps it that way.
 
@@ -905,10 +909,12 @@ described" in one place.
 
 **What is actually true at runtime.**
 
-- `buildScene` has **zero call sites** in `src/`. Nature builds via
-  `buildSceneBase` + a bespoke `environment.ts`, as it always has.
-  `grep -rn "buildScene" src/` matches `utils/scene/` and the unrelated
-  `buildSceneBase`, nothing else.
+- `buildScene` has **zero importers, live or dead**. Nature builds via
+  `buildSceneBase` + a bespoke `environment.ts`, as it always has. This used to
+  be stated as a `grep -rn "buildScene" src/` result; it is now an import-edge
+  count from `tests/framework/_moduleGraph.mjs`, recomputed on every run by
+  `noAbandonedMigrations.test.mjs`. The two agree here, which is luck rather
+  than method — see §10 on why a grep count is not an import count.
 - `getSceneDescriptor` has zero call sites. `SCENE_DESCRIPTORS` is read only by
   its own test.
 - The contract test **does not execute the builder**.
@@ -934,6 +940,21 @@ not arrive via `buildScene`.
 bespoke factory, and the contract test must import and invoke the builder
 against a stub scene rather than reading it as text. Until both happen, this
 section documents an intention, and the honest state is **landed, not wired**.
+
+**Why it is still here, and what it is not.** Deleting these three files is the
+cheapest way to empty the reachability allowlist, and it would be a bad trade:
+it removes the only place in the repo where the intended composition is written
+down in one readable form, while leaving both imperative roots
+(`createWorldScene` ×2, `createRoomScene` ×3), every disposal mechanism and the
+never-adopted `SceneLifecycle` parameter exactly where they are. The codebase
+would be measurably tidier and strictly less honest. So it is kept — and kept
+under a register entry that recomputes its own numbers rather than under a
+sentence nothing checks. Read the paragraph above as a standing intention with
+no owner, not as a queued task: the last module in this repo that looked
+obviously worth wiring in would have cost 72% of its game's headline metric
+(§10). Whoever finishes this phase should expect to prove it helps first, and
+`noAbandonedMigrations.test.mjs` → `scene-composition` states what the proof has
+to cover.
 
 ---
 
@@ -963,10 +984,11 @@ imports a symbol from file B, so B's export is "used" — but nothing imports A
 either. The reference is real and the code is still unreachable. That is exactly
 how the species cluster hid, with `fish/meshes.ts` and `waves/templates.ts` both
 importing `FishSpeciesId` from `fish/species.ts`, so all three looked referenced
-while being orphans together. The same hole is live in the allowlist today:
-three of the four `utils/*` barrels _are_ imported — only by `utils/scene/`,
-which is itself unreachable. One connected dead component, not four independent
-facts.
+while being orphans together. The same hole was live in the allowlist until this
+round: three of the then-four `utils/*` barrels _were_ imported — only by
+`utils/scene/`, which is itself unreachable. One connected dead component wearing
+four independent-looking entries. A fifth barrel (`utils/idle/index.ts`) turned
+up during the sweep, at zero in both directions. All five are now deleted.
 
 `tests/framework/noUnreachableModules.test.mjs` walks static imports,
 `export … from`, and `import()` with a literal specifier, starting from the real
@@ -984,6 +1006,54 @@ an unreachable module missing from the list fails, and an entry naming a module
 that is no longer unreachable **also** fails. Without that second check the list
 rots into a graveyard of names that were dead once, which is worse than no list,
 because it is a document asserting a state the codebase has left.
+
+**And a cheap entry has a price the list cannot show you.** The allowlist reached
+thirteen entries and 862 lines before anyone read it as a whole, and read whole
+it said something none of its entries said: this repo starts unifications and
+leaves them looking unfinished. The per-file format is what kept that invisible —
+thirteen specific true sentences average out to no claim at all. Worse, one of
+them was not true. "All 17 consumers import `utils/idle/idleAnimator` directly"
+described a **grep count** as an import count; exactly one file imports it, and
+the other sixteen reach the animator through `utils/idle/registry.ts`, which is
+already the public surface — which is why a second one had nothing to offer. A
+wrong sentence sitting in a list of thirteen is indistinguishable from a right
+one, because nothing checked the sentences. The allowlist is now three entries;
+the subject matter that left it is in the register below.
+
+**Migrations in this repo complete by INVERSION, so an importer count is evidence
+of nothing on its own.** This is the correction that cost the most to find. The
+pattern here is: the old function keeps its name and signature and its body is
+rewritten to call the new engine. Every call site keeps the import it already
+had, so the new module ends up with two or three importers and reads as
+stillborn while being universal. Measured at the import edge:
+`createGameLighting` (3 callers) now builds its lights by calling
+`createLightingRig` at `minigames/shared/sceneSetup.ts:47`; `createDisposeCollector`
+(5 callers, all scenes) opens with `createDisposalScope()` at
+`utils/sceneHelpers.ts:351`; `createWorldTapDispatcher` is a thin adapter that
+constructs `createInteractionController` at `utils/interaction/worldTapDispatcher.ts:45`,
+and `createTapInteraction`'s 15 prop-file callers flow through it. Three names
+for one entrance is a naming debt; it is not an unfinished migration. So the
+question that makes a count meaningful is never "how many import it" but **"and
+does the old API call the new one?"** — which is exactly the failure a count
+cannot see: pasting the light-building back into `createGameLighting` would leave
+every importer number correct and every other test green.
+
+`tests/framework/noAbandonedMigrations.test.mjs` is the enforcing half. It holds
+the same subject matter aggregated by MIGRATION rather than by file, every claim
+carries a number a test recomputes from import edges, and it asserts the
+delegation edges themselves. Five states are in use: `inverted` (adoption total,
+import count low), `split` (two mechanisms live, neither calling the other —
+camera, §7), `abandoned` (nothing routes through it by any path — `buildScene`,
+and the `SceneLifecycle` fourth argument at 0 of 5), and `resolved` (decided and
+closed, recorded so it cannot silently restart — the five barrels). Entries leave
+the reachability allowlist for this file when what is wrong with them is not
+"unreachable" but "unfinished".
+
+The instrument lesson underneath all of it: **grep counts a file that mentions a
+name the same as a file that imports it**, and it has now produced three wrong
+verdicts in this review's history — "duck" matching 36 rubber ducks, "lifecycle"
+matching a docblock sentence, and the false 17 above, which is the one that
+shipped. Reach for the module graph, not the text.
 
 **A guard that cannot fire is worse than no guard.** Same failure mode, different
 shape: not code nothing reaches, but code everything reaches that does nothing.
@@ -1007,6 +1077,12 @@ seconds and returns silence to a deliberate press — the exact defect §11 exis
 to remove. So the guard was deleted and the reasoning written where the next
 reader will look. **If a limiter is genuinely needed later, it belongs in the
 compressor, not in a refusal to answer the child.**
+
+The return type went with it. `registerSound` now returns nothing, because it
+never had a decision to report, and `tests/audio/polyphony.test.mjs:78` asserts
+`undefined` so that nothing can come to depend on a value again without the
+behaviour behind it. Read the paragraph above as history: the doc line promising
+`false` is gone from the source, and this is the only place it still appears.
 
 ---
 
@@ -1087,18 +1163,18 @@ source proves the file contains some characters, not that the system works.
 Before trusting a new suite, mutate the thing it guards and confirm the suite
 goes red. A suite that survives a deliberate break is decoration.
 
-**Suite inventory** — 60 `.test.mjs` files (`find tests -name '*.test.mjs' | wc -l`):
+**Suite inventory** — 66 `.test.mjs` files (`find tests -name '*.test.mjs' | wc -l`):
 
-| Directory                  | Files | Covers                                                                                                                                                                                                                                                                                                                                                      |
-| -------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tests/framework/`         | 17    | the primitives above (`math`, `disposal`, `frameClock`, `idleAnimator`, `lightingRig`, `cameraDescriptor`, `gestureRules`, `sceneDescriptor`, `celebrationSystem`, `frame-loop-guardrail`, `inputDispatcherTap`, `scoreDisplay`, `playAnimationsSpeed`) plus `tapArbitration`, `pirateCoveInteraction`, `noUnreachableModules` (§10) and `readme-citations` |
-| `tests/room/`              | 14    | room wiring, Pirate Cove composition/hull/ambient motion, playroom contracts incl. `playroom-timer-ownership` (§5), ground coverage, sky/fog                                                                                                                                                                                                                |
-| `tests/minigames/`         | 8     | per-game logic — seven of the eight are Little Shark (regions, aim, dodge, frenzy, agency, HUD, celebration)                                                                                                                                                                                                                                                |
-| `tests/minigame-template/` | 7     | the minigame authoring contract                                                                                                                                                                                                                                                                                                                             |
-| `tests/room-template/`     | 5     | the room authoring contract                                                                                                                                                                                                                                                                                                                                 |
-| `tests/template/`          | 5     | shared template invariants                                                                                                                                                                                                                                                                                                                                  |
-| `tests/audio/`             | 3     | the audio-standards contract, music coverage, and `audioContextLifecycle` (§1's ownership rule)                                                                                                                                                                                                                                                             |
-| `tests/particles/`         | 1     | the ParticleEngine contract                                                                                                                                                                                                                                                                                                                                 |
+| Directory                  | Files | Covers                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| -------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tests/framework/`         | 20    | the primitives above (`math`, `disposal`, `frameClock`, `idleAnimator`, `lightingRig`, `cameraDescriptor`, `gestureRules`, `sceneDescriptor`, `celebrationSystem`, `frame-loop-guardrail`, `inputDispatcherTap`, `scoreDisplay`, `playAnimationsSpeed`) plus `tapArbitration`, `pirateCoveInteraction`, `readme-citations`, and the two static-analysis guards — `noUnreachableModules` and `noAbandonedMigrations` (both §10) |
+| `tests/room/`              | 16    | room wiring, Pirate Cove composition/hull/ambient motion, playroom contracts incl. `playroom-timer-ownership` (§5), ground coverage, sky/fog                                                                                                                                                                                                                                                                                   |
+| `tests/minigames/`         | 8     | per-game logic — seven of the eight are Little Shark (regions, aim, dodge, frenzy, agency, HUD, celebration)                                                                                                                                                                                                                                                                                                                   |
+| `tests/minigame-template/` | 7     | the minigame authoring contract                                                                                                                                                                                                                                                                                                                                                                                                |
+| `tests/room-template/`     | 5     | the room authoring contract                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `tests/template/`          | 5     | shared template invariants                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `tests/audio/`             | 4     | the audio-standards contract, music coverage, polyphony, and `audioContextLifecycle` (§1's ownership rule)                                                                                                                                                                                                                                                                                                                     |
+| `tests/particles/`         | 1     | the ParticleEngine contract                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 Earlier revisions named 5 suites, then 40 files, and each time implied that was
 the whole picture. The count is worth re-deriving rather than trusting: this
@@ -1199,17 +1275,31 @@ in Nature, invisible over 11.6% of its landscape frame behind its own trees. So
 the fix is shared by both scene factories rather than added to the rooms. See §8;
 the round is written up in `docs/reviews/2026-07-30-rooms-five-rounds.md`.
 
-1. **§9 — wire one scene through `buildScene`**, and convert
-   `sceneDescriptor.test.mjs` from source-matching to invoking the builder. Do
-   these together; either alone leaves the phase unverifiable. This is the
-   largest standing gap between what this document describes and what runs.
-2. **§10 — clear the triaged half of the reachability allowlist.** The
-   `utils/scene/` cluster is blocked on item 1 and should be resolved with it.
-   The rest — the four `utils/*` barrels, `bubble-pop/animation/*`,
-   `animationPresets.ts`, `scatterDecoratives.ts`, the Pirate Cove parent-scene
-   stub — is admitted debt awaiting the same delete-with-doctrine treatment the
-   species roster got. None has been measured; none should be wired in on a
-   hunch.
+1. **§7 — the camera split, the last unification that did not invert.** The 3
+   `minigames/framework` modules use `cameraDescriptor`; the 5 scenes use
+   `utils/cameraPresets.createSceneCamera`, which calls nothing in
+   `utils/camera/`. Two conventions, both live. Lighting and interaction closed
+   the same shape by rewriting the old function's body onto the new engine while
+   keeping its name — the cheap move here is the same one, and it has a
+   prerequisite this list should state: lighting and interaction each have a
+   behavioural contract test pinning the delegation, and camera does not, so
+   inverting `createSceneCamera` today would be unpinned at the exact seam that
+   matters. Write the test first. Tracked as `camera-unification` in
+   `noAbandonedMigrations.test.mjs`.
+2. **§9 — `buildScene` is parked, not queued.** It has zero importers and is
+   kept as the only written statement of the intended scene composition; §9 says
+   what finishing it would require and why "it looks obviously worth wiring in"
+   is the exact signal this document distrusts. Nothing here is blocked on it.
+   The rest of the old triage list is closed: the five `utils/*` barrels,
+   `bubble-pop/animation/*`, `animationPresets.ts`, `scatterDecoratives.ts` and
+   the Pirate Cove parent-scene stub were measured and deleted with
+   NOT-HERE-DELIBERATELY blocks, the reachability allowlist is down from thirteen
+   entries to three, and the two genuinely-at-zero seams (`buildScene`, the
+   `SceneLifecycle` fourth argument) are now carried by the register with
+   recomputed numbers. The stub was the sharpest of them: every field in it
+   differed from the live Pirate Cove manifest, including a `z: -6.88` sitting
+   deep in −z where the frustum is narrowest — a live instruction to undo tuned
+   work, one obedient copy-paste away from doing it.
 3. **§8 — the miss sparkle's apparent size now varies with the surface it
    answers.** This is the cost of the fix above, and it is a real residual rather
    than a hypothetical: because the burst is placed where the ray meets geometry,

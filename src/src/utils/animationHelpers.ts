@@ -2,6 +2,25 @@ import gsap from 'gsap';
 import { Vector3, Color } from 'three';
 import type { Object3D } from 'three';
 
+// NOT HERE DELIBERATELY: the seven canned PropertyAnimation builders that lived
+// in utils/animationPresets.ts — createSquashBounce, createDampedWiggle,
+// createHopArc, createGlowPulse, createIdleSway, createSpin, createSplatSpread.
+// 148 lines, zero callers, deleted.
+//
+// The measurement worth keeping is the split. This module's RUNNERS are adopted
+// — playAnimation, playAnimations and startIdleLoop have 11 importers between
+// them across pirate-cove and naturescene. Its preset TABLE had none, and only
+// two files in the repo name `PropertyAnimation` at all: this one and
+// idleInterruptible.ts. Every one of those 11 sites hands in an object literal
+// it wrote itself.
+//
+// So this was not a good idea nobody got around to. It was a bet on shared
+// vocabulary that lost, next to a bet on shared machinery that won, in the same
+// directory, and the losing half stayed because a file with no callers costs
+// nothing to keep. Note the asymmetry before adding preset number eight: the
+// runners were adopted because a call site had a tween it could not write, and
+// the presets were not because a call site always has its own numbers.
+
 /**
  * A simplified animation keyframe with type-safe values.
  */

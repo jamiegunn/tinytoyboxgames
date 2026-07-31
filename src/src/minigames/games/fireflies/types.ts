@@ -131,8 +131,19 @@ export const SPAWN = { yMin: 0.6, yMax: 1.7, zMin: -0.9, zMax: 2.6 };
  */
 export const FOREGROUND_Z = 1.4;
 
-/** Hit detection radius for tap-to-catch (world-space, legacy). */
-export const HIT_RADIUS = 1.5;
+// NOT HERE DELIBERATELY: `HIT_RADIUS = 1.5`, a world-space catch radius.
+// It was not tuning drift — it was the losing half of a finished migration.
+// Fireflies hit-tests in SCREEN space and has for a long time: index.ts:787
+// seeds `nearestDist` from HIT_RADIUS_PX below, and index.ts:57 derives
+// SCENERY_HIT_RADIUS_PX = 95 from it. Nothing read the world-space number.
+// That is architecture-standards.md §11 ("Reactions are sized in pixels")
+// applied to hit-testing: a radius in world units shrinks on a phone exactly
+// where a small finger needs it most, which is why the game stopped using one.
+//
+// Do not reintroduce a world-space radius here to "match" little-shark's
+// FISH_HIT_RADIUS / GOLDEN_HIT_RADIUS or cannonball-splash's HIT_RADIUS. Those
+// three are live and world-space on purpose — they hit-test against objects the
+// player steers into rather than against a finger placed on glass.
 
 /** Screen-space hit radius in CSS pixels for tap-to-catch. Generous for young players. */
 export const HIT_RADIUS_PX = 80;

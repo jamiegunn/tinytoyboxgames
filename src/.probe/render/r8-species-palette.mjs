@@ -62,14 +62,78 @@
  * Run from inside the package: `node .probe/render/r8-species-palette.mjs`
  */
 
-// ── The rig, verbatim from the live scene ───────────────────────────
-const IRRADIANCE = [0.2225, 0.254, 0.2889]; // types.ts:16
-const EXPOSURE = 1.15; // utils/rendererFactory.ts:50-52
-const WATER = [0.004, 0.107, 0.2961]; // environment/setup.ts:165
-const FOG_DENSITY = 0.058; // environment/setup.ts — FogExp2
-const FISH_DEPTH = 9.4; // types.ts:24 — fish sit at the bottom of the frame
-const SAND_ALBEDO = [1.0, 0.8, 0.26]; // HOME_SAND
-const SAND_RENDERED = [117, 132, 103]; // types.ts:25, from terrain.ts measurements
+// ── The rig, IMPORTED from the live scene ───────────────────────────
+//
+// This block used to be seven hand-copied literals under the header "the rig,
+// verbatim from the live scene", each with a `// file:line` comment. Round 10
+// took that header seriously and checked it. Three of the seven citations
+// pointed at PROSE rather than at code, and one of those three had drifted:
+// IRRADIANCE was copied from a docblock in `types.ts` which had itself been
+// hand-transcribed from the exposure-budget derivation in `setup.ts`, and one
+// digit of that transcription — the blue channel, 0.2889 against 0.2882 — was
+// changed by hand. Three hops from the expression, corruption at hop two, and
+// this file citing hop three as source.
+//
+// The cost, measured: the verdict below does not move (72% loss either way,
+// 10.04 -> 10.06 dE2000). What moves is this probe's OWN accuracy line. "Worst
+// channel error across 18 recorded values" printed 1 level for as long as this
+// block was a copy, and prints 0 now. The error was never the model's; it was
+// the input's, and the fitted LIGHT_GAIN below had quietly absorbed most of it.
+// A probe that discloses a residual it has misattributed is not disclosing
+// anything, and this one had been doing so on every run.
+//
+// THE HEADER WAS THE DEFECT, not the numbers. "Verbatim from the live scene"
+// covered two kinds of value that have to be handled in opposite ways, and
+// mixing them under one heading is what let a program constant sit here as a
+// literal without anyone flinching:
+//
+//   PROGRAM CONSTANTS — things the running game reads. A copy of one is a fork
+//   with no merge. These are now imported. Where they could not be imported
+//   they have been made importable: REEF_RIG/reefIrradiance, REEF_WATER and
+//   TONE_MAPPING_EXPOSURE are all new this round, and all three were inline
+//   literals inside function bodies before it, which is precisely why the only
+//   honest thing this file could do with them at the time was copy them.
+//
+//   RECORDED OBSERVATIONS — numbers read off a real rendered frame. These are
+//   DATA and they must STAY literals, because a measurement that recomputes
+//   itself from current code is not a measurement, it is a tautology — and this
+//   probe's entire claim to be trusted is that two fitted terms reproduce
+//   eighteen of them to within a level.
+//
+// The two groups are separated below, and the second says out loud that no code
+// contains it.
+import { bundleEntry } from '../../tests/framework/_tsload.mjs';
+
+const { reefIrradiance, REEF_WATER, TONE_MAPPING_EXPOSURE, HOME_SAND } = await bundleEntry(
+  'r10_species_palette_rig',
+  `export { reefIrradiance, REEF_WATER } from './src/minigames/games/little-shark/environment/setup';
+   export { HOME_SAND } from './src/minigames/games/little-shark/environment/regions';
+   export { TONE_MAPPING_EXPOSURE } from './src/utils/rendererFactory';`,
+);
+
+const IRRADIANCE = reefIrradiance();
+const EXPOSURE = TONE_MAPPING_EXPOSURE;
+const WATER = [REEF_WATER.color.r, REEF_WATER.color.g, REEF_WATER.color.b];
+const FOG_DENSITY = REEF_WATER.fogDensity;
+const SAND_ALBEDO = [...HOME_SAND];
+
+// ── Recorded observations: DATA, not constants ──────────────────────
+//
+// FISH_DEPTH is a measured band depth. The follow camera's band table in
+// `environment/setup.ts` runs 27.6 units at the top of frame down to 9.4 at the
+// bottom, and fish swim at y = 0, so they sit at the bottom end of it. The
+// number exists in code nowhere at all — only in that table and in the sentence
+// in types.ts that restates it. The old citation, `// types.ts:24`, pointed at
+// the restatement.
+const FISH_DEPTH = 9.4; // measured; prose-only — setup.ts band table, restated at types.ts
+
+// SAND_RENDERED is a reading off a shipped frame, recorded in the types.ts
+// docblock. Its old citation claimed "from terrain.ts measurements"; the digits
+// 117 do not occur in terrain.ts at all, and this triple occurs in the whole
+// repository only in the two types.ts sentences that quote it. Provenance that
+// has decayed to a wrong filename is exactly as useless as no provenance, and
+// harder to doubt.
+const SAND_RENDERED = [117, 132, 103]; // measured; prose-only — types.ts docblock
 
 // ── The two fitted terms (see the header for what they stand in for) ─
 const LIGHT_GAIN = 1.66; // multiplies the stated irradiance

@@ -1,39 +1,18 @@
+// NOT HERE DELIBERATELY: applyEnvelope(...) and majorScale(root).
+//
+// applyEnvelope was a generic ADSR shaper; every synth in this file shapes its
+// own gain inline instead, because each one wants a different curve and the
+// generic version could only offer the average of them. majorScale returned a
+// seven-note array that no synth asked for -- the melodic cues here are written
+// as explicit intervals, which is what let them be tuned by ear.
+//
+// Both are the same mistake in two sizes: a helper generalised before it had a
+// second caller.
+
 /**
  * Shared Web Audio synthesis primitives used by all procedural audio modules.
  * Provides envelope shaping, noise generation, oscillator factories, and frequency utilities.
  */
-
-/**
- * Applies an ADSR amplitude envelope to a GainNode.
- *
- * @param _ctx - The AudioContext (unused, reserved for future use).
- * @param gain - The GainNode to shape.
- * @param attack - Attack time in seconds.
- * @param decay - Decay time in seconds.
- * @param sustain - Sustain level (0–1).
- * @param release - Release time in seconds.
- * @param startTime - AudioContext time to begin the envelope.
- * @param duration - Total envelope duration in seconds.
- * @param peakGain - Peak amplitude during attack.
- */
-export function applyEnvelope(
-  _ctx: AudioContext,
-  gain: GainNode,
-  attack: number,
-  decay: number,
-  sustain: number,
-  release: number,
-  startTime: number,
-  duration: number,
-  peakGain = 1.0,
-): void {
-  const g = gain.gain;
-  g.setValueAtTime(0, startTime);
-  g.linearRampToValueAtTime(peakGain, startTime + attack);
-  g.linearRampToValueAtTime(peakGain * sustain, startTime + attack + decay);
-  g.setValueAtTime(peakGain * sustain, startTime + duration - release);
-  g.linearRampToValueAtTime(0, startTime + duration);
-}
 
 /**
  * Applies a simple attack-release envelope (no sustain phase).
@@ -234,17 +213,6 @@ export function playFreqSweep(
  */
 export function midiToFreq(note: number): number {
   return 440 * Math.pow(2, (note - 69) / 12);
-}
-
-/**
- * Returns a musical scale as MIDI note numbers starting from the given root.
- *
- * @param root - MIDI note number of the root note.
- * @returns Array of MIDI note numbers in the major scale.
- */
-export function majorScale(root: number): number[] {
-  const intervals = [0, 2, 4, 5, 7, 9, 11];
-  return intervals.map((i) => root + i);
 }
 
 /**

@@ -13,13 +13,39 @@ import { Color, type Object3D, type Mesh } from 'three';
  * comparison the child never makes.
  *
  * Redone against the sand, through the full chain — albedo x rig irradiance
- * (0.2225, 0.2540, 0.2889) + emissive, ACES filmic at exposure 1.15, sRGB
+ * (0.2226, 0.2540, 0.2882) + emissive, ACES filmic at exposure 1.15, sRGB
  * encode, then the FogExp2 lerp toward the water colour IN DISPLAY SPACE
  * (fog_fragment runs after colorspace_fragment, and WebGLMaterials passes
  * fogColor through getUnlitUniformColorSpace, so fog is never tone-mapped).
  * That model reproduces the figures terrain.ts recorded from the real
  * renderer to within 4 levels per channel, so these are computed numbers and
  * not eyeballed ones.
+ *
+ * THAT TRIPLE USED TO READ (0.2225, 0.2540, 0.2889), AND ITS BLUE WAS WRONG —
+ * which matters less for what it did than for how long it lasted. It was a hand
+ * transcription of the exposure-budget derivation in `environment/setup.ts`.
+ * The red, 0.2225, was a perfectly defensible reading: that derivation prints
+ * three rounded rows and adding them as printed gives 0.2225, while computing
+ * at full precision gives 0.2226, and the table's own total row took one digit
+ * from each method without saying so. The blue is the actual defect. It reads
+ * 0.2889 against a table saying 0.2883 and an expression saying 0.2882 — one
+ * hand-changed digit, worth 0.00067, sitting inside a last-place ambiguity big
+ * enough that nobody would have looked twice at a channel being off by one.
+ *
+ * The value is now PRODUCED, by `reefIrradiance()` in that file, and this line
+ * is checked against it on every run by `tests/minigames/little-shark-rig.test.mjs`
+ * — it is no longer the source, it is a claim about the source with something
+ * enforcing it.
+ *
+ * The rendered figures below were computed against the old triple and are LEFT
+ * AS THEY WERE MEASURED rather than quietly recomputed. Substituting the
+ * derived value moves no verdict here — the worst-case separation stays 13.67
+ * and no rendered channel moves by more than one level — but it does move
+ * something. `.probe/render/r8-species-palette.mjs` prints a self-check, "worst
+ * channel error across 18 recorded values", and substituting the correct
+ * irradiance drops it from 1 level to 0. The probe had been reporting this
+ * defect on every single run, as a residual it credited to its own model, and a
+ * nonzero error term that nobody reads is not a disclosure.
  *
  * Fish live at the bottom of the frame, ~9.4 units from the camera, where fog
  * has taken 24% of the pixel and the sand renders rgb(117, 132, 103). Scoring

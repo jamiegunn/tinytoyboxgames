@@ -41,6 +41,30 @@ export function updateBubbleMotion(bubble: BubbleState, elapsedTime: number, del
   bubble.mesh.position.z += Math.sin(elapsedTime * 0.3 + bubble.phase * 2) * 0.02 * deltaTime;
 }
 
+// NOT HERE DELIBERATELY: createSpring / tickSpring — bubble-pop/animation/
+// spring.ts, a damped harmonic oscillator with `omega` and `zeta`, 113 lines
+// plus its barrel, zero importers, deleted.
+//
+// The reachability allowlist explained it away in nine words — "bubble-pop
+// animates from balance curves instead" — and that is not what is happening.
+// The function below hand-rolls THREE easings in thirty lines: a linear
+// sign-stepped chase for displaySize, an ad-hoc elastic ease-out
+// `1 − (1−t)³·cos(1.5πt)` for the spawn, and a sine wobble. The spring solver
+// is the primitive the first two approximate. It was not unused because
+// nothing needed it. It was unused because three sites in one function each
+// wrote a worse version, and none of them knew it was there.
+//
+// It is still deleted rather than adopted, and the reason is the rule the
+// species roster bought: measure before wiring. The linear chase is tuned and
+// documented ("turns the size step into a visible deflation") and a spring
+// would make a deflating giant bounce — a change to the art, not a cleanup.
+// The spawn curve is likewise somebody's taste, at t = 1 exactly, on purpose.
+// Swapping either for `zeta = 0.7` is a visual edit wearing a refactor's
+// clothes, and it would have shipped as one.
+//
+// If a fourth easing is wanted here, the question to answer first is why the
+// third did not use the second.
+
 /**
  * Per-frame squash-stretch wobble and spawn entrance animation for a single bubble.
  * @param bubble - The bubble to animate.

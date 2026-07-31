@@ -186,10 +186,19 @@ test('the literal scanner finds the call sites it claims to grade', () => {
     FILES.some((f) => f.startsWith('scenes/world/places/house/subplaces/playroom/')),
     'the rooms must be in reach too, so this suite is a superset of the room-scoped pin and not a replacement for a different set',
   );
-  assert.equal(SITES.length, 52, `expected 52 literal sound call sites, scanned ${SITES.length}`);
+  //
+  // ROUND 5 MOVED THIS FROM 52 TO 58, AND THE DELTA IS ITSELF THE EVIDENCE. Six
+  // new `triggerSound` sites, every one of them in the Nature scene, because
+  // before Round 5 that scene contained ZERO literal sound call sites — its
+  // whole eight-prop vocabulary was the dispatcher's miss cue. The number moving
+  // by exactly six is the shape of that repair. Note it is six and not eight:
+  // the leaf and the stone name their cues as `tapSoundId` / `revealSoundId`
+  // config fields rather than as calls, so this scanner cannot see them. The
+  // Round 5 pin below reads those two files directly for exactly that reason.
+  assert.equal(SITES.length, 58, `expected 58 literal sound call sites, scanned ${SITES.length}`);
   const byCall = {};
   for (const s of SITES) byCall[s.call] = (byCall[s.call] ?? 0) + 1;
-  assert.deepEqual(byCall, { playSound: 27, triggerSound: 24, triggerMusic: 1 });
+  assert.deepEqual(byCall, { playSound: 27, triggerSound: 30, triggerMusic: 1 });
   // Five of those `playSound` sites are in `.tsx` — the scene-transition whooshes in
   // `SceneFrame.tsx` and the button presses in `UIOverlay.tsx`. They are scanned on
   // purpose: React UI resolves ids through the same registry with the same absent
@@ -307,6 +316,161 @@ test('the Pirate Cove props Round 3 repaired still say what their docblocks prom
   // The creak had to be authored — nothing in the shared catalogue creaks — so pin
   // that the synth it names is real and reachable, not just that the id resolves.
   assert.match(readFileSync(path.join(srcRoot, 'assets', 'audio', 'pirateCove', 'index.ts'), 'utf8'), /export function playSfxPirateCoveWheelCreak\(/);
+});
+
+test('every interactive Nature prop answers in a voice of its own, and four of them use the sound written for them', () => {
+  // ROUND 5'S PIN. The charge was that the Nature scene's only sound was the sound
+  // for failure: zero literal sound call sites in the whole tree, so all eight
+  // interactive props fell through to `sfx_shared_tap_fallback` — the cue for a tap
+  // that hit nothing. The runtime proof is `.probe/render/r5-nature-voice.mjs`,
+  // which taps a real canvas and reads the first cue each prop emits. This is the
+  // cheap source-text guard that keeps the repair from silently rotting between
+  // probe runs, and it carries the same defect (xi) weakness as Round 4's pin: it
+  // proves a file CONTAINS a cue name, never that a running body REACHES it.
+  //
+  // THE FOUR MARKED `stranded: true` ARE THE ROUND'S AGGRAVATING FACT. Each was
+  // written, synthesised, named after the exact prop that exists, and registered —
+  // and called zero times. The mushroom's boing is the sharpest case: a 600→200 Hz
+  // sweep with a second, softer re-trigger at +0.15s, which is a sound authored for
+  // a two-stage bounce, against an animation that is exactly two stages. Somebody
+  // built both halves and never ran the wire. These four assertions exist so that
+  // wire can never be pulled again without a test saying so.
+  const nature = ['scenes', 'immersive-toybox-scenes', 'naturescene', 'factory'];
+  const PROPS = [
+    { what: 'mushroom', at: [...nature, 'props', 'interactive', 'mushrooms', 'interaction.ts'], cue: 'sfx_nature_mushroom_bounce', stranded: true },
+    { what: 'leaf', at: [...nature, 'props', 'interactive', 'leaves', 'interaction.ts'], cue: 'sfx_nature_leaf_flip', stranded: true },
+    { what: 'stream', at: [...nature, 'props', 'complex', 'stream', 'interaction.ts'], cue: 'sfx_nature_stream_splash', stranded: true },
+    { what: 'butterfly', at: [...nature, 'props', 'interactive', 'butterflies', 'interaction.ts'], cue: 'sfx_nature_butterfly_flutter', stranded: true },
+    { what: 'stone', at: [...nature, 'props', 'interactive', 'stones', 'interaction.ts'], cue: 'sfx_nature_stone_shift', stranded: false },
+    { what: 'log', at: [...nature, 'props', 'interactive', 'log', 'interaction.ts'], cue: 'sfx_nature_log_knock', stranded: false },
+    { what: 'firefly', at: [...nature, 'systems', 'fireflies', 'interaction.ts'], cue: 'sfx_nature_firefly_twinkle', stranded: false },
+    { what: 'flower', at: [...nature, 'props', 'interactive', 'flowers', 'interaction.ts'], cue: 'sfx_shared_sparkle_burst', stranded: false },
+  ];
+
+  // Reuse the real registry parser rather than grepping the file. A first draft of
+  // this pin matched `'${cue}'` against the raw registry source and failed on all
+  // eight props — the registry writes its keys BARE (`sfx_nature_log_knock:`), not
+  // quoted. That failure was the pin working: a hand-rolled second parser had
+  // disagreed with the one every other test here uses.
+  const registered = registeredIds();
+  for (const p of PROPS) {
+    const body = stripComments(readFileSync(path.join(srcRoot, ...p.at), 'utf8'));
+    assert.match(body, new RegExp(`'${p.cue}'`), `the ${p.what} must name '${p.cue}' in code, not only in prose`);
+    assert.doesNotMatch(body, new RegExp(MISS_CUE), `the ${p.what} must never answer a successful tap with the miss cue`);
+    assert.ok(registered.has(p.cue), `'${p.cue}' must be registered, or the ${p.what} is silent in production`);
+    if (p.stranded) {
+      // These four were already registered and already unreferenced. Pin that the
+      // reference is a real one in the prop's own file, which is the exact thing
+      // that was missing for the scene's entire life before Round 5.
+      assert.ok(p.cue.startsWith('sfx_nature_'), `${p.cue} was authored for Nature and must stay Nature's`);
+    }
+  }
+
+  // Bar (c), pinned: the flower is the ONE prop Round 5 deliberately gave a shared
+  // cue, on the argument that `sfx_shared_sparkle_burst` is already n staggered
+  // tones cascading upward and the bloom is n staggered petals opening outward.
+  // If a future round quietly hands the shared cue to a second prop, that argument
+  // has stopped being a reasoned exception and become a default — which is the
+  // failure mode bar (c) was written to catch. Wiring one shared cue to all eight
+  // would clear every other assertion here and be a worse app.
+  const sharedUsers = PROPS.filter((p) => p.cue.startsWith('sfx_shared_'));
+  assert.equal(sharedUsers.length, 1, `exactly one Nature prop may use a shared cue; ${sharedUsers.map((p) => p.what).join(', ')} do`);
+
+  // The two reveal props carry TWO cues on two different frames, which is Round 4's
+  // lesson applied before it could be relearned: the creature is spawned in
+  // `playAnimation`'s `onEnd`, so a single tap-time cue would announce a creature
+  // that does not exist yet. Pin the split, and pin that both share one scurry —
+  // the forest says the same thing whenever a small thing runs out from under
+  // something, and a rule is worth more here than two separately clever choices.
+  for (const what of ['leaves', 'stones']) {
+    const body = stripComments(readFileSync(path.join(srcRoot, ...nature, 'props', 'interactive', what, 'interaction.ts'), 'utf8'));
+    assert.match(body, /tapSoundId: '/, `${what} must name a cover cue`);
+    assert.match(body, /revealSoundId: 'sfx_shared_critter_scurry'/, `${what} must name the shared scurry for its creature`);
+  }
+  //
+  // PINNED BY ORDERING, NOT BY PROXIMITY. The first draft asserted the reveal cue
+  // appeared within 400 characters of `onEnd:` and failed on correct code — the
+  // body is longer than that. A character budget is a pin on formatting pretending
+  // to be a pin on behaviour; the thing that actually matters is that the ONLY
+  // `revealSoundId` call site sits after the `onEnd` that spawns the creature, and
+  // after the `scene.add` that puts it on screen.
+  const reveal = stripComments(readFileSync(path.join(srcRoot, 'utils', 'revealInteraction.ts'), 'utf8'));
+  const revealCalls = [...reveal.matchAll(/triggerSound\(config\.revealSoundId\)/g)];
+  assert.equal(revealCalls.length, 1, 'the creature cue must have exactly one call site, or this ordering pin is guessing which one it graded');
+  assert.ok(
+    reveal.indexOf('onEnd') < revealCalls[0].index,
+    'the reveal cue must fire inside onEnd — a payoff cue before the payoff is the defect Round 4 found',
+  );
+  assert.ok(reveal.indexOf('scene.add(creature)') < revealCalls[0].index, 'the reveal cue must fire after the creature is actually on screen');
+  // And the cover's own cue must fire at the tap, BEFORE the cover starts moving.
+  const tapCalls = [...reveal.matchAll(/triggerSound\(config\.tapSoundId\)/g)];
+  assert.ok(tapCalls.length >= 1, 'the cover must have a cue of its own');
+  assert.ok(tapCalls.at(-1).index < reveal.indexOf('playAnimation(config.coverMesh'), 'the cover cue must fire with the finger, not after the animation');
+
+  // AND THE PIN THAT BAR (b) BOUGHT. Gaining a voice makes `interactionController.fire`
+  // withhold its shared acknowledgement sparkle, and these two covers had no particles
+  // of their own until `onEnd` — so for one round the frame the finger landed on
+  // answered in nothing at all, measured at 0.89 and 0.27 of the sparkle given up.
+  // The invariant is not "there exists a tap particle" but the PAIRING: the frame that
+  // takes the controller's sparkle away is exactly the frame that must replace it, so
+  // the emit has to live inside the same `if (config.tapSoundId)` that causes the loss.
+  // Pinned by ordering against the two statements that bracket that block, because a
+  // brace-counting parser here would be a second, worse copy of the compiler.
+  const tapEmit = reveal.indexOf('tapFn(scene,');
+  assert.notEqual(tapEmit, -1, 'the cover must draw its own burst on the frame the finger lands');
+  assert.ok(tapCalls.at(-1).index < tapEmit, 'the tap burst must sit after the tap cue, inside the branch the cue creates the debt in');
+  assert.ok(tapEmit < reveal.indexOf('playAnimation(config.coverMesh'), 'the tap burst must be drawn with the finger, not after the cover animation');
+  assert.match(
+    reveal,
+    /tapParticleFn \?\? \(\(s: Scene, position: Vector3\) => getParticleEngine\(s\)\.emit\(PARTICLES\.sceneSparkle, position\)\)/,
+    'the default tap burst must be the miss’s own sparkle — that is what makes "no regression" a deduction rather than a hope',
+  );
+  // The stone overrides it, and the override must draw BOTH — which is a claim this
+  // pin got wrong once already, so the history is worth stating. The first version of
+  // the fix drew dust ALONE, on the honest-looking reasoning that a stone grinding
+  // through soil raises dust and a leaf turning over does not; this assertion pinned
+  // exactly that. Then the harness's new fourth pass measured what dust alone is
+  // worth against the sparkle it displaced — 42–50 px against 417–506 px, a tenth,
+  // and the preset arithmetic (additive bright yellow at opacity 0.8–1.0 and count 40,
+  // versus normal-blended brown at opacity 0.25–0.4 and count 12, on a brown forest
+  // floor) predicts the same factor of ten without any framebuffer. So the pin was
+  // pinning a regression.
+  //
+  // Both halves are now load-bearing and both are pinned, in a slice of the file that
+  // excludes `particleFn` — the reveal burst is also dust, and a whole-file regex here
+  // would pass on the strength of the wrong emit:
+  //
+  //   the SPARKLE, because `interactionController.fire` withholds its shared
+  //   acknowledgement from any handler that makes a sound, and that rule is a proxy
+  //   that takes "answered somehow" for "answered enough". Redrawing it is what makes
+  //   the no-regression claim a DEDUCTION — this emit set contains the miss's preset
+  //   unmodified, so the answer contains the miss's answer.
+  //
+  //   the DUST, because without it the fix collapses into "make everything sparkle so
+  //   the instrument can deduce a pass", which is fairy sparkle over soil: the exact
+  //   pressure apparatus defect (xix) was filed against. Keep what you had, add what
+  //   you earned.
+  const stone = stripComments(readFileSync(path.join(srcRoot, ...nature, 'props', 'interactive', 'stones', 'interaction.ts'), 'utf8'));
+  const tapFnStart = stone.indexOf('tapParticleFn:');
+  assert.notEqual(tapFnStart, -1, 'the stone must override the tap burst');
+  const tapFnEnd = stone.indexOf('tapSoundId:', tapFnStart);
+  assert.ok(tapFnEnd > tapFnStart, 'the stone tap burst must be followed by its tap cue — the two are paired by frame');
+  const stoneTapFn = stone.slice(tapFnStart, tapFnEnd);
+  assert.match(
+    stoneTapFn,
+    /emit\(PARTICLES\.sceneSparkle, p\)/,
+    'the stone must redraw the acknowledgement its voice cost it — dust alone measured a tenth of it',
+  );
+  assert.match(stoneTapFn, /emit\(PARTICLES\.sceneDust, p\)/, 'the stone must still raise its own dust — sparkle alone is fairy sparkle over soil');
+
+  // And pin the three synths Round 5 had to author, because the shared catalogue's
+  // nearest candidates were each rejected for a stated reason: `sfx_shared_chomp`
+  // is the cue for EATING, `sfx_hub_toybox_tap` is a named prop's voice already in
+  // use, and `sfx_shared_chime` is a near-twin of the GAME PORTAL's cue.
+  const natureSynths = readFileSync(path.join(srcRoot, 'assets', 'audio', 'nature', 'index.ts'), 'utf8');
+  for (const fn of ['playSfxNatureStoneShift', 'playSfxNatureLogKnock', 'playSfxNatureFireflyTwinkle']) {
+    assert.match(natureSynths, new RegExp(`export function ${fn}\\(`), `${fn} must exist, not just be named by a registry line`);
+  }
 });
 
 test('the game portal answers in its own voice, and its launch cue is earned rather than fired at the tap', () => {

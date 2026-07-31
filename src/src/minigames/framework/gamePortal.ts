@@ -5,7 +5,6 @@ import {
   MeshStandardMaterial,
   CylinderGeometry,
   SphereGeometry,
-  BoxGeometry,
   TorusGeometry,
   CircleGeometry,
   Vector3,
@@ -58,11 +57,10 @@ function createCylinder(name: string, diameterTop: number, diameterBottom: numbe
   return m;
 }
 
-function createBox(name: string, width: number, height: number, depth: number): Mesh {
-  const m = new Mesh(new BoxGeometry(width, height, depth));
-  m.name = name;
-  return m;
-}
+// `createBox` used to sit here. It went with the truck and blocks icons below —
+// no live portal icon is boxy. tsc found it, not a reviewer: deleting a symbol's
+// only two callers is what makes a helper dead, and the helper is one level away
+// from the thing you edited.
 
 function createTorus(name: string, diameter: number, thickness: number, tessellation = 32): Mesh {
   const m = new Mesh(new TorusGeometry(diameter / 2, thickness / 2, 16, tessellation));
@@ -79,140 +77,6 @@ function createDisc(name: string, radius: number, tessellation = 16): Mesh {
 // ════════════════════════════════════════════════════════════════════
 // Per-game icon builders — each returns a parent Group with children
 // ════════════════════════════════════════════════════════════════════
-
-function buildBalloonIcon(id: string): Group {
-  const root = new Group();
-  root.name = `${id}_balloon`;
-  // Balloon body — teardrop (sphere squished taller)
-  const body = createSphere(`${id}_body`, 0.65, 10);
-  body.scale.set(0.8, 1.1, 0.8);
-  body.position.y = 0.2;
-  body.material = mat(`${id}_bodyMat`, new Color(0.95, 0.2, 0.2), new Color(0.3, 0.05, 0.05));
-  root.add(body);
-  // Knot
-  const knot = createSphere(`${id}_knot`, 0.12, 6);
-  knot.position.y = -0.18;
-  knot.material = mat(`${id}_knotMat`, new Color(0.7, 0.15, 0.15));
-  root.add(knot);
-  // String
-  const str = createCylinder(`${id}_str`, 0.025, 0.025, 0.35, 6);
-  str.position.y = -0.38;
-  str.material = mat(`${id}_strMat`, new Color(0.9, 0.9, 0.85));
-  root.add(str);
-  return root;
-}
-
-function buildTruckIcon(id: string): Group {
-  const root = new Group();
-  root.name = `${id}_truck`;
-  // Body
-  const body = createBox(`${id}_body`, 0.7, 0.3, 0.4);
-  body.position.y = 0.15;
-  body.material = mat(`${id}_bodyMat`, new Color(1, 0.25, 0.1), new Color(0.25, 0.05, 0.02));
-  root.add(body);
-  // Cab (raised front)
-  const cab = createBox(`${id}_cab`, 0.3, 0.2, 0.38);
-  cab.position.set(0.2, 0.35, 0);
-  cab.material = mat(`${id}_cabMat`, new Color(1, 0.35, 0.15), new Color(0.2, 0.06, 0.02));
-  root.add(cab);
-  // Wheels (4 chunky cylinders)
-  const wheelMat = mat(`${id}_wheelMat`, new Color(0.15, 0.15, 0.15));
-  const wheelPositions = [new Vector3(-0.22, -0.02, 0.22), new Vector3(-0.22, -0.02, -0.22), new Vector3(0.22, -0.02, 0.22), new Vector3(0.22, -0.02, -0.22)];
-  for (let i = 0; i < 4; i++) {
-    const w = createCylinder(`${id}_w${i}`, 0.2, 0.2, 0.08, 12);
-    w.rotation.x = Math.PI / 2;
-    w.position.copy(wheelPositions[i]);
-    w.material = wheelMat;
-    root.add(w);
-  }
-  // Eyes on front (friendly face)
-  const eyeMat = mat(`${id}_eyeMat`, new Color(1, 1, 1), new Color(0.3, 0.3, 0.3));
-  const eyeL = createSphere(`${id}_eyeL`, 0.08);
-  eyeL.position.set(0.36, 0.34, 0.1);
-  eyeL.material = eyeMat;
-  root.add(eyeL);
-  const eyeR = createSphere(`${id}_eyeR`, 0.08);
-  eyeR.position.set(0.36, 0.34, -0.1);
-  eyeR.material = eyeMat;
-  root.add(eyeR);
-  return root;
-}
-
-function buildCarrotIcon(id: string): Group {
-  const root = new Group();
-  root.name = `${id}_carrot`;
-  // Carrot body (cone)
-  const body = createCylinder(`${id}_body`, 0.2, 0, 0.6, 10);
-  body.position.y = 0;
-  body.rotation.z = 0.15; // slight tilt
-  body.material = mat(`${id}_bodyMat`, new Color(1, 0.5, 0.1), new Color(0.2, 0.08, 0.01));
-  root.add(body);
-  // Green leafy top (3 small elongated cones)
-  const leafMat = mat(`${id}_leafMat`, new Color(0.2, 0.7, 0.15), new Color(0.04, 0.15, 0.02));
-  for (let i = 0; i < 3; i++) {
-    const leaf = createCylinder(`${id}_leaf${i}`, 0, 0.08, 0.25, 6);
-    leaf.position.set((i - 1) * 0.06, 0.4, 0);
-    leaf.rotation.z = (i - 1) * 0.25;
-    leaf.material = leafMat;
-    root.add(leaf);
-  }
-  return root;
-}
-
-function buildBallIcon(id: string): Group {
-  const root = new Group();
-  root.name = `${id}_ball`;
-  const ball = createSphere(`${id}_sphere`, 0.55, 12);
-  ball.material = mat(`${id}_ballMat`, new Color(1, 0.7, 0.15), new Color(0.3, 0.18, 0.03));
-  root.add(ball);
-  // Stripe across the ball
-  const stripe = createTorus(`${id}_stripe`, 0.56, 0.04, 24);
-  stripe.material = mat(`${id}_stripeMat`, new Color(0.95, 0.35, 0.1), new Color(0.2, 0.06, 0.01));
-  root.add(stripe);
-  return root;
-}
-
-function buildElephantIcon(id: string): Group {
-  const root = new Group();
-  root.name = `${id}_elephant`;
-  const gray = new Color(0.6, 0.6, 0.65);
-  const grayEm = new Color(0.1, 0.1, 0.12);
-  // Head
-  const head = createSphere(`${id}_head`, 0.55, 10);
-  head.material = mat(`${id}_headMat`, gray, grayEm);
-  root.add(head);
-  // Trunk (curved cylinder)
-  const trunk = createCylinder(`${id}_trunk`, 0.1, 0.06, 0.4, 8);
-  trunk.position.set(0, -0.2, 0.2);
-  trunk.rotation.x = -0.6;
-  trunk.material = mat(`${id}_trunkMat`, gray.clone().multiplyScalar(0.9), grayEm);
-  root.add(trunk);
-  // Ears (large flat discs)
-  for (let side = -1; side <= 1; side += 2) {
-    const ear = createDisc(`${id}_ear${side}`, 0.22, 10);
-    ear.position.set(side * 0.32, 0.05, 0);
-    ear.rotation.y = side * 0.3;
-    ear.material = mat(`${id}_earMat${side}`, new Color(0.65, 0.55, 0.6), new Color(0.1, 0.06, 0.08));
-    root.add(ear);
-  }
-  // Eyes
-  const eyeMat = mat(`${id}_eyeMat`, new Color(0.1, 0.1, 0.1), new Color(0.05, 0.05, 0.05));
-  for (let side = -1; side <= 1; side += 2) {
-    const eye = createSphere(`${id}_eye${side}`, 0.08);
-    eye.position.set(side * 0.14, 0.1, 0.24);
-    eye.material = eyeMat;
-    root.add(eye);
-  }
-  // Water droplets (3 small blue spheres spraying from trunk)
-  const dropMat = mat(`${id}_dropMat`, new Color(0.3, 0.7, 1), new Color(0.1, 0.25, 0.4));
-  for (let i = 0; i < 3; i++) {
-    const drop = createSphere(`${id}_drop${i}`, 0.07, 6);
-    drop.position.set((i - 1) * 0.1, -0.3 - i * 0.06, 0.35 + i * 0.05);
-    drop.material = dropMat;
-    root.add(drop);
-  }
-  return root;
-}
 
 function buildBubblesIcon(id: string): Group {
   const root = new Group();
@@ -234,109 +98,6 @@ function buildBubblesIcon(id: string): Group {
     b.position.copy(bubbles[i].pos);
     b.material = bubbleMat;
     root.add(b);
-  }
-  return root;
-}
-
-function buildPaletteIcon(id: string): Group {
-  const root = new Group();
-  root.name = `${id}_palette`;
-  // Palette base (flattened sphere — paint palette shape)
-  const base = createSphere(`${id}_base`, 0.7, 10);
-  base.scale.set(1.2, 0.2, 1);
-  base.material = mat(`${id}_baseMat`, new Color(0.85, 0.75, 0.6), new Color(0.12, 0.1, 0.07));
-  root.add(base);
-  // Paint dabs (small colored spheres on the palette)
-  const dabColors = [new Color(1, 0.2, 0.2), new Color(0.2, 0.5, 1), new Color(1, 0.85, 0), new Color(0.2, 0.8, 0.3), new Color(1, 0.4, 0.7)];
-  const dabPositions = [
-    new Vector3(-0.18, 0.1, 0.15),
-    new Vector3(0.15, 0.1, 0.18),
-    new Vector3(0.22, 0.1, -0.08),
-    new Vector3(-0.1, 0.1, -0.15),
-    new Vector3(0.0, 0.1, 0.02),
-  ];
-  for (let i = 0; i < dabColors.length; i++) {
-    const dab = createSphere(`${id}_dab${i}`, 0.12, 6);
-    dab.position.copy(dabPositions[i]);
-    dab.scale.y = 0.5;
-    dab.material = mat(`${id}_dabMat${i}`, dabColors[i], dabColors[i].clone().multiplyScalar(0.3));
-    root.add(dab);
-  }
-  // Brush handle
-  const brush = createCylinder(`${id}_brush`, 0.04, 0.04, 0.4, 6);
-  brush.position.set(0.35, 0.12, -0.1);
-  brush.rotation.z = -0.5;
-  brush.material = mat(`${id}_brushMat`, new Color(0.6, 0.4, 0.2));
-  root.add(brush);
-  // Brush tip
-  const tip = createCylinder(`${id}_tip`, 0.06, 0.03, 0.1, 6);
-  tip.position.set(0.45, 0.04, -0.14);
-  tip.rotation.z = -0.5;
-  tip.material = mat(`${id}_tipMat`, new Color(0.9, 0.3, 0.3), new Color(0.2, 0.05, 0.05));
-  root.add(tip);
-  return root;
-}
-
-function buildBlocksIcon(id: string): Group {
-  const root = new Group();
-  root.name = `${id}_blocks`;
-  // Triangle on top of a square — classic shape-builder icon
-  const square = createBox(`${id}_sq`, 0.4, 0.4, 0.4);
-  square.position.y = -0.1;
-  square.material = mat(`${id}_sqMat`, new Color(0.3, 0.5, 1), new Color(0.06, 0.1, 0.25));
-  root.add(square);
-  // Triangle (3-sided cylinder) on top
-  const tri = createCylinder(`${id}_tri`, 0.45, 0.45, 0.35, 3);
-  tri.position.y = 0.28;
-  tri.material = mat(`${id}_triMat`, new Color(1, 0.8, 0.1), new Color(0.25, 0.18, 0.02));
-  root.add(tri);
-  // Small circle on the side
-  const circ = createSphere(`${id}_circ`, 0.22, 8);
-  circ.position.set(0.3, -0.1, 0);
-  circ.material = mat(`${id}_circMat`, new Color(0.9, 0.25, 0.25), new Color(0.2, 0.04, 0.04));
-  root.add(circ);
-  return root;
-}
-
-function buildTeddyIcon(id: string): Group {
-  const root = new Group();
-  root.name = `${id}_teddy`;
-  const brown = new Color(0.65, 0.4, 0.2);
-  const brownEm = new Color(0.12, 0.07, 0.03);
-  // Body
-  const body = createSphere(`${id}_body`, 0.45, 8);
-  body.position.y = -0.12;
-  body.material = mat(`${id}_bodyMat`, brown, brownEm);
-  root.add(body);
-  // Head
-  const head = createSphere(`${id}_head`, 0.38, 8);
-  head.position.y = 0.2;
-  head.material = mat(`${id}_headMat`, brown, brownEm);
-  root.add(head);
-  // Ears
-  for (let side = -1; side <= 1; side += 2) {
-    const ear = createSphere(`${id}_ear${side}`, 0.14, 6);
-    ear.position.set(side * 0.17, 0.38, 0);
-    ear.material = mat(`${id}_earMat${side}`, brown.clone().multiplyScalar(0.8), brownEm);
-    root.add(ear);
-  }
-  // Snout
-  const snout = createSphere(`${id}_snout`, 0.15, 6);
-  snout.position.set(0, 0.15, 0.16);
-  snout.material = mat(`${id}_snoutMat`, new Color(0.8, 0.65, 0.45), new Color(0.12, 0.1, 0.06));
-  root.add(snout);
-  // Nose
-  const nose = createSphere(`${id}_nose`, 0.06, 6);
-  nose.position.set(0, 0.17, 0.23);
-  nose.material = mat(`${id}_noseMat`, new Color(0.1, 0.08, 0.06));
-  root.add(nose);
-  // Eyes
-  const eyeMat = mat(`${id}_eyeMat`, new Color(0.08, 0.06, 0.05));
-  for (let side = -1; side <= 1; side += 2) {
-    const eye = createSphere(`${id}_eye${side}`, 0.06, 6);
-    eye.position.set(side * 0.1, 0.25, 0.16);
-    eye.material = eyeMat;
-    root.add(eye);
   }
   return root;
 }
@@ -470,23 +231,29 @@ const ICON_BUILDERS: Record<BuiltInMiniGameId, (id: string) => Group> = {
   'cannonball-splash': buildCannonballIcon,
 };
 
-/**
- * Icon builders retained for future minigames that are not currently registered.
- *
- * Keeping these builders in one exported map avoids losing authored assets when
- * a game is temporarily out of rotation, while still satisfying the repo's
- * unused-symbol checks.
- */
-export const INACTIVE_ICON_BUILDERS = {
-  balloon: buildBalloonIcon,
-  truck: buildTruckIcon,
-  carrot: buildCarrotIcon,
-  ball: buildBallIcon,
-  elephant: buildElephantIcon,
-  palette: buildPaletteIcon,
-  blocks: buildBlocksIcon,
-  teddy: buildTeddyIcon,
-} as const;
+// NOT HERE DELIBERATELY: `INACTIVE_ICON_BUILDERS`, a map of eight icon builders
+// — balloon, truck, carrot, ball, elephant, palette, blocks, teddy — and the 237
+// lines that built them. Removed in full.
+//
+// The map's own docblock said it kept the builders "while still satisfying the
+// repo's unused-symbol checks", and that is precisely what it did: eight dead
+// functions, each individually reportable, bundled behind one exported name so
+// the guard counted one symbol instead of eight — and that one symbol was then
+// allowlisted, so the guard counted none. A wrapper whose stated purpose is to
+// pass a check is not an asset, it is a laundering step, and the check it beat
+// exists because ~920 lines of finished animal builders once hid the same way.
+//
+// The allowlist entry parking it claimed the builders served "portals in the
+// inactive state, which no portal currently enters". There is no inactive state.
+// Before this deletion the string "inactive" appeared exactly once in
+// minigames/framework/, in this constant's own name. The unregistered-game path
+// is real, one line long, and does not consult this map: buildGamePortal reads
+// `ICON_BUILDERS[gameId] ?? buildFallbackSparkIcon`, so a game with no entry
+// gets the fallback spark. Registering a new game means adding to ICON_BUILDERS
+// above; nothing reachable could ever have reached a balloon.
+//
+// Git has the geometry. Recover a builder from history if a game needs it —
+// do not re-park authored assets in a live module to keep them warm.
 
 // ════════════════════════════════════════════════════════════════════
 // Portal assembly — pedestal + glow ring + game-specific icon

@@ -33,6 +33,119 @@ export interface SceneEnvironment {
   reefLitter: ReefLitter;
 }
 
+/**
+ * The reef's light rig, as data rather than as five literals inside a call.
+ *
+ * WHY THIS IS A CONSTANT AND NOT JUST ARGUMENTS. The exposure budget further
+ * down derives the irradiance this rig lands on flat sand, and that derived
+ * triple is the input to every colour decision in this game — the fish palette
+ * in `types.ts`, the sand albedo in `terrain.ts`, the water colour above. It
+ * was derived in a COMMENT. A number that lives only in a comment can be read
+ * by a human and copied by a human, and it was: `types.ts:16` transcribes this
+ * triple, `.probe/render/r8-species-palette.mjs` copied that transcription, and
+ * the copy is wrong in the blue channel. Nothing could have caught that,
+ * because there was no expression anywhere in the program to disagree with.
+ *
+ * So the rig is data and the irradiance is a function. `reefIrradiance()` is
+ * not consumed at runtime — the shading is done by three.js, not by us — and
+ * that is the point: it exists so that the number the documentation and the
+ * probes quote is PRODUCED rather than transcribed, and so that a test can pin
+ * it. See `tests/minigames/little-shark-rig.test.mjs`.
+ */
+export const REEF_RIG = {
+  /**
+   * Unnormalised. `createGameLighting` is handed the normalised copy; the
+   * irradiance derivation takes |y| of the same normalisation, so the two can
+   * never disagree about which way the key points.
+   */
+  keyDirection: new Vector3(0.8, -1, 0.45),
+  keyIntensity: 0.72,
+  hemiIntensity: 0.5,
+  pointIntensity: 1.0,
+  /**
+   * All three colours are authored in the working (linear) space, the space
+   * `new Color(r, g, b)` writes to. `createGameLighting` hard-codes white, so
+   * these are applied to the returned light objects afterwards.
+   */
+  keyColor: new Color(1.0, 0.96, 0.88),
+  hemiSkyColor: new Color(0.06, 0.3, 0.6),
+  hemiGroundColor: new Color(0.3, 0.26, 0.18),
+  pointColor: new Color(0.55, 0.8, 1.0),
+  /** Dialled down from the project default 0.24 and restored on teardown. */
+  environmentIntensity: 0.012,
+  /**
+   * Average environment radiance E, FITTED against measured pixels of a shipped
+   * build rather than derived. It is the one term here that is not a rig
+   * setting, and it is the least certain: see the sensitivity note in the
+   * exposure budget below.
+   */
+  environmentRadiance: 3.68,
+} as const;
+
+/**
+ * The water the reef is seen through: background colour and fog density.
+ *
+ * Same reason as REEF_RIG. These two are the OTHER half of every rendered
+ * figure in this game — the display-space fog lerp is the last step of the
+ * chain, after tone mapping and sRGB encode — and they were inline literals
+ * inside `setupSceneEnvironment`, unreachable by anything that wanted to check
+ * a colour. `.probe/render/r8-species-palette.mjs` consequently carried
+ * `const WATER = [0.004, 0.107, 0.2961]` and `const FOG_DENSITY = 0.058` by
+ * hand, and the value of a hand-copy is pinned by nothing.
+ *
+ * Linear space, like every colour in this file.
+ */
+export const REEF_WATER = {
+  color: new Color(0.004, 0.107, 0.2961),
+  fogDensity: 0.058,
+} as const;
+
+/**
+ * Irradiance this rig lands on flat, upward-facing sand, per linear channel.
+ *
+ * Three.js shades Lambert diffuse as `albedo * irradiance / PI` for punctual
+ * lights plus `albedo * environmentIntensity * E` for the PMREM ambient, so:
+ *
+ *   key   colour * intensity * |dir.y| / PI     (|dir.y| is the cosine for an
+ *                                                up-facing surface)
+ *   hemi  skyColour * intensity / PI            (an up-facing surface sees the
+ *                                                sky half, never the ground)
+ *   env   environmentIntensity * E              flat in every channel
+ *
+ * WHAT THIS DOES NOT MODEL, stated next to the number because it is the kind of
+ * number that gets quoted: it is flat sand only — any tilted surface takes a
+ * different key cosine and a blend of sky and ground — and it omits the accent
+ * point light entirely, which contributes about 1.0 / 3.7^2 = 0.07 before the
+ * 1/PI near the shark and nothing at all on the seabed.
+ *
+ * WHY IT TAKES THE RIG AS A PARAMETER when there is only ever one rig: so that
+ * the derivation can be driven by a test rather than only by this module. Round
+ * 9 learned that the hard way — a check whose only evidence was a mutation of
+ * the live tree stopped being verifiable the moment the tree was edited. With
+ * the rig as an argument a test can perturb one field at a time and prove every
+ * term is load-bearing, which is the difference between pinning a number and
+ * pinning the expression that produces it.
+ *
+ * @param rig - The rig to derive from; defaults to the reef's own.
+ * @returns Linear irradiance as `[r, g, b]`.
+ */
+export function reefIrradiance(
+  rig: {
+    keyDirection: Vector3;
+    keyIntensity: number;
+    hemiIntensity: number;
+    keyColor: Color;
+    hemiSkyColor: Color;
+    environmentIntensity: number;
+    environmentRadiance: number;
+  } = REEF_RIG,
+): [number, number, number] {
+  const keyCosine = Math.abs(rig.keyDirection.clone().normalize().y);
+  const environment = rig.environmentIntensity * rig.environmentRadiance;
+  const channel = (key: number, sky: number): number => (key * rig.keyIntensity * keyCosine) / Math.PI + (sky * rig.hemiIntensity) / Math.PI + environment;
+  return [channel(rig.keyColor.r, rig.hemiSkyColor.r), channel(rig.keyColor.g, rig.hemiSkyColor.g), channel(rig.keyColor.b, rig.hemiSkyColor.b)];
+}
+
 // Thickens the reef inside each coloured region.
 //
 // THESE PROPS DO NOT CARRY REGION LEGIBILITY, AND THAT IS MEASURED. A 49-site
@@ -162,7 +275,9 @@ export function setupScene(scene: Scene, scope: DisposalScope): SceneEnvironment
   // The floor is brought down to meet it (see the exposure budget below), so
   // the ramp is now 79 -> 144 in luminance and 135 -> 26 in chroma instead of
   // 18 -> 220 and 43 -> 13.
-  const WATER_COLOR = new Color(0.004, 0.107, 0.2961);
+  // Cloned, not aliased: REEF_WATER.color is module state and the scene must
+  // not be able to reach back and edit the constant every other reader trusts.
+  const WATER_COLOR = REEF_WATER.color.clone();
   scene.background = WATER_COLOR.clone();
 
   // Underwater haze — shares the background colour exactly so there is no seam
@@ -181,7 +296,7 @@ export function setupScene(scene: Scene, scope: DisposalScope): SceneEnvironment
   // per-band chroma at 0.058 runs 123 (top) to 19 (bottom); at 0.045 it runs
   // 105 to 16 and the frame loses its blue, and at 0.070 the near sand is 40%
   // water and the orange fish stop reading as orange.
-  scene.fog = new FogExp2(WATER_COLOR.getHex(), 0.058);
+  scene.fog = new FogExp2(WATER_COLOR.getHex(), REEF_WATER.fogDensity);
 
   // Camera comes from the manifest (an orbit descriptor) applied to the shell
   // camera; the follow cam drives it thereafter. See architecture-standards.md#cameradescriptor.
@@ -222,10 +337,47 @@ export function setupScene(scene: Scene, scope: DisposalScope): SceneEnvironment
   // So the budget comes down by a factor of four and gets a colour. Sunlight
   // that has been through several metres of water is barely warm; the ambient
   // it scatters back down is strongly blue. Splitting it that way:
-  //     key  (1.00, 0.96, 0.88) * 0.72 * 0.737 / PI = (0.1688, 0.1621, 0.1486)
-  //     hemi (0.06, 0.30, 0.60) * 0.50 / PI         = (0.0095, 0.0477, 0.0955)
-  //     env  0.012 * 3.68                           =  0.0442 flat
-  //     total                                        (0.2226, 0.2540, 0.2883)
+  //     key  (1.00, 0.96, 0.88) * 0.72 * 0.7367 / PI = (0.1688, 0.1621, 0.1486)
+  //     hemi (0.06, 0.30, 0.60) * 0.50 / PI          = (0.0095, 0.0477, 0.0955)
+  //     env  0.012 * 3.68                            =  0.0442 flat
+  //     total                                         (0.2226, 0.2540, 0.2882)
+  //
+  // THAT ARITHMETIC IS NOW PERFORMED BY `reefIrradiance()` ABOVE. The rows are
+  // kept as the derivation's SHAPE — which term is which, and how big each one
+  // is — and every figure in them is now checked against the expression by
+  // `tests/minigames/little-shark-rig.test.mjs`, including the total. What
+  // follows is why that check exists, and it is worth reading before quoting any
+  // number out of this block again.
+  //
+  // THE TOTAL ROW USED TO READ (0.2226, 0.2540, 0.2883), AND IT WAS NOT A
+  // ROUNDING OF ANYTHING. A four-decimal table admits two different correct
+  // last digits, and this one silently used one method per channel:
+  //
+  //     computed at full precision, then rounded    0.2226, 0.2540, 0.2882
+  //     the printed rows above, added as printed    0.2225, 0.2540, 0.2883
+  //     what the total row actually said            0.2226, 0.2540, 0.2883
+  //
+  // Red came from the first method and blue from the second. Both methods are
+  // defensible; taking one digit from each is not, and nothing could have said
+  // so, because there was no expression anywhere in the program to disagree
+  // with a comment. (The cosine label was part of the same softness: the rows
+  // are computed at |direction.y| = 0.7367094687 and were labelled 0.737, at
+  // which they would read 0.1689 and 0.1622. It now says 0.7367.)
+  //
+  // AND THAT AMBIGUITY IS THE COVER THE REAL DEFECT HID UNDER. `types.ts:16`
+  // transcribed this total as (0.2225, 0.2540, 0.2889). Its red is the honest
+  // row-sum reading of the table — a reader could arrive at it correctly — but
+  // its blue is 0.2889 against a table that says 0.2883 and an expression that
+  // says 0.2882. That is one hand-changed digit, worth 0.00067, and it is the
+  // only one. `.probe/render/r8-species-palette.mjs` then copied THAT and cited
+  // it as `// types.ts:16`: three hops from this expression, corruption at hop
+  // two, a probe treating hop three as source.
+  //
+  // The first draft of this correction claimed the red had drifted too, "in the
+  // opposite direction, which no rounding rule produces". The test written to
+  // pin this table refuted that before it shipped. Round 10 is written up in
+  // docs/reviews/2026-07-30-rooms-five-rounds.md, including that.
+  //
   // The key is 76% of it, the hemisphere 4-33% depending on channel, and the
   // ambient 15-20%, so the scene still has one dominant direction and things
   // still have a lit side and a shaded side.
@@ -262,7 +414,7 @@ export function setupScene(scene: Scene, scope: DisposalScope): SceneEnvironment
   // 0.24 is the project-wide default for a scene lit like a room; this one is
   // lit like the sea, so it is dialled down here and put back on teardown.
   const previousEnvIntensity = scene.environmentIntensity;
-  scene.environmentIntensity = 0.012;
+  scene.environmentIntensity = REEF_RIG.environmentIntensity;
   scope.add(() => {
     scene.environmentIntensity = previousEnvIntensity;
   });
@@ -271,10 +423,10 @@ export function setupScene(scene: Scene, scope: DisposalScope): SceneEnvironment
     scene,
     {
       name: 'shark',
-      direction: new Vector3(0.8, -1, 0.45).normalize(),
-      directionalIntensity: 0.72,
-      hemisphericIntensity: 0.5,
-      pointIntensity: 1.0,
+      direction: REEF_RIG.keyDirection.clone().normalize(),
+      directionalIntensity: REEF_RIG.keyIntensity,
+      hemisphericIntensity: REEF_RIG.hemiIntensity,
+      pointIntensity: REEF_RIG.pointIntensity,
     },
     scope,
   );
@@ -289,14 +441,14 @@ export function setupScene(scene: Scene, scope: DisposalScope): SceneEnvironment
   // Key: filtered sunlight, only slightly warm — most of the red is already gone
   // by this depth, and taking more out would leave the orange and yellow fish
   // with no red channel to render.
-  lights.directionalLight.color.setRGB(1.0, 0.96, 0.88);
+  lights.directionalLight.color.copy(REEF_RIG.keyColor);
   // Fill: sky is the blue column overhead, ground is warm light bounced off the
   // sand. A hemisphere with sky !== ground is what makes an upward-facing sand
   // slope read as a different colour from a downward-facing one.
-  lights.ambientLight.color.setRGB(0.06, 0.3, 0.6);
-  lights.ambientLight.groundColor.setRGB(0.3, 0.26, 0.18);
+  lights.ambientLight.color.copy(REEF_RIG.hemiSkyColor);
+  lights.ambientLight.groundColor.copy(REEF_RIG.hemiGroundColor);
   // Accent: a cool pool of light where the shark surfaces.
-  lights.pointLight.color.setRGB(0.55, 0.8, 1.0);
+  lights.pointLight.color.copy(REEF_RIG.pointColor);
 
   // Nothing in this scene sets castShadow: the reef floor, all 290 props, the
   // shark and the fish are built without it, so the shadow map renders an empty

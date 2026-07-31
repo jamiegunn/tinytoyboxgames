@@ -3,17 +3,6 @@ import { Color, DoubleSide, MeshStandardMaterial } from 'three';
 // ── Generic helpers ──────────────────────────────────────────────────────────
 
 /**
- * Tiny random offset for natural organic variation.
- *
- * @param base - The base value.
- * @param range - The maximum deviation from base.
- * @returns A value randomly offset from base within the given range.
- */
-export function jitter(base: number, range: number): number {
-  return base + (Math.random() - 0.5) * range;
-}
-
-/**
  * Returns a random duration between minMs and maxMs.
  *
  * @param minMs - Minimum duration in milliseconds.
@@ -23,6 +12,13 @@ export function jitter(base: number, range: number): number {
 export function randomInterval(minMs: number, maxMs: number): number {
   return minMs + Math.random() * (maxMs - minMs);
 }
+
+// NOT HERE DELIBERATELY: jitter(amount).
+//
+// A symmetric random offset helper with no caller. The owl's idle motion comes
+// from the shared idle animator, whose wobble is PHASE-based and so repeats
+// smoothly frame to frame. A per-frame random jitter would have fought it and
+// produced exactly the twitch that phase-based idle exists to avoid.
 
 // ── Material wrappers — three surface families ───────────────────────────────
 

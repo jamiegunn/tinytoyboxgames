@@ -178,6 +178,12 @@ export const VISIBLE_BAND_HEIGHT = 7.08;
  *   MIN = 7.08 / 12 = 0.59  ->  0.6  (slowest bubble crosses in 7.08/0.6 = 11.8 s)
  *   MAX = 7.08 /  6 = 1.18  ->  1.2  (fastest bubble crosses in 7.08/1.2 =  5.9 s)
  *
+ * That arithmetic is WRITTEN OUT BELOW rather than left in this comment, and
+ * the values are unchanged (0.59 and 1.18 round to 0.6 and 1.2 at one decimal).
+ * A derivation stated only in prose is a claim nothing checks: before this,
+ * VISIBLE_BAND_HEIGHT could be re-measured to any number at all and these two
+ * would sit here still asserting they came from it. Now they do.
+ *
  * These were 0.15 and 1.0. `bubbleSpeedRange` handed out ~0.18 u/s at
  * difficulty 0 in the calm phase, i.e. 7.08 / 0.18 = 39 seconds to cross the
  * frame — bubbles enter from the bottom, so the top two thirds of the screen
@@ -189,8 +195,21 @@ export const VISIBLE_BAND_HEIGHT = 7.08;
  * *average* rise rate works out to `speed` u/s with simplex noise either side
  * of it. The numbers above are therefore averages, not instantaneous speeds.
  */
-export const MIN_FLOAT_SPEED = 0.6;
-export const MAX_FLOAT_SPEED = 1.2;
+/** Slowest tolerable crossing of the visible band, in seconds. */
+const SLOWEST_CROSSING_SECONDS = 12;
+/** Fastest still-hittable crossing of the visible band, in seconds. */
+const FASTEST_CROSSING_SECONDS = 6;
+
+/**
+ * Rounds to one decimal place — these are tuning dials a human reads, not raw quotients.
+ *
+ * @param n - The quotient to round.
+ * @returns `n` to one decimal place.
+ */
+const round1 = (n: number): number => Math.round(n * 10) / 10;
+
+export const MIN_FLOAT_SPEED = round1(VISIBLE_BAND_HEIGHT / SLOWEST_CROSSING_SECONDS);
+export const MAX_FLOAT_SPEED = round1(VISIBLE_BAND_HEIGHT / FASTEST_CROSSING_SECONDS);
 
 /**
  * Per-bubble random rise-speed variation, applied as a *multiplier* on the
@@ -286,8 +305,15 @@ export const MEAN_TRAVEL_DISTANCE = 7.08;
  *
  *   visible units per spawn = 0.7 * 7.08 + 0.3 * 1.61 = 4.956 + 0.483 = 5.44
  *   fraction                = 5.44 / MEAN_TRAVEL_DISTANCE = 5.44 / 7.08 = 0.77
+ *
+ * The last line is computed rather than transcribed, for the same reason as
+ * MIN_FLOAT_SPEED: MEAN_TRAVEL_DISTANCE had no reader at all until this line,
+ * so the sentence "sizes itself off this" above was true of the author's intent
+ * and false of the program.
  */
-export const VISIBLE_LIFE_FRACTION = 0.77;
+const VISIBLE_UNITS_PER_SPAWN = 5.44;
+
+export const VISIBLE_LIFE_FRACTION = Math.round((VISIBLE_UNITS_PER_SPAWN / MEAN_TRAVEL_DISTANCE) * 100) / 100;
 
 /**
  * Side-edge spawn Y range (visible band for side-entering bubbles).

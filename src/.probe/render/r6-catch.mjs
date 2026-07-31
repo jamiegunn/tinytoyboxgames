@@ -26,17 +26,22 @@
  * `r6-map.mjs`, so the two are directly comparable and the totals agree.
  */
 
-import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
+import { bundleEntry } from '../../tests/framework/_tsload.mjs';
 
-const shippedProximityPx = () => {
-  const src = readFileSync(new URL('../../src/utils/interaction/gestureRules.ts', import.meta.url), 'utf8');
-  const m = /export const PROXIMITY_PX = (\d+(?:\.\d+)?)/.exec(src);
-  if (!m) throw new Error('PROXIMITY_PX not found in gestureRules.ts -- fix this probe, do not guess');
-  return Number(m[1]);
-};
-
-const PROXIMITY_PX = shippedProximityPx();
+// PROXIMITY_PX is IMPORTED, not restated. Round 11 found this one constant
+// obtained four different ways across seventeen sites — six hard literals, eight
+// hand-rolled regex resolvers, and two real imports — with the correct mechanism
+// already present and adopted twice. A regex over the source cannot survive the
+// constant becoming an expression; a literal cannot survive anything.
+//
+// The bundle slug is deliberately shared with the twelve sibling probes that
+// need the same constant. bundleEntry emits `.tstest-tmp/entry_<slug>.bundle.mjs`,
+// so a shared slug means a shared temp file — safe here only because the entry
+// source below is byte-identical everywhere it appears. If you change this
+// entry, change it in all of them or give yours a different slug.
+const RULES = await bundleEntry('r11_gesture_rules', `export { PROXIMITY_PX } from './src/utils/interaction/gestureRules';`);
+const PROXIMITY_PX = RULES.PROXIMITY_PX;
 const STEP = 12;
 
 const SCENES = [['PIRATE COVE', 'http://localhost:5199/.probe/render/shot.html', '__discoveryMap']];

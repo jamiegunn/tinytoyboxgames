@@ -1,5 +1,17 @@
-import { Mesh, Group, Color, Vector3, SphereGeometry, CylinderGeometry, BoxGeometry, PlaneGeometry, MeshBasicMaterial, DoubleSide } from 'three';
+import { Mesh, Group, Color, Vector3, SphereGeometry, CylinderGeometry } from 'three';
 import { createFeltMaterial, createWoodMaterial, createPlasticMaterial } from '@app/utils/materialFactory';
+
+// NOT HERE DELIBERATELY: buildDetailedFence, buildDetailedCloud,
+// buildDetailedBush, buildWaterPlane, buildSkyGradient. About 200 lines.
+//
+// Every one of them has a live counterpart that the game actually uses and that
+// knows things these did not. Clouds and sky come from utils/skyRig.ts, which
+// the scenes drive; water is the pirate cove's sea scaffold, which ripples.
+// buildSkyGradient in particular built a static two-colour dome, and a scene
+// that adopted it would have lost the sky's response to its own fog settings.
+//
+// The four survivors above -- tree, rock, grass tuft, flower -- are here because
+// something calls them. That is the only reason a builder belongs in this file.
 
 /**
  * Builds a detailed storybook-style tree with a tapered trunk, branch stubs,
@@ -231,217 +243,6 @@ export function buildDetailedFlower(position: Vector3, petalColor: Color, stemHe
     leaf.rotation.y = leafAngle;
     leaf.rotation.z = -Math.cos(leafAngle) * 0.4;
     parent.add(leaf);
-  }
-
-  return parent;
-}
-
-/**
- * Builds a detailed toy-world fence section with tapered vertical posts
- * and horizontal rails, using wood PBR materials with slight imperfections.
- *
- * @param position - World position for the fence.
- * @param width - Total width of the fence section. Defaults to 3.0.
- * @returns A parent Group containing all fence sub-meshes.
- */
-export function buildDetailedFence(position: Vector3, width = 3.0): Group {
-  const parent = new Group();
-  parent.name = 'fence_parent';
-  parent.position.copy(position);
-
-  const postCount = 4;
-  const postHeight = 0.6;
-  const spacing = width / (postCount - 1);
-  const woodColor = new Color(0.55, 0.35, 0.15);
-
-  // --- Vertical posts: tapered cylinders ---
-  for (let i = 0; i < postCount; i++) {
-    const postGeo = new CylinderGeometry(0.04 / 2, 0.06 / 2, postHeight, 8);
-    const post = new Mesh(postGeo, createWoodMaterial(`fence_post_mat_${i}`, new Color(woodColor.r + (Math.random() - 0.5) * 0.05, woodColor.g, woodColor.b)));
-    post.name = `fence_post_${i}`;
-    post.position.set(i * spacing - width / 2, postHeight / 2, 0);
-    post.rotation.y = (Math.random() - 0.5) * 0.08; // slight imperfection
-    parent.add(post);
-  }
-
-  // --- Horizontal rails: 2 thin boxes between posts ---
-  const railHeights = [postHeight * 0.35, postHeight * 0.7];
-  railHeights.forEach((ry, i) => {
-    const railGeo = new BoxGeometry(width, 0.03, 0.03);
-    const rail = new Mesh(railGeo, createWoodMaterial(`fence_rail_mat_${i}`, new Color(woodColor.r - 0.03, woodColor.g - 0.02, woodColor.b)));
-    rail.name = `fence_rail_${i}`;
-    rail.position.set(0, ry, 0);
-    parent.add(rail);
-  });
-
-  return parent;
-}
-
-/**
- * Builds a fluffy cumulus-style cloud from 4-5 overlapping white spheres
- * with soft transparency and slight emissive luminosity.
- *
- * @param position - World position for the cloud center.
- * @param scale - Overall scale multiplier. Defaults to 1.0.
- * @returns A parent Group containing all cloud sub-meshes.
- */
-export function buildDetailedCloud(position: Vector3, scale = 1.0): Group {
-  const parent = new Group();
-  parent.name = 'cloud_parent';
-  parent.position.copy(position);
-
-  const cloudParts = [
-    { offset: new Vector3(0, 0, 0), diameter: 0.8 },
-    { offset: new Vector3(0.35, 0.1, 0.05), diameter: 0.65 },
-    { offset: new Vector3(-0.3, 0.05, -0.08), diameter: 0.6 },
-    { offset: new Vector3(0.1, 0.18, 0.12), diameter: 0.5 },
-    { offset: new Vector3(-0.12, -0.05, 0.15), diameter: 0.55 },
-  ];
-
-  cloudParts.forEach((cfg, i) => {
-    const sphereGeo = new SphereGeometry((cfg.diameter * scale) / 2, 10, 10);
-    const mat = createPlasticMaterial(`cloud_mat_${i}`, new Color(0.97, 0.97, 0.99));
-    mat.roughness = 0.9;
-    mat.emissive = new Color(0.15, 0.15, 0.18);
-    mat.transparent = true;
-    mat.opacity = 0.85;
-    const sphere = new Mesh(sphereGeo, mat);
-    sphere.name = `cloud_part_${i}`;
-    sphere.position.set(cfg.offset.x * scale, cfg.offset.y * scale, cfg.offset.z * scale);
-    parent.add(sphere);
-  });
-
-  return parent;
-}
-
-/**
- * Builds a dense storybook bush from 4-6 overlapping spheres in two
- * slightly different greens, flattened vertically for a rounded shrub shape.
- *
- * @param position - World position for the bush.
- * @param scale - Overall scale multiplier. Defaults to 1.0.
- * @param color - Base foliage color. Defaults to a medium green.
- * @returns A parent Group containing all bush sub-meshes.
- */
-export function buildDetailedBush(position: Vector3, scale = 1.0, color?: Color): Group {
-  const parent = new Group();
-  parent.name = 'bush_parent';
-  parent.position.copy(position);
-
-  const baseColor = color ?? new Color(0.2, 0.55, 0.15);
-  const altColor = new Color(baseColor.r + 0.05, baseColor.g + 0.08, baseColor.b - 0.02);
-
-  const foliageParts = [
-    { offset: new Vector3(0, 0, 0), diameter: 0.6 },
-    { offset: new Vector3(0.2, 0.05, 0.12), diameter: 0.5 },
-    { offset: new Vector3(-0.18, 0.08, -0.1), diameter: 0.48 },
-    { offset: new Vector3(0.08, -0.05, -0.2), diameter: 0.42 },
-    { offset: new Vector3(-0.1, 0.12, 0.18), diameter: 0.38 },
-    { offset: new Vector3(0.15, -0.02, 0.05), diameter: 0.35 },
-  ];
-
-  foliageParts.forEach((cfg, i) => {
-    const sphereGeo = new SphereGeometry((cfg.diameter * scale) / 2, 10, 10);
-    const useAlt = i % 2 === 1;
-    const partColor = useAlt ? altColor : baseColor;
-    const mat = createFeltMaterial(`bush_mat_${i}`, partColor);
-    mat.emissive = new Color(partColor.r * 0.06, partColor.g * 0.08, partColor.b * 0.04);
-    const sphere = new Mesh(sphereGeo, mat);
-    sphere.name = `bush_part_${i}`;
-    sphere.position.set(cfg.offset.x * scale, cfg.offset.y * scale, cfg.offset.z * scale);
-    sphere.scale.y = 0.7; // flatten vertically
-    parent.add(sphere);
-  });
-
-  return parent;
-}
-
-/**
- * Builds a stylized water surface with a semi-transparent PBR plane
- * and a second offset plane underneath for depth illusion, complete
- * with emissive blue tint for underwater glow.
- *
- * @param position - World position for the water plane center.
- * @param width - Width of the water surface. Defaults to 10.
- * @param depth - Depth (Z extent) of the water surface. Defaults to 8.
- * @returns A parent Group containing the water planes.
- */
-export function buildWaterPlane(position: Vector3, width = 10, depth = 8): Group {
-  const parent = new Group();
-  parent.name = 'water_parent';
-  parent.position.copy(position);
-
-  // --- Surface plane (ground = horizontal plane) ---
-  const surfaceGeo = new PlaneGeometry(width, depth);
-  surfaceGeo.rotateX(-Math.PI / 2);
-  const surfaceMat = createPlasticMaterial('water_surface_mat', new Color(0.15, 0.45, 0.7));
-  surfaceMat.metalness = 0.2;
-  surfaceMat.roughness = 0.1;
-  surfaceMat.transparent = true;
-  surfaceMat.opacity = 0.75;
-  surfaceMat.emissive = new Color(0.03, 0.08, 0.15);
-  const surface = new Mesh(surfaceGeo, surfaceMat);
-  surface.name = 'water_surface';
-  surface.position.y = 0;
-  parent.add(surface);
-
-  // --- Depth plane: slightly below, darker, more transparent ---
-  const depthGeo = new PlaneGeometry(width * 0.95, depth * 0.95);
-  depthGeo.rotateX(-Math.PI / 2);
-  const depthMat = createPlasticMaterial('water_depth_mat', new Color(0.08, 0.25, 0.5));
-  depthMat.metalness = 0.15;
-  depthMat.roughness = 0.2;
-  depthMat.transparent = true;
-  depthMat.opacity = 0.5;
-  depthMat.emissive = new Color(0.02, 0.04, 0.1);
-  const depthPlane = new Mesh(depthGeo, depthMat);
-  depthPlane.name = 'water_depth';
-  depthPlane.position.y = -0.08;
-  parent.add(depthPlane);
-
-  return parent;
-}
-
-/**
- * Builds a banded sky gradient background from 3-4 stacked horizontal strips,
- * blending from a top color to a bottom color with emissive lighting for
- * a soft storybook sky effect.
- *
- * @param topColor - Color at the top of the sky.
- * @param bottomColor - Color at the bottom of the sky.
- * @param size - Width and height of the sky backdrop. Defaults to 20.
- * @returns A parent Group containing the sky strip planes.
- */
-export function buildSkyGradient(topColor: Color, bottomColor: Color, size = 20): Group {
-  const parent = new Group();
-  parent.name = 'sky_parent';
-
-  const stripCount = 4;
-  const stripHeight = size / stripCount;
-
-  for (let i = 0; i < stripCount; i++) {
-    const t = i / (stripCount - 1); // 0 = top, 1 = bottom
-    const stripColor = topColor.clone().lerp(bottomColor, t);
-
-    const stripGeo = new PlaneGeometry(size, stripHeight);
-    const mat = new MeshBasicMaterial({
-      name: `sky_strip_mat_${i}`,
-      color: stripColor.clone(),
-      side: DoubleSide,
-    });
-    // Emissive approximation via MeshBasicMaterial (unlit, so color IS the emission)
-    // Blend emissive tint into the base color for the same visual effect
-    const emissiveFactor = 0.7 - t * 0.3;
-    mat.color.setRGB(stripColor.r * (1 + emissiveFactor), stripColor.g * (1 + emissiveFactor), stripColor.b * (1 + emissiveFactor));
-
-    const strip = new Mesh(stripGeo, mat);
-    strip.name = `sky_strip_${i}`;
-
-    // Position strips from top to bottom
-    const yPos = size / 2 - stripHeight / 2 - i * stripHeight;
-    strip.position.set(0, yPos, size / 2);
-
-    parent.add(strip);
   }
 
   return parent;

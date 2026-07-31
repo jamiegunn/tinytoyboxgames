@@ -12,6 +12,26 @@ import type { WorldTapDispatcher } from './worldTapDispatcher';
 // Shadow configuration now lives in the unified lighting rig
 // (utils/lighting/lightingRig.ts — see architecture-standards.md#lightingrig).
 
+// NOT HERE DELIBERATELY: scatterDecoratives(config) — utils/scatterDecoratives.ts,
+// 40 lines, zero callers, deleted.
+//
+// Its docstring said it "Replaces the copy-pasted scatter loops found in every
+// world scene's index.ts". Those files are 32, 32 and 34 lines and contain zero
+// loops and zero calls to Math.random between them; the thing it claimed to
+// replace was not there. That is worth more than the deletion: the sentence was
+// a description of a refactor nobody had checked, and it read as evidence the
+// refactor had happened.
+//
+// Where scatter loops DO exist — naturescene's toadstools, ferns, acorns, moss,
+// leaf litter, grass, treeline — they call `seededRng(placementSeed(position,
+// tag))`, so a given prop lands in the same spot on every load. This helper
+// scattered with bare Math.random(). Adopting it would have been a regression
+// that only showed up as decor twitching between reloads, and the docstring
+// would have made that look like tidying up.
+//
+// If a scatter helper is wanted, take the seed from utils/seededRng.ts and put
+// it there, not here.
+
 // ── Scene Lighting ────────────────────────────────────────────────────────────
 
 /** Data-driven configuration for a world scene's lighting rig. */
