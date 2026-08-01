@@ -37,7 +37,7 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import gsap from 'gsap';
-import { Group, Quaternion, Scene, Vector3 } from 'three';
+import { Color, Group, Quaternion, Scene, Vector3 } from 'three';
 import { bundleEntry } from '../framework/_tsload.mjs';
 
 const PC = 'src/scenes/immersive-toybox-scenes/pirate-cove';
@@ -94,12 +94,25 @@ function buildCove({ withSail = true, withParrot = true, cloudCount = 3 } = {}) 
   scene.add(seaAndSky);
   seaAndSky.add(createOcean());
 
-  const sun = createCelestialBody({ radius: 2, emissiveIntensity: 1.2 });
+  // color and emissive are REQUIRED by CelestialBodyOptions. Omitting them
+  // built the sun with `color: undefined`, which three.js accepts with a
+  // console warning and a silent fallback to white — 44 lines of
+  // 'THREE.Material: parameter color has value of undefined' on every
+  // commit, because the pre-commit gate runs this suite. Nothing caught it:
+  // these tests are .mjs, so tsc never checks the arguments they pass to a
+  // typed API. Values mirror pirate-cove/index.ts so the fixture is
+  // representative of what the scene actually builds.
+  const sun = createCelestialBody({
+    radius: 2,
+    color: new Color(1.0, 0.93, 0.74),
+    emissive: new Color(1.0, 0.84, 0.5),
+    emissiveIntensity: 1.2,
+  });
   seaAndSky.add(sun.root);
 
   const clouds = [];
   for (let i = 0; i < cloudCount; i += 1) {
-    const cloud = createCloudPuff({ scale: 1.8 });
+    const cloud = createCloudPuff({ color: new Color(0.97, 0.97, 1.0), scale: 1.8 });
     seaAndSky.add(cloud);
     clouds.push(cloud);
   }

@@ -16,12 +16,22 @@ docs/*
 !docs/controlled-terminology.md
 !docs/ai-guidance/*.md
 !docs/status/*.md
-# Review documents are the written record of why the code looks the way it
-# does — they are deliverables, not build output. Both `docs/*` and the blanket
-# `*.md` above were silently excluding every one of them, so they never entered
-# git and never reached the laptop in any shipped archive.
-!docs/reviews/*.md
-!docs/ai-guidance/reviews/*.md
+# Review documents were un-ignored on the argument that they are the written
+# record of why the code looks the way it does. That was reversed on 2026-08-01
+# at the owner's instruction: reviews are working notes, not shipped artefacts,
+# and they are excluded again by the `docs/*` and `*.md` rules above.
+#
+# NOTE for whoever reads this next: .gitignore has no effect on files git is
+# ALREADY tracking. Fifteen review documents were tracked when this changed;
+# removing them from the index is a separate, deliberate `git rm --cached` and
+# is NOT done by this file. Check `git ls-files docs/reviews` before assuming.
+#
+# Roughly thirty source files and five test files cite `docs/reviews/*.md` by
+# path in their comments. Those citations are prose only — no test resolves
+# them on disk, so the suite stays green — but in a fresh clone they will point
+# at files that are not there.
+# !docs/reviews/*.md
+# !docs/ai-guidance/reviews/*.md
 
 # Bun
 bun.lockb
