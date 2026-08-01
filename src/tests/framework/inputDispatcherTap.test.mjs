@@ -17,9 +17,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bundleTs } from './_tsload.mjs';
+import { bundleTs, loadTs } from './_tsload.mjs';
 
 const { createInputDispatcher } = await bundleTs('src/minigames/framework/InputDispatcher.ts');
+const { DRAG_THRESHOLD_PX, WOBBLE_TAP_TOLERANCE_PX } = await loadTs('src/utils/interaction/gestureRules.ts');
 
 /** A canvas stand-in that records listeners so the test can fire events. */
 function stubCanvas() {
@@ -40,9 +41,11 @@ function stubCanvas() {
 function harness(inputModes) {
   const canvas = stubCanvas();
   const taps = [];
+  const drags = [];
   const dispatcher = createInputDispatcher(canvas, null, { inputModes }, undefined);
   dispatcher.onTap((e) => taps.push(e));
-  return { canvas, taps, dispatcher };
+  dispatcher.onDrag((e) => drags.push(e));
+  return { canvas, taps, drags, dispatcher };
 }
 
 /** Presses and releases at a point, as a real finger would. */
@@ -148,4 +151,41 @@ test('dispose removes every listener it added', () => {
   for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']) {
     assert.equal(canvas.has(type), false, `${type} listener leaked`);
   }
+});
+
+// ── Threshold boundaries: exactly ON the line, not near it ──────────────────
+//
+// A 2026-08-01 mutation audit flipped `totalDistance >= DRAG_THRESHOLD` to `>`
+// and `totalDistance < WOBBLE_TAP_TOLERANCE` to `<=`. Both mutants survived the
+// entire 429-test suite. Every gesture test above moves either 0px or 400px, so
+// the two numbers that actually decide tap-versus-drag were free to move by one
+// pixel in either direction, unwatched. These two tests sit exactly on the line.
+
+test('a gesture of exactly DRAG_THRESHOLD_PX is a drag, not one pixel short of one', () => {
+  const { canvas, drags } = harness(['tap', 'drag']);
+  canvas.fire('pointerdown', 100, 100);
+  canvas.fire('pointermove', 100 + DRAG_THRESHOLD_PX, 100);
+  assert.equal(drags.length, 1, `moving exactly ${DRAG_THRESHOLD_PX}px must cross the drag threshold — the comparison is >=, not >`);
+
+  // One pixel short must NOT, so the assertion above cannot pass vacuously.
+  const below = harness(['tap', 'drag']);
+  below.canvas.fire('pointerdown', 100, 100);
+  below.canvas.fire('pointermove', 100 + DRAG_THRESHOLD_PX - 1, 100);
+  assert.equal(below.drags.length, 0, `moving ${DRAG_THRESHOLD_PX - 1}px must still be under the threshold`);
+});
+
+test('a smear of exactly WOBBLE_TAP_TOLERANCE_PX is a drag, not a forgiven tap', () => {
+  // Below the tolerance a wobble is a toddler's smeared tap and must still score.
+  const forgiven = harness(['tap', 'drag']);
+  forgiven.canvas.fire('pointerdown', 100, 100);
+  forgiven.canvas.fire('pointermove', 100 + WOBBLE_TAP_TOLERANCE_PX - 1, 100);
+  forgiven.canvas.fire('pointerup', 100 + WOBBLE_TAP_TOLERANCE_PX - 1, 100);
+  assert.equal(forgiven.taps.length, 1, `a ${WOBBLE_TAP_TOLERANCE_PX - 1}px smear is still a tap`);
+
+  // Exactly at the tolerance it is a deliberate drag and must not also score.
+  const { canvas, taps } = harness(['tap', 'drag']);
+  canvas.fire('pointerdown', 100, 100);
+  canvas.fire('pointermove', 100 + WOBBLE_TAP_TOLERANCE_PX, 100);
+  canvas.fire('pointerup', 100 + WOBBLE_TAP_TOLERANCE_PX, 100);
+  assert.equal(taps.length, 0, `a ${WOBBLE_TAP_TOLERANCE_PX}px drag must not be forgiven as a tap — the comparison is <, not <=`);
 });

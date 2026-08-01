@@ -29,11 +29,36 @@ jobs:
       - name: Typecheck
         run: bunx tsc -b
 
+      - name: Typecheck probe harness
+        # tsc -b cannot reach it: src/tsconfig.json references only the app and
+        # node projects, so the harness that grades every review round is the one
+        # body of code nothing type-checks. The pre-commit gate runs this; CI did not.
+        run: bunx tsc -p .probe/tsconfig.probe.json --noEmit
+
       - name: Lint
         run: bunx eslint . --max-warnings 0
 
+      - name: Format check
+        # check-code-quality.cjs lives at the repo root and was invoked by nothing —
+        # not a script, not a hook, not a workflow — and had been red since at least
+        # the 2026-07-18 review. A gate nobody runs is a comment.
+        run: node ../check-code-quality.cjs
+
       - name: Contract tests
-        run: node --test tests/template/*.test.mjs tests/room/*.test.mjs tests/room-template/*.test.mjs tests/minigame-template/*.test.mjs tests/audio/*.test.mjs
+        # A directory list is an exclusion criterion doing unchecked work — see the
+        # docblock in src/scripts/precommit-check.cjs, which makes the same argument
+        # about the pre-commit hook. Until 2026-08-01 this line named five of the
+        # eight test directories and CI therefore ran 145 of 429 tests; the 284 it
+        # skipped included every architectural guard in tests/framework/.
+        # tests/framework/ciWorkflow.test.mjs pins this. node expands the glob
+        # itself — do not add a shell.
+        run: node --test "tests/**/*.test.mjs"
+
+      - name: Coverage ratchet
+        # Gates on module-level coverage only: which modules any test loads is
+        # deterministic, while covered-line counts are not (the code calls
+        # Math.random()). See scripts/coverage-ratchet.mjs.
+        run: node scripts/coverage-ratchet.mjs
 
       - name: Build
         run: bunx vite build

@@ -39,14 +39,14 @@ C3  left wall >= 25% less colourful         59.9%   PASS
 
 ## The cause is arithmetic, not a mystery
 
-`lightingRig.ts:42` documents `direction` as *"the direction the light
-travels"*. Every room in the house sets:
+`lightingRig.ts:42` documents `direction` as _"the direction the light
+travels"_. Every room in the house sets:
 
-| room | keyDirection | keyIntensity |
-| --- | --- | --- |
-| kitchen | `(-0.45, -0.82, 0.35)` | 1.70 |
-| living-room | `(-0.45, -0.82, 0.35)` | 1.65 |
-| playroom | `(-0.5, -0.8, 0.3)` | 1.50 |
+| room        | keyDirection           | keyIntensity |
+| ----------- | ---------------------- | ------------ |
+| kitchen     | `(-0.45, -0.82, 0.35)` | 1.70         |
+| living-room | `(-0.45, -0.82, 0.35)` | 1.65         |
+| playroom    | `(-0.5, -0.8, 0.3)`    | 1.50         |
 
 The key travels toward −X. `LEFT_WALL_FACE_X` is **positive** in all three
 rooms, so the left wall's inward normal is −X and its Lambert term is
@@ -121,7 +121,7 @@ the right wall (normal +X, dot = −0.45) and the back wall (normal −Z, dot =
 room's key, the ordinary ratio for a bounce card, and it casts no shadow —
 a second shadow-caster is expensive and reads as two suns.
 
-This does not undo `bc4d01f`, which cut the *flat* terms (environment 0.24 →
+This does not undo `bc4d01f`, which cut the _flat_ terms (environment 0.24 →
 0.08, fill 0.3 → 0.2) because they carried 73% of the room's luminance with no
 direction in them at all. A bounce has a direction. It shades.
 
@@ -130,13 +130,13 @@ direction in them at all. A bounce has a direction. It shades.
 Measured on a fresh render of the Kitchen at the shared camera preset, in-band
 `y >= 2.2`, same masks that produced `side_L` and `side_R`.
 
-| gate | claim | now |
-| --- | --- | --- |
-| **E1** | left wall linear luminance lands in **0.140–0.210** (41–61% of the right's) | 0.0781 |
-| **E2** | *negative control* — right wall linear luminance stays within **±8%** of 0.3444 | 0.3444 |
-| **E3** | *negative control* — back wall flat share stays **39.6% ± 1.5 pts** | 39.6% |
-| **E4** | `side_L` flat share lands in **65.0–70.5%** | 72.7% |
-| **E5** | left wall colourfulness reaches **≥ 13.0** | 8.2 |
+| gate   | claim                                                                           | now    |
+| ------ | ------------------------------------------------------------------------------- | ------ |
+| **E1** | left wall linear luminance lands in **0.140–0.210** (41–61% of the right's)     | 0.0781 |
+| **E2** | _negative control_ — right wall linear luminance stays within **±8%** of 0.3444 | 0.3444 |
+| **E3** | _negative control_ — back wall flat share stays **39.6% ± 1.5 pts**             | 39.6%  |
+| **E4** | `side_L` flat share lands in **65.0–70.5%**                                     | 72.7%  |
+| **E5** | left wall colourfulness reaches **≥ 13.0**                                      | 8.2    |
 
 E2 and E3 are the construction's own claim about itself. Both Lambert terms are
 zero by the arithmetic above; if either wall moves, the direction is wrong and
@@ -162,7 +162,7 @@ come back. Written down now so it cannot be retold afterwards as a triumph.
 
 And, as in the Fix B registration: the measurement is the servant here. The
 argument for this change that would survive every gate above coming back red is
-`soul.md` — *"every surface must feel like something a child could touch."* A
+`soul.md` — _"every surface must feel like something a child could touch."_ A
 wall that renders a red clock rim and three coloured cloths at a colourfulness
 of 8.2 is not a mood, it is a wall that eats whatever you put on it. If the
 numbers disagree with the picture, the picture wins.

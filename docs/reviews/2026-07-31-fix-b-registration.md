@@ -96,7 +96,7 @@ side_both    88.1%       58.6%       64.7%
 - **B2** — `side_L` falls from 80.7% to **≤ 75.4%**
 - **B3** — `side_both` falls from 88.1% to **≤ 68.7%**
 - **B4** — `side_R` does **not** reach the Playroom-left band: it stays **> 55%**. B1 and
-  B4 together register a *window*, 55–62%, and the fix can miss it in either direction.
+  B4 together register a _window_, 55–62%, and the fix can miss it in either direction.
   Below 55% the fill discounts are too harsh; above 62% the halo model is crediting edges
   that do not carry enough contrast to push a tile past sd 6.0.
 - **B5, negative control** — the **back** wall stays at 39.6% ± 1.5 points. Nothing in
@@ -110,7 +110,7 @@ is written down now so it cannot be retold afterwards as either a triumph or as 
 two-parter.
 
 **And the measurement is the servant here, not the master.** A wall of flat dark panels
-would pass every gate above and fail `soul.md` — *"every surface must feel like something
-a child could touch."* The cloths are felt and they hang; the mugs swing when tapped; the
+would pass every gate above and fail `soul.md` — _"every surface must feel like something
+a child could touch."_ The cloths are felt and they hang; the mugs swing when tapped; the
 clock is the only circle on a wall of rectangles. If the numbers come back green and the
 picture is still cold, the picture wins.

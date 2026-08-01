@@ -228,9 +228,9 @@ works there; there is simply nothing else on screen to reach for. Iterating
 dispatch further would be tuning the wrong knob.
 
 **The fireflies are now legitimate tap thieves.** Fourteen moving targets hold
-large proximity catchments after the fix (firefly_13#1: 12168 px², 100.0%), and
+large proximity catchments after the fix (firefly*13#1: 12168 px², 100.0%), and
 they are the main remaining competitor for the worst-performing static props
-(stone#3 30.4%, leaf#3 47.5% on landscape). Nothing is _stolen_ in the Voronoi
+(stone#3 30.4%, leaf#3 47.5% on landscape). Nothing is \_stolen* in the Voronoi
 sense, but the nearest target moving under the finger between frames is a
 different question from the one this round answered.
 

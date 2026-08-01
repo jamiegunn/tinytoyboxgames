@@ -31,7 +31,12 @@ const tmpDir = path.join(packageRoot, '.tstest-tmp');
 export async function loadTs(relPath) {
   mkdirSync(tmpDir, { recursive: true });
   const abs = path.join(packageRoot, relPath);
-  const code = esbuild.transformSync(readFileSync(abs, 'utf8'), { loader: 'ts', format: 'esm', target: 'es2022' }).code;
+  // `sourcemap: 'inline'` + `sourcefile` are what make coverage measurable at all:
+  // without them V8 attributes every executed line to the temp file under
+  // .tstest-tmp/ and no .ts source ever appears in the report. Measure with
+  //   node --enable-source-maps --test --experimental-test-coverage ...
+  // The flag is not optional — without it the maps are emitted and ignored.
+  const code = esbuild.transformSync(readFileSync(abs, 'utf8'), { loader: 'ts', format: 'esm', target: 'es2022', sourcemap: 'inline', sourcefile: abs }).code;
   const outName = relPath.replace(/[\\/]/g, '_').replace(/\.ts$/, '.mjs');
   const outPath = path.join(tmpDir, outName);
   writeFileSync(outPath, code);
@@ -195,6 +200,9 @@ async function runBundle({ plugins: extraPlugins = [], ...inputOptions }, outNam
     bundle: true,
     format: 'esm',
     target: 'es2022',
+    // See loadTs above: without these, coverage names the bundle, not the source.
+    sourcemap: 'inline',
+    sourcesContent: true,
     platform: 'neutral',
     external: ['three', 'gsap'],
     alias: {

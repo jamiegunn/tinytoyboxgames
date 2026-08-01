@@ -134,12 +134,7 @@ export interface DisposalScope {
   /** Kill a GSAP tween/timeline on teardown (fixes the repeat:-1 leak class). */
   tween(tween: Killable): void;
   /** Remove a DOM listener on teardown. `options` must match the addEventListener call. */
-  listener(
-    target: EventTarget,
-    type: string,
-    fn: EventListener,
-    options?: AddEventListenerOptions | boolean,
-  ): void;
+  listener(target: EventTarget, type: string, fn: EventListener, options?: AddEventListenerOptions | boolean): void;
   /** Create a nested scope disposed with (or before) its parent. */
   child(): DisposalScope;
   /** Dispose everything in reverse registration order. Idempotent. */
@@ -221,9 +216,7 @@ loop **ticks** it. No effect calls `requestAnimationFrame` any more.
 ```ts
 export interface FrameClock {
   /** Subscribe a per-frame callback; returns an unsubscribe fn. */
-  subscribe(
-    cb: (dtSeconds: number, elapsedSeconds: number) => void,
-  ): () => void;
+  subscribe(cb: (dtSeconds: number, elapsedSeconds: number) => void): () => void;
   /** Advance the clock; called once per frame by the owning render loop. */
   tick(rawDtSeconds: number): void;
   /** Seconds accumulated since creation (clamped dt). */
@@ -316,7 +309,7 @@ clock tick.
 export interface ParticlePreset {
   /** Sprite shape. Shared, deduped texture (see texture.ts). */
   texture: ParticleTextureKind; // 'circle' | 'star'
-  blending: "additive" | "normal";
+  blending: 'additive' | 'normal';
   /** Default burst size (a fixed count, or an inclusive [min, max] range). */
   count: number | [min: number, max: number];
   /** Pool capacity — max particles this preset can have alive at once. */
@@ -351,23 +344,10 @@ export interface StreamHandle {
 }
 
 export interface ParticleEngine {
-  emit(
-    preset: ParticlePreset,
-    position: Vector3,
-    overrides?: EmitOverrides,
-  ): void;
-  stream(
-    preset: ParticlePreset,
-    follow: Object3D | (() => Vector3),
-    rate: number,
-    overrides?: EmitOverrides,
-  ): StreamHandle;
+  emit(preset: ParticlePreset, position: Vector3, overrides?: EmitOverrides): void;
+  stream(preset: ParticlePreset, follow: Object3D | (() => Vector3), rate: number, overrides?: EmitOverrides): StreamHandle;
 }
-export function createParticleEngine(
-  scene: Scene,
-  clock: FrameClock,
-  scope: DisposalScope,
-): ParticleEngine;
+export function createParticleEngine(scene: Scene, clock: FrameClock, scope: DisposalScope): ParticleEngine;
 ```
 
 **The real preset registry** (`utils/particles/presets.ts:344`) has **18** keys:
@@ -500,16 +480,11 @@ the current handle instead:
 
 ```ts
 const idle = getIdleAnimator(scene);
-idle.register(
-  gsap.to(
-    {},
-    { duration: 0.8, repeat: -1, onRepeat: emitPuff, onStart: emitPuff },
-  ),
-);
+idle.register(gsap.to({}, { duration: 0.8, repeat: -1, onRepeat: emitPuff, onStart: emitPuff }));
 
 let hornCall = gsap.delayedCall(6, hornInterval);
 function hornInterval(): void {
-  triggerSound("sfx_hub_train_horn");
+  triggerSound('sfx_hub_train_horn');
   hornCall = gsap.delayedCall(12 + Math.random() * 8, hornInterval);
 }
 idle.register({ kill: () => hornCall.kill() });
@@ -561,11 +536,7 @@ export interface LightingRig {
   accents: PointLight[];
 }
 
-export function createLightingRig(
-  scene: Scene,
-  d: LightingDescriptor,
-  scope: DisposalScope,
-): LightingRig;
+export function createLightingRig(scene: Scene, d: LightingDescriptor, scope: DisposalScope): LightingRig;
 ```
 
 Shadow map size comes from `qualityTier` (already wired in `sceneHelpers`).
@@ -598,13 +569,13 @@ the sky rig and why gameplay code branched on scene type.
 
 ```ts
 export interface FixedCameraDescriptor {
-  kind: "fixed";
+  kind: 'fixed';
   position: Vector3;
   target: Vector3;
   fov: number; // vertical, DEGREES
 }
 export interface OrbitCameraDescriptor {
-  kind: "orbit";
+  kind: 'orbit';
   target: Vector3; // orbit centre
   azimuth: number; // θ radians; 0 → +Z, π → −Z
   polar: number; // φ from +Y, radians
@@ -616,17 +587,8 @@ export type CameraDescriptor = FixedCameraDescriptor | OrbitCameraDescriptor;
 /** The default mini-game camera: the fixed shell view at (0, 2, 5). */
 export const DEFAULT_GAME_CAMERA: FixedCameraDescriptor;
 
-export function createCamera(
-  d: CameraDescriptor,
-  aspect: number,
-): PerspectiveCamera;
-export function sphericalPosition(
-  target: Vector3,
-  azimuth: number,
-  polar: number,
-  distance: number,
-  out?: Vector3,
-): Vector3;
+export function createCamera(d: CameraDescriptor, aspect: number): PerspectiveCamera;
+export function sphericalPosition(target: Vector3, azimuth: number, polar: number, distance: number, out?: Vector3): Vector3;
 export function fovRadiansToDegrees(radians: number): number;
 ```
 
@@ -697,26 +659,17 @@ export interface InteractionAudio {
 }
 
 /** `userData` key mirroring `TapOptions.background` onto a registered object. */
-export const TAP_BACKGROUND_KEY = "tapBackground";
+export const TAP_BACKGROUND_KEY = 'tapBackground';
 
 export interface InteractionController {
-  register(
-    obj: Object3D,
-    handler: (hit: TapHit) => void,
-    opts?: TapOptions,
-  ): () => void;
+  register(obj: Object3D, handler: (hit: TapHit) => void, opts?: TapOptions): () => void;
   setProximityRadiusPx(px: number): void;
   /** Answers a tap that matched nothing; receives the camera ray through the tap. */
   setMissHandler(fn: ((ray: Ray) => void) | null): void;
   setPaused(paused: boolean): void;
 }
 
-export function createInteractionController(
-  canvas: HTMLCanvasElement,
-  camera: Camera,
-  scope: DisposalScope,
-  audio?: InteractionAudio,
-): InteractionController;
+export function createInteractionController(canvas: HTMLCanvasElement, camera: Camera, scope: DisposalScope, audio?: InteractionAudio): InteractionController;
 ```
 
 **There is no `scene` parameter.** Earlier revisions published
@@ -895,11 +848,7 @@ export interface SceneRuntime {
   sky: Mesh | null;
 }
 
-export function buildScene(
-  scene: Scene,
-  d: SceneDescriptor,
-  ctx: SceneBuildContext,
-): SceneRuntime;
+export function buildScene(scene: Scene, d: SceneDescriptor, ctx: SceneBuildContext): SceneRuntime;
 ```
 
 `buildScene` composes the camera, lighting rig, ground, backdrop (skydome via

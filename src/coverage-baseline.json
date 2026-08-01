@@ -1,0 +1,17 @@
+{
+  "_readme": "Ratcheted by scripts/coverage-ratchet.mjs. modulesObserved may only rise; modulesWithZeroCoverage may only fall. To move a number the wrong way, edit it here in the SAME commit and add a line to justifications saying why. A ratchet with no documented way down gets deleted by whoever it blocks on a Friday night.",
+  "_recordedAt": "2026-08-01",
+  "_recordedFrom": "195482c103aec17c40bd47e5ce3a3d1a7f56f4df, plus the audit fixes on top",
+  "_method": "node --enable-source-maps --test --experimental-test-coverage over all eight test directories, merged. Module sets are deterministic: three identical runs of tests/room produced a byte-identical set of 349 modules.",
+  "modulesObserved": 392,
+  "modulesWithZeroCoverage": 152,
+  "reachableModules": 542,
+  "sourceModules": 545,
+  "lineCoverageRecordOnly": {
+    "covered": 8434,
+    "lines": 37255,
+    "pct": 22.6,
+    "note": "NOT gated. Line coverage is nondeterministic here — three identical runs of tests/room covered 3994, 4022 and 4045 of the same 28338 lines, because the code under test calls Math.random(). Gating on this number would fail at random. See the docblock in scripts/coverage-ratchet.mjs."
+  },
+  "justifications": []
+}

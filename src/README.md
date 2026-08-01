@@ -16,19 +16,19 @@ Then open `http://localhost:5173`. npm equivalents (`npm install`, `npm run dev`
 
 ## Scripts
 
-| Script | What it does |
-|---|---|
-| `dev` | Start the Vite dev server with HMR |
-| `build` | Type-check (`tsc -b`) then produce a production build |
-| `preview` | Serve the production build locally |
-| `lint` | Run ESLint over the package |
-| `format` | Prettier-write `src/**/*.{ts,tsx}` |
-| `format:check` | Prettier check without writing |
-| `test` | Run the full contract test suite (see below) |
-| `precommit:check` | Run the pre-commit quality checks |
-| `create:immersive-scene` | Scaffold a new immersive toybox scene |
-| `create:room-scene` | Scaffold a new room scene |
-| `create:minigame` | Scaffold a new minigame |
+| Script                   | What it does                                          |
+| ------------------------ | ----------------------------------------------------- |
+| `dev`                    | Start the Vite dev server with HMR                    |
+| `build`                  | Type-check (`tsc -b`) then produce a production build |
+| `preview`                | Serve the production build locally                    |
+| `lint`                   | Run ESLint over the package                           |
+| `format`                 | Prettier-write `src/**/*.{ts,tsx}`                    |
+| `format:check`           | Prettier check without writing                        |
+| `test`                   | Run the full contract test suite (see below)          |
+| `precommit:check`        | Run the pre-commit quality checks                     |
+| `create:immersive-scene` | Scaffold a new immersive toybox scene                 |
+| `create:room-scene`      | Scaffold a new room scene                             |
+| `create:minigame`        | Scaffold a new minigame                               |
 
 Generator examples:
 

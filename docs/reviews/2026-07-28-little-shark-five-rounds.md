@@ -632,17 +632,8 @@ const MEAN_FISH_BASE_SPEED = (FISH_BASE_SPEED_MIN + FISH_BASE_SPEED_MAX) / 2;
 const PX_PER_WORLD_UNIT_AT_SHARK_DEPTH = 224 / 2.5;
 
 function tapSnapRadiusPx(): number {
-  const extraUnitsPerSecond =
-    Math.max(
-      0,
-      getSpeedMultiplier(context.difficulty.level) - MIN_SPEED_MULTIPLIER,
-    ) * MEAN_FISH_BASE_SPEED;
-  return (
-    FISH_TAP_SNAP_RADIUS_PX +
-    extraUnitsPerSecond *
-      ASSUMED_TOUCH_LATENCY_S *
-      PX_PER_WORLD_UNIT_AT_SHARK_DEPTH
-  );
+  const extraUnitsPerSecond = Math.max(0, getSpeedMultiplier(context.difficulty.level) - MIN_SPEED_MULTIPLIER) * MEAN_FISH_BASE_SPEED;
+  return FISH_TAP_SNAP_RADIUS_PX + extraUnitsPerSecond * ASSUMED_TOUCH_LATENCY_S * PX_PER_WORLD_UNIT_AT_SHARK_DEPTH;
 }
 ```
 

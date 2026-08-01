@@ -7,6 +7,11 @@ const packageRoot = path.join(repoRoot, 'src');
 const prettierBin = path.join(packageRoot, 'node_modules', 'prettier', 'bin', 'prettier.cjs');
 const eslintBin = path.join(packageRoot, 'node_modules', 'eslint', 'bin', 'eslint.js');
 const prettierConfig = path.join(packageRoot, '.prettierrc');
+// Prettier resolves .prettierignore relative to CWD, and this script runs from
+// the repo root while the ignore file lives in the package. Without this flag
+// the 45 esbuild bundles under src/.tstest-tmp are graded as source, so the
+// gate's verdict depends on whether you have run the tests recently.
+const prettierIgnore = path.join(packageRoot, '.prettierignore');
 
 function fail(message) {
   process.stderr.write(`${message}\n`);
@@ -19,6 +24,10 @@ if (!fs.existsSync(path.join(packageRoot, 'package.json'))) {
 
 if (!fs.existsSync(prettierBin)) {
   fail(`Code quality check failed: missing Prettier binary at ${prettierBin}`);
+}
+
+if (!fs.existsSync(prettierIgnore)) {
+  fail(`Code quality check failed: missing Prettier ignore file at ${prettierIgnore}`);
 }
 
 if (!fs.existsSync(eslintBin)) {
@@ -39,7 +48,7 @@ function runNodeCheck(label, binPath, args, cwd) {
   }
 }
 
-runNodeCheck('Prettier', prettierBin, ['--config', prettierConfig, '--check', ...prettierTargets], repoRoot);
+runNodeCheck('Prettier', prettierBin, ['--config', prettierConfig, '--ignore-path', prettierIgnore, '--check', ...prettierTargets], repoRoot);
 runNodeCheck('ESLint', eslintBin, ['.', '--max-warnings', '0'], packageRoot);
 
 process.stdout.write('\nCode quality checks passed.\n');

@@ -1,9 +1,9 @@
 # Four scenes, measured: a design audit that spent most of its effort disqualifying itself
 
-**Charge.** *"Now do the same exercise on these items, but using a designers eye and scoring
+**Charge.** _"Now do the same exercise on these items, but using a designers eye and scoring
 mathematically. I propose these scenes / rooms still suck and suck hard. Agree, Disagree, I don't
 care - just defend your choice rationally and mathematically and then don't trust yourself - test
-your conclusions."*
+your conclusions."_
 
 **Subjects.** Four capture frames: Nature (3344×1762), Pirate Cove (3232×1708), Living Room
 (3180×1706), Kitchen (3260×1726). All statistics below mask the UI chrome — the top 8% of frame
@@ -19,7 +19,7 @@ instrument produced against my expectation.
 
 **Status, added after the fact.** Fix C has been built, measured and shipped (`bc4d01f`) — the
 kitchen's colour reservoir went from 1.2% of pixels to 31.8% with no albedo edited, which was this
-document's own falsifiable prediction. Its *prescription* was wrong in a way worth reading before
+document's own falsifiable prediction. Its _prescription_ was wrong in a way worth reading before
 trusting the remaining fixes, and §Fix C now carries both the original text and the correction, along
 with a finding about the playroom that neither confirms nor refutes this audit but independently
 corroborates Fix B. Fixes A, B and D remain unrendered predictions.
@@ -31,8 +31,8 @@ corroborates Fix B. Fixes A, B and D remain unrendered predictions.
 The charge asks for mathematics and then asks me not to trust it. The order that actually protects
 against self-deception is the reverse: falsify the instrument first, and only then let it speak. Four
 metrics were built, run, and found defective before any verdict was written. Recording them is not
-throat-clearing — three of the four defects would have produced a *published number that sounded
-right*.
+throat-clearing — three of the four defects would have produced a _published number that sounded
+right_.
 
 ### 1.1 A metric that returned the same value for every input
 
@@ -65,7 +65,7 @@ Bilateral symmetry, computed as the correlation of the frame with its own mirror
 **negative** for the living room (−0.168) and the kitchen (−0.298). A picture cannot be
 anti-correlated with its own reflection by composition; that number had to be an artifact.
 
-It was. Both rooms carry a large horizontal luminance ramp, and a ramp correlates *negatively* with
+It was. Both rooms carry a large horizontal luminance ramp, and a ramp correlates _negatively_ with
 its own mirror image, swamping everything else. Removing a fitted linear ramp first:
 
 ```
@@ -83,10 +83,10 @@ nothing in the original battery would have reported. It reappears in §4.
 ### 1.3 A control set drawn from the wrong distribution
 
 Three synthetic controls were rendered to test whether the instrument could rank a known-good
-composition above a known-bad one, including a deliberate false-positive trap: a *good minimal*
-composition that is mostly empty. Written into the script before running, verbatim: *"If the
+composition above a known-bad one, including a deliberate false-positive trap: a _good minimal_
+composition that is mostly empty. Written into the script before running, verbatim: _"If the
 instrument scores this as badly as ctrl_bad, then 'percent flat' is measuring emptiness rather than
-quality and every dead-space claim I make about the four scenes is unsupported."*
+quality and every dead-space claim I make about the four scenes is unsupported."_
 
 Result: the known-good control scored 91.2% flat, the known-bad 94.8%, the minimal 97.9% — and every
 real scene scored better than all three. The controls were flat-shaded vector art with no shading
@@ -101,7 +101,7 @@ can verify by eye as dense or empty, composited into frames with a known orderin
 The first rebuild composited at 1200×800 while the scenes are ~3260×1726, then compared 32-pixel-tile
 statistics directly. A 32px tile spans 2.7% of a 1200px frame and 0.98% of a 3260px frame — the
 control's tiles cover 2.7× more picture and are correspondingly more likely to contain an edge,
-biasing the controls toward looking *less* flat. That is the direction that makes the kitchen look
+biasing the controls toward looking _less_ flat. That is the direction that makes the kitchen look
 worse by comparison. I noticed only after reading a result I liked.
 
 Rebuilt at native scale, no resampling anywhere:
@@ -116,8 +116,8 @@ REAL-MINIMAL         30.4   32.4%    45.8  0.903   44.8%     <- subject = 5.5% o
 Both pre-registered hypotheses resolved, and the second one cost me the headline:
 
 - **H1 confirmed.** Dense 14.7% vs sparse 45.8% — a 3.1× separation. Flat-tile fraction does respond
-  to content density within the actual rendering distribution, so comparing the four scenes *against
-  each other* is licensed.
+  to content density within the actual rendering distribution, so comparing the four scenes _against
+  each other_ is licensed.
 - **H2 confirmed, and it is the expensive one.** REAL-MINIMAL sits at 44.8%, essentially on top of
   REAL-SPARSE's 45.8%. A defensible composition with a real subject on a thirds intersection is
   indistinguishable from a frame of pure nothing. **Percent-flat measures emptiness and nothing
@@ -141,16 +141,16 @@ pirate             36.8  35.5%   44.8  0.679  42.6%  0.560      21.0%  15.2%
 living_room        20.1  33.7%   25.1  0.479  37.8%  0.205      21.5%   1.8%
 kitchen            14.8  71.7%   23.2  0.364  51.7%  0.233      31.0%   1.2%
 ```
-\* detrended. `%grey` is HSV saturation below 0.15. `dyn` is the 1–99 percentile luminance range over
-255. `<L120` is the share of pixels below luminance 120 — see §4.
 
-Colourfulness is Hasler & Süsstrunk's metric M3, used because its bands come from *their* twenty
+\* detrended. `%grey` is HSV saturation below 0.15. `dyn` is the 1–99 percentile luminance range over 255. `<L120` is the share of pixels below luminance 120 — see §4.
+
+Colourfulness is Hasler & Süsstrunk's metric M3, used because its bands come from _their_ twenty
 human observers rather than from me: below 15 "not colourful", 15–33 "slightly", 33–45 "moderately",
 45–59 "averagely". The kitchen at **14.8 falls below the bottom of a published scale that starts at
 "not colourful."**
 
 That number needed its own check, because a metric could easily be an emptiness proxy in disguise. It
-is not: REAL-DENSE scores 26.0 and REAL-SPARSE scores 30.0 — the *emptier* control is *more*
+is not: REAL-DENSE scores 26.0 and REAL-SPARSE scores 30.0 — the _emptier_ control is _more_
 colourful. Colourfulness carries no ordering with density, so the kitchen's 14.8 is a fact about
 colour and not a restatement of its flatness.
 
@@ -180,13 +180,13 @@ kitchen         10         9.2%          12.7%          55.8%   43.0%
 ```
 
 **The convex hull of every tappable thing in the picture covers 5.5% to 17.4% of the picture.** That
-is a source-derived number with no aesthetic content, and it is an *over*-estimate of interactive
+is a source-derived number with no aesthetic content, and it is an _over_-estimate of interactive
 area, because the hull is drawn around point positions and swallows all the empty floor between them.
 
 ### 3.1 The null test, which killed half the finding
 
 The gap column invites the reading "the frame's information is not where the game is." There is a
-boring rival: *any* central region of *any* rendered frame is less flat than its periphery, because
+boring rival: _any_ central region of _any_ rendered frame is less flat than its periphery, because
 renderers put the subject in the middle and the sky and floor at the edges. If a same-sized blob
 dropped anywhere central gives the same gap, the word "interactive" is doing no work.
 
@@ -211,7 +211,7 @@ assertion I had formed about Nature spending its detail budget on untouchable ba
 **The rooms survive the significance test and lose the causal one.** Living room at the 98.8th
 percentile and kitchen at the 90.8th are real outliers. But look at the `centred` column: 34.9 versus
 real 35.1, 39.7 versus real 43.0. **A blob of the same size placed at the dead centre of the frame
-reproduces the result.** The interactive hull is not specially placed; it is simply *central*. So the
+reproduces the result.** The interactive hull is not specially placed; it is simply _central_. So the
 honest statement is two separate facts rather than one causal claim: the periphery of these two
 frames is drastically emptier than their centres (44.0% and 55.8% of peripheral tiles carry no
 information), and all the interactive content is confined to the centre. Their conjunction is the
@@ -235,7 +235,7 @@ living_room          47.6%        9.7%   4.90:1
 kitchen              47.9%        9.6%   4.99:1
 ```
 
-Set against the source inventory of what is *on* those walls. In the kitchen: the cabinet run,
+Set against the source inventory of what is _on_ those walls. In the kitchen: the cabinet run,
 backsplash, window and curtains, fridge, stove, open shelf, pot rail and its three pots, sample
 counter — **every one on the back wall.** The left wall carries a doorway. The right wall (x = −5.4)
 carries nothing at all, not one object. In the living room: fireplace, mantel, firebox, window,
@@ -290,7 +290,7 @@ This is also where §1.2's discarded artifact comes back. The +53.0 and +48.8 lu
 real lighting asymmetry: a single key at world x = +4.51 aimed at the origin, against a flat
 hemisphere fill at 0.30 (key:fill of 4.7:1), lighting a room whose walls sit at x = ±5.4. Screen-right
 measures 192.3 against screen-left's 154.3. Worth recording that the source cross-check predicted the
-*opposite* direction by reasoning from the light's position rather than from which surface normals it
+_opposite_ direction by reasoning from the light's position rather than from which surface normals it
 faces; the pixels settle it, and the images confirm it by eye.
 
 ---
@@ -319,7 +319,7 @@ living_room  SHIPPED                          side 47.6%  back  9.7%  floor 22.5
 ```
 
 The best reachable pose moves the side walls by **eight tenths of one point.** At distance 14 the
-clamp forces polar ≥ 1.167, so the shipped 1.19 is *already pinned against the ceiling* and cannot be
+clamp forces polar ≥ 1.167, so the shipped 1.19 is _already pinned against the ceiling_ and cannot be
 improved by tilting at all. The camera is not the broken thing. What the reachable poses do buy is
 worth taking on its own terms — the kitchen's hull goes 9.2% → 12.7% and the living room's 17.4% →
 26.4% — but note what pays for it: the floor share rises 22.2% → 29.7%. Dead wall becomes floor, and
@@ -364,7 +364,7 @@ room's own established density is the best content-per-unit-effort available any
 ### Fix C — restore a dark end. **The colour fix, and it is not a palette fix.** — BUILT AND SHIPPED
 
 Because saturation only exists below roughly L 120–160 and the kitchen has 1.2% of its pixels there,
-the instruction is to *build a shadow*, not to repaint. The testable target: bring `<L120` from 1.2%
+the instruction is to _build a shadow_, not to repaint. The testable target: bring `<L120` from 1.2%
 toward nature's 23.8%, and lift `sd L` from 23.2 toward nature's 52.8, without a single albedo being
 edited.
 
@@ -410,7 +410,7 @@ lighting config, so I recorded that all three had the same defect. Rendered, the
   playroom      32.6   27.3%    8.2%    33.3      2.15
 ```
 
-The playroom beat the *fixed* kitchen on flat-region coverage, with nearly double the colourfulness
+The playroom beat the _fixed_ kitchen on flat-region coverage, with nearly double the colourfulness
 and 4.7× the wall texture, **before anything was done to it.** A defect inferred from a configuration
 similarity is not a defect. What differs is visible in the picture: the playroom's side walls carry
 windows, a pinboard, a chalkboard, a door and wainscoting, where the kitchen's carry nothing — and
@@ -424,7 +424,7 @@ than an absence, and a room that was already working does not get the strong med
 Two further corrections to the record. The ground colour `0x5c4530` was documented in the source as
 "warm bounce off the floorboards"; the floors were then sampled and it sits 8–10° of hue from every
 floor in the building, and substituting the floor-derived colour moved `sd L` by 0.04 against a
-same-build noise floor of 0.20. The hue is close to inert — the *darkness* is what shapes the room.
+same-build noise floor of 0.20. The hue is close to inert — the _darkness_ is what shapes the room.
 The constant stays, because it cleared a pre-registered gate and was chosen by eye, but it is a
 preference and the comments that claimed a derivation have been retired. And every variant here was
 scored against a **dim-only negative control**, which is what stops "less flat" from being satisfied
@@ -459,12 +459,12 @@ willing to say against this scene.
 
 1. **The interactive hull treats props as points.** Nature's four game portals are large discs — among
    the biggest elements in the frame — and contribute a point each. Nature's 13.6% is therefore an
-   *under*-estimate while the rooms' 9.2%/17.4%, whose props are small objects, are closer to fair.
+   _under_-estimate while the rooms' 9.2%/17.4%, whose props are small objects, are closer to fair.
    The comparison across scenes is biased against nature, which is the direction that makes my
    exoneration of it conservative but makes any cross-scene hull ranking unsafe.
 
 2. **The captures are of the default camera pose only.** Every scene permits pan and orbit within
-   constraints. Everything here describes the frame the child is *first* given, which is the frame
+   constraints. Everything here describes the frame the child is _first_ given, which is the frame
    worth arguing about, but is not the only frame that exists.
 
 3. **`%flat` is an emptiness measure and nothing more** (§1.4). It is used here only for within-scene
@@ -473,16 +473,16 @@ willing to say against this scene.
 4. **The null test's `beats` column is not a p-value.** The 400 placements are translations of one
    fixed hull shape, so they are not independent draws from any well-defined population. It supports
    "this placement is unremarkable within its own translation family" and no stronger statement — and
-   that is the direction in which it was used, to *reject* two findings rather than to license one.
+   that is the direction in which it was used, to _reject_ two findings rather than to license one.
 
 5. **Fix D's numbers assume the camera and prop set stay put.** Moving three toyboxes is priced above;
    whether a 16×10 room still reads as the same room is a judgement no measurement here makes.
 
-6. **Nothing here was rendered — *no longer true of Fix C, and it cost the prescription.*** Every fix
+6. **Nothing here was rendered — _no longer true of Fix C, and it cost the prescription._** Every fix
    was originally evaluated against predicted numbers from geometry and tone, not against a
    re-capture. The predictions were stated so a re-capture could falsify them: side walls 47.9% →
    17.5%, `<L120` 1.2% → toward 23.8%, kitchen hull 9.2% → 12.7%. Fix C has since been rendered.
-   The `<L120` target was met and passed (1.2% → 31.8%); the *prescription* for how to get there was
+   The `<L120` target was met and passed (1.2% → 31.8%); the _prescription_ for how to get there was
    wrong, naming the hemisphere fill when `environmentIntensity` was carrying 73% of the luminance
    (§Fix C). Ranking a fix from an unrendered model got the target right and the mechanism wrong.
    Fixes A, B and D remain unrendered and their numbers should be read with that in mind.
@@ -496,53 +496,53 @@ willing to say against this scene.
 
 **(xliii) A metric returning the same value for every input was nearly published as a finding.**
 "99.4% of energy is low-frequency" reads like a measurement of a soft, low-detail image. It was a
-property of the integration limits and would have been true of any photograph ever taken. *A metric
+property of the integration limits and would have been true of any photograph ever taken. _A metric
 that does not discriminate between your inputs has not looked at them, and the tell is available
-before you interpret a single value: check the spread across inputs before checking the values.*
+before you interpret a single value: check the spread across inputs before checking the values._
 
 **(xliv) The artifact was worth more than the metric it broke.** Negative symmetry was impossible, and
 chasing why produced the 48.8/53.2-unit luminance ramps — a first-order fact about both rooms that
-the working battery had no channel for. *An impossible reading is a channel to something real; the
+the working battery had no channel for. _An impossible reading is a channel to something real; the
 question is never only "what is wrong with the number" but "what is the number accidentally
-measuring."*
+measuring."_
 
 **(xlv) A control drawn from the wrong distribution is worse than no control, because it produces a
 verdict.** The synthetic controls ranked known-good above known-bad by 3.6 points and scored every
 real scene better than all three. Had I read that as "the instrument works, and the scenes are fine",
-or as "the instrument is broken, discard it", both would have been wrong. *A control must come from
-the same distribution as the thing controlled, or it tests your renderer rather than your metric.*
+or as "the instrument is broken, discard it", both would have been wrong. _A control must come from
+the same distribution as the thing controlled, or it tests your renderer rather than your metric._
 
 **(xlvi) I found the scale confound in my own control only after it gave me the answer I wanted.**
 The 1200px-versus-3260px tile mismatch biased the controls in exactly the direction that made the
-kitchen look worse. It was found on re-reading, not on writing. *The moment a result confirms you is
-the moment to re-derive it; agreement suppresses the audit that disagreement triggers automatically.*
+kitchen look worse. It was found on re-reading, not on writing. _The moment a result confirms you is
+the moment to re-derive it; agreement suppresses the audit that disagreement triggers automatically._
 
 **(xlvii) A significance test and a causal test are different tests, and passing the first is
 routinely reported as passing the second.** The rooms' gaps sit at the 98.8th and 90.8th percentile of
 the null — real outliers. And a blob of the same size at the dead centre of the frame reproduces them
-(34.9 vs 35.1; 39.7 vs 43.0). The effect is real *and* the proposed cause is not established. *"Not
+(34.9 vs 35.1; 39.7 vs 43.0). The effect is real _and_ the proposed cause is not established. _"Not
 explained by chance" and "explained by my mechanism" are independent claims; the null distribution
-tests the first, and only a second null built from the rival mechanism tests the second.*
+tests the first, and only a second null built from the rival mechanism tests the second._
 
 **(xlviii) The fix that survived scrutiny is the one I did not propose first.** Fix A was proposed,
 swept, optimised, and found to recommend a camera position the engine clamps away — an 11.1% result
-that would have been shipped as fact and silently delivered 47.1%. *An optimiser searching a space
+that would have been shipped as fact and silently delivered 47.1%. _An optimiser searching a space
 wider than the system's constraints will return its answer from the part of the space that does not
-exist, and it will not tell you; encode the constraint in the search, not in the review afterwards.*
+exist, and it will not tell you; encode the constraint in the search, not in the review afterwards._
 
 **(xlix) Two instruments sharing no input is the only agreement worth anything here.** The pixel
 battery and the source projection agreed on where content is, and the camera model reproduced the
 renders to within a percent on landmarks it was never fitted to. That agreement is load-bearing in a
-way that none of the within-battery consistency was. *Cross-instrument agreement is evidence in
+way that none of the within-battery consistency was. _Cross-instrument agreement is evidence in
 proportion to how little the instruments share; agreement between two statistics of the same pixels
-is close to free.*
+is close to free._
 
 **(l) The finding I was most confident of is the one that died.** Before any control ran I had written
 that across all four scenes "the frame's detail budget is spent on the parts the child cannot interact
 with." It survives for the two rooms in a weakened, decomposed form and is refuted for nature and
-pirate at the 56th percentile of a null distribution. *A thesis that fits every case in the set is
+pirate at the 56th percentile of a null distribution. _A thesis that fits every case in the set is
 usually a thesis fitted to the set; the case that breaks it is the one that tells you what it was
-actually about.*
+actually about._
 
 ---
 
@@ -552,52 +552,52 @@ in the same register because they are the same failure repeating under better li
 **(li) A check that holds the suspect variable fixed cannot convict it.** The first ablation swept
 every lighting term while `environmentIntensity` stayed at its global default in all arms, so the
 term carrying 73% of the room was constant across the entire experiment and therefore invisible to
-it. *A variable that does not vary in your test is not being tested by it, however many arms it has;
-list what is being held fixed before reading what moved.*
+it. _A variable that does not vary in your test is not being tested by it, however many arms it has;
+list what is being held fixed before reading what moved._
 
 **(lii) Correlating unregistered images ranks them by detail frequency, not by the thing you meant.**
-*If the comparison was not pre-registered, the ranking will find whatever the images differ in most,
-and that is rarely the property you named.*
+_If the comparison was not pre-registered, the ranking will find whatever the images differ in most,
+and that is rarely the property you named._
 
 **(liii) When a fix moves a metric a fifth of the way and the sweep flattens, stop tuning and start
 subtracting.** Two sweeps of key/fill got the kitchen from 23.0 to about 27 and then stalled. The
-remaining distance was not in the terms being tuned; it was in a term nobody was tuning. *A plateau
-under tuning is evidence about the model, not about the step size.*
+remaining distance was not in the terms being tuned; it was in a term nobody was tuning. _A plateau
+under tuning is evidence about the model, not about the step size._
 
 **(liv) `<L120` is knife-edge for these rooms and `sd L` is not.** A room can move from 1.2% to 8%
 on a change that barely alters its appearance, because the whole distribution sits just above the
-threshold. *Prefer a metric measuring the shape of a distribution over one counting how much of it
-falls past an arbitrary line, unless the line means something.*
+threshold. _Prefer a metric measuring the shape of a distribution over one counting how much of it
+falls past an arbitrary line, unless the line means something._
 
-**(lv) A guard against a failure mode must be able to tell that mode from success.** *The tell is
-cheap: run the failure mode deliberately as a control and check that your gate rejects it.*
+**(lv) A guard against a failure mode must be able to tell that mode from success.** _The tell is
+cheap: run the failure mode deliberately as a control and check that your gate rejects it._
 
 **(lvi) A measurement window placed by guessing fractions must be checked against the picture before
 its verdict is believed.** The first playroom shadow window straddled a pinboard batten and a
 wainscot rail; per-channel standard deviations of 10.9/13.4/19.9 were being read as wall texture.
-Tightened until it sampled bare paint, it read 0.9/1.1/2.0. *An 11× error in the direction that
-flatters your fix, from a window nobody looked at.*
+Tightened until it sampled bare paint, it read 0.9/1.1/2.0. _An 11× error in the direction that
+flatters your fix, from a window nobody looked at._
 
 **(lvii) Global `sd L` rewards deleting half the image.** Any change that pushes a large region toward
-black raises luminance spread while destroying detail. *A contrast metric needs a local-variation
-floor beside it, or "more contrast" and "more darkness" are the same reading.*
+black raises luminance spread while destroying detail. _A contrast metric needs a local-variation
+floor beside it, or "more contrast" and "more darkness" are the same reading._
 
 **(lviii) A defect inferred from configuration similarity is not a defect.** Three rooms shared one
-lighting config, so I recorded one defect three times. Rendered, the third room beat the *fixed*
+lighting config, so I recorded one defect three times. Rendered, the third room beat the _fixed_
 first one on the headline metric before anything was done to it, because its walls carry content the
-others' do not. *Configuration is an input to the picture, not a summary of it; a claim about how
-something looks is only settled by looking.*
+others' do not. _Configuration is an input to the picture, not a summary of it; a claim about how
+something looks is only settled by looking._
 
 **(lix) A comment that dresses a preference as a physical derivation is worse than no comment.**
 `0x5c4530` was documented as "warm bounce off the floorboards" and is 8–10° of hue from every floor
 in the building; sampling them showed the hue moves the result by 0.04 against a 0.20 noise floor.
-The number was chosen by eye and the physics was written afterwards to justify it. *No comment leaves
+The number was chosen by eye and the physics was written afterwards to justify it. _No comment leaves
 a reader free to test the value; a false derivation tells them it has already been tested. Sample the
 thing the comment claims to model, and if the story does not survive, keep the value and retire the
-story.*
+story._
 
 **(lx) A gate the negative control also passes is measuring nothing.** The playroom's dim-only control
 cleared the flatness gate outright — better than the untouched baseline — because dimming a room does
-reduce flat-region coverage. It failed only on mid-tone saturation, which moved the wrong way. *The
+reduce flat-region coverage. It failed only on mid-tone saturation, which moved the wrong way. _The
 gate that carries a claim is the one the control fails, and until you have run the control you do not
-know which of your gates that is.*
+know which of your gates that is._

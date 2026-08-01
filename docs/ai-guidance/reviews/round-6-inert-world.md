@@ -40,7 +40,7 @@ memorable, soul.md-anchored charge. It is false. `__presence()` walks the whole 
 graph in both scenes and classifies the owl's 133 nodes as `NONE` in **both**. Source
 agrees: `wireFloorTap` in `sceneHelpers.ts` registers only the floor targets, and
 `createOwlCompanion` never touches the dispatcher. The owl has never been tappable
-anywhere. That is still a finding — see §3 — but it is a *consistent* gap, not an
+anywhere. That is still a finding — see §3 — but it is a _consistent_ gap, not an
 inconsistency, and the difference matters because the fix is different.
 
 The pattern in all four is the same: a claim was formed from a plausible mechanism and
@@ -53,14 +53,14 @@ make that impossible for the rest of this round.
 
 `__discoveryMap` / `__dispatchMap` re-implement the controller's four arbitration rules
 so an entire frame can be classified in one pass. Re-implementation is exactly the
-mistake above. So the model is not trusted; it is *gated*.
+mistake above. So the model is not trusted; it is _gated_.
 
 `__tapClasses` dispatches a genuine `pointerdown`/`pointerup` pair at every sample onto
 the real canvas and records which registered object the shipped `onPointerUp` actually
 fired. Nothing is modelled: the raycast, the ancestor walk, the background split, the
 proximity contest and the ordering between them are the app's own code. It is made
 non-destructive by swapping each registry entry's `handler` for a recorder — safe
-because all four rules resolve *before* `fire()` is called, so replacing what `fire()`
+because all four rules resolve _before_ `fire()` is called, so replacing what `fire()`
 invokes cannot change which branch wins, while stopping thousands of synthetic taps from
 animating the scene out from under later samples.
 
@@ -199,13 +199,13 @@ coverage claim, and coverage is the thing the same document's success story is w
 Four discoveries in sequence, each from wherever the child's eye landed next. That story
 runs in Nature: 26–33% of every frame is PROP, spread over 40 registered targets, and the
 only inert region is above the horizon. It does not run in Pirate Cove, where the five
-targets catch 1.1%–1.9% of the frame each, and the objects the composition is *built
-around* — sail, mast, rigging, railings, sea — catch nothing.
+targets catch 1.1%–1.9% of the frame each, and the objects the composition is _built
+around_ — sail, mast, rigging, railings, sea — catch nothing.
 
 The asymmetry has a structural cause, and it is one line of intent, not an accident of
 scale. Nature registers **both** of its large surfaces as background scenery — the ground
-and the stream. `interactionController.ts:70` says so explicitly: *"The flag does not make
-the surface less tappable — open ground still fires the owl."* Pirate Cove registers
+and the stream. `interactionController.ts:70` says so explicitly: _"The flag does not make
+the surface less tappable — open ground still fires the owl."_ Pirate Cove registers
 exactly one: the deck. Its sea, 37.3% of the landscape frame, is not a target of any
 kind. A child who taps the water gets the miss path; a child who taps the forest floor
 gets the owl.
@@ -243,7 +243,7 @@ intentional in landscape and merely survives portrait.
 
 133 owl nodes stand on the Pirate Cove deck, and 133 stand in the Nature clearing, and in
 both scenes `__presence()` reports `NONE`: no registered target covers any of them.
-`wireFloorTap` registers the floor and wires the owl to *respond* to floor taps; nothing
+`wireFloorTap` registers the floor and wires the owl to _respond_ to floor taps; nothing
 registers the owl itself.
 
 soul.md's owl clauses:
@@ -252,11 +252,11 @@ soul.md's owl clauses:
 > discovering." / "**Consistent** — it appears in every navigable scene outside minigames,
 > a familiar friend in unfamiliar places" / "The owl will always be there."
 
-The Alignment Test asks: *"Is the owl present and helpful without being intrusive?"* It is
+The Alignment Test asks: _"Is the owl present and helpful without being intrusive?"_ It is
 present, and it responds to the floor. It cannot be addressed directly. A child who walks
 up to the companion the app promised and taps it gets the same sparkle as the sea.
 
-This is filed as a *consistent* gap across the whole app, not a Pirate Cove defect, and
+This is filed as a _consistent_ gap across the whole app, not a Pirate Cove defect, and
 it is scoped out of this round's fix for that reason — it belongs to the shared runtime
 and it deserves its own design pass, not a patch smuggled into a scene review.
 
@@ -270,7 +270,7 @@ made differently, which is the definition of an inconsistency worth naming.
 
 **"70.1% NOTHING is fine because Round 5 made misses sparkle."** Agreed, and stated
 throughout. The acknowledgement contract is satisfied. The clause failing is the success
-story — four *discoveries* — and a sparkle is not one.
+story — four _discoveries_ — and a sparkle is not one.
 
 **"Landscape isn't the target device."** Correct, which is why §2.3 leads with iPhone 15.
 The rig figure is worse on the phone, not better: the mainsail alone goes from 1.6% of
@@ -360,13 +360,13 @@ comment at the nesting site records why, so the next person to reach for
 `r6-map.mjs`'s headline was PROP / SCENERY / NOTHING, and those glyphs come from
 `TapOptions.background`. That flag answers exactly one question — does this target yield
 the proximity contest — and says nothing about whether the target has a reaction. Both
-of this round's new targets are background *and* distinct, so the unrepaired probe would
+of this round's new targets are background _and_ distinct, so the unrepaired probe would
 have reported a scene that gained two new reactions as a scene that gained more scenery,
 and criterion 1 would have read as a regression caused by the fix succeeding.
 
 Two numbers were added, and they are now the headline:
 
-- **ANSWERED** — share of the frame where something *specific* fires, prop or background.
+- **ANSWERED** — share of the frame where something _specific_ fires, prop or background.
   Its complement is the sparkle: the same answer everywhere, which is the actual defect.
 - **DISTINCT** — how many separate targets each catch ≥1% of the frame. This is what
   stops ANSWERED from being gamed by registering one enormous surface, and it is the
@@ -374,7 +374,7 @@ Two numbers were added, and they are now the headline:
 
 Neither is sufficient alone. §8 restates criterion 1 in terms of them, and is honest
 about the fact that this is a criterion being rewritten after the measurement — which
-is only legitimate because the replacement is *harder* to satisfy, not easier.
+is only legitimate because the replacement is _harder_ to satisfy, not easier.
 
 ---
 
@@ -398,7 +398,7 @@ in one line: **the entire scene had six registered targets.**
 
 ### 7.2 How each new target won its catchment
 
-`r6-steal.mjs` splits every catchment by *how* it was won — ray hit, proximity fallback,
+`r6-steal.mjs` splits every catchment by _how_ it was won — ray hit, proximity fallback,
 or background. Final state:
 
 ```
@@ -417,13 +417,13 @@ out of NOTHING, not out of a prop. That is criterion 2, measured rather than arg
 The sail did not start out background, and the first measured version of Fix B was a
 plain prop. It cost `parrot_prop` 10 / 0 / 5 / 2 samples — the only prop in the scene
 to move. `r6-steal.mjs` was written before that number existed, and its doc header
-pre-registered the decision rule: *if the sail's proximity column is zero the parrot lost
+pre-registered the decision rule: _if the sail's proximity column is zero the parrot lost
 only pixels that are literally sail, and the fix stands; if it is not, the sail belongs
-behind the flag and this probe is what says so.* It was 45–58 per viewport. Not zero.
+behind the flag and this probe is what says so._ It was 45–58 per viewport. Not zero.
 
 The argument against flipping the flag was real and had to be answered, not waved off:
 a background sail declines near-misses, so a finger landing literally on sail canvas but
-within 70px of the parrot's centre would fire the *bird* — restoring precisely the
+within 70px of the parrot's centre would fire the _bird_ — restoring precisely the
 pre-fix behaviour this registration exists to remove. Trading one wrong answer for
 another is not a fix.
 
@@ -496,8 +496,8 @@ Criterion 3 holds. The apparent Nature movement was never a change.
 ### 7.5 Criterion 4 — the model is still admissible
 
 `pc-agree.mjs`: zero class disagreements and zero object disagreements at all four
-viewports, after the change. *"AGREED at every viewport. `__discoveryMap` output is
-admissible."* Every number in §7 is licensed by that.
+viewports, after the change. _"AGREED at every viewport. `__discoveryMap` output is
+admissible."_ Every number in §7 is licensed by that.
 
 ### 7.6 The charge, re-measured directly
 
@@ -522,8 +522,8 @@ the other scene.**
 
 ## 8. Criterion 1, restated — and the part that is not met
 
-The original wording asked to *"raise Pirate Cove's PROP coverage into the 20%–40%
-band."* By the literal PROP glyph, landscape went 7.6% → 7.6%. By that reading the fix
+The original wording asked to _"raise Pirate Cove's PROP coverage into the 20%–40%
+band."_ By the literal PROP glyph, landscape went 7.6% → 7.6%. By that reading the fix
 did nothing, and that reading is wrong for the reason §6.4 gives: both new reactions are
 behind `background`, so the glyph counts them as scenery. Criterion 1 was written before
 the instrument was good enough to state it.
@@ -555,7 +555,7 @@ it a full success would be the kind of claim this review has already had to retr
 three times.
 
 So: criteria 2, 3 and 4 are met and measured. Criterion 1 is met on breadth of answer
-and not met on breadth of *discovery*. Criterion 5 is §9.
+and not met on breadth of _discovery_. Criterion 5 is §9.
 
 **Fix C — the railings — is what closes DISTINCT.** `r6-presence.mjs` puts 119 nodes
 under `railing` with no target, at 12.8% of the landscape frame, and alongside them

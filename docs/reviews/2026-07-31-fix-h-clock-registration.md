@@ -4,7 +4,7 @@
 `604b39c`, `c3cec3c` and `1f4be04`: this commit touches only this file.
 
 Fix G was scored 4 PASS / 2 FAIL. Both failures were mine, not the render's, and
-correcting them changes what the clock's defect *is*.
+correcting them changes what the clock's defect _is_.
 
 ## K6 did not fail. My instrument did.
 
@@ -46,17 +46,17 @@ rule**. So most of `is_face` is not on the dial. Registered as G2 and measured:
 240 × 240 crop, unmoved because nothing I did touches it. K3's "0.101 → 0.103"
 was the correct answer about that object. K4, the runaway guard, guarded it too,
 which is why it passed at "dial L +57 over plaster" while the dial is in fact
-*darker* than the plaster.
+_darker_ than the plaster.
 
 This reaches back further than Fix G. **H4 and H5 used this mask**, so the
 grey-dial defect that Fix G part 3 was written to fix was measured on the wrong
 pixels. Measured geometrically, the dial's chroma was never 0.33× the plaster's:
 
-| | chroma/L | vs plaster | median L | vs plaster |
-| --- | --- | --- | --- | --- |
-| plaster | 0.308 | — | 120.5 | — |
-| dial, Fix E2 | 0.225 | 0.73× | 117.9 | −2.6 |
-| dial, Fix G | 0.275 | **0.89×** | 116.3 | **−4.1** |
+|              | chroma/L | vs plaster | median L | vs plaster |
+| ------------ | -------- | ---------- | -------- | ---------- |
+| plaster      | 0.308    | —          | 120.5    | —          |
+| dial, Fix E2 | 0.225    | 0.73×      | 117.9    | −2.6       |
+| dial, Fix G  | 0.275    | **0.89×**  | 116.3    | **−4.1**   |
 
 Against K3's own threshold of ≥ 0.55× plaster, **Fix G passes that too** — and
 Fix E2 already did. Fix G part 3 was prescribed against a defect that was
@@ -71,7 +71,7 @@ inverted. The dial is not a runaway white. It is darker than the wall it hangs o
 ## The two defects that are real
 
 **1. The bezel is fighting the wall, and always has been.** `BEZEL_FRONT_Z = 0.0`
-puts the bezel's front cap at local z 0.000, which *is* the wall face plane at
+puts the bezel's front cap at local z 0.000, which _is_ the wall face plane at
 world x = 5.275. Exactly-coplanar surfaces fight at any depth precision. G1 was
 registered to tell this apart from facet shading — z-fighting leaves
 **plaster-coloured** gaps, uneven facet shading leaves **dark red** ones:
@@ -88,7 +88,7 @@ Fix G was aimed at — though widening the annulus did take it from 74% wall to
 49% wall, which is the honest part of that fix.
 
 It also retires the explanation I have shipped twice. "The ring cannot close
-because it is 2.7 px at the sides" is true arithmetic and it is the *second*
+because it is 2.7 px at the sides" is true arithmetic and it is the _second_
 term. The first is that half the ring is not being drawn.
 
 **2. The dial is dark because of its clearcoat, and the number was predicted
@@ -151,21 +151,21 @@ local polar grid projected at z = 0 — validated by M1 (red runs 0% inside r 0.
 then 27.8% / 54.0% / 48.8% across 0.35–0.47, then 14.7%, then 0%, exactly where
 the geometry says) and by looking at the annotated crop.
 
-| gate | claim | now |
-| --- | --- | --- |
-| **L1** | annulus 0.39–0.47 is **≥ 85% red** | 51.1% |
-| **L2** | what is left is **not the wall** — non-red ≤ 12%, and its mean > 25 RGB from plaster | 48.9% at distance 7.3 |
-| **L3** | dial **median** L ≥ plaster + **5** | −4.1 |
-| **L4** | *attribution* — dial throughput ≥ **0.97**, bezel throughput ≤ **0.97** | 0.899 / 1.118 |
-| **L5** | *runaway guard* — dial chroma/L ≥ **0.70×** plaster, dial median L ≤ plaster + **35** | 0.89× / −4.1 |
-| **L6** | *silhouette unchanged* — bbox in Fix G's **fixed** box (827, 909, 315, 487) stays **140 ± 4 × 58 ± 3** | 140 × 58 |
-| **L7** | *negative control* — peg-rail cloths, 5.5 units away on the same wall, move < 2% | 0.00% / 0.00% |
+| gate   | claim                                                                                                  | now                   |
+| ------ | ------------------------------------------------------------------------------------------------------ | --------------------- |
+| **L1** | annulus 0.39–0.47 is **≥ 85% red**                                                                     | 51.1%                 |
+| **L2** | what is left is **not the wall** — non-red ≤ 12%, and its mean > 25 RGB from plaster                   | 48.9% at distance 7.3 |
+| **L3** | dial **median** L ≥ plaster + **5**                                                                    | −4.1                  |
+| **L4** | _attribution_ — dial throughput ≥ **0.97**, bezel throughput ≤ **0.97**                                | 0.899 / 1.118         |
+| **L5** | _runaway guard_ — dial chroma/L ≥ **0.70×** plaster, dial median L ≤ plaster + **35**                  | 0.89× / −4.1          |
+| **L6** | _silhouette unchanged_ — bbox in Fix G's **fixed** box (827, 909, 315, 487) stays **140 ± 4 × 58 ± 3** | 140 × 58              |
+| **L7** | _negative control_ — peg-rail cloths, 5.5 units away on the same wall, move < 2%                       | 0.00% / 0.00%         |
 
 L3's prediction is arithmetic, not hope: 116.3 ÷ 0.899 = **129.4**, which is
 plaster + 8.9. L6 uses a fixed box, not each image's own, so that the only thing
 that can move is pixels.
 
-L5 is the guard that matters most here. Removing a clearcoat and *then* finding
+L5 is the guard that matters most here. Removing a clearcoat and _then_ finding
 the dial too bright would be a fix that overshot, and L5 catches it at +35.
 
 ## Sufficiency, called in advance
@@ -196,9 +196,9 @@ clock 0.98 across does not touch it.
 **And a standing correction to how I gate.** Three of the failures in this
 sequence — H2b, K6, K3/K4 — were instruments, not renders, and each one was a
 mask I swapped in without first requiring it to reproduce the number it replaced.
-That check costs one line and it is now the rule: *a new instrument must
+That check costs one line and it is now the rule: _a new instrument must
 reproduce the old instrument's baseline on the old image before it is allowed to
-score a new one.*
+score a new one._
 
 If the numbers disagree with the picture, the picture wins.
 
@@ -225,7 +225,7 @@ winning, and the ring closes. The z-fight was real and `polygonOffset` killed it
 shortfall, they are the wrong object: the dial mask now measures chroma/L
 **0.739** against the bezel's own 0.782. Look at `fixh_clock_now.png` — the clock
 is a solid red disc with ticks and hands floating on it. The dial is not dark.
-The dial is *gone*.
+The dial is _gone_.
 
 ## Why, in arithmetic I should have done before shipping it
 
@@ -253,7 +253,7 @@ maximises. The owl precedent was sound for the owl and worthless here.
 
 **L6's 145 × 58 is the same story read from the other end and it is not a
 silhouette change.** `CLOCK_RADIUS` is untouched at 0.49, so no vertex moved.
-145 × 58 is *exactly* what H1's projection model predicts for RIM_R 0.49
+145 × 58 is _exactly_ what H1's projection model predicts for RIM_R 0.49
 (0.49/0.44 × 130 × 52 = 145 × 58) — the number the registration itself printed.
 Fix G's 140 was 5 px short because the bezel's outermost pixels were losing to
 the wall. The band was centred on the contaminated measurement. I am recording
@@ -264,7 +264,7 @@ fails is that the fix made the render agree with the model.
 
 `polygonOffsetFactor` **−1 → 0**, `polygonOffsetUnits` **−1 → −4**.
 
-The factor term is for slope-induced fighting between surfaces at *different*
+The factor term is for slope-induced fighting between surfaces at _different_
 angles. That is not this defect. This is an exact tie between two surfaces on
 the identical plane, and the units term — a fixed number of depth ULPs — is the
 instrument for exactly that. Dropping the factor removes the 0.01733 and leaves
@@ -315,7 +315,7 @@ written against, and L4 fails on a dial that is finally the dial.
 The gaps are not spread. They are **11 to 2 o'clock, and exactly 0.0% from 3
 through 10**. That histogram separates the three candidates registered as P1/P2/P3
 by itself: antialiasing at the mask's outer edge would be uniform in angle, and
-so would a surviving tie of the ordinary kind. So Q1 read *the same samples*
+so would a surviving tie of the ordinary kind. So Q1 read _the same samples_
 across all three offsets:
 
 ```
@@ -388,7 +388,7 @@ discriminator is the one Q1 used — does the arc respond to depth bias — and 
 distance term cannot distinguish "z-fight" from "antialiased edge" at this width.
 **L3 passes at +5.7. L4 fails at ~0.945. L6 stays 145 × 58 and stays a fail.**
 
-If L1 and L2's *count* both hold and only the distance term fails, the clock is
+If L1 and L2's _count_ both hold and only the distance term fails, the clock is
 done and the remaining L-gate failures are three known, sourced, recorded facts
 rather than three defects.
 
@@ -442,7 +442,7 @@ predicted. The clearcoat story is confirmed on the bezel too.
 Per channel L4 passes both halves (dial R 0.972 ≥ 0.97; bezel R 0.953 ≤ 0.97).
 **It is still recorded as a FAIL.** The rule this document set two sections ago
 is that an instrument may not be swapped in to change a verdict, and swapping one
-in to change a verdict *in my own favour* is the version of that mistake worth
+in to change a verdict _in my own favour_ is the version of that mistake worth
 guarding hardest. L4′ — per-channel throughput on the channel with the largest
 albedo — is registered here for future work and is not applied retroactively.
 
@@ -454,7 +454,7 @@ no material loss left to recover: the dial's deficit is a **gradient** (0.972 /
 0.954 / 0.931), not a flat attenuation. C2 registered flatness as the signature
 of a material cause — roughness 0.35 against the wall's 0.55 was the candidate —
 and the spread of 0.041 rules it out. What is left is chromatic: the room's
-bounce is (1.0, 0.76, 0.47), and a dial that is *less warm* than the plaster has
+bounce is (1.0, 0.76, 0.47), and a dial that is _less warm_ than the plaster has
 more blue albedo to fill from a light that has little blue in it.
 
 So L3 can only be met by raising G and B, and that makes the dial colder in a

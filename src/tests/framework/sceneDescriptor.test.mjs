@@ -116,6 +116,49 @@ test('rejects empty audio ids (audio-standards.md: every scene ships music AND a
   );
 });
 
+// The two boundaries of the validator's OWN comparisons. A 2026-08-01 mutation
+// audit flipped `d.id.length > 0` to `>= 0` and `intensity >= 0` to `> 0`; both
+// mutants survived the whole suite. The first disables the emptiness check
+// entirely — every descriptor with a blank id validates — and the second starts
+// rejecting a legal unlit key light. A validator whose own comparisons are
+// unpinned grades everything else while nothing grades it.
+test('rejects an empty id — the emptiness check must not be vacuous', () => {
+  for (const badId of ['', undefined, 42]) {
+    const d = validBase();
+    d.id = badId;
+    assert.ok(
+      validateSceneDescriptor(d).some((p) => p.includes('id must be a non-empty string')),
+      `id ${JSON.stringify(badId)} must be rejected`,
+    );
+  }
+  // And the valid case still passes, so the assertion above cannot be satisfied
+  // by a validator that rejects every id.
+  assert.deepEqual(
+    validateSceneDescriptor(validBase()).filter((p) => p.includes('id must be')),
+    [],
+    'a non-empty id must be accepted',
+  );
+});
+
+test('accepts a zero-intensity light — >= 0 is the contract, not > 0', () => {
+  for (const field of ['key', 'fill']) {
+    const d = validBase();
+    d.lighting[field].intensity = 0;
+    assert.deepEqual(
+      validateSceneDescriptor(d).filter((p) => p.includes(`${field}.intensity`)),
+      [],
+      `lighting.${field}.intensity === 0 is legal (a light can be off) and must not be reported`,
+    );
+
+    const negative = validBase();
+    negative.lighting[field].intensity = -0.1;
+    assert.ok(
+      validateSceneDescriptor(negative).some((p) => p.includes(`${field}.intensity`)),
+      `lighting.${field}.intensity < 0 must still be rejected`,
+    );
+  }
+});
+
 test('rejects an out-of-range camera fov', () => {
   for (const badFov of [0, -10, 180, 200, Number.NaN]) {
     const d = validBase();

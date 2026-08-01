@@ -25,12 +25,7 @@ elements in world coordinates.** Instead use the shared sky rig
 whatever camera is active, using the camera's own unprojection:
 
 ```ts
-import {
-  projectToView,
-  createGradientSkydome,
-  createCelestialBody,
-  createCloudPuff,
-} from "@app/utils/skyRig";
+import { projectToView, createGradientSkydome, createCelestialBody, createCloudPuff } from '@app/utils/skyRig';
 
 // "Put the moon 26% across, 28% down, 15 units from the camera" — correct for ANY camera.
 moon.root.position.copy(projectToView(camera, 0.26, 0.28, 15));

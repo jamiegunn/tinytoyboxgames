@@ -207,3 +207,30 @@ test('the dodge budget is still spent per dart, not per frame', () => {
   assert.equal(fish.dodgeCount, 1, 'a multi-frame dart must not consume a dodge on every frame');
   assert.ok(GOLDEN_MAX_DODGES >= 1);
 });
+
+test('the budget is spent AT the limit, not one dart past it', () => {
+  // `if (fish.dodgeCount >= maxDodges) return;` — a 2026-08-01 mutation audit
+  // flipped that to `>` and nothing went red, which buys every golden fish one
+  // extra escape from the child chasing it.
+  //
+  // The count is set directly rather than by darting the budget away, because a
+  // fish that has actually dodged twice is 3 units from where it started and the
+  // range check refuses it for a reason that has nothing to do with the budget.
+  // A test that passes for the wrong reason is how the operator got here.
+  const spent = goldenAt();
+  spent.dodgeCount = GOLDEN_MAX_DODGES; // evasiveness defaults to 0, so this IS the limit
+  const restingPosition = { ...spent.root.position };
+  updateGoldenDodge(spent, SHARK_X, SHARK_Z, 1 / 60);
+
+  assert.equal(spent.dodgeCount, GOLDEN_MAX_DODGES, 'a fish at its dodge limit must not be granted another dart');
+  assert.equal(spent.dodgeTimer, -1, 'no dart may be armed once the budget is spent');
+  assert.deepEqual({ ...spent.root.position }, restingPosition, 'a refused dodge must not move the fish at all');
+
+  // One under the limit must still dart, so the assertions above cannot be
+  // satisfied by a fish that has simply stopped dodging altogether.
+  const remaining = goldenAt();
+  remaining.dodgeCount = GOLDEN_MAX_DODGES - 1;
+  updateGoldenDodge(remaining, SHARK_X, SHARK_Z, 1 / 60);
+  assert.equal(remaining.dodgeCount, GOLDEN_MAX_DODGES, 'the last dart in the budget must still be granted');
+  assert.ok(remaining.dodgeTimer > 0, 'the last dart must actually arm');
+});

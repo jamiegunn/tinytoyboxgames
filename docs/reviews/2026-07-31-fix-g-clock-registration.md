@@ -9,9 +9,9 @@ the wall clock as owed next, so this is that.
 ## The projection model, and the gate that caught me holding it wrong
 
 Everything below depends on knowing how many pixels a world dimension is worth on
-the Kitchen's left wall, so `clock_gate.py` registered **H1** first: *predict the
+the Kitchen's left wall, so `clock_gate.py` registered **H1** first: _predict the
 clock's on-screen bounding box from source geometry alone, and fail everything if
-it misses the render by more than 15% on either axis.*
+it misses the render by more than 15% on either axis._
 
 It failed on the first run — predicted 58×23 px against a measured 24×20. The
 cause was mine and it was stupid: I hardcoded `W, H = 1280, 800` from
@@ -69,7 +69,7 @@ Each failure says something different and none of them is a threshold to move.
 
 **H2a** fails only on its absolute component. The 5.9× ratio and the 6.76 px are
 both clear; "+Z under 1.0 px, therefore gone" was written while `px_per_unit` was
-wrong by 2.16×. The asymmetry claim survives. The *vanishing* claim does not, and
+wrong by 2.16×. The asymmetry claim survives. The _vanishing_ claim does not, and
 the render agrees — there is a thin red line on that side, not nothing.
 
 **H2b** is an instrument error and it is mine. It counted red pixels either side of
@@ -94,22 +94,22 @@ shipped a clock that still reads as a chipped plate.
 
 **H3** passes at 1.15 px, but it is carried by the rim alone and the render
 disqualifies the interpretation I had ready for it. Ticks measure **2.54 px** and
-hands **2.15 px** and *both read clearly*. There is no 3-px legibility floor. The
+hands **2.15 px** and _both read clearly_. There is no 3-px legibility floor. The
 smallest feature on this wall that observably reads at all is the hands at 2.15 px,
 and the smallest **ring** width that observably reads is the −Z side at 6.76 px.
 That gap is the whole design lesson: an isolated dark bar on a pale dial survives
 2 px, and a thin band pressed against a high-contrast silhouette does not.
 
 **H4 and H5** turned up a second defect I was not looking for. The dial reads
-*grey* on a warm wall. HLS saturation 11.5 against plaster's 16.2 — but HLS
+_grey_ on a warm wall. HLS saturation 11.5 against plaster's 16.2 — but HLS
 saturation shrinks with lightness for fixed chroma, and the dial is much brighter
 (L 179 vs 120), so that comparison is rigged. Restated luminance-independently:
 
-| | RGB | L | chroma | **chroma / L** | hue |
-| --- | --- | --- | --- | --- | --- |
-| plaster | 132.9, 119.2, 95.8 | 120.5 | 37.1 | **0.308** | 37.9° |
-| clock face | 185.3, 178.9, 167.1 | 179.4 | 18.2 | **0.102** | 39.0° |
-| red rim | 116.1, 69.2, 55.0 | 78.2 | 61.1 | **0.782** | 14.0° |
+|            | RGB                 | L     | chroma | **chroma / L** | hue   |
+| ---------- | ------------------- | ----- | ------ | -------------- | ----- |
+| plaster    | 132.9, 119.2, 95.8  | 120.5 | 37.1   | **0.308**      | 37.9° |
+| clock face | 185.3, 178.9, 167.1 | 179.4 | 18.2   | **0.102**      | 39.0° |
+| red rim    | 116.1, 69.2, 55.0   | 78.2  | 61.1   | **0.782**      | 14.0° |
 
 The dial carries **33% of the plaster's relative chroma**. H5 is the control that
 makes this mean something: the red rim, same surface, same depth, same light, sits
@@ -128,7 +128,7 @@ Three parts, each derived from a number above rather than chosen.
 the only ring width in this image that reads, applied the whole way round. At the
 sides it gives 6.8 px where there are now 1.15 and 6.76; at top and bottom, 17.2 px.
 
-The face radius is *held*, not scaled, because the dial's contents — ticks at 2.54
+The face radius is _held_, not scaled, because the dial's contents — ticks at 2.54
 px, hands at 2.15 px — measurably read and there is no reason to disturb them. The
 clock grows 0.88 → 0.98 in diameter, +11%.
 
@@ -159,14 +159,14 @@ and not a beige one.
 
 Kitchen, fresh render, same camera, same masks, same thresholds as the diagnosis.
 
-| gate | claim | now |
-| --- | --- | --- |
-| **K1** | waist-band red ≥ **3 px on each side** | 1 and 2 |
-| **K2** | waist-band red side ratio **≤ 1.6×** | 2.00× |
-| **K3** | dial chroma/L ≥ **0.55 ×** plaster's | 0.33× |
-| **K4** | *runaway guard* — dial L ≥ plaster L **+ 40**, dial hue within **8°** of plaster | 179 vs 120, 39.0° vs 37.9° |
-| **K5** | *negative control* — the peg-rail cloths, 5.5 units away on the same wall, move **< 2%** in bbox and mean RGB | untouched by this change |
-| **K6** | measured non-plaster bbox in **132–150 px tall, 51–62 px wide** | 130 × 52 |
+| gate   | claim                                                                                                         | now                        |
+| ------ | ------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| **K1** | waist-band red ≥ **3 px on each side**                                                                        | 1 and 2                    |
+| **K2** | waist-band red side ratio **≤ 1.6×**                                                                          | 2.00×                      |
+| **K3** | dial chroma/L ≥ **0.55 ×** plaster's                                                                          | 0.33×                      |
+| **K4** | _runaway guard_ — dial L ≥ plaster L **+ 40**, dial hue within **8°** of plaster                              | 179 vs 120, 39.0° vs 37.9° |
+| **K5** | _negative control_ — the peg-rail cloths, 5.5 units away on the same wall, move **< 2%** in bbox and mean RGB | untouched by this change   |
+| **K6** | measured non-plaster bbox in **132–150 px tall, 51–62 px wide**                                               | 130 × 52                   |
 
 K6 is the guard against fixing legibility by inflation. The prediction is 140.2 ×
 55.4 and the band is tight around it; a clock that comes back at 200 px has been

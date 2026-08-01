@@ -1115,8 +1115,8 @@ can tap to start a game — and the whole of vision.md's Promise is spent on the
 
 ```ts
 const launchGame = () => {
-  triggerSound("sfx_shared_tap_fallback");
-  triggerSound("sfx_hub_toybox_open");
+  triggerSound('sfx_shared_tap_fallback');
+  triggerSound('sfx_hub_toybox_open');
   nav.launchMiniGame(gameId);
 };
 ```
@@ -1283,28 +1283,28 @@ let launching = false;
 const launchGame = () => {
   if (launching) return;
   launching = true;
-  triggerSound("sfx_shared_star_chime");
+  triggerSound('sfx_shared_star_chime');
   // flare the pedestal, swell the whole portal, settle it back
   gsap.to(pedestalMat, {
     emissiveIntensity: flareFrom + 1.6,
     duration: 0.14,
-    ease: "power2.out",
+    ease: 'power2.out',
   });
   gsap.to(root.scale, {
     x: 1.22,
     y: 1.22,
     z: 1.22,
     duration: 0.14,
-    ease: "back.out(2.6)",
+    ease: 'back.out(2.6)',
     onComplete: () => {
       gsap.to(root.scale, {
         x: 1,
         y: 1,
         z: 1,
         duration: 0.2,
-        ease: "power2.in",
+        ease: 'power2.in',
         onComplete: () => {
-          triggerSound("sfx_shared_sparkle_burst");
+          triggerSound('sfx_shared_sparkle_burst');
           nav.launchMiniGame(gameId); /* reset, unlatch */
         },
       });
@@ -1572,8 +1572,7 @@ produced a defective repair if assumed instead of read.
 ```ts
 const before = audio && !entry.opts.silent ? audio.soundCount() : 0;
 entry.handler({ object: obj, point });
-if (audio && !entry.opts.silent && audio.soundCount() === before)
-  acknowledgeTap(clientX, clientY);
+if (audio && !entry.opts.silent && audio.soundCount() === before) acknowledgeTap(clientX, clientY);
 ```
 
 This is correct and deliberate — a handler that answered for itself should not also get the
@@ -2039,12 +2038,8 @@ are fast and by far the most informative failure a commit can get, while the bun
 slowest gate and the least likely to be the broken thing, so a failing test no longer pays for it:
 
 ```js
-runCheck("TypeScript (probe project)", tscBin, [
-  "-p",
-  PROBE_TSCONFIG_REL,
-  "--noEmit",
-]);
-runNode("Tests (node --test)", ["--test", TEST_GLOB]);
+runCheck('TypeScript (probe project)', tscBin, ['-p', PROBE_TSCONFIG_REL, '--noEmit']);
+runNode('Tests (node --test)', ['--test', TEST_GLOB]);
 ```
 
 Three smaller things travel with it, and each is a defect in its own right rather than tidying:
@@ -2640,7 +2635,7 @@ this one.
 
 Round 9 built the `laundered` tier to catch a hand-copy that had silenced the dead-export guard.
 It works, and its reach is exactly one population: copies of exports **nothing else uses**. A copy of
-a *live* export is structurally invisible to it, because the original has real importers and the guard
+a _live_ export is structurally invisible to it, because the original has real importers and the guard
 has nothing to complain about.
 
 That is the dangerous population, not the safe one. A dead constant copied into a probe is a nuisance.
@@ -2660,13 +2655,13 @@ matches an export under `src/`. **Eight hits, zero drift.** Seven are `PROXIMITY
 files carrying a bespoke `shippedProximityPx()` **regex resolver** — which are neither `= 70` nor
 literals. The count is of one population and the sentence describes another, and because the sentence
 is what the next round reads, Round 11 was briefed to fix six literals and found seventeen sites
-across four mechanisms. See (xxxix).**]** And the *sources* are genuinely pinned —
+across four mechanisms. See (xxxix).**]** And the _sources_ are genuinely pinned —
 mutating `gestureRules.ts` from 70 to 31 fails the suite four times over, starting with
 `not ok 60 - thresholds are the documented 10 / 28 / 70 px`. What is pinned by nothing is the copies:
 every one can drift silently in the other direction, and the round found none that had. Filed, not
 fixed.
 
-Scan B looked for the honest shape instead — any literal whose trailing comment *names a `.ts` file*,
+Scan B looked for the honest shape instead — any literal whose trailing comment _names a `.ts` file_,
 which is what a careful author writes when there is nothing to import. **Six hits, all in one block**,
 `.probe/render/r8-species-palette.mjs:66-72`, under the header:
 
@@ -2736,7 +2731,7 @@ model**. The fitted `LIGHT_GAIN = 1.66` had quietly absorbed most of the rest. A
 the wrong cause is not a disclosure; it is a number that makes a reader feel informed.
 
 Second, **the probe's header was the actual defect**, not the seven literals under it. `The rig,
-verbatim from the live scene` covered two kinds of number that must be handled in *opposite* ways:
+verbatim from the live scene` covered two kinds of number that must be handled in _opposite_ ways:
 
 - **Program constants** — things the running game reads. A copy is a fork with no merge. These must be
   imported, always.
@@ -2758,11 +2753,11 @@ intensity, and the fitted environment radiance — flagged as the one fitted ter
 (background colour and fog density, previously inline literals unreachable by anything wanting to check
 a colour). `utils/rendererFactory.ts` gains `TONE_MAPPING_EXPOSURE = 1.15`, named because it is the
 last term in the colour chain and therefore every rendered figure recorded anywhere in this repository
-is a measurement taken *through* it.
+is a measurement taken _through_ it.
 
 And `reefIrradiance()`, which performs the derivation the comment used to. It is **not consumed at
 runtime** — three.js does the shading, not us — and that is the point: it exists so the number the
-docs and probes quote is *produced* rather than transcribed.
+docs and probes quote is _produced_ rather than transcribed.
 
 It takes the rig **as a parameter**, with a default, though there is only ever one rig. That is
 Round 9's lesson applied before it could bite: a pin on a returned number cannot tell you whether the
@@ -2774,7 +2769,7 @@ quantity.
 
 The probe's copies become an import; its seven literals become four imported constants and three
 literals under a second heading that says they are **recorded observations** and must not be
-recomputed. The exposure-budget table stays, as the derivation's *shape*, with the mixed-method
+recomputed. The exposure-budget table stays, as the derivation's _shape_, with the mixed-method
 history stated inside it rather than quietly corrected away.
 
 ### Evaluating the fix against the "suck"
@@ -2815,13 +2810,13 @@ record of it, because a rounded table admits more than one correct last digit, a
 answer is a place a wrong one can hide unchallenged.** The corrupted blue was worth 0.00067 and
 survived three hops and several readings precisely because the table's own last place was ambiguous by
 about that much. The repair is not "round more carefully" — it is that the derivation must exist as an
-expression somewhere, so the prose becomes a *claim about* a computation with something enforcing it,
+expression somewhere, so the prose becomes a _claim about_ a computation with something enforcing it,
 rather than the only copy of it.
 
 And a second clause, earned the hard way and the best thing this round produced: **write the check
 before you believe your own account of the defect.** The mechanism above was reasoned out, found
 convincing, and written into two source files — and it was wrong. The test built to pin the table
-refuted it within a minute of first running. Not the verdict; the *story*. Which is the same failure
+refuted it within a minute of first running. Not the verdict; the _story_. Which is the same failure
 this review has now recorded at four scales — doctrine blocks (xxvii), allowlist reasons (xxx),
 docblock counts (xxviii), and now a round's own freshly-written correction. **Prose written next to a
 check inherits the check's authority without inheriting any of its verification, and that remains true
@@ -2854,8 +2849,8 @@ has already decided the meaning of will find that meaning:
 
 > **H1.** The two counts measure DIFFERENT THINGS and both are right. […] If so the defect is not
 > arithmetic, it is that the review reuses one phrase — "hand-copied N times" — for two different
-> predicates. **H2.** One of them is simply wrong. *I expect H1. I expect it strongly enough that I am
-> writing it down, which is the point.*
+> predicates. **H2.** One of them is simply wrong. _I expect H1. I expect it strongly enough that I am
+> writing it down, which is the point._
 
 And a second prediction, about the fix rather than the finding:
 
@@ -2873,12 +2868,12 @@ A census over `src/` and over the **191** files under `tests/` and `.probe/` mat
 `/\.(mjs|js|tsx?)$/`, classifying every binding by **mechanism** rather than by name. The `src/` side
 needs three numbers, not one, and the difference between them is a finding in its own right:
 
-| count | predicate |
-| --- | --- |
+| count   | predicate                                                       |
+| ------- | --------------------------------------------------------------- |
 | **530** | export **sites** binding a SHOUT_CASE name to a numeric literal |
-| **488** | distinct **names** among those sites |
-| **460** | of those names exported with a single agreed value |
-| **28** | exported by two or more modules with values that **disagree** |
+| **488** | distinct **names** among those sites                            |
+| **460** | of those names exported with a single agreed value              |
+| **28**  | exported by two or more modules with values that **disagree**   |
 
 The first draft of this section said "488 numeric-literal exports", which is the name count wearing the
 site count's sentence. Both numbers were right; the noun between them was not. What the gap turned out
@@ -2886,13 +2881,13 @@ to conceal is in entry (xlii). `PROXIMITY_PX`
 (`src/utils/interaction/gestureRules.ts`, `= 70`, the radius the tap controller treats as "near
 enough") was obtained **four different ways across seventeen sites**:
 
-| mechanism | what it is | sites |
-| --- | --- | --- |
-| MODULE | a real import through `bundleEntry` | 2 |
-| REGEX-BESPOKE | a 6-line `shippedProximityPx()` resolver, duplicated **verbatim** | 7 |
-| REGEX-GENERIC | a local `shipped(file, name)` reader | 1 |
-| REGEX-INLINE | an IIFE doing the same thing | 1 |
-| LITERAL | `const PROXIMITY_PX = 70;` | 6 |
+| mechanism     | what it is                                                        | sites |
+| ------------- | ----------------------------------------------------------------- | ----- |
+| MODULE        | a real import through `bundleEntry`                               | 2     |
+| REGEX-BESPOKE | a 6-line `shippedProximityPx()` resolver, duplicated **verbatim** | 7     |
+| REGEX-GENERIC | a local `shipped(file, name)` reader                              | 1     |
+| REGEX-INLINE  | an IIFE doing the same thing                                      | 1     |
+| LITERAL       | `const PROXIMITY_PX = 70;`                                        | 6     |
 
 **Zero had drifted.** Every one of the seventeen said 70.
 
@@ -2955,7 +2950,7 @@ ceiling; the import has no ceiling.
 
 **And the resolvers cost something else that only showed up when counting.** Six lines duplicated
 seven times is forty-two lines whose only job is to avoid one import statement, and — this is the part
-the census made visible — because they are seven *separate* copies, nothing was keeping them the same.
+the census made visible — because they are seven _separate_ copies, nothing was keeping them the same.
 They happened to be identical. Nothing checked.
 
 ### What the two contradictory counts turned out to be
@@ -2984,7 +2979,7 @@ that are simply wrong, and seven resolvers that are careful and merely capped. C
 is what let the whole population be filed as one problem.
 
 Round 10's seven is where it goes properly wrong. It reports "Seven are `PROXIMITY_PX = 70`", and only
-**six** are; the seven it counted are the *resolvers*, which are not `= 70` and are not literals. Its
+**six** are; the seven it counted are the _resolvers_, which are not `= 70` and are not literals. Its
 stated predicate — "a `SCREAMING_CASE` const bound to a numeric literal" — returns six, not seven, and
 its headline "eight hits" returns seven. **The count was of one population and the description was of
 another**, and because the description is what the next round reads, Round 11 was charged with fixing
@@ -3014,13 +3009,13 @@ It is an **AST walk over `ts.createSourceFile`**, not a regex, and that decision
 round's own instrument failing three times:
 
 1. it matched `PROXIMITY_PX = (\d+)` inside **the resolvers' own regex literals**, inventing eight
-   copies that were the *search for* copies;
+   copies that were the _search for_ copies;
 2. it matched `VISIBLE_BAND_HEIGHT = 7.08` inside a **template literal** — the error message in
    `noUnusedExports.test.mjs` that warns against this exact practice;
 3. it matched `GOLDEN_DODGE_DURATION = 0.3` inside a **docblock** in `little-shark-dodge.test.mjs`,
    which quotes the declaration it documents and imports the real one on line 42.
 
-Three false positives, every one from source that was *discussing* a constant rather than binding one.
+Three false positives, every one from source that was _discussing_ a constant rather than binding one.
 A guard with a 100% false-positive rate on its first run acquires an allowlist within a week, and this
 review already knows what lives in allowlists — see (xxx), three entries describing programs that never
 existed. A comment is not a node and a string is not an initializer, so `ts` cannot make any of the
@@ -3051,7 +3046,7 @@ census. `node --check` proves a file parses; it does not prove `bundleEntry` sur
 top-level await, and the difference between those two claims is the whole point of this round.
 
 **The temporal-dead-zone bug this predicted, it had.** `frame-census.mjs` ended up destructuring
-`RULES` seven lines *before* `const RULES = await bundleEntry(...)` declared it — a `ReferenceError` at
+`RULES` seven lines _before_ `const RULES = await bundleEntry(...)` declared it — a `ReferenceError` at
 load that `node --check` passes cheerfully, because it is a scoping error and not a syntax error.
 Caught by reading the diff for it specifically, having written down that it was the likely failure.
 
@@ -3065,7 +3060,7 @@ they are written into the file next to it rather than left to be discovered:
 
 - **Renamed copies.** `const READABLE_PX = 70;` is invisible to it. This is not a hypothetical — it is
   the exact shape of `frame-census.mjs`, which escaped every scan in this round and surfaced by luck.
-  A probe author renames when the local meaning differs slightly, which is *good practice*, so this
+  A probe author renames when the local meaning differs slightly, which is _good practice_, so this
   blind spot sits precisely where careful people work.
 - **Bare inline literals.** `if (distance < 70)` binds nothing. Measured at **42** lines, under this
   predicate and no other:
@@ -3079,19 +3074,20 @@ they are written into the file next to it rather than left to be discovered:
   The predicate is written out because the first attempt returned **85**, and the 43-line difference
   was 48 PNGs and 10 probe `.txt` logs under `.probe/*/out/` — grep matching bytes inside binaries,
   and matching a probe's **recorded output** as though it were source. A probe log reading
-  `within 70?` is an observation *of* the program, not a copy of a constant, and the distinction is
+  `within 70?` is an observation _of_ the program, not a copy of a constant, and the distinction is
   the same one Round 10 drew between a program constant and a recorded observation. Of the 42, ten are
-  in `gestureRules.test.mjs` — which tests the function, so passing it 70 is a *pin*, not a copy —
+  in `gestureRules.test.mjs` — which tests the function, so passing it 70 is a _pin_, not a copy —
   three are in the guard's own footer, which is to say the measurement counts its own documentation,
   and most of the rest are docblock prose and `console.log` column headers. A value-based scan cannot
   tell a copy from a coincidence. That is not a threshold to tune; it is what a bare number **is**.
   Hence a fix that makes copying unnecessary rather than a better detector.
+
 - **Exports that are expressions.** `export const X = BASE * 2;` is not collected, so a copy of X's
   value is not flagged. Self-limiting in a useful direction: an expression is exactly what a resolver
   could never have read either.
 - **Anything outside `tests/` and `.probe/`.**
 - **Names that are not constants.** Added after the guard was written, green, and believed finished:
-  **28** SHOUT_CASE names are exported by more than one module with *different* values — `CEILING_Y`,
+  **28** SHOUT*CASE names are exported by more than one module with \_different* values — `CEILING_Y`,
   `FLOOR_WIDTH`, `ROOM_DEPTH` and six more across the three room layouts; `BODY_HEIGHT`, `CAP_RADIUS`,
   `STEM_Y` and a dozen more across sibling prop folders. For these, "the value `src/` exports" does not
   exist, so the guard declines to have an opinion and a probe copying the kitchen's `CEILING_Y` is not
@@ -3112,17 +3108,17 @@ write the check before you believe your own account of the defect.
 
 Round 11 adds the one about **counts**: **a count is a predicate plus a number, and shipping the number
 without the predicate is shipping nothing, because the next reader will supply a predicate of their
-own and it will not be yours.** Round 9's thirteen and Round 10's seven were both *correct*. Both were
+own and it will not be yours.** Round 9's thirteen and Round 10's seven were both _correct_. Both were
 described in words that named a different population than the one counted, and the cost was not a wrong
 figure in a document — it was that Round 11 was dispatched to fix six literals and found seventeen sites
 across four mechanisms. **The prose around a number is not commentary on the measurement. For every
-subsequent reader, it *is* the measurement.**
+subsequent reader, it _is_ the measurement.**
 
 And a second clause, which this round earned by committing the offence it was in the middle of
 diagnosing. Mid-migration, "for consistency", thirteen probes were switched from the `./src/…`
 specifier form to the `@app/…` alias — a form used by **37 of 510** specifiers in the corpus, against
-473 for the one being abandoned. A round whose entire subject is *migrations that stop partway leave
-two conventions and hand the majority to the wrong one* had just moved thirteen files to the 10%
+473 for the one being abandoned. A round whose entire subject is _migrations that stop partway leave
+two conventions and hand the majority to the wrong one_ had just moved thirteen files to the 10%
 convention and would have shipped it. It was caught by a grep for leftovers that returned the
 leftovers as the **majority**. **Before changing a convention, count both conventions; "for
 consistency" is a claim about a distribution and is worthless until the distribution is on the
@@ -3130,12 +3126,12 @@ screen.**
 
 And a third, which arrived last and nearly did not arrive at all. The sweep run to verify this
 section's own numbers reported three of them wrong. Two were. The third — 488 — was correct, and the
-sweep had reached its contradiction by silently counting export *sites* where the text counted
-*names*. The first clause above, applied to the instrument enforcing the first clause above. Had the
+sweep had reached its contradiction by silently counting export _sites_ where the text counted
+_names_. The first clause above, applied to the instrument enforcing the first clause above. Had the
 correction been applied as reported, a right number would have been replaced with a wrong one under
 the banner of verification. But the useful part is what happened when the disagreement was
 investigated rather than resolved by seniority: the 42-declaration gap between the two counts turned
-out to be twenty-eight names that `src/` exports with *conflicting values*, which meant the guard —
+out to be twenty-eight names that `src/` exports with _conflicting values_, which meant the guard —
 already written, already green, already mutation-tested — was resolving `CEILING_Y` by directory-walk
 order and stood ready to accuse a probe of drifting from a room it had never referenced. So:
 **a disagreement between two measurements is itself a measurement, and the first question is never
@@ -3473,7 +3469,7 @@ Both methods are correct, the table never said which it meant, and no reader cou
 mix. That is the entry: not the inconsistency itself, which is worth 0.0001, but that it opened a
 **last-place ambiguity of about 0.00067 in every channel**, and the one genuinely hand-corrupted digit
 downstream — `types.ts`'s blue, `0.2889` — is worth exactly 0.00067 and hid inside it. The tidy
-diagnosis, that `types.ts` had drifted in *both* red and blue, is false; its red is an honest row-sum
+diagnosis, that `types.ts` had drifted in _both_ red and blue, is false; its red is an honest row-sum
 reading. Direction: **flattering** — a derivation stated to four places reads as more rigorous than a
 derivation stated to one, and the extra digits were doing the opposite of rigour. Fixed by making the
 derivation an expression (`reefIrradiance()`) and asserting every printed row against it.
@@ -3485,8 +3481,8 @@ handling is to import. Three were **recorded observations** — values read off 
 which are data and must **stay** literals, because a measurement that recomputes itself from current
 code is a tautology, and this probe's entire claim to be trusted is that two fitted terms reproduce
 eighteen recorded values to within a level. Mixing them under one heading is what let a program
-constant sit as a literal for months without anyone flinching, and it is why the fix is a *split
-header* rather than "import everything". Not a wrong number and not a wrong verdict: **a category
+constant sit as a literal for months without anyone flinching, and it is why the fix is a _split
+header_ rather than "import everything". Not a wrong number and not a wrong verdict: **a category
 error in the apparatus's own labelling, which made the right handling of each kind unavailable to the
 reader.** Aggravating circumstance, and the reason this is filed against the apparatus rather than the
 author: hand-copying was the only honest option available at the time — every one of the four
@@ -3498,14 +3494,14 @@ committed to prose in `setup.ts` and `types.ts`: that the blue had drifted 0.000
 "in opposite directions, which is what hand-copying looks like and what no rounding rule produces."
 Then test 5 of `little-shark-rig.test.mjs` ran for the first time and returned
 `expected '0.2541', actual '0.2540'`, and the exact recomputation that followed showed the red had
-never drifted at all. Nothing was wrong with the *verdict* — the blue really was hand-changed — and
-everything was wrong with the *story*, which is the more durable of the two, because it is what the
+never drifted at all. Nothing was wrong with the _verdict_ — the blue really was hand-changed — and
+everything was wrong with the _story_, which is the more durable of the two, because it is what the
 next reader inherits. Direction: **flattering**, and specifically flattering to the round writing it.
 Filed because it is the fourth scale at which this review has now recorded one mechanism: doctrine
 blocks (xxvii), allowlist reasons (xxx), a guard's own docblock count (xxviii), and now a correction
 five minutes old. **Prose next to a check inherits the check's authority without inheriting its
 verification, and that stays true when the prose is yours and you have just finished reasoning it
-out.** Fixed by rewriting the prose in all three files, recording the falsification *inside* the
+out.** Fixed by rewriting the prose in all three files, recording the falsification _inside_ the
 corrected text per the standing rule against back-editing a stated premise, and rewriting the test to
 check the table against the **expression** rather than against itself.
 
@@ -3520,16 +3516,16 @@ the real one nine lines later. Direction: **inflating**, and inflating in favour
 larger population is a better finding. Corrected by hand mid-round (16 real bindings, not 24), and
 then structurally: the guard that shipped is an AST walk over `ts.createSourceFile`, which cannot make
 any of the three mistakes, **because a comment is not a node and a string is not an initializer.** The
-sharpest thing about this entry is its subject: the round arguing that source must be *imported rather
-than pattern-matched* was pattern-matching source to make the argument.
+sharpest thing about this entry is its subject: the round arguing that source must be _imported rather
+than pattern-matched_ was pattern-matching source to make the argument.
 
 **(xxxviii) The round's stated hypothesis about the resolvers was falsified, in the flattering
 direction, by the code being better than predicted.** _(Round 11.)_ Written down before measuring: that
 the seven duplicated `shippedProximityPx()` readers would carry a silent fallback, defaulting to 70 on
 a miss and sailing on. Every one of them throws, with a message that names the file, says what to do,
 and explicitly forbids guessing. Filed as an instrument defect and not as a happy surprise, because the
-prediction was doing work: it was the reason the resolvers were classed as *dangerous* rather than as
-*capped*, and a round that had not written the prediction down would have quietly inherited its
+prediction was doing work: it was the reason the resolvers were classed as _dangerous_ rather than as
+_capped_, and a round that had not written the prediction down would have quietly inherited its
 conclusion while believing it had measured one. The real objection to a resolver survived — a regex
 cannot read a constant that becomes an expression — but it is a **ceiling**, not a trap, and those
 warrant different urgency. Recorded per the standing discipline of stating the suspected mechanism
@@ -3543,7 +3539,7 @@ constant locally (6 literals + 7 resolvers), 7 is the bespoke-resolver files. Ne
 of what it counted: Round 9's "hand-copied" silently unions two mechanisms needing opposite fixes, and
 Round 10's seven are resolvers, not `= 70` literals, of which there are six — its own stated predicate
 returns 6 and its headline returns 7, not 8. Direction: **flattering**, by making a four-mechanism
-seventeen-site population read as a handful of sloppy literals — which is why it was *filed* rather
+seventeen-site population read as a handful of sloppy literals — which is why it was _filed_ rather
 than fixed, and why the round dispatched to fix it was briefed wrong. Neither number was checked by
 anything, in a document that by then contained thirty-six entries about numbers not being checked by
 anything. Fixed by decomposing the population exactly, in the round text, and by leaving both original
@@ -3552,8 +3548,8 @@ sentences standing with the correction beside them, per the rule against back-ed
 **(xl) The round committed, mid-flight, the exact defect it was written to diagnose.** _(Round 11.)_
 Having migrated fifteen sites to `bundleEntry`, and "for consistency", thirteen of them were switched
 from the `./src/…` specifier form to the `@app/…` alias. The corpus uses `./src/…` **473 times** and
-the aliases **37**; inside `.probe/` it is 420 against 31. So a round whose central finding is *a
-migration that stops partway leaves two conventions and gives the majority to the wrong one* had just
+the aliases **37**; inside `.probe/` it is 420 against 31. So a round whose central finding is _a
+migration that stops partway leaves two conventions and gives the majority to the wrong one_ had just
 moved thirteen files onto the 10% convention, and was one commit from shipping it under the word
 "consistency". It was caught only because a grep for stragglers returned the stragglers as **the
 majority**. Direction: **flattering** — it would have shipped as tidying. Reverted; the thirteen probes
@@ -3619,7 +3615,7 @@ resolvers that all throw; and a verification sweep that reported a correct numbe
 had quietly substituted its own predicate. They are also the only two that were caught **before** they
 could reach a verdict, and the mechanism is the same in both: the claim was written down where
 something else could reach it. (xxxviii) was a prediction recorded before measuring, so measurement
-could embarrass it. (xli) was a sweep whose *output was read* rather than applied, so the text could
+could embarrass it. (xli) was a sweep whose _output was read_ rather than applied, so the text could
 embarrass the sweep. Everything in this register that reached a verdict got there by being the last
 word on itself.
 

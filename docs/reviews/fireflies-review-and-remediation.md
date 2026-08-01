@@ -4,7 +4,7 @@
 
 **Date:** 2026-03-08  
 **Scope:** Interaction design, fun factor, emotional alignment, UX compliance, soul adherence, sensory richness, play depth  
-**Status:** Major remediation required  
+**Status:** Major remediation required
 
 ---
 
@@ -34,8 +34,8 @@ These failures directly contradict the emotional contract defined in `soul.md`.
 
 The soul document's language on this is absolute:
 
-> *"A dead tap is a broken promise. If a child touches the screen and nothing happens, the magic breaks."*  
-> *"Every tap — whether it lands on a designated interaction or on empty space — must produce a response. A sparkle, a ripple, a soft sound."*
+> _"A dead tap is a broken promise. If a child touches the screen and nothing happens, the magic breaks."_  
+> _"Every tap — whether it lands on a designated interaction or on empty space — must produce a response. A sparkle, a ripple, a soft sound."_
 
 This is a night garden. When a child taps the dark meadow, firefly particles should bloom where they touched. When they tap the moon, it should softly pulse. When they tap the jar, it should shimmer. The darkness itself should respond to touch — that's the entire emotional promise of this scene.
 
@@ -49,11 +49,11 @@ Bubble Pop solved this: every missed tap creates a sparkle burst and plays a twi
 
 The soul document says:
 
-> *"Ambient animations breathe at the pace of a sleeping cat."*  
-> *"Motion communicates life and invitation, not urgency."*  
-> *"The world waits patiently for the child to engage."*
+> _"Ambient animations breathe at the pace of a sleeping cat."_  
+> _"Motion communicates life and invitation, not urgency."_  
+> _"The world waits patiently for the child to engage."_
 
-A night garden should be the *most* atmospherically alive scene in the entire product. Fireflies drifting is not enough — that's game entities, not environment. The ground should have faint mist. The trees should gently sway. The grass should rustle as if touched by soft wind. The moon should have a gentle luminous haze. Stars should twinkle in the sky. The flowers should have faint bioluminescent pulses. The jar should glow warmly with collected light.
+A night garden should be the _most_ atmospherically alive scene in the entire product. Fireflies drifting is not enough — that's game entities, not environment. The ground should have faint mist. The trees should gently sway. The grass should rustle as if touched by soft wind. The moon should have a gentle luminous haze. Stars should twinkle in the sky. The flowers should have faint bioluminescent pulses. The jar should glow warmly with collected light.
 
 Compare to Bubble Pop's environment: twinkling stars, pulsing moon, caustic light animations, environmental reactions to gameplay. Compare to Elephant Splash: water ripple animations, butterfly spawning, floating toy drift. Fireflies' environment is a painted backdrop — a dead image that happens to have some spheres floating in front of it.
 
@@ -65,8 +65,8 @@ Compare to Bubble Pop's environment: twinkling stars, pulsing moon, caustic ligh
 
 The soul says:
 
-> *"When the world feels tactile, the child reaches out and touches."*  
-> *"Fireflies leave trails of golden light."* (This is literally in the soul's opening imagery.)
+> _"When the world feels tactile, the child reaches out and touches."_  
+> _"Fireflies leave trails of golden light."_ (This is literally in the soul's opening imagery.)
 
 When a child catches a firefly, it should feel like holding a tiny star. The light should linger on their fingertip. The firefly should spiral gently in a celebratory dance before drifting to the jar. The jar should visibly brighten with each addition, building a warm, growing lantern. Nearby fireflies should be attracted to the glow, creating a momentary gathering. The entire scene should get fractionally warmer and brighter — the child is literally filling the night with light.
 
@@ -84,7 +84,7 @@ These issues render the game boring, one-dimensional, and absent of the depth pr
 
 **The problem:** The concept document says:
 
-> *"Dragging through the air suggests a path for nearby lights."*
+> _"Dragging through the air suggests a path for nearby lights."_
 
 This is the game's signature mechanic. No other game in the suite does this. It transforms fireflies from "tap-the-dot" into a unique, expressive, magical interaction where the child paints with light.
 
@@ -98,7 +98,7 @@ The manifest entry (`MiniGameManifest.ts`) should list `inputModes: ['tap', 'dra
 
 **The problem:** The concept document says:
 
-> *"Groups of lights gather briefly and then drift apart again."*
+> _"Groups of lights gather briefly and then drift apart again."_
 
 This suggests emergent, flocking behavior — fireflies that are attracted to each other, to the player's touch, or to light sources. Brief clusters that form and dissolve organically, creating moments of beauty that the child witnesses and participates in.
 
@@ -132,13 +132,13 @@ These failures violate specific requirements in the age-appropriate UX spec or t
 
 #### C1. Firefly Hit Targets May Be Too Small on Mobile
 
-**The problem:** Each firefly is a sphere with `diameter: 0.3` (radius 0.15) for standard, `0.6` for golden. The `HIT_RADIUS` is a generous 1.5 scene units, which provides adequate touch area, but the *visual* size of the firefly is tiny — a 0.3 unit sphere at a camera distance of 9.0 units with FOV 0.9 will project to roughly 12-15 CSS pixels on a 375px mobile viewport.
+**The problem:** Each firefly is a sphere with `diameter: 0.3` (radius 0.15) for standard, `0.6` for golden. The `HIT_RADIUS` is a generous 1.5 scene units, which provides adequate touch area, but the _visual_ size of the firefly is tiny — a 0.3 unit sphere at a camera distance of 9.0 units with FOV 0.9 will project to roughly 12-15 CSS pixels on a 375px mobile viewport.
 
 The UX spec (§5.1) says:
 
-> *"All interactive elements across all mini-games must meet a minimum effective hit area of 48 x 48 CSS pixels."*
+> _"All interactive elements across all mini-games must meet a minimum effective hit area of 48 x 48 CSS pixels."_
 
-The hit detection radius is generous (1.5 units), which technically creates a large enough interaction zone. But the *visual feedback* is too small — a child can't see what they're supposed to tap. The glow trail helps, but the core mesh is tiny. A 3-year-old looking at a dark screen with small moving dots won't understand what to do.
+The hit detection radius is generous (1.5 units), which technically creates a large enough interaction zone. But the _visual feedback_ is too small — a child can't see what they're supposed to tap. The glow trail helps, but the core mesh is tiny. A 3-year-old looking at a dark screen with small moving dots won't understand what to do.
 
 **Severity:** Medium-High. The interaction zone is technically adequate but the visual affordance fails.
 
@@ -146,7 +146,7 @@ The hit detection radius is generous (1.5 units), which technically creates a la
 
 **The problem:** The `onResize` method is empty with a comment: "Camera FOV and positioning are fixed; no resize adjustments needed." The UX spec (§5.2) requires:
 
-> *"During `onResize()`, project each entity's bounding sphere to screen space. If the projected diameter falls below 48 px, scale the entity's hit radius multiplier until it meets the minimum."*
+> _"During `onResize()`, project each entity's bounding sphere to screen space. If the projected diameter falls below 48 px, scale the entity's hit radius multiplier until it meets the minimum."_
 
 This is not optional. Orientation changes and viewport resizes happen on mobile constantly. The game must verify hit target adequacy on every resize.
 
@@ -156,7 +156,7 @@ This is not optional. Orientation changes and viewport resizes happen on mobile 
 
 **The problem:** The UX spec (§4.3) says:
 
-> *"Each game may display a small thematic icon before the number to give the number contextual meaning for pre-literate children."*
+> _"Each game may display a small thematic icon before the number to give the number contextual meaning for pre-literate children."_
 
 The game uses the score system but provides no thematic icon. A firefly or jar icon next to the score number would help pre-literate children understand "this number counts my fireflies."
 
@@ -186,8 +186,8 @@ These issues render the game sonically dead in a scene that should be acoustical
 
 The soul says:
 
-> *"Rustles that sound like tiny creatures moving."*  
-> *"Music that feels like a lullaby hummed by a caring presence."*
+> _"Rustles that sound like tiny creatures moving."_  
+> _"Music that feels like a lullaby hummed by a caring presence."_
 
 **Severity:** High. Audio is a primary atmosphere lever and it's completely absent.
 
@@ -200,6 +200,7 @@ The soul says:
 #### D3. No Interaction Sound Feedback
 
 **The problem:** The catch sequence produces a celebration `'chime'` sound. But:
+
 - Tapping empty space produces no sound
 - A firefly pulsing near you produces no sound
 - The golden firefly appearing produces no sound
@@ -267,8 +268,8 @@ Instead, it teleports along a math curve and disappears.
 
 The art direction spec says:
 
-> *"Lighting is warm, not harsh."*  
-> *"Emotional clarity. Every scene should communicate its mood within the first second: cozy, playful, magical, safe."*
+> _"Lighting is warm, not harsh."_  
+> _"Emotional clarity. Every scene should communicate its mood within the first second: cozy, playful, magical, safe."_
 
 A warm amber-gold (`#FFD35C` or similar) would read as magical and warm. The current green reads as "LED indicator."
 
@@ -290,7 +291,7 @@ Fireflies is a flat line. Minute 1 and minute 5 are identical except there are s
 
 **The problem:** The golden firefly is the game's only surprise mechanic. It appears every 25 seconds after score reaches 10. It is visually just a larger, yellow version of a regular firefly. It is worth 5 points instead of 1. That's it.
 
-A golden firefly should be an *event*. It should arrive with a faint chiming sound. Other fireflies should turn to look at it. It should leave a more prominent trail. Catching it should trigger a special celebration — maybe all fireflies briefly cluster around the jar, or the jar pulses with golden light, or a shower of tiny stars rains down. It should feel like finding a treasure, not like tapping a yellow dot instead of a green one.
+A golden firefly should be an _event_. It should arrive with a faint chiming sound. Other fireflies should turn to look at it. It should leave a more prominent trail. Catching it should trigger a special celebration — maybe all fireflies briefly cluster around the jar, or the jar pulses with golden light, or a shower of tiny stars rains down. It should feel like finding a treasure, not like tapping a yellow dot instead of a green one.
 
 **Severity:** Medium-High. The only variety mechanic is bland.
 
@@ -298,7 +299,7 @@ A golden firefly should be an *event*. It should arrive with a faint chiming sou
 
 **The problem:** The milestone triggers at `MILESTONE_COUNT = 25` collected fireflies. It calls `context.celebration.milestone()` at screen center. That's it. One celebration event for reaching 25. The jar doesn't do anything special. The garden doesn't change. It's over in half a second.
 
-At 25 fireflies, the jar should be blazing. The garden should be visibly brighter. Perhaps a constellation appears briefly in the sky. Perhaps all fireflies in the scene swirl together in a spiral dance. Perhaps the moon brightens and moonbeams sweep across the meadow. The milestone should be a *scene transformation*, not a single particle burst.
+At 25 fireflies, the jar should be blazing. The garden should be visibly brighter. Perhaps a constellation appears briefly in the sky. Perhaps all fireflies in the scene swirl together in a spiral dance. Perhaps the moon brightens and moonbeams sweep across the meadow. The milestone should be a _scene transformation_, not a single particle burst.
 
 **Severity:** High. The payoff for sustained play is negligible.
 
@@ -339,11 +340,8 @@ Each task below includes the exact file(s) to modify, the specific change to mak
 ```typescript
 if (!nearestFd) {
   // First-tap fallback: every tap produces golden sparkles and a soft chime
-  const fallbackPos = pickResult.pickedPoint ?? new Vector3(
-    (event.screenX / context.viewport.width - 0.5) * 10,
-    (1.0 - event.screenY / context.viewport.height) * 6,
-    0,
-  );
+  const fallbackPos =
+    pickResult.pickedPoint ?? new Vector3((event.screenX / context.viewport.width - 0.5) * 10, (1.0 - event.screenY / context.viewport.height) * 6, 0);
   createSparkleBurst(scene, fallbackPos, new Color3(1.0, 0.9, 0.5), 8);
   context.celebration.celebrationSound('chime');
   return;
@@ -363,13 +361,13 @@ if (!nearestFd) {
 
 **Change:** Before the generic fallback, check `pickResult.pickedMesh?.name` for specific environmental meshes:
 
-| Mesh name pattern | Response |
-|---|---|
-| `nature_moon` | Moon pulse: scale to 1.1× over 200ms, increase emissive to white for 300ms, scale back. Emit 20 tiny star particles radially. Play a soft, high-pitched tone. |
+| Mesh name pattern                     | Response                                                                                                                                                                                                    |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `nature_moon`                         | Moon pulse: scale to 1.1× over 200ms, increase emissive to white for 300ms, scale back. Emit 20 tiny star particles radially. Play a soft, high-pitched tone.                                               |
 | `nature_jar_body` or `nature_jar_cap` | Jar shimmer: pulse emissive brightness +50% for 400ms. If `collectedCount > 0`, emit tiny firefly-colored particles inside the jar (3-5 particles, confined to jar bounds). Play a soft glass "ting" sound. |
-| `meadow_floor` | Ground glow: Create a brief emissive decal/particle ring at the tap point (warm gold, ~1.0 radius, fades over 0.8s). As if bioluminescent moss responds to touch. |
-| Flower mesh names | Flower pulse: Scale flower to 1.15× and back over 400ms. Increase petal emissive for 500ms. Emit 3-5 tiny pollen particles. |
-| Tree mesh names | Tree rustle: Subtle shake animation (position.x ±0.05 over 300ms, two oscillations). 1-2 firefly-sized particles fall from the canopy. |
+| `meadow_floor`                        | Ground glow: Create a brief emissive decal/particle ring at the tap point (warm gold, ~1.0 radius, fades over 0.8s). As if bioluminescent moss responds to touch.                                           |
+| Flower mesh names                     | Flower pulse: Scale flower to 1.15× and back over 400ms. Increase petal emissive for 500ms. Emit 3-5 tiny pollen particles.                                                                                 |
+| Tree mesh names                       | Tree rustle: Subtle shake animation (position.x ±0.05 over 300ms, two oscillations). 1-2 firefly-sized particles fall from the canopy.                                                                      |
 
 **Implementation:** Add mesh name checks in the `onTap` handler. Each response should be a small helper function in `helpers.ts` or a new `interactions.ts` file.
 
@@ -555,12 +553,12 @@ This is the single most important remediation. It transforms the game from purpo
 
 ```typescript
 export const ILLUMINATION_TIERS = [
-  { threshold: 0,  name: 'dark',       groundEmissive: 0.0,  skyBrightness: 0.0,  starCount: 5,  mistAlpha: 0.04, flowerGlow: 0.0,  treeEdge: 0.0  },
-  { threshold: 3,  name: 'dim',        groundEmissive: 0.01, skyBrightness: 0.02, starCount: 10, mistAlpha: 0.05, flowerGlow: 0.05, treeEdge: 0.0  },
-  { threshold: 8,  name: 'awakening',  groundEmissive: 0.03, skyBrightness: 0.05, starCount: 18, mistAlpha: 0.06, flowerGlow: 0.15, treeEdge: 0.02 },
-  { threshold: 15, name: 'glowing',    groundEmissive: 0.06, skyBrightness: 0.08, starCount: 28, mistAlpha: 0.07, flowerGlow: 0.3,  treeEdge: 0.05 },
-  { threshold: 22, name: 'radiant',    groundEmissive: 0.10, skyBrightness: 0.12, starCount: 40, mistAlpha: 0.08, flowerGlow: 0.5,  treeEdge: 0.1  },
-  { threshold: 30, name: 'enchanted',  groundEmissive: 0.15, skyBrightness: 0.15, starCount: 50, mistAlpha: 0.10, flowerGlow: 0.7,  treeEdge: 0.15 },
+  { threshold: 0, name: 'dark', groundEmissive: 0.0, skyBrightness: 0.0, starCount: 5, mistAlpha: 0.04, flowerGlow: 0.0, treeEdge: 0.0 },
+  { threshold: 3, name: 'dim', groundEmissive: 0.01, skyBrightness: 0.02, starCount: 10, mistAlpha: 0.05, flowerGlow: 0.05, treeEdge: 0.0 },
+  { threshold: 8, name: 'awakening', groundEmissive: 0.03, skyBrightness: 0.05, starCount: 18, mistAlpha: 0.06, flowerGlow: 0.15, treeEdge: 0.02 },
+  { threshold: 15, name: 'glowing', groundEmissive: 0.06, skyBrightness: 0.08, starCount: 28, mistAlpha: 0.07, flowerGlow: 0.3, treeEdge: 0.05 },
+  { threshold: 22, name: 'radiant', groundEmissive: 0.1, skyBrightness: 0.12, starCount: 40, mistAlpha: 0.08, flowerGlow: 0.5, treeEdge: 0.1 },
+  { threshold: 30, name: 'enchanted', groundEmissive: 0.15, skyBrightness: 0.15, starCount: 50, mistAlpha: 0.1, flowerGlow: 0.7, treeEdge: 0.15 },
 ] as const;
 ```
 
@@ -588,7 +586,7 @@ export const ILLUMINATION_TIERS = [
 
 #### Task 4.3: Enhanced Jar Visual Feedback
 
-**File:** `src/src/minigames/games/fireflies/index.ts` and `environment.ts`  
+**File:** `src/src/minigames/games/fireflies/index.ts` and `environment.ts`
 
 **Implementation:**
 
@@ -618,13 +616,13 @@ export const ILLUMINATION_TIERS = [
 
 Instead of one milestone at 25, trigger a celebration at each illumination tier transition:
 
-| Tier | Threshold | Celebration |
-|---|---|---|
-| `dim` | 3 | Soft sparkle burst at jar. 3 stars appear in sky. Gentle ascending chime. |
-| `awakening` | 8 | Flowers begin to glow. Ground mist brightens. Medium confetti at jar. Two-note ascending chime. |
-| `glowing` | 15 | Tree edges begin to glow. All active fireflies swirl briefly toward the jar then return to their paths (1.5-second gathering). Three-note ascending chime. `context.celebration.confetti()` at screen center, 'medium'. |
-| `radiant` | 22 | A shooting star crosses the sky. Moon halo brightens. Jar casts visible light pool on ground. Four-note ascending chime. `context.celebration.confetti()` at screen center, 'medium'. |
-| `enchanted` | 30 | Full milestone: `context.celebration.milestone()` at screen center, 'large'. All fireflies in scene perform a spiral dance around the jar for 3 seconds. The entire garden pulses with warm golden light. Five-note ascending arpeggio (pentatonic). The sky gains a faint aurora shimmer at the top edge. |
+| Tier        | Threshold | Celebration                                                                                                                                                                                                                                                                                                |
+| ----------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dim`       | 3         | Soft sparkle burst at jar. 3 stars appear in sky. Gentle ascending chime.                                                                                                                                                                                                                                  |
+| `awakening` | 8         | Flowers begin to glow. Ground mist brightens. Medium confetti at jar. Two-note ascending chime.                                                                                                                                                                                                            |
+| `glowing`   | 15        | Tree edges begin to glow. All active fireflies swirl briefly toward the jar then return to their paths (1.5-second gathering). Three-note ascending chime. `context.celebration.confetti()` at screen center, 'medium'.                                                                                    |
+| `radiant`   | 22        | A shooting star crosses the sky. Moon halo brightens. Jar casts visible light pool on ground. Four-note ascending chime. `context.celebration.confetti()` at screen center, 'medium'.                                                                                                                      |
+| `enchanted` | 30        | Full milestone: `context.celebration.milestone()` at screen center, 'large'. All fireflies in scene perform a spiral dance around the jar for 3 seconds. The entire garden pulses with warm golden light. Five-note ascending arpeggio (pentatonic). The sky gains a faint aurora shimmer at the top edge. |
 
 Each tier transition should feel earned, magical, and surprising. The child should gasp.
 
@@ -733,7 +731,7 @@ fd.light.position.copyFrom(basePos);
 
 ```typescript
 // Warm catch bloom instead of harsh white flash
-const flashProgress = 1.0 - (fd.flashTimer / FLASH_DURATION);
+const flashProgress = 1.0 - fd.flashTimer / FLASH_DURATION;
 const bloomColor = Color3.Lerp(
   fd.isGolden ? GOLDEN_COLOR : FIREFLY_COLOR,
   new Color3(1.0, 0.95, 0.8), // warm white, not pure white
@@ -813,23 +811,20 @@ Smaller fireflies are slightly faster (`speed = randomRange(1.2, 2.2)`). Larger 
 ```typescript
 // Multi-frequency organic drift
 const drift = fd.speed * speedMult * deltaTime;
-fd.mesh.position.x += (
-  Math.sin(t * 0.7 + fd.driftOffsetX) * 0.6 +
-  Math.sin(t * 1.3 + fd.driftOffsetX * 2.1) * 0.3 +
-  Math.sin(t * 2.1 + fd.driftOffsetX * 0.7) * 0.1
-) * 0.02 * drift;
+fd.mesh.position.x +=
+  (Math.sin(t * 0.7 + fd.driftOffsetX) * 0.6 + Math.sin(t * 1.3 + fd.driftOffsetX * 2.1) * 0.3 + Math.sin(t * 2.1 + fd.driftOffsetX * 0.7) * 0.1) *
+  0.02 *
+  drift;
 
-fd.mesh.position.y += (
-  Math.cos(t * 0.5 + fd.driftOffsetY) * 0.5 +
-  Math.cos(t * 0.9 + fd.driftOffsetY * 1.3) * 0.3 +
-  Math.sin(t * 1.7 + fd.driftOffsetY * 2.5) * 0.2
-) * 0.015 * drift;
+fd.mesh.position.y +=
+  (Math.cos(t * 0.5 + fd.driftOffsetY) * 0.5 + Math.cos(t * 0.9 + fd.driftOffsetY * 1.3) * 0.3 + Math.sin(t * 1.7 + fd.driftOffsetY * 2.5) * 0.2) *
+  0.015 *
+  drift;
 
-fd.mesh.position.z += (
-  Math.sin(t * 0.3 + fd.driftOffsetZ) * 0.5 +
-  Math.cos(t * 0.8 + fd.driftOffsetZ * 1.7) * 0.3 +
-  Math.sin(t * 1.5 + fd.driftOffsetZ * 0.4) * 0.2
-) * 0.01 * drift;
+fd.mesh.position.z +=
+  (Math.sin(t * 0.3 + fd.driftOffsetZ) * 0.5 + Math.cos(t * 0.8 + fd.driftOffsetZ * 1.7) * 0.3 + Math.sin(t * 1.5 + fd.driftOffsetZ * 0.4) * 0.2) *
+  0.01 *
+  drift;
 ```
 
 This creates more naturalistic, less predictable movement that feels like real insects, not oscillating dots.
@@ -848,9 +843,10 @@ This creates more naturalistic, less predictable movement that feels like real i
 ```typescript
 // Blink pattern: sharp on, slow fade
 const blinkCycle = (elapsedTime * fd.blinkRate + fd.glowPhase) % 1.0;
-const blinkShape = blinkCycle < 0.15 
-  ? blinkCycle / 0.15  // quick rise (0.15 of cycle)
-  : Math.max(0.2, 1.0 - (blinkCycle - 0.15) / 0.55); // slow fade (0.55 of cycle), floor at 0.2
+const blinkShape =
+  blinkCycle < 0.15
+    ? blinkCycle / 0.15 // quick rise (0.15 of cycle)
+    : Math.max(0.2, 1.0 - (blinkCycle - 0.15) / 0.55); // slow fade (0.55 of cycle), floor at 0.2
 const intensity = 0.3 + 0.7 * blinkShape;
 ```
 
@@ -893,12 +889,12 @@ Add `blinkRate: number` to `FireflyData` (random 0.3 - 0.8). This creates realis
 onResize(viewport: ViewportInfo): void {
   // Update context viewport reference
   context.viewport = viewport;
-  
+
   // Verify hit target adequacy — project firefly size to screen space
   if (camera) {
     const testPos = new Vector3(0, 2, 0);
     const projectedSize = getProjectedDiameter(camera, testPos, 0.15, viewport.width, viewport.height);
-    
+
     // If projected visual size is too small, scale up the glow trail
     // (hit radius is already generous at 1.5 units)
     if (projectedSize < 48) {
@@ -919,13 +915,13 @@ Add a `getProjectedDiameter` helper to `helpers.ts` that uses `Vector3.Project` 
 
 #### Task 8.2: Use Shared DifficultyController
 
-**File:** `src/src/minigames/games/fireflies/index.ts`  
+**File:** `src/src/minigames/games/fireflies/index.ts`
 
 **Change:** Replace the custom `getDifficultyTier()` with `context.difficulty`. Wire the difficulty controller's level to control `maxFireflies` and `speedMultiplier`. Remove `getDifficultyTier` from `helpers.ts`.
 
 ---
 
-#### Task 8.3: Use Shared SpawnScheduler  
+#### Task 8.3: Use Shared SpawnScheduler
 
 **File:** `src/src/minigames/games/fireflies/index.ts`
 
@@ -938,7 +934,8 @@ Add a `getProjectedDiameter` helper to `helpers.ts` that uses `Vector3.Project` 
 **File:** `src/src/minigames/framework/MiniGameManifest.ts`
 
 **Ensure the fireflies entry includes:**
-- `inputModes: ['tap', 'drag']`  
+
+- `inputModes: ['tap', 'drag']`
 - `comboWindowSeconds: 3`
 - `hasSpecialItems: true` (golden firefly)
 - Appropriate `themeColor` (warm amber, e.g., `'#FFD35C'`, not green)
@@ -967,19 +964,19 @@ Add a `getProjectedDiameter` helper to `helpers.ts` that uses `Vector3.Project` 
 
 The phases should be implemented in this order for maximum incremental impact:
 
-| Order | Phase | Impact | Effort |
-|---|---|---|---|
-| 1 | Phase 1: Soul & Safety | Critical foundation | Small |
-| 2 | Phase 4: Progressive Illumination | Transforms the game's reason to exist | Medium |
-| 3 | Phase 6: Enhanced Catch Choreography | Core delight moment | Small-Medium |
-| 4 | Phase 3: Atmospheric Transformation | Ambient beauty | Medium |
-| 5 | Phase 5: Audio Landscape | Emotional texture | Medium |
-| 6 | Phase 2: Drag Trails | Signature mechanic | Large |
-| 7 | Phase 7: Enhanced Entities | Polish and variety | Medium |
-| 8 | Phase 8: Technical Corrections | Spec compliance | Small |
-| 9 | Phase 9: Owl Integration | Soul compliance | Small-Medium |
+| Order | Phase                                | Impact                                | Effort       |
+| ----- | ------------------------------------ | ------------------------------------- | ------------ |
+| 1     | Phase 1: Soul & Safety               | Critical foundation                   | Small        |
+| 2     | Phase 4: Progressive Illumination    | Transforms the game's reason to exist | Medium       |
+| 3     | Phase 6: Enhanced Catch Choreography | Core delight moment                   | Small-Medium |
+| 4     | Phase 3: Atmospheric Transformation  | Ambient beauty                        | Medium       |
+| 5     | Phase 5: Audio Landscape             | Emotional texture                     | Medium       |
+| 6     | Phase 2: Drag Trails                 | Signature mechanic                    | Large        |
+| 7     | Phase 7: Enhanced Entities           | Polish and variety                    | Medium       |
+| 8     | Phase 8: Technical Corrections       | Spec compliance                       | Small        |
+| 9     | Phase 9: Owl Integration             | Soul compliance                       | Small-Medium |
 
-**Rationale for ordering:** Phase 1 must be first (soul violations). Phase 4 before Phase 2 because progressive illumination transforms the game more than any other single change — it gives the game a *purpose*. Phase 6 makes the core mechanic feel good. Phase 3 makes the scene feel alive. Phase 5 makes it sound alive. Phase 2 (drag trails) is the largest effort but adds the most depth. Phase 7-9 are polish.
+**Rationale for ordering:** Phase 1 must be first (soul violations). Phase 4 before Phase 2 because progressive illumination transforms the game more than any other single change — it gives the game a _purpose_. Phase 6 makes the core mechanic feel good. Phase 3 makes the scene feel alive. Phase 5 makes it sound alive. Phase 2 (drag trails) is the largest effort but adds the most depth. Phase 7-9 are polish.
 
 ---
 
@@ -987,16 +984,16 @@ The phases should be implemented in this order for maximum incremental impact:
 
 After remediation, the Fireflies game should pass every question in the soul alignment test:
 
-| Question | Target Answer |
-|---|---|
-| Would a 3-year-old understand what to do without help? | Yes — glowing things invite tapping, trails invite dragging, every touch produces light. |
-| Does the first tap produce genuine delight? | Yes — golden sparkles bloom wherever you touch, even empty space. |
-| Is there any way a child could feel punished or confused? | No — every interaction produces warmth and beauty. |
-| Does the visual quality feel handcrafted and warm? | Yes — warm amber glow, soft mist, twinkling stars, bioluminescent flowers. |
-| Does the sound feel gentle and celebratory? | Yes — lullaby music, cricket chirps, musical firefly tones, ascending chimes. |
-| Can a child leave and return without friction? | Yes — standard exit button, no progress to lose. |
-| Is the owl present and helpful without being intrusive? | Yes — sits by the jar, watches fireflies, hops with delight. |
-| Does this feel like a toy, not a test? | Yes — painting with light, filling a jar, transforming a garden. |
+| Question                                                  | Target Answer                                                                            |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Would a 3-year-old understand what to do without help?    | Yes — glowing things invite tapping, trails invite dragging, every touch produces light. |
+| Does the first tap produce genuine delight?               | Yes — golden sparkles bloom wherever you touch, even empty space.                        |
+| Is there any way a child could feel punished or confused? | No — every interaction produces warmth and beauty.                                       |
+| Does the visual quality feel handcrafted and warm?        | Yes — warm amber glow, soft mist, twinkling stars, bioluminescent flowers.               |
+| Does the sound feel gentle and celebratory?               | Yes — lullaby music, cricket chirps, musical firefly tones, ascending chimes.            |
+| Can a child leave and return without friction?            | Yes — standard exit button, no progress to lose.                                         |
+| Is the owl present and helpful without being intrusive?   | Yes — sits by the jar, watches fireflies, hops with delight.                             |
+| Does this feel like a toy, not a test?                    | Yes — painting with light, filling a jar, transforming a garden.                         |
 
 **The ultimate test:** A child taps the dark meadow and golden light blooms. They drag their finger and a luminous trail follows. Fireflies drift toward the trail. They tap one and it spirals into the jar in a graceful dance of light. The jar glows brighter. A flower nearby begins to pulse with faint color. Stars appear in the sky. The garden is waking up. The child keeps playing — not because there's a score to chase, but because they are painting a night garden with starlight, and every touch makes the world more beautiful.
 

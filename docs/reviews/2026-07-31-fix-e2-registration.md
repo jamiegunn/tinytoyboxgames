@@ -23,14 +23,14 @@ E5  left colourfulness >= 13.0               9.5   FAIL
 ```
 
 Two of those passes are the construction proving its own claim about itself. The
-bounce travels `(0.45, -0.82, -0.35)`, so its Lambert term is *exactly* zero on
+bounce travels `(0.45, -0.82, -0.35)`, so its Lambert term is _exactly_ zero on
 the right wall (normal +X, dot −0.45) and on the back wall (normal −Z, dot
 −0.35). Predicted zero, measured **+0.3%** and **−0.0 points**. The bounce went
 where the arithmetic said it would go and nowhere else.
 
 E4 is worth more than the fix it graded. Its band was not a guess about the room
 — it was read straight off `leftwall_gate.py`'s simulated gain sweep, which
-undoes the sRGB encoding, multiplies the left wall's *linear* values, and
+undoes the sRGB encoding, multiplies the left wall's _linear_ values, and
 re-encodes. That simulation predicted 67–70.5% at this fix's ~2.2× and the real
 relight landed at 68.2%. **A per-pixel linear gain is a good model of actually
 lighting a wall**, at least for this metric, which makes the simulation reusable
@@ -43,7 +43,7 @@ Pure exposure through the sRGB curve should have given about
 `2.33^(1/2.4) = 1.42×`, so 11.6. It did not manage even that.
 
 `fixe_why.py` registered a gate before reading anything, separating two causes
-by *where* they would show up:
+by _where_ they would show up:
 
 ```
 region                                   before    after   change
@@ -58,8 +58,8 @@ F2 passing means the two regions really are separated, so F1 decides. F1 fails:
 colour is held down **even where there is colour to reveal**. The wall is not
 merely empty — the light itself has no colour in it.
 
-I chose `bounceColor (0.86, 0.88, 0.95)` and wrote *"cooler than the key on
-purpose … it should not arrive warmer than the sun did"* into three source
+I chose `bounceColor (0.86, 0.88, 0.95)` and wrote _"cooler than the key on
+purpose … it should not arrive warmer than the sun did"_ into three source
 files. That sentence sounds like physics and is the opposite of it. Bounced
 light takes the colour of **what it bounced off**, and everything it bounces off
 in the Kitchen is warm: the wall is `(0.93, 0.86, 0.70)` and the floor is
@@ -70,11 +70,11 @@ already confesses to, three rooms and one audit ago.
 Looking at the render says it faster than any of this. The left wall went from
 warm and dark to **cold concrete grey**. Measured in HLS on the same masks:
 
-| | hue | saturation |
-| --- | --- | --- |
-| left wall, no bounce | 41.0° | **10.3** |
-| left wall, cool bounce | 42.0° | **6.8** |
-| right wall | 41.6° | **15.1** |
+|                        | hue   | saturation |
+| ---------------------- | ----- | ---------- |
+| left wall, no bounce   | 41.0° | **10.3**   |
+| left wall, cool bounce | 42.0° | **6.8**    |
+| right wall             | 41.6° | **15.1**   |
 
 The hue was never the problem — all three sit within a degree. **Fix E
 desaturated a wall that was already undersaturated**, by a third. It made the
@@ -92,29 +92,29 @@ The renormalisation is not decoration: it makes this a **purely chromatic**
 change, so anything that moves in luminance is an error in the arithmetic rather
 than a second edit smuggled in beside the first.
 
-| room | key-lit surfaces | mean albedo | bounceColor | intensity |
-| --- | --- | --- | --- | --- |
-| kitchen | wall `(.93,.86,.70)`, floor `(.67,.50,.34)` | `(.800,.680,.520)` | `(1.00, 0.76, 0.47)` | 0.60 → 0.67 |
+| room        | key-lit surfaces                            | mean albedo        | bounceColor          | intensity   |
+| ----------- | ------------------------------------------- | ------------------ | -------------------- | ----------- |
+| kitchen     | wall `(.93,.86,.70)`, floor `(.67,.50,.34)` | `(.800,.680,.520)` | `(1.00, 0.76, 0.47)` | 0.60 → 0.67 |
 | living-room | wall `(.95,.84,.64)`, floor `(.62,.44,.29)` | `(.785,.640,.465)` | `(1.00, 0.72, 0.39)` | 0.58 → 0.68 |
-| playroom | wall `(.60,.82,.88)`, floor `(.72,.55,.35)` | `(.660,.685,.615)` | `(1.00, 0.93, 0.67)` | 0.53 → 0.50 |
+| playroom    | wall `(.60,.82,.88)`, floor `(.72,.55,.35)` | `(.660,.685,.615)` | `(1.00, 0.93, 0.67)` | 0.53 → 0.50 |
 
 The playroom is the reason to trust the formula rather than my eye. Its walls
 are a cool blue `(0.60, 0.82, 0.88)`, so the same derivation hands it a bounce
-that is *nearly neutral* — the thing I applied to all three rooms by taste, and
+that is _nearly neutral_ — the thing I applied to all three rooms by taste, and
 which is correct in exactly one of them. I would not have got that by choosing.
 
 ## Gates, registered now
 
 Kitchen, fresh render, same camera and same masks.
 
-| gate | claim | now |
-| --- | --- | --- |
-| **G1** | left wall colourfulness **≥ 13.0** | 9.5 |
-| **G2** | inside the two boxes, colourfulness **≥ +30%** over the Fix-B image | +21.5% |
-| **G3** | left wall HLS saturation **≥ 12.5** (right wall is 15.1) | 6.8 |
-| **G4** | *runaway guard* — saturation **≤ 18.0** AND hue within **8°** of 41.6° | 42.0° |
-| **G5** | *negative control* — right wall linear luminance ±8% of 0.3444, back wall 39.6% ±1.5 | 0.3455 / 39.6% |
-| **G6** | left wall linear luminance stays in E1's band **0.140–0.210** | 0.1821 |
+| gate   | claim                                                                                | now            |
+| ------ | ------------------------------------------------------------------------------------ | -------------- |
+| **G1** | left wall colourfulness **≥ 13.0**                                                   | 9.5            |
+| **G2** | inside the two boxes, colourfulness **≥ +30%** over the Fix-B image                  | +21.5%         |
+| **G3** | left wall HLS saturation **≥ 12.5** (right wall is 15.1)                             | 6.8            |
+| **G4** | _runaway guard_ — saturation **≤ 18.0** AND hue within **8°** of 41.6°               | 42.0°          |
+| **G5** | _negative control_ — right wall linear luminance ±8% of 0.3444, back wall 39.6% ±1.5 | 0.3455 / 39.6% |
+| **G6** | left wall linear luminance stays in E1's band **0.140–0.210**                        | 0.1821         |
 
 G1 and G2 are E5's and F1's thresholds **unchanged**. They were set before this
 fix was conceived and moving them now, having seen them fail, is the one thing

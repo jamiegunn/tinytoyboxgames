@@ -12,13 +12,13 @@ This is an unusually well-conceived project. The bones are excellent: single reg
 
 The problems are almost all **process failures, not design failures** — and they share one root cause: **nothing runs your quality gates automatically.** As of this snapshot:
 
-| Gate | Status |
-|---|---|
-| `npm run build` (tsc + vite) | ❌ **FAILS** — 9 TypeScript errors |
-| Test suite | ❌ **6 of 25 tests fail** |
-| ESLint | ⚠️ 171 warnings (0 errors); the strict gate (`check-code-quality.cjs --max-warnings 0`) fails |
-| `vite build` alone | ✅ builds (type checking skipped) |
-| CI | ❌ none exists (no `.github/`, no pipeline anywhere) |
+| Gate                         | Status                                                                                        |
+| ---------------------------- | --------------------------------------------------------------------------------------------- |
+| `npm run build` (tsc + vite) | ❌ **FAILS** — 9 TypeScript errors                                                            |
+| Test suite                   | ❌ **6 of 25 tests fail**                                                                     |
+| ESLint                       | ⚠️ 171 warnings (0 errors); the strict gate (`check-code-quality.cjs --max-warnings 0`) fails |
+| `vite build` alone           | ✅ builds (type checking skipped)                                                             |
+| CI                           | ❌ none exists (no `.github/`, no pipeline anywhere)                                          |
 
 **The current tree cannot produce a new Docker image** — the Dockerfile runs `bun run build`, which runs `tsc -b`, which fails. The live site must have been built from an older, type-clean tree. Meanwhile a docs purge (the `docs/adr/`, `docs/specs/`, `docs/features/` trees are gone) left ~20 dangling references across README, CLAUDE.md, agents.md, and skills.md, and left 6 contract tests asserting README scaffolding that no longer exists in the templates.
 
@@ -122,7 +122,7 @@ The vision docs demand "Pixar-like warmth, premium cinematic, soft shadows." The
 - **No environment lighting / PMREM** — your metal materials (metalness 0.85) reflect nothing and read as near-black plastic. One PMREM'd `RoomEnvironment` at startup transforms every StandardMaterial in the app at near-zero per-frame cost.
 - **Shadows left at default hard `PCFShadowMap`** — directly contradicts "Shadows are soft" in soul.md. `PCFSoftShadowMap` is one line per renderer. Also: no `normalBias` (toy-sphere acne risk), one-size-fits-all ±10 shadow frustum, and the minigame rig never sets ortho extents — **most of Little Shark's 60-unit reef falls outside the default ±5 shadow box.**
 - **No postprocessing** — the design language is saturated with glow (fireflies, portals, moon, jar-beacon) that renders as flat bright meshes. Selective bloom, gated by a quality tier, pays off everywhere at once.
-- **Flat `AmbientLight` fill everywhere**; the `fillGroundColor` config that scenes pass in is *silently ignored* — `createSceneLighting` never reads it. The intended hemisphere fill (the classic "cozy" look) degrades to flat ambient.
+- **Flat `AmbientLight` fill everywhere**; the `fillGroundColor` config that scenes pass in is _silently ignored_ — `createSceneLighting` never reads it. The intended hemisphere fill (the classic "cozy" look) degrades to flat ambient.
 
 Because both `SceneFrame` and `MiniGameShell` bootstrap their own renderers with divergent settings, build one shared `createConfiguredRenderer()` factory and fix everything in one place.
 
@@ -131,7 +131,7 @@ Because both `SceneFrame` and `MiniGameShell` bootstrap their own renderers with
 1. **Device pixel ratio is uncapped** — an iPhone at DPR 3 renders 9× the pixels of DPR 1 with MSAA on. Cap at 2 (1.5 on low tier). This is the #1 mobile perf item.
 2. **Two full WebGL renderers run simultaneously during every minigame** — the hub scene keeps rendering every frame behind the opaque game overlay. Battery/thermals on iPad suffer for zero visual benefit. Pause the hub loop while a game is active.
 3. **15+ dynamic PointLights from fireflies** (one per firefly in both the nature scene and the fireflies game) — every StandardMaterial fragment iterates all of them, and adding/removing lights mid-scene recompiles every shader (a classic iPad hitch). Replace with emissive sprites + bloom; keep at most 1–2 aggregate lights.
-4. **Zero instancing anywhere.** Little Shark places **~290 coral/plant groups**, each 3–10 meshes with per-instance materials — an estimated 1,000–2,500 draw calls before fish and effects. Five coral + four plant `InstancedMesh` archetypes with per-instance color collapse that to ~15. House rooms have 393 `new Mesh(` sites; merge the static shells. Grass tufts (5–7 meshes *and materials* each) and Bubble Pop's 20 individual star meshes are the same story.
+4. **Zero instancing anywhere.** Little Shark places **~290 coral/plant groups**, each 3–10 meshes with per-instance materials — an estimated 1,000–2,500 draw calls before fish and effects. Five coral + four plant `InstancedMesh` archetypes with per-instance color collapse that to ~15. House rooms have 393 `new Mesh(` sites; merge the static shells. Grass tufts (5–7 meshes _and materials_ each) and Bubble Pop's 20 individual star meshes are the same story.
 5. **The material cache is broken by design** — `getOrCreateMaterial` exists but none of the factories use it, and callers pass per-instance names (`coral_brain_mat_${id}`) that defeat sharing anyway. Nature scene wrote a three-tier material policy doc to compensate — codify that policy at the factory level instead.
 6. **Every particle system runs its own private `requestAnimationFrame`** decoupled from the renderer — the fireflies game alone spawns a dozen+ stray rAF loops. Move to a shared ticker driven by the owning scene's loop (Bubble Pop already models this correctly).
 7. **No weak-device adaptation at all** — `ResponsiveProvider` computes `isMobile` and `SceneFrame` discards it. Add a quality-tier module (DPR, cores, isMobile, plus an FPS watchdog that demotes at runtime) consumed by the renderer factory, prop densities, and particle rates.
@@ -165,7 +165,7 @@ The **Creative toybox** — a prime attraction in the landing scene — is wired
 
 ### 5.3 Compliance with your no-fail philosophy — near-perfect, one exception
 
-Verified per game: no game-overs, lives, countdowns, red flashes, or buzzers anywhere. Bubble Pop and Fireflies are exemplary (fireflies' 80 px proximity hit-test is toddler-perfect; consider giving Bubble Pop the same forgiveness — it currently requires exact mesh raycast hits, and small bubbles on a phone are precision targets). The one exception: **star-catcher's template-derived scoring breaks the combo on a missed tap** — the only punitive mechanic in the suite, and it lives in the *minigame template baseline*, so every future generated game inherits it. Replace with a fallback sparkle.
+Verified per game: no game-overs, lives, countdowns, red flashes, or buzzers anywhere. Bubble Pop and Fireflies are exemplary (fireflies' 80 px proximity hit-test is toddler-perfect; consider giving Bubble Pop the same forgiveness — it currently requires exact mesh raycast hits, and small bubbles on a phone are precision targets). The one exception: **star-catcher's template-derived scoring breaks the combo on a missed tap** — the only punitive mechanic in the suite, and it lives in the _minigame template baseline_, so every future generated game inherits it. Replace with a fallback sparkle.
 
 ### 5.4 Navigation & session flow
 
@@ -202,7 +202,7 @@ The generator → template → manifest → contract-test pipeline is the right 
 3. Latent generator bug: `copyTemplateDirectory` drops `skipFiles` when recursing into subdirectories. Harmless today, a trap later.
 4. `MiniGameContext.scene/renderer/camera` are typed `unknown` "to avoid a hard dep" — but every game immediately casts, and the framework imports `three` directly anyway. This buys nothing and costs type safety at the most important seam. Type them.
 
-**Could your son author content himself someday? Yes — and you're closer than you think.** Toybox manifests, staging placement files, portal lists, and palettes are already data-shaped. The ladder: (1) now, he watches you tweak numbers/colors in `staging/*.ts` with hot reload; (2) later, extract staging/palettes/portals to schema-validated JSON so editing requires no TS; (3) eventually, an in-app edit mode (drag props, pick colors, export JSON) is feasible precisely because everything is procedural — no asset pipeline needed. Game *rules* stay code, but the template's environment/entities/rules split already isolates the parts a kid could own. Worth piloting the JSON extraction on one scene.
+**Could your son author content himself someday? Yes — and you're closer than you think.** Toybox manifests, staging placement files, portal lists, and palettes are already data-shaped. The ladder: (1) now, he watches you tweak numbers/colors in `staging/*.ts` with hot reload; (2) later, extract staging/palettes/portals to schema-validated JSON so editing requires no TS; (3) eventually, an in-app edit mode (drag props, pick colors, export JSON) is feasible precisely because everything is procedural — no asset pipeline needed. Game _rules_ stay code, but the template's environment/entities/rules split already isolates the parts a kid could own. Worth piloting the JSON extraction on one scene.
 
 ### 6.2 The persistence question — decide before more games accrue
 
@@ -238,13 +238,14 @@ Roughly **20 references point at deleted directories** (`docs/adr/`, `docs/specs
 - `src/README.md` is untouched Vite boilerplate — replace with a real dev README (bun-first install, scripts, tests, generators).
 - `vision.md`'s "current implemented slice" section is stale on all three claims (scene id, scene count, game count) — defer to current-state.md.
 - `controlled-terminology.md` contains two overlapping canonical-term tables that contradict each other about the top term.
-- Missing docs worth writing: an architecture overview of the *actual* runtime (SceneFrame/SceneRouter/AudioProvider/MiniGameShell contracts — the specs that covered this are gone), an **audio system doc** (a named pillar, entirely undocumented), a deployment runbook, and a testing guide.
+- Missing docs worth writing: an architecture overview of the _actual_ runtime (SceneFrame/SceneRouter/AudioProvider/MiniGameShell contracts — the specs that covered this are gone), an **audio system doc** (a named pillar, entirely undocumented), a deployment runbook, and a testing guide.
 
 ---
 
 ## 8. Consolidated Roadmap
 
 **P0 — This week (restore integrity):**
+
 1. Fix the 9 type errors (delete pirate-cove sample props, `_scene`, `games: []`) → green `npm run build` and Docker build.
 2. Resolve the 6 test failures deliberately (recommend: restore template README scaffolding).
 3. Delete cruft (1.3 MB lint dumps ×2, stale lint txt, `package-lock.json`, `.claude/settings.local.json`); fix BOM/mojibake.
@@ -252,24 +253,11 @@ Roughly **20 references point at deleted directories** (`docs/adr/`, `docs/specs
 5. Audio Phase 1: register missing celebration SFX, wire the minigame music bridge, port sharkSynth, un-silence Little Shark and Cannonball Splash, warn on unknown IDs.
 6. Fix the doc-link rot and the Babylon-era bubble-pop README.
 
-**P1 — Next (the quality leap):**
-7. Renderer foundation: shared factory with ACES tone mapping, PCFSoft shadows, sRGB, DPR cap ≤2, PMREM environment, hemisphere fill honoring `fillGroundColor`, `normalBias`, per-scene shadow frustums. Then one lighting/emissive re-tuning sweep per scene.
-8. Audio Phase 2: lookahead scheduler (fixes the nature overlap + hub gap), real crossfades (fixes the scene-change click), master compressor, reverb send, iOS lifecycle hardening, bus rebalance.
-9. Toddler input fix (drag-end → tap in tap-only games) + Creative toybox response + mute in minigame HUD + pause hub renderer during games.
-10. Web manifest + real favicon + apple-touch-icon + safe-area insets + wake lock.
-11. Leak fixes: portal tweens, shadow-map targets, particle emitter-follow.
+**P1 — Next (the quality leap):** 7. Renderer foundation: shared factory with ACES tone mapping, PCFSoft shadows, sRGB, DPR cap ≤2, PMREM environment, hemisphere fill honoring `fillGroundColor`, `normalBias`, per-scene shadow frustums. Then one lighting/emissive re-tuning sweep per scene. 8. Audio Phase 2: lookahead scheduler (fixes the nature overlap + hub gap), real crossfades (fixes the scene-change click), master compressor, reverb send, iOS lifecycle hardening, bus rebalance. 9. Toddler input fix (drag-end → tap in tap-only games) + Creative toybox response + mute in minigame HUD + pause hub renderer during games. 10. Web manifest + real favicon + apple-touch-icon + safe-area insets + wake lock. 11. Leak fixes: portal tweens, shadow-map targets, particle emitter-follow.
 
-**P2 — Then (polish & growth):**
-12. Audio Phase 3: chord pads + bass everywhere, hub melody rewrite, generative pentatonic engine, shared Toybox motif, combo-melody catches, per-game beds.
-13. Selective bloom behind a quality-tier module; replace per-firefly PointLights with sprites.
-14. Instancing: Little Shark reef, room shells, foliage, stars. Make the material cache the default path.
-15. Generator upgrades: `--scene` flag wiring portals automatically; sample-prop graduation guard; typed MiniGameContext.
-16. Remove combo-break-on-miss from the template; bubble-pop proximity forgiveness; reduced-motion + aria-live pass; self-host fonts; strip debug logs.
-17. Decide the persistence story (parent-gated save or magic-bookmark hash) and design the guard allowlist now.
-18. Playwright smoke/screenshot suite; error beacon; consolidate particle/material/dispose layers.
+**P2 — Then (polish & growth):** 12. Audio Phase 3: chord pads + bass everywhere, hub melody rewrite, generative pentatonic engine, shared Toybox motif, combo-melody catches, per-game beds. 13. Selective bloom behind a quality-tier module; replace per-firefly PointLights with sprites. 14. Instancing: Little Shark reef, room shells, foliage, stars. Make the material cache the default path. 15. Generator upgrades: `--scene` flag wiring portals automatically; sample-prop graduation guard; typed MiniGameContext. 16. Remove combo-break-on-miss from the template; bubble-pop proximity forgiveness; reduced-motion + aria-live pass; self-host fonts; strip debug logs. 17. Decide the persistence story (parent-gated save or magic-bookmark hash) and design the guard allowlist now. 18. Playwright smoke/screenshot suite; error beacon; consolidate particle/material/dispose layers.
 
-**P3 — Someday:**
-19. Data-driven animalBuilder; JSON-staging pilot toward kid-authoring; in-app edit mode; flatten `src/src/`; per-scene fog/atmosphere pass; unify camera/lighting rigs and retire Babylon-heritage APIs.
+**P3 — Someday:** 19. Data-driven animalBuilder; JSON-staging pilot toward kid-authoring; in-app edit mode; flatten `src/src/`; per-scene fog/atmosphere pass; unify camera/lighting rigs and retire Babylon-heritage APIs.
 
 ---
 

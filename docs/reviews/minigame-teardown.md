@@ -94,17 +94,17 @@ thing the game shows them is text.
 This is the most frustrating category, because the good version of each game
 already exists in the repo and is simply not plugged in:
 
-| Dead module | Lines | What it is |
-|---|---|---|
-| `little-shark/fish/species.ts` | — | The five-species registry. The game's entire variety. Unimported. |
-| `little-shark/waves/templates.ts` | 182 | Ten named waves, four formation types. Zero implementation. |
-| `little-shark/fish/schooling.ts` | 230 | A boids implementation. Unused. |
-| `little-shark/fish/meshes.ts` | 399 | Unused. |
-| `little-shark/shark/splineBody.ts` | 209 | Import commented out at `index.ts:78-79`. |
-| `little-shark/audio/sharkSynth.ts` | 395 | Unused. |
-| `little-shark/environment/ambientLife.ts` | 1014 | Not imported by `setup.ts`. |
-| `fireflies/jarFill.ts` | 106 | A bounded, readable jar-fill meter. Never imported. |
-| `bubble-pop/animation/spring.ts` | 111 | Unused. |
+| Dead module                               | Lines | What it is                                                        |
+| ----------------------------------------- | ----- | ----------------------------------------------------------------- |
+| `little-shark/fish/species.ts`            | —     | The five-species registry. The game's entire variety. Unimported. |
+| `little-shark/waves/templates.ts`         | 182   | Ten named waves, four formation types. Zero implementation.       |
+| `little-shark/fish/schooling.ts`          | 230   | A boids implementation. Unused.                                   |
+| `little-shark/fish/meshes.ts`             | 399   | Unused.                                                           |
+| `little-shark/shark/splineBody.ts`        | 209   | Import commented out at `index.ts:78-79`.                         |
+| `little-shark/audio/sharkSynth.ts`        | 395   | Unused.                                                           |
+| `little-shark/environment/ambientLife.ts` | 1014  | Not imported by `setup.ts`.                                       |
+| `fireflies/jarFill.ts`                    | 106   | A bounded, readable jar-fill meter. Never imported.               |
+| `bubble-pop/animation/spring.ts`          | 111   | Unused.                                                           |
 
 Somebody designed these games properly and then shipped the scaffolding instead.
 
@@ -153,14 +153,14 @@ collision radii are half the true size (`softBody.ts:22-25`).
 **Succeeding makes the game worse.** Illumination tier 1 is strictly darker than
 tier 0 on all seven axes (`illumination.ts:53-65` vs `:40-52`):
 
-| | tier 0 | tier 1 |
-|---|---|---|
-| directional | 0.18 | 0.08 |
-| ambient | 0.12 | 0.04 |
-| moon | 0.6 | 0.25 |
-| ground | 0.05 | 0.01 |
-| jar light | 0.25 | **0.0** |
-| jar emissive | 0.35 | 0.05 |
+|              | tier 0 | tier 1  |
+| ------------ | ------ | ------- |
+| directional  | 0.18   | 0.08    |
+| ambient      | 0.12   | 0.04    |
+| moon         | 0.6    | 0.25    |
+| ground       | 0.05   | 0.01    |
+| jar light    | 0.25   | **0.0** |
+| jar emissive | 0.35   | 0.05    |
 
 At the third catch the world goes dark and does not recover until catch fifteen.
 The reward for playing well is being punished for eleven catches.
@@ -170,7 +170,7 @@ inside a group at z = −10, so world z = +5 — behind the camera's near plane,
 facing away.
 
 **The tap hint freezes on screen permanently.** `index.ts:300` guards
-`tapHint.update()` on `!firstCatchDone`. `onTap` sets that flag and *then* calls
+`tapHint.update()` on `!firstCatchDone`. `onTap` sets that flag and _then_ calls
 `dismiss()`, which only raises a `fadeOut` flag that is consumed inside
 `update()` — which will now never run again.
 
@@ -221,7 +221,7 @@ The extrusion is never visible from any angle.
 
 Also: the sky is a flat `PlaneGeometry(36, 22, 1, 6)` whose glow term
 `max(0, 1 - 4t)` confines all colour to the bottom 25%, leaving the rest flat
-`#080A1F`; cloud mound 3 at (−0.6, 4.4) sits 0.03u *below* the hill surface and
+`#080A1F`; cloud mound 3 at (−0.6, 4.4) sits 0.03u _below_ the hill surface and
 flickers through it via its own ±0.05 bob; every miss allocates a fresh
 `TorusGeometry` and `MeshStandardMaterial` with no pooling, laid flat in XZ at a
 forced y = 0.55 so it reads as an ellipse on the ground rather than a ring at the
@@ -282,7 +282,7 @@ ball — it's a parametric quadratic (`helpers.ts:48-50`); `GRAVITY: -9.8` is us
 only for particles, fragments and coins.
 
 **The ball leaves from where the barrel used to be.** `aimCannon` writes
-`rig.aimYaw` / `rig.aimPitch`, and the rotation is lerp-applied on the *next*
+`rig.aimYaw` / `rig.aimPitch`, and the rotation is lerp-applied on the _next_
 frame in `updateCannonIdle` — but `getCannonMouthPosition` is read immediately at
 `index.ts:273`.
 
@@ -290,14 +290,14 @@ frame in `updateCannonIdle` — but `getCannonMouthPosition` is read immediately
 `if (!worldPoint.x && !worldPoint.z) worldPoint.set(0, 0, -8)`.
 
 **The edge warning turns the entire scene red.** `rules/index.ts:141-156` sets
-`emissive.setRGB(pulse, 0, 0)` on *module-level shared* materials. One barrel
+`emissive.setRGB(pulse, 0, 0)` on _module-level shared_ materials. One barrel
 drifting past |x| > 7 turns **every** barrel and every duck red. Another target's
 reset branch clears it. The result is a scene-wide red flicker. Golden barrels
 have no reset branch at all, so they stay red permanently.
 
 **Every newly spawned target flashes the leaving warning.** Targets spawn at
 |x| = 9 and the warning triggers at |x| > 7, so each one pulses red for its first
-2.9–6.7 seconds *while drifting inward*. The warning fires on arrival.
+2.9–6.7 seconds _while drifting inward_. The warning fires on arrival.
 
 **There is no ship.** There is a `PlaneGeometry(18, 5)` deck at z = 1.5 — the
 camera is at z = 2.8, so most of it is behind the camera — plus a railing whose
@@ -315,7 +315,7 @@ translating ±0.12 in Y; camera shake is a single decaying random offset of 0.06
 units; cloud drift is framerate-dependent (hardcoded `1/60`, `setup.ts:557`);
 `startOpacity` is read at `effects.ts:428` and never written, so every
 transparent particle snaps to 0.5; explosions play at the impact point captured
-at *fire* time, up to 0.7u from where the target actually is; and `OCEAN_Y`,
+at _fire_ time, up to 0.7u from where the target actually is; and `OCEAN_Y`,
 `COMBO_WINDOW`, `RAMP_START`, `RAMP_END`, `GOLDEN_UNLOCK` (150, which doesn't
 even match the effective 185), `RAINBOW_UNLOCK` and `CAMERA_SHAKE_FRAMES` are all
 dead.

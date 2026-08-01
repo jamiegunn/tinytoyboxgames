@@ -27,10 +27,16 @@ test('lerp is unclamped; lerpClamped clamps t to [0,1] (the preserved distinctio
   assert.equal(math.lerpClamped(0, 10, -1), 0, 'lerpClamped must saturate at a');
 });
 
-test('clamp bounds a value to [lo, hi]', () => {
+test('clamp bounds a value to [lo, hi], endpoints included', () => {
   assert.equal(math.clamp(5, 0, 10), 5);
   assert.equal(math.clamp(-3, 0, 10), 0);
   assert.equal(math.clamp(99, 0, 10), 10);
+  // Both endpoints are IN range and must pass through untouched. Note for
+  // future readers: flipping either comparison in clamp's ternary produces an
+  // EQUIVALENT mutant — at v === hi both `>` and `>=` return hi — so no test
+  // can distinguish them. These two lines pin the contract, not the operator.
+  assert.equal(math.clamp(10, 0, 10), 10, 'the upper endpoint is inside the range');
+  assert.equal(math.clamp(0, 0, 10), 0, 'the lower endpoint is inside the range');
 });
 
 test('smooth01 is a smoothstep: fixed endpoints, symmetric midpoint', () => {
