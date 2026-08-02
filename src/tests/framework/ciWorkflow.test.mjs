@@ -35,6 +35,7 @@ import { fileURLToPath } from 'node:url';
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TESTS_DIR = path.join(PACKAGE_ROOT, 'tests');
 const CI_PATH = path.join(PACKAGE_ROOT, '..', '.github', 'workflows', 'ci.yml');
+const WORKFLOW_DIR = path.join(PACKAGE_ROOT, '..', '.github', 'workflows');
 
 /**
  * The executable `run:` lines of the workflow, with YAML comments removed.
@@ -103,6 +104,122 @@ test('CI grades everything the pre-commit hook grades', () => {
       lines,
       pattern,
       `CI must run ${what}. The pre-commit hook does, and a hook is opt-in: it needs core.hooksPath set, it is per-clone, and --no-verify skips it. CI is the only gate that applies to everyone.`,
+    );
+  }
+});
+
+// ── The deploy must follow the gates, not race them ─────────────────────────
+//
+// Until 2026-08-01, ci.yml and a separate deploy-pages.yml both triggered on
+// `push: [main]` with nothing connecting them. deploy-pages.yml did carry a
+// `needs:`, which is why this looked fine at a glance — but it was an INTERNAL
+// job dependency (its deploy job waiting on its own build job), not a
+// dependency on the quality gates in the other file. The two workflows ran in
+// parallel, so a push whose suite went red published anyway.
+//
+// These assertions are about reachability in the job graph, not about the
+// presence of the word `needs`. That distinction is the whole bug.
+
+/**
+ * Job name -> its `needs` list, parsed structurally from a workflow file.
+ *
+ * Deliberately not js-yaml: that is a transitive dependency of ESLint here, not
+ * a declared one, and a contract test should not rest on something nothing
+ * promises to keep installed.
+ *
+ * @param {string} yml Workflow file contents.
+ * @returns {Map<string, {needs: string[], body: string}>} Jobs by name.
+ */
+function parseJobs(yml) {
+  const lines = yml.split('\n');
+  const jobsIndex = lines.findIndex((line) => /^jobs:\s*$/.test(line));
+  assert.ok(jobsIndex >= 0, 'workflow has no jobs: block');
+
+  const jobs = new Map();
+  let current = null;
+  for (const line of lines.slice(jobsIndex + 1)) {
+    const header = line.match(/^ {2}([A-Za-z0-9_-]+):\s*$/);
+    if (header) {
+      current = header[1];
+      jobs.set(current, { needs: [], body: '' });
+      continue;
+    }
+    if (!current) continue;
+    if (/^\S/.test(line)) break; // dedented out of jobs:
+    jobs.get(current).body += line + '\n';
+    const needs = line.match(/^ {4}needs:\s*(.+)$/);
+    if (needs) {
+      const raw = needs[1].trim();
+      const list = raw.startsWith('[') ? raw.slice(1, -1).split(',') : [raw];
+      jobs.get(current).needs = list.map((n) => n.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+    }
+  }
+  return jobs;
+}
+
+/**
+ * Every job reachable by following `needs` from a starting job.
+ *
+ * @param {Map<string, {needs: string[]}>} jobs Parsed jobs.
+ * @param {string} start Job to walk back from.
+ * @returns {Set<string>} Job names this job transitively depends on.
+ */
+function upstreamOf(jobs, start) {
+  const seen = new Set();
+  const queue = [...(jobs.get(start)?.needs ?? [])];
+  while (queue.length) {
+    const name = queue.pop();
+    if (seen.has(name)) continue;
+    seen.add(name);
+    queue.push(...(jobs.get(name)?.needs ?? []));
+  }
+  return seen;
+}
+
+test('the job that deploys to Pages transitively depends on the job that runs the tests', () => {
+  const yml = readFileSync(CI_PATH, 'utf8');
+  const jobs = parseJobs(yml);
+
+  const deployJob = [...jobs].find(([, job]) => /actions\/deploy-pages/.test(job.body))?.[0];
+  assert.ok(deployJob, 'no job in ci.yml uses actions/deploy-pages');
+
+  const testJob = [...jobs].find(([, job]) => /node --test/.test(job.body))?.[0];
+  assert.ok(testJob, 'no job in ci.yml runs the contract suite');
+
+  const upstream = upstreamOf(jobs, deployJob);
+  assert.ok(
+    upstream.has(testJob),
+    `the '${deployJob}' job does not depend, even transitively, on '${testJob}'.\n` +
+      `It reaches: ${[...upstream].join(', ') || '(nothing)'}.\n\n` +
+      `A deploy that does not wait for the gates is a deploy that races them, and the tests lose ` +
+      `roughly half the time. Add 'needs:' so the chain reaches the quality job.`,
+  );
+});
+
+test('no workflow publishes to Pages outside that gated chain', () => {
+  const offenders = [];
+  for (const name of readdirSync(WORKFLOW_DIR).filter((f) => /\.ya?ml$/.test(f))) {
+    if (name === path.basename(CI_PATH)) continue;
+    const body = readFileSync(path.join(WORKFLOW_DIR, name), 'utf8');
+    if (/actions\/(deploy-pages|upload-pages-artifact)/.test(body)) offenders.push(name);
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    `these workflows publish to Pages independently of ci.yml: ${offenders.join(', ')}.\n` +
+      `A second publishing path is a second way to ship past the gates — that is exactly how ` +
+      `deploy-pages.yml raced the test suite until 2026-08-01.`,
+  );
+});
+
+test('the deploy chain does not run on pull requests', () => {
+  const jobs = parseJobs(readFileSync(CI_PATH, 'utf8'));
+  for (const [name, job] of jobs) {
+    if (!/actions\/(deploy-pages|upload-pages-artifact)/.test(job.body)) continue;
+    assert.match(
+      job.body,
+      /if:\s*.*pull_request/,
+      `job '${name}' publishes to Pages but has no guard against pull_request events — ` + `a PR from a fork would deploy.`,
     );
   }
 });

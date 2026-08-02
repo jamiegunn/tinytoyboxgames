@@ -1,9 +1,32 @@
 name: CI
 
+# One workflow, deliberately.
+#
+# Until 2026-08-01 this file and a separate `deploy-pages.yml` both triggered on
+# `push: [main]` with nothing connecting them. The deploy workflow's `needs:`
+# was an internal job dependency — deploy waiting on its own build — not a
+# dependency on the quality gates over here. So the two raced: a push whose test
+# suite went red still published to GitHub Pages, and the red X landed next to a
+# commit that was already live. Every contract test in this repo sat in a
+# workflow with no authority over what reached players.
+#
+# Merging them makes `needs: quality` mean what it looks like it means.
+#
+# NOTE ON THE TWO BUILDS. The site build is NOT a duplicate of the quality
+# build. `vite.config.ts` sets `base: '/'`, which is what the Docker image
+# serves; Pages serves from a sub-path and needs `--base=/tinytoyboxgames/game/`
+# or every asset URL 404s. They are two different artifacts from one commit, so
+# both are built on purpose.
+
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+# Least privilege at the top; the deploy job widens its own.
+permissions:
+  contents: read
 
 jobs:
   quality:
@@ -22,6 +45,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      # Keyed on the lockfile: a dependency change busts it, nothing else does.
+      - name: Cache bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('src/bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -62,3 +94,91 @@ jobs:
 
       - name: Build
         run: bunx vite build
+
+  pages:
+    name: Assemble Pages site
+    # THE GATE. Without this the deploy races the tests instead of following them.
+    needs: quality
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Cache bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('src/bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Install game dependencies
+        working-directory: src
+        run: bun install --frozen-lockfile
+
+      # base must match the Pages sub-path so the game's assets resolve at
+      # https://jamiegunn.github.io/tinytoyboxgames/game/
+      - name: Build game
+        working-directory: src
+        run: bunx vite build --base=/tinytoyboxgames/game/
+
+      - name: Assemble Pages site (game + rendered docs + landing)
+        run: |
+          mkdir -p _site
+          cp -r src/dist _site/game
+          npm install marked@^12 --no-save
+          node scripts/build-pages.mjs
+
+      - name: Validate the assembled site
+        # The Dockerfile validates its artifact before shipping it; the Pages
+        # path shipped whatever landed in _site/. `vite build` exiting 0 is not
+        # the same claim as "the page loads and references its bundles".
+        run: |
+          set -e
+          echo "▸ landing page exists…"        && test -f _site/index.html
+          echo "▸ game entry exists…"          && test -f _site/game/index.html
+          echo "▸ docs index exists…"          && test -f _site/docs/index.html
+          echo "▸ JS bundle emitted…"          && ls _site/game/assets/*.js  >/dev/null
+          echo "▸ CSS bundle emitted…"         && ls _site/game/assets/*.css >/dev/null
+          echo "▸ game entry references JS…"   && grep -q '\.js'  _site/game/index.html
+          echo "▸ game entry references CSS…"  && grep -q '\.css' _site/game/index.html
+          echo "▸ asset URLs carry the Pages base…" \
+            && grep -q '/tinytoyboxgames/game/assets/' _site/game/index.html
+          JS_SIZE=$(stat -c%s _site/game/assets/*.js | sort -rn | head -1)
+          echo "▸ JS bundle is non-empty (>1 KB)…" && test "$JS_SIZE" -gt 1024
+          echo "✔ site validated (main bundle: ${JS_SIZE} bytes)"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to Pages
+    needs: pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Only this job gets write access to Pages.
+    permissions:
+      pages: write
+      id-token: write
+    # One deploy at a time; newer pushes cancel in-progress runs. Scoped to this
+    # job so it cannot cancel a PR's quality run.
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

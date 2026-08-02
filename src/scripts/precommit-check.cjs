@@ -3,9 +3,9 @@
  *
  *   1. Prettier --check on staged source files (formatting)
  *   2. ESLint --max-warnings 0 on staged source files (new code stays pristine)
- *   3. ESLint on the whole package (zero warnings)
- *   4. tsc -b (project-wide type-check of the app + node projects)
- *   5. tsc -p .probe/tsconfig.probe.json --noEmit (the probe harness)
+ *   3. tsc -b (project-wide type-check of the app + node projects)
+ *   4. tsc -p .probe/tsconfig.probe.json --noEmit (the probe harness)
+ *   5. ESLint on the whole package (zero warnings)
  *   6. node --test (the whole contract suite)
  *   7. vite build (production bundle must build)
  *
@@ -36,11 +36,25 @@
  * mutation-verified across five rounds of review was enforced by nothing but
  * a human remembering to type `npm test`. A pin nobody runs is a comment.
  *
- * Ordering is deliberate: the two new gates sit AFTER the type-check and
- * BEFORE `vite build`. Tests are fast and by far the most informative failure
- * a commit can get; the bundle build is the slowest gate and the least likely
- * to be the thing that is broken, so it stays last and a failing test does not
- * pay for it.
+ * Ordering is deliberate, and was retuned on 2026-08-01 by measurement rather
+ * than by intuition. Gates 3 and 4 (the type-checks, 9-13s and ~11s) now run
+ * before gate 5 (whole-package ESLint, 32-43s), because a type error is the
+ * most common thing a commit gets wrong and it used to take ~56s to surface
+ * behind a lint pass that was not going to fail. The contract suite stays ahead
+ * of `vite build` for the original reason: tests are by far the most
+ * informative failure a commit can get, and the bundle build is the slowest
+ * gate and the least likely to be the thing that is broken.
+ *
+ * NOTHING WAS REMOVED, and that is a decision rather than an omission. The
+ * whole set costs roughly 100-130s per commit, which is a real tax and a real
+ * temptation to reach for `--no-verify` — and a gate bypassed by habit is
+ * absent on the commit that needed it. Since 2026-08-01 CI runs every one of
+ * these gates AND the Pages deploy is gated on them (`.github/workflows/ci.yml`,
+ * pinned by `tests/framework/ciWorkflow.test.mjs`), so nothing broken can reach
+ * players even if this hook never runs. That makes trimming this file to the
+ * staged-file checks plus `tsc -b` a defensible ~15s alternative. It is not
+ * done here because which side of that trade to take is the repo owner's call,
+ * not an inference from the code.
  *
  * Escape hatch (emergencies only): git commit --no-verify
  */
@@ -142,18 +156,24 @@ if (stagedSourceFiles.length > 0) {
   runCheck('ESLint (staged files, zero warnings)', eslintBin, ['--max-warnings', '0', ...stagedSourceFiles]);
 }
 
-// 3: whole-package lint must be warning-free
-runCheck('ESLint (whole package, zero warnings)', eslintBin, ['.', '--max-warnings', '0']);
-
-// 4: project-wide type-check
+// 3: project-wide type-check
 runCheck('TypeScript (tsc -b)', tscBin, ['-b']);
 
-// 5: the probe harness type-checks too. `tsc -b` cannot reach it — tsconfig.json
+// 4: the probe harness type-checks too. `tsc -b` cannot reach it — tsconfig.json
 // references only the app and node projects — so it needs its own invocation.
 // The existence check above is not politeness: if this file goes missing the
 // gate would otherwise fail in a way that reads like a tooling problem, and the
 // tempting fix for a tooling problem is to delete the gate.
 runCheck('TypeScript (probe project)', tscBin, ['-p', PROBE_TSCONFIG_REL, '--noEmit']);
+
+// 5: whole-package lint must be warning-free.
+//
+// Moved after the type-checks on 2026-08-01 for time-to-first-failure, not for
+// coverage — nothing was removed. ESLint over this package measured 32-43s
+// against tsc's 9-13s, so putting it first meant a plain type error took ~56s
+// to surface instead of ~13s. The slowest gate should not stand in front of the
+// one most likely to catch the mistake you just made.
+runCheck('ESLint (whole package, zero warnings)', eslintBin, ['.', '--max-warnings', '0']);
 
 // 6: the contract suite. Deliberately NOT the enumerated directory list that
 // package.json used to carry — an enumeration is an exclusion criterion doing
