@@ -37,8 +37,28 @@ function registeredMusicIds() {
   return ids;
 }
 
+/**
+ * Every id registered in AMBIENT_REGISTRY.
+ *
+ * Its absence was the hole: the scene test length-checked `ambientId` and never
+ * looked it up, so a typo shipped green while audio-standards.md promised both
+ * ids were "registered in the audio registries".
+ *
+ * @returns {Set<string>} Registered ambient ids.
+ */
+function registeredAmbientIds() {
+  const registryBlock = registrySource.match(/AMBIENT_REGISTRY[^=]*=\s*\{([\s\S]*?)\n\};/);
+  assert.ok(registryBlock, 'AMBIENT_REGISTRY object literal not found in assets/audio/index.ts');
+  const ids = new Set();
+  for (const match of registryBlock[1].matchAll(/^\s*(?:'([^']+)'|([A-Za-z0-9_]+)):/gm)) {
+    ids.add(match[1] ?? match[2]);
+  }
+  return ids;
+}
+
 test('every scene in the catalog has a registered music bed and ambient', () => {
   const musicIds = registeredMusicIds();
+  const ambientIds = registeredAmbientIds();
 
   const entries = [...sceneCatalogSource.matchAll(/^ {2}(?:'([^']+)'|([A-Za-z0-9-]+)):\s*\{/gm)].map((m) => m[1] ?? m[2]);
   assert.ok(entries.length >= 4, `Expected at least 4 scene entries, found ${entries.length}`);
@@ -53,6 +73,10 @@ test('every scene in the catalog has a registered music bed and ambient', () => 
     assert.ok(musicId && musicId.length > 0, 'Scene musicId must not be empty — every scene ships its own music');
     assert.ok(ambientId && ambientId.length > 0, 'Scene ambientId must not be empty');
     assert.ok(musicIds.has(musicId), `Scene musicId "${musicId}" is not registered in MUSIC_REGISTRY`);
+    // ambientId was length-checked but never looked up, so a typo'd ambient id
+    // passed the gate while audio-standards.md claims both ids are "registered
+    // in the audio registries". Now both halves are actually enforced.
+    assert.ok(ambientIds.has(ambientId), `Scene ambientId "${ambientId}" is not registered in AMBIENT_REGISTRY`);
   }
 });
 

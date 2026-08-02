@@ -2,22 +2,15 @@
  * Builds the tappable cannon prop — a chunky toy cannon on a wheeled carriage.
  */
 
-import { BoxGeometry, CylinderGeometry, Group, Mesh, type Scene } from 'three';
+import { BoxGeometry, CylinderGeometry, Mesh, type Scene } from 'three';
 import { createEntityRoot, type EntityPlacement } from '../../../../types';
-import type { PirateCoveMaterials } from '../../../../materials';
 import { BARREL_LENGTH, BARREL_MOUTH_RADIUS, BARREL_RADIUS, BASE_DEPTH, BASE_HEIGHT, BASE_WIDTH, WHEEL_RADIUS, WHEEL_THICKNESS } from './constants';
 
-/** Shared dependencies required to build one cannon. */
-export interface CannonBuildOptions {
-  materials: Pick<PirateCoveMaterials, 'metal' | 'weatheredWood'>;
-}
-
-/** Typed handles returned to the interaction layer after mesh creation. */
-export interface CannonCreateResult {
-  root: Group;
-  barrel: Mesh;
-  tapTarget: Mesh;
-}
+// Types live in ./types/ so this prop matches the interactive-prop contract in
+// docs/ai-guidance/skills.md, which every Nature interactive prop already
+// follows. Re-exported here so existing importers keep working.
+import type { CannonBuildOptions, CannonCreateResult } from './types';
+export type { CannonBuildOptions, CannonCreateResult };
 
 /**
  * Creates one staged cannon instance.

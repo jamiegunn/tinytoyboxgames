@@ -112,14 +112,14 @@ The intended app model is memory-only for the current page lifecycle.
 
 ## Technology Stack
 
-| Layer        | Choice                                                              |
-| ------------ | ------------------------------------------------------------------- |
-| Language     | TypeScript `~5.9.3` (strict mode)                                   |
-| UI Framework | React `19.2.0`                                                      |
-| 3D Engine    | Three.js `0.175.0` with React Three Fiber `9.1.0` and drei `10.0.0` |
-| Animation    | GSAP `3.12.0`                                                       |
-| Build Tool   | Vite `7.3.1`                                                        |
-| Deployment   | Docker (multi-stage Bun build + nginx)                              |
+| Layer        | Choice                                                            |
+| ------------ | ----------------------------------------------------------------- |
+| Language     | TypeScript `~5.9.3` (strict mode)                                 |
+| UI Framework | React `19.2.0`                                                    |
+| 3D Engine    | Three.js `0.175.0`, used directly (no React Three Fiber renderer) |
+| Animation    | GSAP `3.12.0`                                                     |
+| Build Tool   | Vite `7.3.1`                                                      |
+| Deployment   | Docker (multi-stage Bun build + nginx)                            |
 
 Note: the repo currently contains `src/bun.lock` and no `package-lock.json`. Docker uses Bun with the frozen lockfile. The npm scripts in `src/package.json` remain useful command names, but Bun is the locked install path until an npm lockfile is added.
 
@@ -200,7 +200,7 @@ npm run create:immersive-scene -- --scene-id coral-reef --display-name "Coral Re
 npm run create:room-scene -- --scene-id bedroom --display-name "Bedroom"
 
 # New minigame
-npm run create:minigame -- --game-id star-catcher --display-name "Star Catcher"
+npm run create:minigame -- --game-id acorn-toss --display-name "Acorn Toss"
 ```
 
 Each generator copies a governed template, replaces placeholder tokens, registers the result in the appropriate manifest, and prints next steps.

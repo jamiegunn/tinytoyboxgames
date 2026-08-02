@@ -31,6 +31,17 @@ export const ROOM_DEPTH = 20;
 /** Ceiling slab thickness. */
 export const CEILING_THICKNESS = 0.16;
 
+/**
+ * How far forward of the back wall the ceiling slab sits, so it covers the
+ * visible shell rather than the oversized floor plane beneath it.
+ *
+ * Lived as a local `WALL_DEPTH_OFFSET` inside `room/ceiling.ts` until
+ * 2026-08-01. `room/README.md` forbids exactly that: "do not invent local sizes
+ * that drift from the layout" — a local copy is how the ceiling and the walls
+ * end up disagreeing about where the room ends.
+ */
+export const CEILING_DEPTH_OFFSET = 1.2;
+
 /** Floor dimensions are intentionally larger than the visible shell to hide seams. */
 export const FLOOR_WIDTH = 18;
 export const FLOOR_DEPTH = 24;

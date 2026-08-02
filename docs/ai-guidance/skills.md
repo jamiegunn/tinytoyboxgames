@@ -56,34 +56,46 @@ This file defines reusable skills (prompt templates) for the Whimsical Toybox Wo
 
 **Steps:**
 
-1. Determine the scene kind and parent path:
-   - `world`
-   - `place`
-   - `subplace`
-   - `toybox-interior`
+1. Determine the scene kind. The catalog's `kind` field has exactly two values:
+   - `landing` — a room the player navigates between (Playroom, Kitchen, Living Room)
+   - `immersive-toybox` — a world opened from a toybox (Nature, Pirate Cove)
+
+   `world` / `place` / `subplace` are **directory conventions** under
+   `src/src/scenes/world/places/…/subplaces/`, not scene kinds, and there is no
+   `parentSceneId` field — a child scene names its parent with `backTarget`.
+
 2. Create the scene folder in the target hierarchy, for example:
    ```
    src/src/scenes/world/...
    ```
-3. Create the minimum contract:
+3. Prefer the generator over hand-rolling — it emits the required shape and
+   registers the scene for you:
+   ```bash
+   cd src && npm run create:immersive-scene -- --scene-id coral-reef --display-name "Coral Reef"
+   cd src && npm run create:room-scene -- --scene-id bedroom --display-name "Bedroom"
+   ```
+4. The required files, as asserted by the template structure tests:
    ```
    index.ts
-   meta.ts
-   ```
-4. Add optional files only when complexity justifies them:
-   ```
-   layout.ts
    environment.ts
    materials.ts
-   minigames.ts        # immersive toybox scenes only
+   types.ts
    staging/
-   factory/
+   factory/            # with props/{simple,interactive,complex}/ and scaffold/
+   parent-scene-stubs/ # a copy source; delete each stub once its values are tuned in
    ```
-5. Populate `meta.ts` with the scene's `id`, `kind`, `parentSceneId`, child scene ids, toyboxes, and minigame links as needed.
+   Optional by complexity: `layout.ts`.
+5. There is no `meta.ts`. A scene's identity is split across three real files:
+   `sceneCatalog.ts` (id, kind, camera, audio, `games`, `backTarget`),
+   `toyboxes/manifest.ts` (its toyboxes), and `environment.ts` (its `portals`).
 6. Populate `index.ts` with the standard scene assembly pattern and shared owl integration. Use the current Playroom implementation as the reference for room-level scenes and Nature as the reference for immersive toybox scenes.
-7. If the new scene is an immersive toybox scene, add `minigames.ts` with local minigame links that point to shared minigame implementations.
+7. If the new scene is an immersive toybox scene, surface its games in **two**
+   places — they are independent: add the game id to `games` in
+   `sceneCatalog.ts` (permission to launch) and add a portal to `portals[]` in
+   the scene's `environment.ts` (what the player can actually see). There is no
+   `minigames.ts`.
 8. Register the scene in `src/src/scenes/sceneCatalog.ts`. `SceneId` is derived from `SCENE_CATALOG`, so do not add parallel unions or compatibility maps unless a real migration requires them.
-9. If the scene contains literal toyboxes, add local toybox definitions that map each toybox to exactly one immersive scene.
+9. If the scene contains literal toyboxes, add local toybox definitions. A toybox maps to **at most one** immersive scene: `destination` is `SceneId | null`, and a `null` destination ships a chest that wiggles, sparkles and plays a "not yet" tone without navigating (the Playroom's `creative` box).
 
 **Output:** A bootable scene skeleton that follows the recursive hierarchy contract, includes the owl through shared scene scaffolding, and is ready for local layout or factory work.
 
@@ -124,7 +136,7 @@ This file defines reusable skills (prompt templates) for the Whimsical Toybox Wo
    - `docs/specs/phase-3/12-recursive-scene-hierarchy-migration-plan.md`
 2. Read the current Nature implementation as the reference for an immersive toybox scene.
 3. Present a summary of:
-   - **Scene contract:** `index.ts` + `meta.ts` minimum, optional local files by complexity
+   - **Scene contract:** the required-file list above (no `meta.ts`), optional local files by complexity
    - **Compose pattern:** `ComposeContext` injection, `DisposeFn` contract, `propComposers` array where the scene warrants it
    - **Result types:** typed `CreateResult` interfaces per entity
    - **Interaction wiring:** `createTapInteraction(dispatcher, target, cb)` and `createRevealInteraction(scene, dispatcher, config)` via `WorldTapDispatcher`

@@ -1,8 +1,12 @@
 /**
  * Procedural surface detail for the toybox materials.
  *
- * soul.md: "the soul lives in the materials — wood grain, felt nap, glossy
- * paint, paper fibre." The base factories only set a flat colour + roughness,
+ * soul.md §"The Material World": "The soul lives in the materials." It names
+ * wood grain, the nap of felt, the sheen of glossy plastic, and paper that
+ * curls at the edges. (The single-sentence quotation above used to run on into
+ * a paraphrase — including "paper fibre", a phrase soul.md does not contain —
+ * presented as a direct quote. Quote it or paraphrase it, not both.)
+ * The base factories only set a flat colour + roughness,
  * so wood and felt render identically. This module injects asset-free,
  * world-space procedural surface into any `MeshStandardMaterial` via
  * `onBeforeCompile`: a small value-noise field drives (1) subtle albedo

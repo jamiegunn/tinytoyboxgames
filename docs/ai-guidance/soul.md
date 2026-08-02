@@ -18,7 +18,7 @@ That feeling — **warmth, wonder, safety, and the joy of touching something and
 
 ### 1. Wonder Over Achievement
 
-This is not a game to be beaten. It is a world to be discovered. There are no leaderboards, no stars to earn, no gates to unlock. The only measure of success is whether a child smiled. Wonder is the reward. Curiosity is the progression system.
+This is not a game to be beaten. It is a world to be discovered. There are no leaderboards, no persistent progression, no gates to unlock. An in-session tally is allowed — the HUD fills a row of tokens as you play — because it is never a gate, never saved, and never compared to anyone. The only measure of success is whether a child smiled. Wonder is the reward. Curiosity is the progression system.
 
 ### 2. Safety Is Non-Negotiable
 
@@ -42,7 +42,7 @@ A dead tap is a broken promise. If a child touches the screen and nothing happen
 
 ### 7. Leaving Is Always Safe
 
-A child may leave at any moment and return at any moment. There is no progress to lose, no penalty for exiting, no confirmation dialog. The back button is always visible, always large, always one tap. The world does not hold the child hostage with "are you sure?" — it trusts them and welcomes them back.
+A child may leave at any moment and return at any moment. There is no progress to lose, no penalty for exiting, no confirmation dialog. In every scene that has a parent, the back button is present, large, and one tap. (The Playroom is the root and shows none — there is nowhere above it to go.) The world does not hold the child hostage with "are you sure?" — it trusts them and welcomes them back.
 
 ---
 
@@ -94,7 +94,7 @@ The owl is the emotional thread that connects the full navigable experience, fro
 
 ### Toy, Not Game
 
-The mental model is a toy, not a video game. A toy does not have levels, scores, or fail states. A toy is picked up, played with, and put down. The child decides when to start and when to stop. The toy is always ready.
+The mental model is a toy, not a video game. A toy does not have levels, gates, or fail states. The in-session token row is a picture of what just happened, not a score to beat. A toy is picked up, played with, and put down. The child decides when to start and when to stop. The toy is always ready.
 
 ### Diorama, Not Environment
 

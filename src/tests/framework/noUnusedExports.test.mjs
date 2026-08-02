@@ -350,9 +350,29 @@ test('the unenforced tiers are still the size this file says they are', () => {
   // check that matters here — a new decor file that exported a factory nothing
   // composed would show up as `dead`, which is precisely how a piece of scenery
   // gets built, measured on paper, and never actually rendered.
+  // 2026-08-01, the documentation-accuracy round, +4 consumed and -3 internal:
+  //
+  //   CannonBuildOptions, CannonCreateResult             cannon/types/
+  //   ShipWheelBuildOptions, ShipWheelCreateResult       shipWheel/types/
+  //   TreasureChestBuildOptions, TreasureChestCreateResult  treasureChest/types/
+  //   CEILING_DEPTH_OFFSET                               living-room/layout.ts
+  //
+  // The six prop types were declared inline in each `create.ts`; skills.md's
+  // interactive-prop contract requires a `types/` folder, which all five Nature
+  // props already had and none of the three Pirate Cove ones did. Extracting
+  // them moves each name from one file to two — declared in `types/X.ts` and
+  // re-exported from `create.ts` for existing importers — so three names that
+  // only ever occurred inside their own file (`internal`) now have a real
+  // cross-file importer (`consumed`). Net: internal 139 -> 136, consumed
+  // 1748 -> 1752, with `CEILING_DEPTH_OFFSET` making up the fourth.
+  //
+  // `CEILING_DEPTH_OFFSET` was a local `WALL_DEPTH_OFFSET` inside
+  // `living-room/room/ceiling.ts`. That room's own README forbids exactly that
+  // — "do not invent local sizes that drift from the layout" — and it was the
+  // only dimension in the room that did.
   assert.deepEqual(
     TIER_COUNTS,
-    { consumed: 1748, reexport: 86, internal: 139, spared: 4, laundered: 0, dead: 0 },
+    { consumed: 1752, reexport: 86, internal: 136, spared: 4, laundered: 0, dead: 0 },
     'the tier populations moved; say which symbol moved and why, then update this',
   );
 });

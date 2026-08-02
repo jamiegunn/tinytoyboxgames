@@ -50,6 +50,40 @@ const rel = (absolute) => path.relative(ROOT, absolute).split(path.sep).join('/'
 const isProduction = (p) => p.startsWith('src/') && /\.(ts|tsx)$/.test(p);
 
 /**
+ * True when a module contains no runtime code at all — only type imports,
+ * interfaces, type aliases and type re-exports.
+ *
+ * These are erased by TypeScript, so there is nothing for V8 to instrument and
+ * they can NEVER be observed by coverage. Counting them as "reachable with zero
+ * coverage" punished a correct refactor: extracting six prop interfaces into
+ * `types/` folders on 2026-08-01 (to satisfy the interactive-prop contract in
+ * skills.md) moved the number 152 -> 161 without a single line of behaviour
+ * changing. A gate that fires on a no-op refactor teaches people to lower it.
+ *
+ * @param {string} relPath Package-relative path of a production module.
+ * @returns {boolean} True when the module erases to nothing at runtime.
+ */
+function isTypeOnly(relPath) {
+  let source;
+  try {
+    source = readFileSync(path.join(ROOT, relPath), 'utf8');
+  } catch {
+    return false;
+  }
+  const body = source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .filter((line) => line.trim() && !line.trim().startsWith('//'))
+    .join('\n');
+  // Any runtime-valued declaration or a bare statement disqualifies it.
+  if (/\b(?:export\s+)?(?:const|let|var|function|class|enum)\b/.test(body)) return false;
+  if (/\bexport\s+default\b/.test(body)) return false;
+  // `import x from` (value import) disqualifies; `import type {...}` does not.
+  if (/^\s*import\s+(?!type\b)[^;]*from/m.test(body)) return false;
+  return /\b(?:interface|type)\b/.test(body);
+}
+
+/**
  * Runs the suite under V8 coverage and returns the merged per-file line hits.
  *
  * `--enable-source-maps` is not optional: _tsload.mjs emits inline maps, and
@@ -89,7 +123,8 @@ function measure() {
 const observed = measure();
 const reachable = new Set([...reachFrom([path.join(ROOT, 'src/main.tsx')])].map(rel).filter(isProduction));
 const everySource = new Set(walk(SRC).map(rel).filter(isProduction));
-const zeroCoverage = [...reachable].filter((f) => !observed.has(f)).sort();
+const typeOnly = [...reachable].filter(isTypeOnly);
+const zeroCoverage = [...reachable].filter((f) => !observed.has(f) && !isTypeOnly(f)).sort();
 
 let lines = 0;
 let covered = 0;
@@ -109,7 +144,7 @@ const current = {
 
 // Conservation: every reachable module is either observed or not. If these do
 // not add up, the measurement is wrong and no verdict from it is worth having.
-const accounted = [...reachable].filter((f) => observed.has(f)).length + zeroCoverage.length;
+const accounted = [...reachable].filter((f) => observed.has(f)).length + zeroCoverage.length + typeOnly.filter((f) => !observed.has(f)).length;
 if (accounted !== reachable.size) {
   process.stderr.write(`coverage ratchet: internal accounting error (${accounted} != ${reachable.size}). Refusing to report a number I cannot reconcile.\n`);
   process.exit(1);
@@ -120,6 +155,7 @@ process.stdout.write(
     `  modules under src/ .................. ${current.sourceModules}\n` +
     `  reachable from src/main.tsx ......... ${current.reachableModules}\n` +
     `  observed by at least one test ....... ${current.modulesObserved}\n` +
+    `  type-only (erased, uncoverable) ..... ${typeOnly.length}\n` +
     `  reachable with ZERO coverage ........ ${current.modulesWithZeroCoverage}\n` +
     `  lines covered (RECORD ONLY, not gated, varies run to run) ... ${covered} / ${lines} (${((100 * covered) / lines).toFixed(1)}%)\n`,
 );

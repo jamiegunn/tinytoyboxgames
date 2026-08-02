@@ -36,7 +36,7 @@ The player should feel like they are peeking into a tiny living world inside a t
 
 Primary audience:
 
-- children ages 3-12
+- children ages 3-6 (design floor: age 3)
 
 Session design:
 
@@ -73,7 +73,7 @@ Do not design this as a native mobile app. Do not assume an app store install fl
 
 Primary game/render engine for this project:
 
-- Three.js (with React Three Fiber)
+- Three.js, driven directly
 
 Engine identification guidance:
 
@@ -85,7 +85,7 @@ Prefer this stack and architecture unless the task explicitly asks for an altern
 
 - React with functional components and hooks
 - Vite-style browser build pipeline
-- Three.js with React Three Fiber for 3D scene rendering
+- Three.js for 3D scene rendering, driven directly — the scene graph and renderer are owned in plain TypeScript, not through a React renderer
 - React-managed HTML and CSS overlays for menus, controls, and accessibility-first UI
 - Lightweight physics only where it adds value
 
@@ -218,7 +218,9 @@ Playroom behavior guidance:
 - the owl avatar may move or fly toward taps and act as a playful companion
 - transitions from the playroom to a toybox immersive scene should feel fast, magical, and low-friction
 
-### Four Toyboxes
+### Toybox Themes
+
+Three are shipped today (Adventure, Animals, Creative). The Nature box below is a roadmap theme, not a fourth Playroom toybox — Nature is currently reached through the Animals box.
 
 Each toybox is a real toy chest with its own theme and visual language:
 

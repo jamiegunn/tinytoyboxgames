@@ -28,12 +28,13 @@ If docs and code disagree, verify against code and update the docs.
 
 ## Current Product Surface Area
 
-The current repo registers four scenes:
+The current repo registers five scenes:
 
-- `playroom`
-- `kitchen`
-- `nature`
-- `pirate-cove`
+- `playroom` (landing, and the default scene)
+- `kitchen` (landing)
+- `living-room` (landing)
+- `nature` (toybox immersive scene)
+- `pirate-cove` (toybox immersive scene)
 
 The current minigame manifest registers five minigames:
 
@@ -46,7 +47,8 @@ The current minigame manifest registers five minigames:
 Important nuance:
 
 - registered is not the same as discoverable
-- `star-catcher` is currently registered for `nature`, but is not currently surfaced through Nature's portal array
+- registration and discoverability are two independent surfaces: `SCENE_CATALOG[scene].games` decides what a scene is ALLOWED to launch, and the scene's own `environment.ts` `portals[]` decides what a player can SEE. Adding a manifest entry does not surface anything; wiring a portal is a separate change
+- all four of Nature's registered games are surfaced through its portal array, `cannonball-splash` is surfaced in Pirate Cove
 - the Playroom includes a visible `creative` toybox object whose destination is `null` — treat it as **present but inactive**
 
 ## Audience
@@ -94,8 +96,8 @@ Older children may still enjoy the experience, but docs and UX decisions should 
 
 The scene catalog registers these scene ids:
 
-- `SceneId = 'playroom' | 'kitchen' | 'nature' | 'pirate-cove'`
-- `MiniGameId = 'bubble-pop' | 'fireflies' | 'little-shark' | 'star-catcher' | 'cannonball-splash'`
+- `SceneId = keyof typeof SCENE_CATALOG` — today: `'playroom' | 'kitchen' | 'living-room' | 'nature' | 'pirate-cove'`. It is derived, never hand-written; do not declare a parallel union
+- `MiniGameId = BuiltInMiniGameId | (string & {})` (`src/src/types/scenes.ts`). Note this is NOT a closed union: `BuiltInMiniGameId` lists four ids and the `string & {}` arm accepts any string, so the compiler will not catch a bad game id. `MiniGameManifest.ts` is the runtime source of truth, and it registers five: `bubble-pop`, `fireflies`, `little-shark`, `star-catcher`, `cannonball-splash`
 
 ### Runtime Truths
 
@@ -172,26 +174,49 @@ Current important versions:
 
 - React `19.2.0`
 - React DOM `19.2.0`
-- Three `0.175.0`
-- `@react-three/fiber` `9.1.0`
-- `@react-three/drei` `10.0.0`
+- Three `0.175.0` — used **directly**. There is no React Three Fiber renderer in this repo; `SceneFrame` owns the `WebGLRenderer` and the scene graph itself
+- `@react-three/fiber` `9.1.0` and `@react-three/drei` `10.0.0` are declared dependencies with **zero imports** anywhere in `src/`, `tests/` or `templates/` — `git log -S"from '@react-three'"` returns no commit, so they were never adopted rather than abandoned. They cost nothing at runtime (Rollup cannot bundle what nothing imports) but they are dead weight in the manifest. Removing them means editing `package.json` **and** regenerating `bun.lock` in the same change — `cd src && bun remove @react-three/fiber @react-three/drei` — because CI runs `bun install --frozen-lockfile` and will fail on a manifest/lockfile mismatch
 - GSAP `3.12.0`
 - Vite `7.3.1`
 - TypeScript `~5.9.3`
 
-Note: the repo currently contains both `bun.lock` and `package-lock.json`. Do not imply a single package-manager story unless the repo is intentionally standardized.
+Note: `src/bun.lock` is the only lockfile. There is no `package-lock.json` (it is gitignored). Bun is the primary workflow; the npm script names still work.
 
 ## Common Commands
 
+Everything runs from `src/`, not the repo root — there is no `package.json` at
+the root, so `bun install` from there fails.
+
 ```bash
+cd src
 bun install
 bun run dev
 bun run build
-bun run lint
 bun run format
-bun run format:check
 bun run test
 ```
+
+### Gates
+
+These are what actually block a commit or a CI run. `bun run lint` is `eslint .`
+with no `--max-warnings 0`, so it is **weaker than the gate**: because
+`jsdoc/require-jsdoc` is a warning, the documented command can read green while
+the real gate is red. Use these instead:
+
+```bash
+cd src
+bunx eslint . --max-warnings 0        # the lint gate CI runs
+bunx tsc -b                           # project type-check
+bunx tsc -p .probe/tsconfig.probe.json --noEmit   # the probe harness, which tsc -b cannot reach
+node --test "tests/**/*.test.mjs"     # the whole contract suite
+node ../check-code-quality.cjs        # Prettier + ESLint, as CI runs it
+node scripts/coverage-ratchet.mjs     # module-level coverage may not fall
+```
+
+The pre-commit hook (`src/scripts/precommit-check.cjs`, wired by
+`.githooks/pre-commit`) runs all of these. It is installed by the `prepare`
+script during `bun install` **inside `src/`**; if you installed elsewhere, run
+`git config core.hooksPath .githooks` once.
 
 ## Canonical Terminology
 
@@ -235,7 +260,16 @@ Note: the historical ADR and spec documents (`docs/adr/`, `docs/specs/`) were re
 
 ## JSDoc Standard
 
-All public functions, interfaces, classes, and exported type aliases must have JSDoc comments. When modifying a file, add missing JSDoc for any public export you touch.
+All public functions, methods, and classes must have JSDoc comments — this half
+is **lint-enforced** by `jsdoc/require-jsdoc` in `src/eslint.config.js`, and
+because CI runs ESLint with `--max-warnings 0`, a missing one blocks the build.
+
+Interfaces and exported type aliases are a **convention, not a gate**: the rule's
+`require` block covers functions, methods and classes only, and reaching
+declarations would need the `contexts` option, which is not set. Write them
+anyway; nothing will fail if you do not.
+
+When modifying a file, add missing JSDoc for any public export you touch.
 
 ## Practical Rule
 

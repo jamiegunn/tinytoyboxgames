@@ -28,7 +28,7 @@ export interface WorldPortalDef {
 }
 
 /**
- * Data-driven configuration for a toybox interior world scene.
+ * Data-driven configuration for a toybox immersive scene.
  */
 export interface WorldConfig {
   /** Scene identifier (used for camera presets). */
@@ -59,7 +59,7 @@ export interface WorldSceneResult {
 }
 
 /**
- * Creates a fully configured toybox interior world scene from data-driven configuration.
+ * Creates a fully configured toybox immersive scene from data-driven configuration.
  * Handles the shared scaffold: scene → camera → lighting → content → portals → owl/floor-tap.
  *
  * @param existingScene - The Scene instance provided by SceneFrame (renderer renders this).

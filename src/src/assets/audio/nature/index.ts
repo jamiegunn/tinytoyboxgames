@@ -20,12 +20,20 @@ import { startAudioLoop } from '@app/assets/audio/utils/loopScheduler';
 /** Minimum fade-in time in seconds to avoid clicks. */
 const MIN_ATTACK_S = 0.005;
 
-// D major pentatonic starting at D4 (MIDI 62)
-const D_PENTA = pentatonicScale(62);
+// C major pentatonic starting at C4 (MIDI 60).
+//
+// This was D major pentatonic (MIDI 62) until 2026-08-01. `pentatonicScale`
+// returns root + [0,2,4,7,9], so a D root put F# and B into the bed while every
+// reward sound is quantized to C major pentatonic (`shared/rewardSounds.ts`
+// uses pentatonicScale(84) = C6). F# against the reward's G is a semitone and
+// against its C a tritone — audible, and Nature hosts four of the five
+// mini-games, so it was the most-heard clash in the product.
+// audio-standards.md rule 6 exists to prevent exactly this.
+const C_PENTA = pentatonicScale(60);
 
 /**
  * Plays a serene, enchanted background melody for the Nature World.
- * Uses flute-like timbre (sine + soft overtone). D major pentatonic, very slow ~60bpm, loops ~16s.
+ * Uses flute-like timbre (sine + soft overtone). C major pentatonic, very slow ~60bpm, loops ~16s.
  *
  * @param ctx - The Web Audio context
  * @param dest - The destination AudioNode to connect output to
@@ -53,7 +61,7 @@ export function playMusNatureBackground(ctx: AudioContext, dest: AudioNode): () 
   const scheduleCycle = (startTime: number) => {
     // Soft root-and-fifth drone under the whole cycle — the cheapest and most
     // idiomatic harmony for a pentatonic forest melody.
-    const droneRoot = midiToFreq(D_PENTA[0] - 12);
+    const droneRoot = midiToFreq(C_PENTA[0] - 12);
     playTone(ctx, dest, 'sine', droneRoot, 1.2, cycleSeconds - 1.2, 0.05, startTime);
     playTone(ctx, dest, 'sine', droneRoot * 1.5, 1.6, cycleSeconds - 2.0, 0.03, startTime + 0.4);
 
@@ -61,7 +69,7 @@ export function playMusNatureBackground(ctx: AudioContext, dest: AudioNode): () 
     for (const phrase of phrases) {
       for (let i = 0; i < phrase.degrees.length; i++) {
         const noteTime = startTime + offset;
-        const freq = midiToFreq(D_PENTA[phrase.degrees[i] % D_PENTA.length]);
+        const freq = midiToFreq(C_PENTA[phrase.degrees[i] % C_PENTA.length]);
         const noteDur = beatDur * phrase.rhythm[i];
         // Sine fundamental — flute body
         playTone(ctx, dest, 'sine', freq, 0.02, noteDur * 0.8, 0.12, noteTime);

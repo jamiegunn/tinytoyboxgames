@@ -6,7 +6,6 @@
 
 import { CylinderGeometry, Group, Mesh, TorusGeometry, type Scene } from 'three';
 import { createEntityRoot, type EntityPlacement } from '../../../../types';
-import type { PirateCoveMaterials } from '../../../../materials';
 import {
   HANDLE_LENGTH,
   HANDLE_RADIUS,
@@ -21,17 +20,11 @@ import {
   WHEEL_TUBE_RADIUS,
 } from './constants';
 
-/** Shared dependencies required to build one ship wheel. */
-export interface ShipWheelBuildOptions {
-  materials: Pick<PirateCoveMaterials, 'weatheredWood'>;
-}
-
-/** Typed handles returned to the interaction layer after mesh creation. */
-export interface ShipWheelCreateResult {
-  root: Group;
-  wheelGroup: Group;
-  tapTarget: Mesh;
-}
+// Types live in ./types/ so this prop matches the interactive-prop contract in
+// docs/ai-guidance/skills.md, which every Nature interactive prop already
+// follows. Re-exported here so existing importers keep working.
+import type { ShipWheelBuildOptions, ShipWheelCreateResult } from './types';
+export type { ShipWheelBuildOptions, ShipWheelCreateResult };
 
 /**
  * Creates one staged ship wheel instance.

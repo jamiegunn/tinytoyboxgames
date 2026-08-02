@@ -57,6 +57,10 @@ const KEY = /^\s*(?:readonly\s+)?([A-Za-z_][A-Za-z0-9_]{2,})\??\s*:/gm;
 
 // Platform globals and method names — not declarations anywhere in this repo.
 const IGNORE = new Set([
+  // Platform globals. `requestAnimationFrame` is called in this repo but never
+  // DECLARED, so declarations() cannot see it — same reason setTimeout is here.
+  'requestAnimationFrame',
+  'cancelAnimationFrame',
   'kind',
   'colorIndex',
   'count',
@@ -127,18 +131,39 @@ function readmes(dir, out = []) {
   return out;
 }
 
-const docs = readmes(SRC).map((file) => ({ file, dir: dirname(file), label: relative(SRC, file) }));
+// Templates too, and this is the point rather than an extra. The 13 READMEs
+// under templates/ are the ones that get COPIED into src/ by the generators, so
+// a ghost identifier there is a ghost in every scene generated afterwards. The
+// suite was green on 2026-08-01 only because naturescene/ and pirate-cove/ had
+// been committed with every generated README stripped — the guard written to
+// grade documentation had never once graded the generator's own documentation.
+const TEMPLATES = join(PKG, 'templates');
+const docs = [
+  ...readmes(SRC).map((file) => ({ file, dir: dirname(file), label: relative(SRC, file), root: SRC })),
+  ...readmes(TEMPLATES).map((file) => ({ file, dir: dirname(file), label: relative(PKG, file), root: TEMPLATES })),
+];
 
 test('there are READMEs to check — a silent zero would make this suite vacuous', () => {
-  assert.ok(docs.length >= 5, `expected the game and scene READMEs, found ${docs.length}`);
+  // Floor raised from 5 to 17 with the templates walk. A floor that does not
+  // track the real count is how a walk-root regression hides.
+  assert.ok(docs.length >= 17, `expected the src and template READMEs, found ${docs.length}`);
 });
 
-for (const { file, dir, label } of docs) {
+for (const { file, dir, label, root } of docs) {
   test(`${label} cites only identifiers that exist`, () => {
     // A README is answerable for its own subtree plus the shared framework.
     // Scoping to the subtree is what makes this more than "exists somewhere":
     // a doc that drifted onto a neighbour's identifier still fails.
-    const own = declarations(dir);
+    // Own directory PLUS every ancestor up to the walk root. A README inside
+    // `factory/` legitimately names `ComposeContext`, which its scene declares
+    // at the scene root — the identifier is in scope for that document by
+    // containment. Scoping to the leaf directory alone called that a ghost.
+    // Still not "exists somewhere": a sibling's identifier is out of scope.
+    const own = new Set();
+    for (let d = dir; d.startsWith(root) && d.length >= root.length; d = dirname(d)) {
+      for (const name of declarations(d)) own.add(name);
+      if (d === root) break;
+    }
     const readme = readFileSync(file, 'utf8');
 
     const ghosts = [];

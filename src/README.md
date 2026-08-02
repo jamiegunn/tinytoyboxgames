@@ -35,7 +35,7 @@ Generator examples:
 ```bash
 npm run create:immersive-scene -- --scene-id coral-reef --display-name "Coral Reef"
 npm run create:room-scene -- --scene-id bedroom --display-name "Bedroom"
-npm run create:minigame -- --game-id star-catcher --display-name "Star Catcher"
+npm run create:minigame -- --game-id acorn-toss --display-name "Acorn Toss"
 ```
 
 Each generator copies a governed template from `templates/`, replaces placeholder

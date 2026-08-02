@@ -35,7 +35,7 @@ import { composeTreasureChests } from './factory/props/interactive/treasureChest
 import { composeShipWheels } from './factory/props/interactive/shipWheel';
 
 /**
- * Creates the Pirate Cove toybox interior world scene: a friendly ship deck
+ * Creates the Pirate Cove toybox immersive scene: a friendly ship deck
  * with interactive pirate-themed props.
  *
  * @param scene - The Three.js scene instance owned by `SceneFrame`.

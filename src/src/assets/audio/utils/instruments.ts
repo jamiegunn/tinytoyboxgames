@@ -13,6 +13,12 @@
 
 import { midiToFreq } from './synthHelpers';
 
+/**
+ * Attack-time floor, per audio-standards.md rule 7. Ramps shorter than this
+ * click on cheap speakers; every bed module keeps the same 5 ms value.
+ */
+const MIN_ATTACK_S = 0.005;
+
 /** Inharmonic music-box partial ratio (real music boxes ring near 4.2x). */
 const MUSIC_BOX_PARTIAL_RATIO = 4.2;
 
@@ -228,7 +234,9 @@ export function scheduleMarimbaNote(ctx: AudioContext, destination: AudioNode, f
   osc2.frequency.value = frequency * 4;
   const gain2 = ctx.createGain();
   gain2.gain.setValueAtTime(0, startTime);
-  gain2.gain.linearRampToValueAtTime(velocity * 0.15, startTime + 0.004);
+  // 0.005, not 0.004: audio-standards.md sets a 5 ms attack floor and this
+  // inner partial was the only ramp in the tree that undercut it.
+  gain2.gain.linearRampToValueAtTime(velocity * 0.15, startTime + MIN_ATTACK_S);
   gain2.gain.exponentialRampToValueAtTime(0.001, startTime + 0.1);
   osc2.connect(gain2).connect(destination);
   osc2.start(startTime);

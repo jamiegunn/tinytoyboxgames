@@ -150,7 +150,7 @@ No agent may override the canonical specs. All agents operate within the source-
 - Implements the `IMiniGame` interface for each game
 - Implements shared systems: `ScoreManager`, `ComboTracker`, `DifficultyController`, `SpawnScheduler`, `CelebrationSystem`, `InputDispatcher`, `EntityPool`
 - Implements the `MiniGameRouter`, `MiniGameShell`, and `MiniGameHUD`
-- Wires launch triggers via the `useMiniGameLauncher` hook
+- Wires launch triggers via `createGamePortal` in `minigames/framework/gamePortal.ts`, using the `userData.onTap` convention that tap arbitration reads. There is no `useMiniGameLauncher` hook — a helper of that name was deleted, and the note at the foot of `gamePortal.ts` explains why: it registered through `WorldTapDispatcher.register`, which the tap path does not consult
 
 **Reads first:**
 

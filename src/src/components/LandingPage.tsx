@@ -94,8 +94,8 @@ export function LandingPage() {
               <div className="landing-feature-icon">&#127760;</div>
               <div className="landing-feature-name">Playable Scenes Today</div>
               <div className="landing-feature-desc">
-                The current build includes Playroom and Kitchen landing scenes, plus Nature and Pirate Cove toybox scenes &mdash; each a handcrafted 3D diorama
-                filled with surprises and friendly characters.
+                The current build includes Playroom, Kitchen and Living Room landing scenes, plus Nature and Pirate Cove toybox scenes &mdash; each a
+                handcrafted 3D diorama filled with surprises and friendly characters.
               </div>
             </div>
 
@@ -173,9 +173,15 @@ export function LandingPage() {
             </div>
 
             <div className="landing-world-card">
+              <span className="landing-world-emoji">&#128715;&#65039;</span>
+              <div className="landing-world-name">Living Room</div>
+              <div className="landing-world-desc">A landing scene between the Playroom and the Kitchen, with toyboxes into Nature and Pirate Cove</div>
+            </div>
+
+            <div className="landing-world-card">
               <span className="landing-world-emoji">&#127807;</span>
               <div className="landing-world-name">Nature</div>
-              <div className="landing-world-desc">A forest-floor toybox world with Bubble Pop, Fireflies, and Little Shark mini-game portals</div>
+              <div className="landing-world-desc">A forest-floor toybox world with Bubble Pop, Fireflies, Little Shark, and Star Catcher mini-game portals</div>
             </div>
 
             <div className="landing-world-card">

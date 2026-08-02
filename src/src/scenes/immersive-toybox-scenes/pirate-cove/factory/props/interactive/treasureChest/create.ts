@@ -7,7 +7,6 @@
 
 import { BoxGeometry, Color, CylinderGeometry, Group, Mesh, MeshStandardMaterial, OctahedronGeometry, SphereGeometry, TorusGeometry, type Scene } from 'three';
 import { createEntityRoot, type EntityPlacement } from '../../../../types';
-import type { PirateCoveMaterials } from '../../../../materials';
 import {
   BAND_HEIGHT,
   BAND_INSET,
@@ -35,17 +34,11 @@ function gemMat(color: Color): MeshStandardMaterial {
   return new MeshStandardMaterial({ color, metalness: 0.1, roughness: 0.2 });
 }
 
-/** Shared dependencies required to build one treasure chest. */
-export interface TreasureChestBuildOptions {
-  materials: Pick<PirateCoveMaterials, 'chestWood' | 'gold' | 'metal'>;
-}
-
-/** Typed handles returned to the interaction layer after mesh creation. */
-export interface TreasureChestCreateResult {
-  root: Group;
-  lid: Group;
-  tapTarget: Mesh;
-}
+// Types live in ./types/ so this prop matches the interactive-prop contract in
+// docs/ai-guidance/skills.md, which every Nature interactive prop already
+// follows. Re-exported here so existing importers keep working.
+import type { TreasureChestBuildOptions, TreasureChestCreateResult } from './types';
+export type { TreasureChestBuildOptions, TreasureChestCreateResult };
 
 /**
  * Creates one staged treasure chest instance.

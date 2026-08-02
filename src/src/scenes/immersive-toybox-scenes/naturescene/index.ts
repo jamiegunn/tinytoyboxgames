@@ -33,7 +33,7 @@ import { createFireflies, FIREFLY_CONFIG, setupFireflyTap } from './factory/syst
 const SPORE_ORIGIN = new Vector3(0, 0, 0);
 
 /**
- * Creates the Nature toybox interior world scene: a forest-floor diorama
+ * Creates the Nature toybox immersive scene: a forest-floor diorama
  * composed from staging data plus scene-local entity configuration.
  *
  * @param scene - The Three.js scene to populate.

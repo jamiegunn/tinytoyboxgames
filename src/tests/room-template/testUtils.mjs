@@ -72,3 +72,23 @@ export async function readFixtureFile(root, ...segments) {
 export async function exists(filePath) {
   return Boolean(await fs.stat(filePath).catch(() => null));
 }
+
+/**
+ * Every file under a directory, recursively.
+ *
+ * The room suite read only `index.ts` and `room.ts`, so a broken placeholder in
+ * one of the three nested READMEs shipped silently — the immersive and minigame
+ * suites both walk everything, and this one did not.
+ *
+ * @param {string} root Directory to walk.
+ * @returns {Promise<string[]>} Absolute paths of every file found.
+ */
+export async function collectFiles(root) {
+  const results = [];
+  for (const entry of await fs.readdir(root, { withFileTypes: true })) {
+    const fullPath = path.join(root, entry.name);
+    if (entry.isDirectory()) results.push(...(await collectFiles(fullPath)));
+    else results.push(fullPath);
+  }
+  return results;
+}

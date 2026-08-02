@@ -209,6 +209,16 @@ export function MiniGameHUD({ score, streak, rampStart, showScore, showProgressB
             pips collapse into badges, badges into crowns. See scoreDisplay.ts.
           */}
           <div
+            /*
+              A live region, not just a name. `aria-label` gives the node an
+              accessible NAME; it is not announced when the value changes, so a
+              player using a screen reader heard nothing as the score moved.
+              role="status" + aria-live="polite" announces without interrupting,
+              which is the non-interrupting announcement agents.md asks for.
+            */
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
             aria-label={`Score ${score}`}
             style={{
               background: 'rgba(255, 255, 255, 0.7)',

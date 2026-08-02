@@ -16,6 +16,9 @@ test('generator replaces all minigame placeholder tokens', async () => {
       const contents = await readFixtureFile(fixture.tempRoot, path.relative(fixture.tempRoot, filePath));
       assert.equal(contents.includes('__GAME_ID__'), false, `expected ${filePath} to replace __GAME_ID__`);
       assert.equal(contents.includes('__GAME_DISPLAY_NAME__'), false, `expected ${filePath} to replace __GAME_DISPLAY_NAME__`);
+      // See the immersive suite: Prettier turns __x__ into **x** in Markdown,
+      // which silently breaks substitution. Guarded in all three templates now.
+      assert.equal(contents.includes('**GAME_DISPLAY_NAME**'), false, `${filePath} contains the Prettier-broken display-name token`);
     }
   } finally {
     await fixture.cleanup();
