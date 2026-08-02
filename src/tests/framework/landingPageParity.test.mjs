@@ -85,7 +85,19 @@ test('every registered scene has a card in the landing page worlds grid', () => 
   );
 });
 
-test('every game a scene surfaces is named wherever that scene is described', () => {
+/**
+ * The description text of one scene's card in the worlds grid.
+ *
+ * @param {string} sceneId Registered scene id.
+ * @returns {string} That card's description, or '' when it has no card.
+ */
+function cardText(sceneId) {
+  const displayName = { nature: 'Nature', 'pirate-cove': 'Pirate Cove', playroom: 'Playroom', kitchen: 'Kitchen', 'living-room': 'Living Room' }[sceneId];
+  const pattern = new RegExp(`landing-world-name">${displayName}</div>\\s*<div className="landing-world-desc">([^<]*)<`);
+  return landingSource.match(pattern)?.[1] ?? '';
+}
+
+test("every game a scene surfaces is named in that scene's own card", () => {
   const gameNames = registeredGameNames();
   const problems = [];
 
@@ -99,9 +111,40 @@ test('every game a scene surfaces is named wherever that scene is described', ()
     for (const id of portalIds) {
       const displayName = gameNames.get(id);
       assert.ok(displayName, `${sceneId} surfaces '${id}', which is not in MiniGameManifest.ts`);
-      if (!landingSource.includes(displayName)) problems.push(`${sceneId} surfaces ${displayName} (${id}), unnamed on the landing page`);
+      // Scoped to the SCENE'S OWN CARD, not the whole page. The first version
+      // asked whether the name appeared anywhere in the file, and on 2026-08-01
+      // that let Little Shark move from Nature to Pirate Cove with the Nature
+      // card still advertising it — wrong copy, green test.
+      if (!cardText(sceneId).includes(displayName)) {
+        problems.push(`${sceneId} surfaces ${displayName} (${id}), not named in the ${sceneId} card`);
+      }
     }
   }
 
   assert.deepEqual(problems, [], `the landing page under-describes what a player can reach:\n  ${problems.join('\n  ')}`);
+});
+
+test("no scene's card advertises a game that scene does not surface", () => {
+  // The converse of the test above, and it is not symmetric. The first version
+  // only asked whether every surfaced game was NAMED, so a card could keep
+  // advertising a game after it moved scenes and stay green — which is exactly
+  // what happened when Little Shark moved to Pirate Cove: the Nature card still
+  // offered it, the test passed, and a child tapping into Nature would go
+  // looking for a portal that is not there.
+  const gameNames = registeredGameNames();
+  const problems = [];
+
+  for (const [sceneId, envPath] of [
+    ['nature', ['src', 'scenes', 'immersive-toybox-scenes', 'naturescene', 'environment.ts']],
+    ['pirate-cove', ['src', 'scenes', 'immersive-toybox-scenes', 'pirate-cove', 'environment.ts']],
+  ]) {
+    const surfaced = new Set([...read(...envPath).matchAll(/gameId:\s*'([^']+)'/g)].map((m) => gameNames.get(m[1])));
+    const text = cardText(sceneId);
+    for (const [id, displayName] of gameNames) {
+      if (surfaced.has(displayName)) continue;
+      if (text.includes(displayName)) problems.push(`the ${sceneId} card names ${displayName} (${id}), which ${sceneId} does not surface`);
+    }
+  }
+
+  assert.deepEqual(problems, [], `the landing page promises games a scene cannot launch:\n  ${problems.join('\n  ')}`);
 });

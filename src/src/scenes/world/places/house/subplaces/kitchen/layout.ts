@@ -1,3 +1,43 @@
+// ── HOW TO NAVIGATE THIS ROOM ───────────────────────────────────────────────
+//
+// Read this before changing any coordinate below. One of the three axes does
+// not do what its name suggests, and getting it backwards mirrors the room:
+//
+//     +X  ->  screen LEFT      (NOT right)
+//     -X  ->  screen RIGHT
+//     +Y  ->  screen UP        (floor is y = 0, ceiling is CEILING_Y)
+//     +Z  ->  AWAY from the camera, deeper into the room (toward the back wall)
+//     -Z  ->  TOWARD the camera, nearer the child
+//
+// +X reads LEFT because the room camera looks ALONG +Z with +Y up, which makes
+// the screen-right vector -X. Anyone who assumes the usual "x increases
+// rightward" places props on the wrong side of the room, and the mistake is
+// invisible until it renders.
+//
+// The constants below are the proof, not just an example: LEFT_WALL_X = 5.4
+// and RIGHT_WALL_X = -5.4. The wall the child sees on the LEFT is the
+// POSITIVE one.
+//
+// This is measured, not asserted. `tests/framework/sceneAxes.test.mjs` projects
+// the three unit axes at this scene's own opening pose and fails if any of them
+// flips, so if a camera preset is ever re-posed these lines cannot quietly
+// become lies.
+//
+// THE CAMERA IS ON x = 0, WHICH IS A TRAP
+// ----------------------------------------
+// The eye sits on the room's centreline. Two props both placed near x = 0 at
+// different depths are therefore stacked along the same view ray, and the
+// nearer one hides the further one no matter how far apart they are in Z.
+// Pirate Cove shipped exactly that — a ship wheel at x = 0 covering 72% of the
+// portal at x = 0 four units behind it — and the stage solver that placed the
+// wheel passed, because it checked FOOTPRINT overlap on the floor plane and
+// footprint clearance is not line-of-sight clearance. Offset one of them
+// sideways rather than trusting depth to separate them.
+//
+// For placement by intent rather than by raw literals, `@app/utils/scene/placement`
+// exposes `onFloor({ side: 'left' | 'centre' | 'right', across, depth, height })`,
+// which owns the sign flip so callers never restate it.
+
 /**
  * Layout constants for the generated room.
  *
@@ -117,3 +157,48 @@ export const PEG_RAIL_Y = 3.05;
 /** Wall clock on the left wall, forward of the doorway. */
 export const WALL_CLOCK_Z = 0.1;
 export const WALL_CLOCK_Y = 3.9;
+
+// ── Left-wall cabinetry ─────────────────────────────────────────────────────
+//
+// The left wall is the POSITIVE-x one (see the navigation header at the top of
+// this file), so these all hang off `LEFT_WALL_FACE_X`. Only Z varies: on a side
+// wall, "where along the wall" is a depth.
+//
+// The wall's fixed points, front to back, are the clock at WALL_CLOCK_Z, the
+// Living Room doorway at LIVING_ROOM_DOOR_Z (2.0 wide, so it owns z 1.4 .. 3.4),
+// the peg rail at PEG_RAIL_Z (2.2 long, y 3.05), and the fridge's shoulder in
+// the back corner. Everything below the rail and outside the doorway was bare
+// floor.
+
+/** Centre of the tall dresser, forward of the Living Room doorway. */
+export const LEFT_DRESSER_Z = -0.6;
+
+/** Dresser width along the wall. Its front edge clears the doorway frame by 0.7. */
+export const LEFT_DRESSER_WIDTH = 2.6;
+
+/**
+ * Top of the dresser's plate hutch.
+ *
+ * Deliberately under WALL_CLOCK_Y (3.9) so the clock hangs clear above the
+ * cornice rather than being swallowed by it.
+ */
+export const DRESSER_HUTCH_TOP_Y = 3.3;
+
+/**
+ * Centre of the low base units. This is PEG_RAIL_Z on purpose — the run stands
+ * UNDER the rail, and saying so with the rail's own constant is what keeps the
+ * two from drifting apart if the rail moves.
+ */
+export const LEFT_BASE_CABINET_Z = PEG_RAIL_Z;
+
+/**
+ * Base-unit run width along the wall.
+ *
+ * A shade wider than the peg rail's 2.2 so the run reads as the thing the rail
+ * hangs over rather than as a box the same size as it, and short enough that its
+ * back end stops at z 6.9 — clear of the fridge's shoulder, which starts at 7.28.
+ */
+export const LEFT_BASE_CABINET_WIDTH = 2.6;
+
+/** Carcass depth out from the wall, shared by both pieces. */
+export const LEFT_CABINET_DEPTH = 0.58;

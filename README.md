@@ -58,7 +58,7 @@ The current minigame manifest registers five games:
 | --------------------- | --------------- | ---------- |
 | **Bubble Pop**        | Nature          | registered |
 | **Fireflies**         | Nature          | registered |
-| **Little Shark**      | Nature          | registered |
+| **Little Shark**      | Pirate Cove     | registered |
 | **Star Catcher**      | Nature          | registered |
 | **Cannonball Splash** | Pirate Cove     | registered |
 
@@ -66,8 +66,8 @@ The current minigame manifest registers five games:
 
 A normal player can currently reach these minigames through in-scene portals:
 
-- From **Nature**: Bubble Pop, Little Shark, Fireflies, Star Catcher
-- From **Pirate Cove**: Cannonball Splash
+- From **Nature**: Bubble Pop, Fireflies, Star Catcher
+- From **Pirate Cove**: Cannonball Splash, Little Shark
 
 ---
 

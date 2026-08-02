@@ -1,4 +1,4 @@
-import { BoxGeometry, Color, Mesh, SphereGeometry, type DirectionalLight, type Scene } from 'three';
+import { BoxGeometry, Color, Group, Mesh, SphereGeometry, type DirectionalLight, type Scene } from 'three';
 import { createGlossyPaintMaterial, createPlasticMaterial, createWoodMaterial } from '@app/utils/materialFactory';
 import { BOOKSHELF_CENTER_X, BOOKSHELF_Z } from './layout';
 import { createTeddyBear } from './bookshelf-items/teddyBear';
@@ -15,6 +15,26 @@ import { createPlushStar } from './bookshelf-items/plushStar';
  * @param keyLight - The directional light for shadow casting
  */
 export function createBookshelf(scene: Scene, keyLight: DirectionalLight): void {
+  // ── ONE ROOT, AND IT IS NOT COSMETIC ──
+  //
+  // The carcass, the books and the shelf clutter used to be twenty-odd separate
+  // `scene.add` calls, and the owl's perch map is built from top-level roots — so
+  // the bookshelf had no footprint. It had a back panel 0.08 thick (floor
+  // dressing), three shelf planks 0.06 thick (floor dressing) and two side panels
+  // at the far ends, and between those ends there was, as far as anything asking
+  // "what is standing here" could tell, nothing at all.
+  //
+  // `tests/room/owl-perch-surfaces.test.mjs` measured the consequence: a tap at
+  // (1.60, 8.35) put the owl on the floor inside the unit with its head 0.21 up
+  // inside `book_m12`. Grouping gives the shelf the footprint it always had in
+  // the picture, and the owl now perches on the top of it.
+  //
+  // The children keep their world coordinates; the root sits at the origin. It is
+  // a handle for measurement, not a transform.
+  const root = new Group();
+  root.name = 'bookshelf_root';
+  scene.add(root);
+
   // Light natural wood / warm cream shelf
   const shelfMat = createWoodMaterial('hub_shelfMat', new Color(0.82, 0.72, 0.58));
 
@@ -23,7 +43,7 @@ export function createBookshelf(scene: Scene, keyLight: DirectionalLight): void 
   back.name = 'shelfBack';
   back.position.set(BOOKSHELF_CENTER_X, 1.25, BOOKSHELF_Z + 0.25);
   back.castShadow = true;
-  scene.add(back);
+  root.add(back);
 
   // Shelves (3 horizontal)
   const shelfYs = [0.0, 0.8, 1.6];
@@ -31,7 +51,7 @@ export function createBookshelf(scene: Scene, keyLight: DirectionalLight): void 
     const shelf = new Mesh(new BoxGeometry(2.9, 0.08, 0.5), shelfMat);
     shelf.name = `shelf${i}`;
     shelf.position.set(BOOKSHELF_CENTER_X, shelfYs[i], BOOKSHELF_Z);
-    scene.add(shelf);
+    root.add(shelf);
   }
 
   // Side panels
@@ -39,14 +59,14 @@ export function createBookshelf(scene: Scene, keyLight: DirectionalLight): void 
     const side = new Mesh(new BoxGeometry(0.08, 2.5, 0.5), shelfMat);
     side.name = `shelfSide${i}`;
     side.position.set(BOOKSHELF_CENTER_X + xOff, 1.25, BOOKSHELF_Z);
-    scene.add(side);
+    root.add(side);
   });
 
   // Top panel
   const top = new Mesh(new BoxGeometry(3.0, 0.08, 0.52), shelfMat);
   top.name = 'shelfTop';
   top.position.set(BOOKSHELF_CENTER_X, 2.5, BOOKSHELF_Z);
-  scene.add(top);
+  root.add(top);
 
   // Books
   const bookColors = [
@@ -73,7 +93,7 @@ export function createBookshelf(scene: Scene, keyLight: DirectionalLight): void 
     book.name = name;
     book.position.set(BOOKSHELF_CENTER_X + x, baseY + h / 2, BOOKSHELF_Z - 0.05);
     book.rotation.z = rot;
-    scene.add(book);
+    root.add(book);
   }
 
   // Bottom shelf: 6 books
@@ -118,7 +138,7 @@ export function createBookshelf(scene: Scene, keyLight: DirectionalLight): void 
   const moonLamp = new Mesh(new SphereGeometry(0.05, 8, 8), moonLampMat);
   moonLamp.name = 'shelfMoonLamp';
   moonLamp.position.set(BOOKSHELF_CENTER_X + 0.7, 1.72, BOOKSHELF_Z - 0.1);
-  scene.add(moonLamp);
+  root.add(moonLamp);
 
   // ── Top shelf: toy block ───────────────────────────────────────────────────
   const blockMat = createGlossyPaintMaterial('hub_blockMat', new Color(0.2, 0.5, 0.9));
@@ -126,7 +146,7 @@ export function createBookshelf(scene: Scene, keyLight: DirectionalLight): void 
   block.name = 'shelfBlock';
   block.position.set(BOOKSHELF_CENTER_X + 0.0, 1.7, BOOKSHELF_Z - 0.08);
   block.rotation.y = 0.25;
-  scene.add(block);
+  root.add(block);
 
   // Letter "A" on the block front — simple raised rectangle
   const letterMat = createGlossyPaintMaterial('hub_blockLetterMat', new Color(1.0, 0.95, 0.3));

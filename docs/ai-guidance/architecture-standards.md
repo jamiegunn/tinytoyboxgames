@@ -1105,6 +1105,118 @@ at the water.
 
 ---
 
+## 12. The owl lands on things, not in them <a id="perchsurfaces"></a>
+
+**A tap's raycast only tests REGISTERED targets, so a tap "on" the fridge
+returns a point on the floor underneath the fridge.** That was the original bug.
+`dispatcher.registerWithPoint` hands `wireFloorTap` the hit point, and the only
+things registered on that path are the floor meshes — deliberately, and with the
+`TapOptions.background` argument in §8 behind it. Nothing else is in the ray's
+way, so it goes straight through the furniture and comes out the bottom. The owl
+then flew to the floor point, which put it inside whatever the child had just
+aimed at.
+
+**The code claimed otherwise, which is the part worth remembering.**
+`clampFlightTarget` in `entities/owl/actions.ts` carried the comment "so the owl
+perches on a toybox/table/log instead of sinking to floor level inside it". That
+was true only when the CALLER measured a surface and passed its height in, and
+exactly one caller did — `toyboxes/framework/wireToyboxInteractions.ts`, with its
+own `Box3` on the lid. Every floor tap passed y = 0. A comment is a claim nothing
+checks.
+
+### The model had to be rebuilt three times, and the reason generalises
+
+The rule lives in `utils/scene/perchSurfaces.ts`. Its first two implementations
+were both bounding-box models, and both shipped a new bug on top of the one they
+fixed:
+
+| model            | what it fixed             | what it broke                                                                                                                                                                                                                                                                                             |
+| ---------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| box per PROP     | the owl inside the fridge | a tree's box runs from the foot of its trunk to the top of its crown across the whole spread of its leaves, so standing on the grass under one read as standing inside it. **13.9% of Nature's ground** sent the owl to treetop height, where the flight ceiling caught it and left it hanging on nothing |
+| box per MESH     | the tree                  | Pirate Cove's railing planks run the length of the hull at an angle, and the axis-aligned box around a long diagonal sliver is **85 square units**. One plank at y 0.89 covered the whole mid-deck, and the resolver could find nowhere aboard for a bird to stand                                        |
+| triangles → grid | both                      | —                                                                                                                                                                                                                                                                                                         |
+
+The common cause is that **a box says "somewhere in here" and the question is
+"here"**. `PerchField` stamps the real triangles into a 25 cm grid and records
+the spans genuinely occupied above each cell, with an exact triangle-versus-cell
+overlap test (`triangleTouchesCell`) rather than the triangle's own bounds. Two
+details are load-bearing:
+
+- **Per mesh, per cell, min and max.** Triangles describe surfaces, so a closed
+  box stamped naively is hollow — over the middle of a fridge the only triangles
+  are its lid and its base — and the owl walked in through the lid. Bracketing
+  each mesh's own extent within a cell closes it. It stays per-mesh so that two
+  separate things above the same 25 cm — a stone at ankle height, a branch four
+  metres up — remain two spans with usable air between them.
+- **Only `solid` roots are stamped.** `flat` roots are floor dressing (an owl on
+  a rug is an owl on the floor); `airborne` roots have nothing beneath them, and
+  one of them is the Playroom's `sunRay` shafts. Stamping those made _light_
+  solid and flew the owl five metres up into a sunbeam. Geometry cannot tell you
+  what is matter; the classification can.
+
+### The three rules, and the two things they are not
+
+`classifyPerchRoots` sorts every top-level root into `solid` (supported, and
+taller than `MIN_SOLID_HEIGHT`), `airborne`, `flat` and `out-of-bounds`. Support
+is resolved ITERATIVELY, because Raggedy Ann and Andy lean into the creative
+toybox with their undersides 0.3 below its rim: a "stands on the floor" rule
+rejects them, and rejecting them puts the owl on the floor beside the box with
+its head inside a doll.
+
+`standingYAt` lifts the owl **only while something actually overlaps the volume
+its body needs** — not to the top of whatever is overhead. `resolvePerchTarget`
+clamps horizontally BEFORE resolving the surface; the previous order set the
+height from the tapped point and then slid the owl sideways, keeping the height
+of a surface it was no longer above.
+
+**If it cannot go up, it steps aside.** Some spots have no clear height at all:
+the foot of a tree trunk, where clearing the trunk only puts the owl in the
+canopy. Clamping to the ceiling leaves it hanging — that IS the bug — and
+dropping to the tapped point leaves it inside the trunk, so it takes the nearest
+spot it can stand on, which is what a bird landing next to a tree does anyway.
+
+### A footprint needs a root
+
+The Playroom bookshelf used to be twenty-odd separate `scene.add` calls — a back
+panel 0.08 thick, three shelf planks 0.06 thick, and two side panels at the far
+ends — so nothing asking "what is standing here" could see a bookshelf at all. It
+is now one `bookshelf_root` group. **A prop that wants to be stood on has to be
+one root.**
+
+### Wiring: set on the owl, warmed on the clock
+
+`createRoomScene` builds its owl BEFORE `buildContents` runs, because the
+toyboxes need one to fly at their lids, and hands it to `wireFloorTap` as
+`existingOwl`. A constructor option therefore reached Nature and Pirate Cove and
+missed all three rooms — which is where the fridge is. That is not hypothetical:
+it is what the first version of this fix did, and every test stayed green until a
+mutation deleted the wiring and still nothing failed. `OwlCompanion.setSurfaceYAt`
+exists for that reason.
+
+Building the field walks every triangle of every prop — around 200,000 in Nature
+— and measures in the hundreds of milliseconds. Left purely lazy that cost lands
+the first time a child touches the floor, freezing the app at the exact instant
+it is asked to respond, so `wireFloorTap` warms it one frame after composition
+**through the shared FrameClock** (§2), not through `requestAnimationFrame` —
+`tests/framework/frame-loop-guardrail.test.mjs` rejects the latter by name. The
+lazy path stays as the fallback for a tap that beats the first frame and for
+every scene without a clock, which is all of them under test.
+
+### What holds the line
+
+`tests/room/owl-perch-surfaces.test.mjs` covers **all five scenes**, and that is
+the lesson of the whole exercise rather than a detail: the first version covered
+the three rooms, the rooms are cupboards, and the bug that reached a person came
+from the trees. It pins every `solid` and `airborne` root by name, sweeps 6,561
+floor points per scene through the real `resolvePerchTarget`, and asserts four
+things of every landing — not inside, not hovering, reachable, and **on something
+the classifier called furniture**. That last one is the only check that does not
+consult the height field, and it is the one that caught stamping sunbeams as
+solid; the other three were all perfectly content with an owl perched on a beam
+of light. Seven mutations, seven kills.
+
+---
+
 ## Testing & rollout
 
 Every phase must leave all gates green and is committed/shipped on its own.

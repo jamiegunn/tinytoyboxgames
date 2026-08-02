@@ -1,4 +1,5 @@
 import { Color, Vector3 } from 'three';
+import { onFloor } from '@app/utils/scene/placement';
 import type { WorldPortalDef } from '@app/utils/worldSceneFactory';
 import type { FloorTapConfig, LightingConfig } from '@app/utils/sceneHelpers';
 import type { SceneSkyFogConfig } from '@app/utils/skyRig';
@@ -64,18 +65,36 @@ export const NATURE_ENVIRONMENT: NatureEnvironmentConfig = {
   floorTap: {
     owlPosition: new Vector3(0, 0.35, -0.5),
   },
-  // Portal placement is framing-constrained, not decorative. The four portals are
-  // the only things in this scene a child can tap to start a game, and at the
-  // authored positions the fireflies portal projected outside the frame on every
-  // phone aspect (and three of the four fell off an iPad in portrait). These
-  // positions keep all four inside NDC at all nine aspects in
-  // `.probe/treeline-fit.mjs`; `tests/room/scene-ground-coverage.test.mjs` holds
-  // them there.
+  // ── Portal placement ──────────────────────────────────────────────────────
+  //
+  // AXES, from the camera's point of view (measured, not assumed — see
+  // `tests/framework/sceneAxes.test.mjs`):
+  //
+  //     +X  ->  screen LEFT      (not right)
+  //     +Y  ->  screen UP
+  //     +Z  ->  AWAY from the camera, deeper into the scene
+  //
+  // The eye sits at (0, 3.92, -9.32) looking toward +Z, so more-negative Z is
+  // nearer the child. `onFloor({ side })` says which side of the FRAME a portal
+  // appears on and does the sign for you.
+  //
+  // Three portals, not four: Little Shark moved to Pirate Cove on 2026-08-01.
+  // The four were measurably crowded and partly hidden. Closest pair was
+  // little-shark <-> fireflies at 1.80 units — less than half the next-closest
+  // gap — and a render probe found bubble-pop 41% and little-shark 51% covered
+  // by the trees at (5.2, -1) and (-4.5, -3). Crowding was the reported symptom;
+  // the occlusion was found while measuring it.
+  //
+  // These three sit at a minimum separation of 3.61 units, every one inside NDC
+  // at all nine shipping aspects, none more than 5% covered by a tree at any of
+  // them, and none within 1.8 units of a tree trunk. A flanking pair near the
+  // child with one set back on the centreline reads as a triangle rather than a
+  // row. Held by `tests/room/scene-ground-coverage.test.mjs` (framing) and
+  // `tests/room/portalVisibility.test.mjs` (occlusion and spacing).
   portals: [
-    { gameId: 'bubble-pop', position: new Vector3(-2.6, 0, -1.8), color: new Color(0.66, 0.88, 1) },
-    { gameId: 'little-shark', position: new Vector3(2.6, 0, -1.0), color: new Color(0.1, 0.44, 0.71) },
-    { gameId: 'fireflies', position: new Vector3(2.5, 0, -2.8), color: new Color(0.95, 0.85, 0.3) },
-    { gameId: 'star-catcher', position: new Vector3(-2.0, 0, -3.8), color: new Color(0.75, 0.8, 1) },
+    { gameId: 'bubble-pop', position: onFloor({ side: 'left', across: 2, depth: -4 }), color: new Color(0.66, 0.88, 1) },
+    { gameId: 'fireflies', position: onFloor({ side: 'centre', depth: -1 }), color: new Color(0.95, 0.85, 0.3) },
+    { gameId: 'star-catcher', position: onFloor({ side: 'right', across: 2, depth: -4 }), color: new Color(0.75, 0.8, 1) },
   ],
   // The forest floor is sized so the camera can never see past its edge. At
   // 16x14 the bottom edge of a portrait frame landed 0.5u short of the near

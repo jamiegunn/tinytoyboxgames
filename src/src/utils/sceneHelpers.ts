@@ -4,10 +4,12 @@ import { getParticleEngine } from './particles/registry';
 import { PARTICLES } from './particles/presets';
 import { createLightingRig, type LightingDescriptor } from './lighting/lightingRig';
 import { createDisposalScope, type DisposalScope } from './disposal';
+import { getSceneClock } from './sceneRuntime';
 import { DEFAULT_ENV_INTENSITY } from './rendererFactory';
 import { createOwlCompanion, type OwlCompanion } from '@app/entities/owl';
 import { triggerSound } from '@app/assets/audio/sceneBridge';
 import type { OwlFlightBounds } from '@app/entities/owl/types';
+import { buildPerchField, standingYAt, type PerchField } from './scene/perchSurfaces';
 import type { WorldTapDispatcher } from './worldTapDispatcher';
 
 // Shadow configuration now lives in the unified lighting rig
@@ -258,6 +260,42 @@ export interface FloorTapConfig {
 }
 
 /**
+ * The owl's flight box for a scene: authored if the scene said, derived from the
+ * ground mesh if it did not.
+ *
+ * EXPORTED BECAUSE A TEST HAS TO ASK THE SAME QUESTION. Nature and Pirate Cove
+ * author no `flightBounds`, so theirs exist only as the result of this
+ * arithmetic — and `tests/room/owl-perch-surfaces.test.mjs` cannot sweep a scene
+ * whose reachable area it has to guess at. Re-deriving it over there would be a
+ * second copy of a rule, which is the failure `tests/framework/noCopiedConstants`
+ * exists to catch.
+ *
+ * @param groundTarget - The scene's primary floor mesh.
+ * @param config - The scene's floor-tap configuration.
+ * @returns The box the owl may occupy.
+ */
+export function deriveOwlFlightBounds(groundTarget: Mesh, config: FloorTapConfig): OwlFlightBounds {
+  if (config.flightBounds) return config.flightBounds;
+
+  groundTarget.updateWorldMatrix(true, false);
+  const groundBounds = new Box3().setFromObject(groundTarget);
+  const margin = config.owlBoundsMargin ?? 0.5;
+  const maxInsetX = Math.max(0, (groundBounds.max.x - groundBounds.min.x) / 2 - 0.1);
+  const maxInsetZ = Math.max(0, (groundBounds.max.z - groundBounds.min.z) / 2 - 0.1);
+  const insetX = Math.min(margin, maxInsetX);
+  const insetZ = Math.min(margin, maxInsetZ);
+
+  return {
+    minX: groundBounds.min.x + insetX,
+    maxX: groundBounds.max.x - insetX,
+    minZ: groundBounds.min.z + insetZ,
+    maxZ: groundBounds.max.z - insetZ,
+    minY: 0.3,
+    maxY: Math.max(config.owlPosition.y, (config.ceilingY ?? 6.0) - 1.0),
+  };
+}
+
+/**
  * Wires the first-tap fallback pattern and owl companion to a ground mesh
  * via the centralized world tap dispatcher.
  *
@@ -276,24 +314,51 @@ export function wireFloorTap(
   existingOwl?: OwlCompanion,
 ): { owl: OwlCompanion; cleanup: () => void } {
   const targets = Array.isArray(groundTargets) ? [...groundTargets] : [groundTargets];
-  const primaryTarget = targets[0];
+  const flightBounds = deriveOwlFlightBounds(targets[0], config);
+  let disposeWarm: (() => void) | null = null;
 
-  primaryTarget.updateWorldMatrix(true, false);
-  const groundBounds = new Box3().setFromObject(primaryTarget);
-  const margin = config.owlBoundsMargin ?? 0.5;
-  const maxInsetX = Math.max(0, (groundBounds.max.x - groundBounds.min.x) / 2 - 0.1);
-  const maxInsetZ = Math.max(0, (groundBounds.max.z - groundBounds.min.z) / 2 - 0.1);
-  const insetX = Math.min(margin, maxInsetX);
-  const insetZ = Math.min(margin, maxInsetZ);
+  // ── The owl's surface map, built on FIRST USE and not before ──
+  //
+  // It has to be lazy. `wireFloorTap` is called partway through composition —
+  // `worldSceneFactory` calls it from inside `buildContents`, and room scenes
+  // call it with an owl that already exists — so at this line the scene may hold
+  // a floor and nothing else. Measuring here would produce an empty map and an
+  // owl that still lands inside the fridge, and it would do it silently.
+  //
+  // Deferring to the first tap means the map is taken from a finished scene, and
+  // memoising means it is taken once: a room's furniture does not move.
+  let perchField: PerchField | null = null;
+  const buildField = (): PerchField => (perchField ??= buildPerchField(scene.children, flightBounds));
+  const resolveSurfaceY = (x: number, z: number, floorY: number, bodyHeight: number): number => standingYAt(x, z, floorY, bodyHeight, buildField());
 
-  const flightBounds = config.flightBounds ?? {
-    minX: groundBounds.min.x + insetX,
-    maxX: groundBounds.max.x - insetX,
-    minZ: groundBounds.min.z + insetZ,
-    maxZ: groundBounds.max.z - insetZ,
-    minY: 0.3,
-    maxY: Math.max(config.owlPosition.y, (config.ceilingY ?? 6.0) - 1.0),
-  };
+  // WARMED ON THE NEXT FRAME, NOT ON THE FIRST TAP.
+  //
+  // Building the field walks every triangle of every prop — around 200,000 of
+  // them in Nature — and measures in the hundreds of milliseconds. Left purely
+  // lazy that cost lands the first time a child touches the floor, which is the
+  // worst possible moment to freeze: the app stops responding at the exact
+  // instant it is being asked to respond. One frame after composition the scene
+  // is complete and nobody is waiting, so it is paid there instead.
+  //
+  // THROUGH THE SHARED CLOCK, NOT `requestAnimationFrame`. The first version
+  // called rAF directly and `tests/framework/frame-loop-guardrail.test.mjs`
+  // rejected it by name — the rule (architecture-standards.md#frameclock) is
+  // that nothing outside the render host starts its own frame source, because a
+  // private one outlives teardown and drifts. Subscribing is also simply better
+  // here: the callback unsubscribes itself on the first tick, so this is a
+  // one-shot that cannot leak, and it is torn down with the scene either way.
+  //
+  // The lazy path above stays as the fallback. It is not dead code: it covers a
+  // tap that beats the first frame, and it covers a scene with no clock at all,
+  // which is every scene in the test suite.
+  const clock = getSceneClock(scene);
+  if (clock) {
+    const stopWarm = clock.subscribe(() => {
+      stopWarm();
+      buildField();
+    });
+    disposeWarm = stopWarm;
+  }
 
   const owl =
     existingOwl ??
@@ -301,6 +366,15 @@ export function wireFloorTap(
       restFacingY: config.owlFacingY,
       flightBounds,
     });
+
+  // SET, NOT PASSED TO THE CONSTRUCTOR — because half the callers do not use the
+  // constructor. `createRoomScene` builds its owl before `buildContents` runs,
+  // since the toyboxes need one to fly at their lids, and hands it in here as
+  // `existingOwl`. A constructor option would therefore have reached Nature and
+  // Pirate Cove and missed all three rooms, which is where the fridge is. That
+  // is not hypothetical: it is what this code did until mutation O6 in
+  // `_to_delete/owlmut.sh` removed the wiring and every test stayed green.
+  owl.setSurfaceYAt(resolveSurfaceY);
   const emitParticle = config.particleFn ?? ((s: Scene, position: Vector3) => getParticleEngine(s).emit(PARTICLES.sceneSparkle, position));
 
   let firstTapHandled = false;
@@ -358,6 +432,9 @@ export function wireFloorTap(
   const unregisters = targets.map((target) => dispatcher.registerWithPoint(target, onFloorTap, { background: true }));
 
   const cleanup = () => {
+    // A scene torn down inside one frame of being built would otherwise run the
+    // warm-up against a scene nothing is going to render.
+    disposeWarm?.();
     unregisters.forEach((unregister) => unregister());
     if (!existingOwl) {
       owl.dispose();

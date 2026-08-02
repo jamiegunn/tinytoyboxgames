@@ -4,6 +4,7 @@ import { createCabinetRun } from './cabinetRun';
 import { createDiningTable } from './diningTable';
 import { createFridge } from './fridge';
 import { createKitchenWindow } from './kitchenWindow';
+import { createLeftWallCabinets } from './leftWallCabinets';
 import { createOpenShelf } from './openShelf';
 import { createPlateRack } from './plateRack';
 import { createPotRail } from './potRail';
@@ -22,7 +23,8 @@ export interface KitchenDecorResult {
 /**
  * Composes all Kitchen decor: cabinet run with countertop clutter, window
  * over the counter, fridge, stove, open crockery shelves, pot rail, breakfast
- * table with chairs, the oval rug, and the two side-wall pieces (plate rack
+ * table with chairs, the oval rug, the left-wall dresser and base units, and
+ * the two side-wall pieces (plate rack
  * with chalk menu board on the right, peg rail with cloths and clock on the
  * left). Interactive pieces (kettle, hanging pots, fruit bowl, mugs, cloths)
  * register through the shared tap dispatcher.
@@ -37,6 +39,7 @@ export function createKitchenDecor(scene: Scene, dispatcher: WorldTapDispatcher)
   createFridge(scene);
   createStove(scene);
   createOpenShelf(scene);
+  createLeftWallCabinets(scene);
 
   const cleanups = [
     createCabinetRun(scene, dispatcher),

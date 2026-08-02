@@ -6,6 +6,7 @@
  */
 
 import { Color, Vector3 } from 'three';
+import { onFloor } from '@app/utils/scene/placement';
 import type { WorldPortalDef } from '@app/utils/worldSceneFactory';
 import type { FloorTapConfig, LightingConfig } from '@app/utils/sceneHelpers';
 import type { SceneSkyFogConfig } from '@app/utils/skyRig';
@@ -108,11 +109,54 @@ export const PIRATE_COVE_ENVIRONMENT: PirateCoveEnvironmentConfig = {
   // with aspect, so that line is the same on every device. At -4.2 the portal
   // cleared it by 1.6 units and sat in the very bottom sliver of the frame; -1.5
   // puts it 4.3 units clear, on open deck forward of the wheel.
+  // ── Portal placement ──────────────────────────────────────────────────────
+  //
+  // AXES, from the camera's point of view (measured, not assumed — see
+  // `tests/framework/sceneAxes.test.mjs`):
+  //
+  //     +X  ->  screen LEFT      (not right)
+  //     +Y  ->  screen UP
+  //     +Z  ->  AWAY from the camera, deeper into the scene; -Z is aft, toward
+  //             the child, and +Z is forward toward the bow
+  //
+  // WHY NEITHER OF THESE SITS ON THE CENTRELINE. Cannonball Splash used to be
+  // at (0, 0, -1.5) and the ship's wheel is at (0, 0, -5.0). The eye is on
+  // x = 0 too, so all three were collinear: the wheel stood directly in front
+  // of the only thing in the scene a child could tap. A render probe measured
+  // the portal 72% covered at square aspect.
+  //
+  // The stage solver that placed the wheel DID test clearance — deck FOOTPRINT
+  // clearance, which the wheel passed, because the two do not overlap on the
+  // deck plane. Footprint clearance and line-of-sight clearance are different
+  // questions and only the second is the one a player experiences. That is what
+  // `sharesViewRay` in `@app/utils/scene/placement` exists to make obvious while
+  // you are typing coordinates.
+  //
+  // Little Shark joined this scene on 2026-08-01: a shark belongs in the water
+  // beside a pirate ship, and it was half of Nature's crowded pair. Both
+  // positions are clear of every prop at all nine aspects, inside NDC at all of
+  // them, at least 1.8 units from any staged prop, and 7.09 units apart.
+  // Held by `tests/room/portalVisibility.test.mjs`.
   portals: [
     {
       gameId: 'cannonball-splash',
-      position: new Vector3(0, 0, -1.5),
+      position: onFloor({ side: 'left', across: 1.5, depth: -1.4 }),
       color: new Color(0.16, 0.44, 0.66),
+    },
+    {
+      gameId: 'little-shark',
+      // NOT forward of the mast, which is where this first went. Everything on
+      // the deck at depth > 0 is behind the mainsail from the scene camera: the
+      // eye is aft and elevated, so the sail projects DOWN over the planking
+      // behind it. At depth 5.2 this portal measured 30.5% covered by
+      // `ship_mainsail` and `ship_sheet_port` at landscape — and it measured 0%
+      // in the first solver run, because that run built the props and not the
+      // rigging. tests/room/portalVisibility.test.mjs builds the whole scene.
+      //
+      // The clear deck is therefore the aft third only: depth -3.6 .. 0, across
+      // -1.8 .. 2. This is the corner of it furthest from Cannonball Splash.
+      position: onFloor({ side: 'right', across: 1.6, depth: -3.6 }),
+      color: new Color(0.1, 0.44, 0.71),
     },
   ],
   // The deck's own shape is NOT here — it is `HULL_PLAN` in `./hullPlan.ts`, and

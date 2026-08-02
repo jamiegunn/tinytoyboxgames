@@ -89,7 +89,7 @@ The HUD back button follows each scene's catalog `backTarget` (default
 | ------------------- | ----------------- | --------------- | ------------------------- |
 | `bubble-pop`        | Bubble Pop        | `nature`        | registered + discoverable |
 | `fireflies`         | Fireflies         | `nature`        | registered + discoverable |
-| `little-shark`      | Little Shark      | `nature`        | registered + discoverable |
+| `little-shark`      | Little Shark      | `pirate-cove`   | registered + discoverable |
 | `star-catcher`      | Star Catcher      | `nature`        | registered + discoverable |
 | `cannonball-splash` | Cannonball Splash | `pirate-cove`   | registered + discoverable |
 
@@ -100,13 +100,20 @@ These are the minigames currently surfaced through in-scene portals:
 ### Nature
 
 - `bubble-pop`
-- `little-shark`
 - `fireflies`
 - `star-catcher`
 
 ### Pirate Cove
 
 - `cannonball-splash`
+- `little-shark`
+
+Little Shark moved from Nature to Pirate Cove on 2026-08-02. Nature was carrying
+four portals with a closest pair 1.80 units apart — touching rims — and two of
+the four were partly behind trees. Both scenes are now measured against
+`tests/room/portalVisibility.test.mjs`, which requires every portal to be under
+10% occluded at all nine shipping aspects and at least 3 units from its
+neighbour. A shark also belongs at sea.
 
 ## Shared runtime truths
 

@@ -35,6 +35,7 @@ export function createOwlCompanion(scene: Scene, startPosition: Vector3, options
     root: parts.root,
     flyTo: actions.flyTo,
     tapReaction: actions.tapReaction,
+    setSurfaceYAt: actions.setSurfaceYAt,
     dispose,
   };
 }

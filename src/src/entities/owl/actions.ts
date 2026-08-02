@@ -1,26 +1,9 @@
 import gsap from 'gsap';
-import { MathUtils, Vector3, type Scene } from 'three';
+import { Box3, Vector3, type Scene } from 'three';
 import { spawnAlertBurst, spawnLandingBurst, startFlightTrail } from './effects';
 import { BLINK_CLOSE_MS, FACING_CAMERA_Y, FLY_ARC_HEIGHT, FLY_SPEED_FPS, WING_FLAP_RATE, WING_REST_ANGLE } from './palette';
-import type { OwlActions, OwlBuildParts, OwlCleanup, OwlCompanionOptions, OwlFlightBounds, OwlIdleHandle, OwlRuntimeDisposer } from './types';
-
-function clampFlightTarget(target: Vector3, perchOffset: number, flightBounds?: OwlFlightBounds): Vector3 {
-  const clamped = target.clone();
-  // Land ON TOP of whatever was tapped: keep the tapped surface's height and add
-  // the owl's perch offset (its resting centre height above a floor at y≈0), so
-  // the owl perches on a toybox/table/log instead of sinking to floor level
-  // inside it. A floor tap has target.y≈0, so this reproduces the old behaviour.
-  clamped.y = target.y + perchOffset;
-
-  if (!flightBounds) {
-    return clamped;
-  }
-
-  clamped.x = MathUtils.clamp(clamped.x, flightBounds.minX, flightBounds.maxX);
-  clamped.z = MathUtils.clamp(clamped.z, flightBounds.minZ, flightBounds.maxZ);
-  clamped.y = MathUtils.clamp(clamped.y, flightBounds.minY, flightBounds.maxY);
-  return clamped;
-}
+import { resolvePerchTarget } from '@app/utils/scene/perchSurfaces';
+import type { OwlActions, OwlBuildParts, OwlCleanup, OwlCompanionOptions, OwlIdleHandle, OwlRuntimeDisposer } from './types';
 
 /**
  * Builds the high-priority owl actions that temporarily override the idle
@@ -46,6 +29,18 @@ export function createOwlActions(
   let activeFlightCleanup: OwlCleanup | null = null;
   const restFacingY = options.restFacingY ?? FACING_CAMERA_Y;
   const flightBounds = options.flightBounds;
+  let surfaceYAt = options.surfaceYAt ?? null;
+
+  // HOW TALL THE OWL IS, MEASURED RATHER THAN WRITTEN DOWN.
+  //
+  // The landing rule needs this: "is anything in the way" is a question about the
+  // volume the bird occupies, and an owl standing on the grass under a canopy at
+  // y 2.5 is in nobody's way. A literal here would be a copy of `OWL_SCALE` and
+  // of the build's proportions, kept in a third file, and it would be wrong the
+  // first time either changed. Taken once, at construction, before any idle tween
+  // has moved a feather.
+  const builtBox = new Box3().setFromObject(parts.root);
+  const bodyHeight = builtBox.isEmpty() ? startPosition.y * 2 : builtBox.max.y - builtBox.min.y;
 
   const setLegsVisible = (visible: boolean): void => {
     parts.legL.traverse((child) => {
@@ -183,7 +178,21 @@ export function createOwlActions(
     clearTapReaction();
     clearFlight();
 
-    const correctedTarget = clampFlightTarget(target, startPosition.y, flightBounds);
+    // WHERE THE OWL COMES DOWN IS NOT DECIDED HERE, DELIBERATELY.
+    //
+    // This used to be a local `clampFlightTarget` that set y from the tapped
+    // point and then clamped x and z — in that order, so a tap near a wall was
+    // slid sideways while keeping the height of a surface it was no longer over.
+    // It also carried a comment promising the owl "perches on a toybox/table/log
+    // instead of sinking to floor level inside it", which was true only for the
+    // one caller that measured a lid and passed its height in. Every floor tap
+    // passed y = 0 and the owl landed inside whatever was standing there.
+    //
+    // The rule now lives in `@app/utils/scene/perchSurfaces` as a pure function
+    // with no owl, no gsap and no scene in it, which is what let
+    // `tests/room/owl-perch-surfaces.test.mjs` drive it over every square of
+    // every room's floor.
+    const correctedTarget = resolvePerchTarget(target, startPosition.y, bodyHeight, flightBounds, surfaceYAt ?? undefined);
     const start = parts.root.position.clone();
     const distance = start.distanceTo(correctedTarget);
     const flyFrames = Math.max(80, Math.round(distance * 20));
@@ -408,5 +417,8 @@ export function createOwlActions(
   return {
     flyTo,
     tapReaction,
+    setSurfaceYAt: (resolve) => {
+      surfaceYAt = resolve;
+    },
   };
 }

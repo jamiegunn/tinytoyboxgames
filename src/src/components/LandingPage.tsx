@@ -181,13 +181,13 @@ export function LandingPage() {
             <div className="landing-world-card">
               <span className="landing-world-emoji">&#127807;</span>
               <div className="landing-world-name">Nature</div>
-              <div className="landing-world-desc">A forest-floor toybox world with Bubble Pop, Fireflies, Little Shark, and Star Catcher mini-game portals</div>
+              <div className="landing-world-desc">A forest-floor toybox world with Bubble Pop, Fireflies, and Star Catcher mini-game portals</div>
             </div>
 
             <div className="landing-world-card">
               <span className="landing-world-emoji">&#9968;&#65039;</span>
               <div className="landing-world-name">Pirate Cove</div>
-              <div className="landing-world-desc">A pirate ship toybox world with Cannonball Splash</div>
+              <div className="landing-world-desc">A pirate ship toybox world with Cannonball Splash and Little Shark</div>
             </div>
           </div>
         </div>

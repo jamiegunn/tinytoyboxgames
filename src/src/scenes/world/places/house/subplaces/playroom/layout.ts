@@ -1,3 +1,43 @@
+// ── HOW TO NAVIGATE THIS ROOM ───────────────────────────────────────────────
+//
+// Read this before changing any coordinate below. One of the three axes does
+// not do what its name suggests, and getting it backwards mirrors the room:
+//
+//     +X  ->  screen LEFT      (NOT right)
+//     -X  ->  screen RIGHT
+//     +Y  ->  screen UP        (floor is y = 0, ceiling is CEILING_Y)
+//     +Z  ->  AWAY from the camera, deeper into the room (toward the back wall)
+//     -Z  ->  TOWARD the camera, nearer the child
+//
+// +X reads LEFT because the room camera looks ALONG +Z with +Y up, which makes
+// the screen-right vector -X. Anyone who assumes the usual "x increases
+// rightward" places props on the wrong side of the room, and the mistake is
+// invisible until it renders.
+//
+// The constants below are the proof, not just an example: LEFT_WALL_X = 6.0
+// and RIGHT_WALL_X = -6.0. The wall the child sees on the LEFT is the
+// POSITIVE one.
+//
+// This is measured, not asserted. `tests/framework/sceneAxes.test.mjs` projects
+// the three unit axes at this scene's own opening pose and fails if any of them
+// flips, so if a camera preset is ever re-posed these lines cannot quietly
+// become lies.
+//
+// THE CAMERA IS ON x = 0, WHICH IS A TRAP
+// ----------------------------------------
+// The eye sits on the room's centreline. Two props both placed near x = 0 at
+// different depths are therefore stacked along the same view ray, and the
+// nearer one hides the further one no matter how far apart they are in Z.
+// Pirate Cove shipped exactly that — a ship wheel at x = 0 covering 72% of the
+// portal at x = 0 four units behind it — and the stage solver that placed the
+// wheel passed, because it checked FOOTPRINT overlap on the floor plane and
+// footprint clearance is not line-of-sight clearance. Offset one of them
+// sideways rather than trusting depth to separate them.
+//
+// For placement by intent rather than by raw literals, `@app/utils/scene/placement`
+// exposes `onFloor({ side: 'left' | 'centre' | 'right', across, depth, height })`,
+// which owns the sign flip so callers never restate it.
+
 // ── Playroom Layout Constants ───────────────────────────────────────────────
 // Dimensions and surfaces for the room shell: walls, trim, floor, ceiling, and
 // the frames the decor hangs on. Changing a value here cascades to every module

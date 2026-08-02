@@ -176,7 +176,7 @@ export const SCENE_CATALOG = {
     // See tests/room/scene-ground-coverage.test.mjs.
     cameraPreset: { azimuth: Math.PI, polar: 1.2, distance: 10, target: [0, 0.3, 0], constraints: { maxTargetY: 1.0 } },
     audio: { musicId: 'mus_nature_background', ambientId: 'amb_nature_stream' },
-    games: ['bubble-pop', 'fireflies', 'little-shark', 'star-catcher'],
+    games: ['bubble-pop', 'fireflies', 'star-catcher'],
   },
   'pirate-cove': {
     displayName: 'Pirate Cove',
@@ -233,7 +233,7 @@ export const SCENE_CATALOG = {
       },
     },
     audio: { musicId: 'mus_pirate_cove_background', ambientId: 'amb_pirate_cove_shore' },
-    games: ['cannonball-splash'],
+    games: ['cannonball-splash', 'little-shark'],
   },
   // __IMMERSIVE_SCENE_GENERATOR_ENTRY_MARKER__
 } as const satisfies Record<string, SceneCatalogEntryInput>;

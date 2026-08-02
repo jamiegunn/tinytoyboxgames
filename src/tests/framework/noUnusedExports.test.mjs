@@ -370,9 +370,96 @@ test('the unenforced tiers are still the size this file says they are', () => {
   // `living-room/room/ceiling.ts`. That room's own README forbids exactly that
   // — "do not invent local sizes that drift from the layout" — and it was the
   // only dimension in the room that did.
+  // 2026-08-01, the scene-placement round, +1 consumed:
+  //
+  //   onFloor                       utils/scene/placement.ts   -> consumed
+  //   ScreenSide                    utils/scene/placement.ts   -> internal
+  //   FloorPlacement                utils/scene/placement.ts   -> internal
+  //
+  // The two types land in `internal` rather than `consumed` because both
+  // consumers import only the function and let the option object be inferred —
+  // the types are named in their own file and nowhere else. That is the tier
+  // working as designed, not a smell: they are the function's published shape,
+  // and an author who wants to hold one in a variable can import it.
+  //
+  // Both immersive scenes now express portal positions as
+  // `onFloor({ side: 'left', across, depth })` instead of raw `Vector3(x, 0, z)`,
+  // because +X is screen LEFT in every scene and hand-authored literals were
+  // being written by authors who had to remember that. `sceneAxes.test.mjs`
+  // pins the convention the helper encodes.
+  //
+  // A second export, `sharesViewRay`, was written in the same change and then
+  // removed before commit: its only intended consumer is an occlusion test that
+  // does not exist yet, and this guard correctly reported it as `dead: 1`. That
+  // is §5's animationPresets.ts story exactly — seven exports, zero importers —
+  // caught this time before it landed rather than a round later.
+  //
+  // 2026-08-02, the Kitchen's left wall, +7 consumed and nothing else:
+  //
+  //   LEFT_DRESSER_Z, LEFT_DRESSER_WIDTH, DRESSER_HUTCH_TOP_Y,
+  //   LEFT_BASE_CABINET_Z, LEFT_BASE_CABINET_WIDTH, LEFT_CABINET_DEPTH
+  //                                          kitchen/layout.ts
+  //   createLeftWallCabinets                 kitchen/decor/leftWallCabinets.ts
+  //
+  // Same shape as Fix B eight entries above, and the same thing worth checking:
+  // all seven land in `consumed`, so the six constants have a real reader and
+  // the factory has a real composer. A `dead` here would mean a dresser that was
+  // authored, type-checked, and never added to any scene — which is the exact
+  // failure mode of adding scenery, because nothing about the file itself tells
+  // you whether `decor/index.ts` calls it.
+  //
+  // 2026-08-02, the owl perch-surface framework, +4 consumed and +6 internal:
+  //
+  //   collectPerchSurfaces' four app-facing names   utils/scene/perchSurfaces.ts
+  //     collectPerchSolids, surfaceYAt   -> read by utils/sceneHelpers
+  //     resolvePerchTarget               -> read by entities/owl/actions
+  //     PerchSolid                       -> the type sceneHelpers memoises
+  //
+  //   classifyPerchRoots, PerchClassification, PerchRejection,
+  //   FLOOR_CONTACT_Y, STACK_CONTACT_Y, MIN_SOLID_HEIGHT
+  //                                                 -> internal
+  //
+  // The split is the interesting part and it is the right way round. The app
+  // needs to ASK what is standing at a point; only the test needs to see WHY
+  // each root was or was not counted, which is what `classifyPerchRoots` returns
+  // and what `tests/room/owl-perch-surfaces.test.mjs` pins as the per-room
+  // inventory. Six symbols whose only readers are tests is exactly the `internal`
+  // tier's purpose, and none of them is `spared`: each is genuinely imported.
+  //
+  // 2026-08-02, the owl perch REWRITE, +3 internal and +1 spared, consumed flat.
+  //
+  // The surface model was rebuilt from bounding boxes to a triangle-stamped
+  // height field after a child reported the owl getting stuck in mid-air, so the
+  // module's exported surface turned over rather than grew:
+  //
+  //   gone     surfaceYAt, collectPerchParts, PerchPart      (all consumed)
+  //   new      standingYAt, buildPerchField, PerchField      (all consumed)
+  //
+  // Three in, three out, which is why `consumed` does not move. The rest:
+  //
+  //   STACK_CONTACT_Y      perchSurfaces.ts   -> internal
+  //   PerchSpan            perchSurfaces.ts   -> internal
+  //   deriveOwlFlightBounds  sceneHelpers.ts  -> internal
+  //   spansAt              perchSurfaces.ts   -> spared
+  //
+  // `deriveOwlFlightBounds` was extracted from the body of `wireFloorTap`
+  // because Nature and Pirate Cove author no flight bounds — theirs exist only
+  // as the result of that arithmetic — and a test that sweeps those scenes
+  // cannot re-derive the reachable area without becoming a second copy of the
+  // rule. It is `internal` because only the test imports it; the app reaches it
+  // through the function it was cut out of.
+  //
+  // `spansAt` is the one worth justifying, since `spared` is the tier nearest to
+  // laundering. It returns a cell's raw spans, and it exists because
+  // `standingYAt` cannot answer the question the suite needs: "are the owl's feet
+  // ON something" and "is anything THROUGH the owl" both come back from
+  // `standingYAt` as a height, so a bird standing on a shelf and a bird standing
+  // on nothing are indistinguishable through it. It lands in `spared` rather than
+  // `internal` only because the classifier sees the name in a brace list; it is
+  // genuinely imported and genuinely asserted on.
   assert.deepEqual(
     TIER_COUNTS,
-    { consumed: 1752, reexport: 86, internal: 136, spared: 4, laundered: 0, dead: 0 },
+    { consumed: 1764, reexport: 86, internal: 147, spared: 5, laundered: 0, dead: 0 },
     'the tier populations moved; say which symbol moved and why, then update this',
   );
 });
