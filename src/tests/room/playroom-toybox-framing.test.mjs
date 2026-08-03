@@ -59,6 +59,12 @@ const NDC_LIMIT = 0.96;
 
 // The two shapes a phone is actually held in. Portrait is the binding one;
 // landscape is checked so that fixing portrait cannot quietly break it.
+// VIEWPORTS, MAPPED THROUGH THE LETTERBOX. The camera is never handed the
+// device's aspect any more — the stage clamps it to [MIN_STAGE_ASPECT,
+// MAX_STAGE_ASPECT] and the leftover viewport becomes chrome (see
+// src/utils/scene/stageRect.ts). This list used to feed 405/720 = 0.56 straight
+// into the projection, which is a shape the camera cannot be given, so a toybox
+// "off screen at portrait 9:16" was a failure in a state the app cannot reach.
 const VIEWPORTS = [
   ['portrait 9:16', 405, 720],
   ['landscape 16:9', 1280, 720],
@@ -86,6 +92,7 @@ const manifest = await bundleTs('src/scenes/world/places/house/subplaces/playroo
 const variants = await bundleTs('src/toyboxes/variants/index.ts');
 const runtime = await bundleTs('src/toyboxes/framework/runtime.ts');
 const presets = await bundleTs('src/utils/cameraPresets.ts');
+const { stageAspectFor } = await bundleTs('src/utils/scene/stageRect.ts');
 
 const { RUG_DIAMETER, LEFT_WALL_FACE_X, RIGHT_WALL_FACE_X } = layout;
 
@@ -121,11 +128,11 @@ test('the room still has toyboxes — a silent zero would make this suite vacuou
 });
 
 for (const [label, w, h] of VIEWPORTS) {
-  test(`every toybox is fully on screen at ${label}`, () => {
+  test(`every toybox is fully on screen at ${label} (stage ${stageAspectFor(w, h).toFixed(2)})`, () => {
     const handle = presets.createSceneCamera(fakeCanvas(w, h), 'playroom');
     try {
       const camera = handle.camera;
-      camera.aspect = w / h;
+      camera.aspect = stageAspectFor(w, h);
       camera.updateProjectionMatrix();
       camera.updateMatrixWorld(true);
 

@@ -15,11 +15,25 @@ import { resolveStageRect, resolveChromeBand, MIN_CHROME_BAND } from '@app/utils
  */
 const MIN_CONTROL = 56;
 
-/** The largest, so a 4K window does not draw a mute button the size of a plate. */
-const MAX_CONTROL = 88;
+/**
+ * The largest, so a 4K window does not draw a mute button the size of a plate.
+ *
+ * Raised from 88 after looking at a phone render. On a 393x852 screen the chrome
+ * band is 459px tall and the controls were 88px, which left three small circles
+ * floating in the middle of a large dark rectangle — the band read as something
+ * unfinished rather than as part of the app. The band is the only place the HUD
+ * lives on a phone; the controls should look like they belong to it.
+ */
+const MAX_CONTROL = 132;
 
 /** Padding inside the chrome band, as a fraction of the control size. */
 const GAP_RATIO = 0.35;
+
+/** The chrome band's own surface — warm, so it reads as part of the toybox. */
+const BAND_COLOR = '#2b211a';
+
+/** The lip where the band meets the picture. */
+const BAND_EDGE = '#4a382b';
 
 /**
  * The HUD: back, recenter, mute, and the transition spinner.
@@ -66,10 +80,20 @@ export function UIOverlay() {
   // Size from whichever band exists. The 0.55 leaves room for the gap above and
   // below the row; without it a control exactly as tall as the band touches both
   // edges and reads as a bar rather than a button.
+  // The row has to fit ACROSS the band as well as within it, and a first pass at
+  // this only sized on the band's depth. On a 393-wide phone that produced 132px
+  // controls in a row 450px wide: the back and mute buttons were sliced off by
+  // the screen edges. Two buttons in the hub, three everywhere else.
+  const buttonCount = currentScene === 'playroom' ? 2 : 3;
+  // n controls and n-1 gaps, where a gap is GAP_RATIO of a control, plus an edge
+  // margin of one gap either side: (n + (n + 1) * GAP_RATIO) * control <= span.
+  const spanFor = (span: number): number => span / (buttonCount + (buttonCount + 1) * GAP_RATIO);
+
   const bandExtent = band.below > 0 ? band.below : band.beside;
+  const acrossLimit = band.below > 0 ? spanFor(viewportWidth) : band.beside > 0 ? band.beside * 0.72 : spanFor(viewportWidth);
   const control = inBand
-    ? Math.min(MAX_CONTROL, Math.max(MIN_CONTROL, bandExtent * 0.55))
-    : Math.min(MAX_CONTROL, Math.max(MIN_CONTROL, Math.min(viewportWidth, viewportHeight) * 0.09));
+    ? Math.min(MAX_CONTROL, acrossLimit, Math.max(MIN_CONTROL, bandExtent * 0.42))
+    : Math.min(MAX_CONTROL, acrossLimit, Math.max(MIN_CONTROL, Math.min(viewportWidth, viewportHeight) * 0.09));
   const gap = control * GAP_RATIO;
 
   const round = (size: number) => ({
@@ -132,8 +156,33 @@ export function UIOverlay() {
             gap,
           };
 
+  // THE BAND IS A SURFACE, NOT A GAP. Without this the leftover viewport is
+  // whatever `html { background }` happens to be — on a phone that is 54% of the
+  // screen in flat near-black, which reads as the page failing to load rather
+  // than as a frame around the picture. A warm panel with a lip along the edge
+  // it meets the scene at says the same space is deliberate.
+  //
+  // TWO strips when the band is at the sides, not one full-width panel. The
+  // first version of this used `width: '100%'` for the beside case and painted
+  // the entire viewport — scene included — in band colour. It rendered as a
+  // completely blank brown screen on an ultrawide, and every measurement in the
+  // repo still passed, because nothing measures what is on top of the canvas.
+  const lip = `${Math.max(2, control * 0.045)}px solid ${BAND_EDGE}`;
+  const bandSurfaces: CSSProperties[] =
+    band.below > 0
+      ? [{ position: 'absolute', left: 0, right: 0, top: stage.height, bottom: 0, background: BAND_COLOR, borderTop: lip }]
+      : band.beside > 0
+        ? [
+            { position: 'absolute', left: 0, top: 0, bottom: 0, width: band.beside, background: BAND_COLOR, borderRight: lip },
+            { position: 'absolute', right: 0, top: 0, bottom: 0, width: band.beside, background: BAND_COLOR, borderLeft: lip },
+          ]
+        : [];
+
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none', zIndex: 10 }}>
+      {bandSurfaces.map((surface, index) => (
+        <div key={index} style={surface} />
+      ))}
       <div style={rowStyle}>
         {/* Back — hidden in the hub, which is where back would go nowhere. */}
         {currentScene !== 'playroom' && (

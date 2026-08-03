@@ -357,16 +357,32 @@ for (const [sceneId, build, layout] of ROOMS) {
 // Prop share falls as the frame widens — the playroom runs 31.7% at 1.00 and
 // 24.7% at 1.40, because a wider frame is mostly more side wall — so a bound set
 // at the square end would fail on a desktop the day it was written.
+//
+// RATCHETED after the poses were re-solved against a SCREENSHOT. The rendered
+// frames showed what the percentages did not: the bare floor was all in one
+// band across the bottom, in front of the nearest prop, while the furniture was
+// crushed into the top third. Measured, the bottom edge of the kitchen frame
+// landed at z -5.68 with the first prop at z -3.09 — a quarter of the frame
+// height was empty approach. Adding that to the solve moved all three:
+//
+//                 props           floor
+//     playroom    24.7 -> 27.8    44.1 -> 39.1
+//     kitchen     14.6 -> 17.7    64.7 -> 48.4
+//     living-room 13.7 -> 24.7    46.5 -> 41.9
+//
+// The bounds move with them, or the improvement is not held.
 const EXPECTED_COMPOSITION = {
-  // Measured 24.7% props, 0.0% ceiling at the worst aspect.
-  playroom: { maxCeiling: 0.01, minProps: 0.22 },
-  // Measured 17.8% props, 0.0% ceiling. Was 14.6% before the room was shortened
-  // by 25% and re-posed.
+  // Measured 27.8% props, 0.0% ceiling at the worst aspect.
+  playroom: { maxCeiling: 0.01, minProps: 0.25 },
+  // Measured 17.7% props, 0.0% ceiling. The kitchen keeps the most bare floor of
+  // the three because its furniture is all against the walls and its middle is
+  // genuinely empty — that is a set-content gap, not a camera one, and no pose
+  // fixes it. See the note above about what the lens and the room length did NOT
+  // buy.
   kitchen: { maxCeiling: 0.01, minProps: 0.15 },
-  // Measured 21.0% props, 0.0% ceiling. This was the room with a ceiling still
-  // in frame — 5.9%, reported as "ceiling is still visible in living room" — and
-  // the bound is 0.01 for all three now rather than 0.07 for this one.
-  'living-room': { maxCeiling: 0.01, minProps: 0.18 },
+  // Measured 24.7% props, 0.0% ceiling. This was the room reported as still
+  // showing its ceiling at 5.9%; the bound is 0.01 for all three now.
+  'living-room': { maxCeiling: 0.01, minProps: 0.22 },
 };
 
 /**

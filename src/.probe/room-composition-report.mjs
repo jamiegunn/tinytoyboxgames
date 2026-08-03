@@ -91,3 +91,5 @@ for (const [id, fn] of [
   console.log(`  -> minProps ${(minProps * 100).toFixed(1)}%   maxCeiling ${(maxCeil * 100).toFixed(1)}%`);
   contents?.cleanup?.();
 }
+
+process.exit(0);

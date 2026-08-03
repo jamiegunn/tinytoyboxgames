@@ -277,15 +277,19 @@ test('the surface standoff sits inside the window its four inputs define', () =>
   // standoff is 0.45 — but a pin that encodes my arithmetic error rather than the
   // code's is a pin that will fail the next honest reader instead of the next bug.
   //
-  // 2026-08-02: 1.269 -> 1.360. Nothing about the sparkle moved. The Playroom's
-  // orbit went from 14 to 15, first when the opening pose was solved rather than
-  // authored and then again when it was re-solved to keep the ceiling out of
-  // frame (see sceneCatalog and utils/scene/stageRect). This bound is
-  // proportional to that orbit: a camera further out means each pixel of
-  // interaction slack covers more world, so the standoff has MORE room, not
-  // less. The bound moving in the loosening direction is why no decision
-  // changed at either step.
-  assert.equal(upperBound.toFixed(3), '1.360');
+  // 2026-08-02: 1.269 -> 1.360 -> 0.861. Nothing about the sparkle moved. The
+  // Playroom's orbit has been re-solved three times as the framing work went on
+  // — 14, then 15, then 9.5 once the empty foreground was measured from a
+  // screenshot — and this bound is proportional to it: a camera CLOSER in means
+  // each pixel of interaction slack covers less world, so the standoff has less
+  // room than it did.
+  //
+  // This is the first of those moves that tightened rather than loosened it, so
+  // it is worth saying what the margin now is: the standoff is 0.45 against an
+  // upper bound of 0.861, and a lower bound of 0.366. Still comfortably inside,
+  // but the Playroom orbit is now the input that would break it first — pulling
+  // the camera in much below 9.5 puts the burst outside the interaction slack.
+  assert.equal(upperBound.toFixed(3), '0.861');
 });
 
 test('the chosen fallback depth is only reachable where nothing occupies the ray', () => {

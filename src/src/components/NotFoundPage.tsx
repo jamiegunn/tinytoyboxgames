@@ -29,7 +29,7 @@ export function NotFoundPage() {
         <div className="notfound-code">404</div>
         <h1 className="notfound-heading">This toy went missing!</h1>
         <p className="notfound-message">We looked in every toybox but couldn&rsquo;t find this page. Let&rsquo;s head back to where the fun is.</p>
-        <a href="/" className="notfound-home-link">
+        <a href="#/playroom" className="notfound-home-link">
           Back to Tiny Toybox &#x2190;
         </a>
       </div>

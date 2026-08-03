@@ -233,3 +233,69 @@ test('a band too thin to hold a control is not used as one', () => {
   const row = find(renderAt(M.UIOverlay, SLIVER), (n) => n.props?.style?.height === band.below);
   assert.equal(row, null, 'the HUD laid itself out inside a band too thin to hold it instead of floating');
 });
+
+test('no control is ever clipped by the edge of the screen', () => {
+  // FOUND BY LOOKING, NOT BY MEASURING. Sizing the HUD from the chrome band's
+  // DEPTH alone produced 132px controls on a 393-wide phone — a row 450px across
+  // in a 393px window, with the back and mute buttons sliced off by the screen
+  // edges. Every existing assertion passed: the buttons were big enough, in the
+  // band, and the right shape. None of them knew how wide the row was.
+  for (const at of [PHONE, ULTRAWIDE, INSIDE_BAND, { width: 320, height: 480 }, { width: 360, height: 900 }]) {
+    const tree = renderAt(M.UIOverlay, at);
+    const buttons = all(tree).filter((n) => n.type === 'button');
+    assert.ok(buttons.length >= 2, `expected at least two controls at ${at.width}x${at.height}`);
+    const band = M.resolveChromeBand(at.width, at.height);
+    // The row runs ACROSS a band below the stage and DOWN a band beside it, so
+    // which dimension can clip depends on which band exists. Checking the wrong
+    // one is how the first version of this reported a false failure on an
+    // ultrawide, where the controls stack vertically in a 524px-wide strip and
+    // summing their widths is meaningless.
+    const vertical = band.beside > 0;
+    const runLength = buttons.reduce((sum, b) => sum + (vertical ? b.props.style.height : b.props.style.width), 0);
+    const gaps = (buttons.length + 1) * buttons[0].props.style.width * 0.35;
+    const runSpan = vertical ? at.height : at.width;
+    assert.ok(
+      runLength + gaps <= runSpan + 1e-6,
+      `at ${at.width}x${at.height} the control ${vertical ? 'column' : 'row'} needs ${(runLength + gaps).toFixed(0)}px along a ${runSpan}px span — ` +
+        `${buttons.length} controls of ${buttons.map((b) => b.props.style.width.toFixed(0)).join(', ')}px would be clipped`,
+    );
+    // And the cross-axis: a control wider than the strip it sits in overhangs
+    // onto the scene even when the column itself fits.
+    if (vertical) {
+      for (const b of buttons) {
+        assert.ok(
+          b.props.style.width <= band.beside + 1e-6,
+          `a ${b.props.style.width.toFixed(0)}px control does not fit a ${band.beside.toFixed(0)}px side band`,
+        );
+      }
+    }
+  }
+});
+
+test('the chrome band never paints over the stage', () => {
+  // ALSO FOUND BY LOOKING. The band's surface used `width: 100%` for the
+  // side-band case, so on an ultrawide it covered the entire viewport — canvas
+  // included — and the app rendered as a completely blank brown screen. Nothing
+  // in the suite noticed, because nothing else asks what is drawn ON TOP of the
+  // canvas. A full-bleed opaque element in an overlay is worth an assertion of
+  // its own.
+  for (const at of [PHONE, ULTRAWIDE, INSIDE_BAND]) {
+    const stage = M.resolveStageRect(at.width, at.height);
+    const opaque = all(renderAt(M.UIOverlay, at)).filter((n) => n.type === 'div' && n.props?.style?.background && n.props.style.position === 'absolute');
+    for (const surface of opaque) {
+      const { left = 0, right = 0, top = 0, width, height } = surface.props.style;
+      // A surface that starts left of the stage must stop before it, and one
+      // that starts at the top must start at or below the stage's bottom edge.
+      const startsAtLeft = left === 0 && right !== 0;
+      const spansFullWidth = width === '100%' || (typeof width === 'number' && width >= at.width);
+      assert.ok(
+        !spansFullWidth || top >= stage.height - 1e-6,
+        `at ${at.width}x${at.height} a chrome surface spans the full width starting at y=${top}, over a stage ${stage.width}x${stage.height}. It is painting on the scene.`,
+      );
+      if (startsAtLeft && typeof width === 'number') {
+        assert.ok(width <= stage.offsetX + 1e-6, `a left chrome strip is ${width}px wide but the stage starts at x=${stage.offsetX}`);
+      }
+      void height;
+    }
+  }
+});

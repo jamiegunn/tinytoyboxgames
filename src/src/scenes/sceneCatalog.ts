@@ -137,7 +137,7 @@ export const SCENE_CATALOG = {
     // framed `hub_door_doorway` off the edge — the way out of the room. It was
     // fine in landscape, which is why nobody saw it, and no test had ever asked
     // what a room's own props project to.
-    cameraPreset: { azimuth: Math.PI, polar: 1.02, distance: 15, target: [0, 0, -2] },
+    cameraPreset: { azimuth: Math.PI, polar: 1.02, distance: 9.5, target: [0, 2.5, -6] },
     audio: { musicId: 'mus_hub_background', ambientId: 'amb_hub_room_tone' },
     games: [],
   },
@@ -163,7 +163,7 @@ export const SCENE_CATALOG = {
     // ceiling in it. Of 50,147 clean poses only 33,668 show no ceiling, and this
     // is the one among those that keeps every tappable furthest inside the edge
     // (0.973 NDC). See .probe/no-ceiling-solve.mjs.
-    cameraPreset: { azimuth: Math.PI, polar: 1.14, distance: 9, target: [0, 2.25, -2.6] },
+    cameraPreset: { azimuth: Math.PI, polar: 1.04, distance: 7, target: [0, 3.25, -4.6] },
     audio: { musicId: 'mus_kitchen_background', ambientId: 'amb_hub_room_tone' },
     games: [],
     backTarget: 'living-room',
@@ -193,7 +193,7 @@ export const SCENE_CATALOG = {
     // pinned to a side wall the best pose for one is the best pose for the other.
     // Every tappable sits inside 0.880 NDC here against the Kitchen's 0.973.
 
-    cameraPreset: { azimuth: Math.PI, polar: 1.14, distance: 9, target: [0, 2.25, -2.6] },
+    cameraPreset: { azimuth: Math.PI, polar: 1.0, distance: 9.5, target: [0, 1.75, -1.6] },
     audio: { musicId: 'mus_living_room_background', ambientId: 'amb_hub_room_tone' },
     games: [],
   },

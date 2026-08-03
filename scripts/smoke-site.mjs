@@ -48,11 +48,20 @@ const browser = await chromium.launch({
 });
 const page = await browser.newPage();
 
+// ONLY OUR OWN REQUESTS COUNT. A 404 on our bundle is the defect this script
+// exists for; a blocked Google Font is somebody else's outage and must not fail
+// a deploy. Found by running it: the first version failed on two font requests
+// that a sandbox proxy had refused, which is precisely the flaky check that gets
+// deleted the second time it cries wolf. Third-party trouble is still printed,
+// just not fatal.
+const origin = new URL(url).origin;
 const failedRequests = [];
+const foreignFailures = [];
 const pageErrors = [];
-page.on('requestfailed', (r) => failedRequests.push(`${r.method()} ${r.url()} — ${r.failure()?.errorText}`));
+const note = (entry, requestUrl) => (requestUrl.startsWith(origin) ? failedRequests : foreignFailures).push(entry);
+page.on('requestfailed', (r) => note(`${r.method()} ${r.url()} — ${r.failure()?.errorText}`, r.url()));
 page.on('response', (r) => {
-  if (r.status() >= 400) failedRequests.push(`${r.status()} ${r.url()}`);
+  if (r.status() >= 400) note(`${r.status()} ${r.url()}`, r.url());
 });
 page.on('pageerror', (e) => pageErrors.push(String(e)));
 
@@ -64,8 +73,9 @@ const bodyText = (await page.evaluate(() => document.body.innerText || '')).trim
 console.log(`url                 ${url}`);
 console.log(`#root children      ${rootChildren}`);
 console.log(`visible text        ${bodyText ? JSON.stringify(bodyText.slice(0, 120)) : '(none)'}`);
-console.log(`failed requests     ${failedRequests.length}`);
+console.log(`failed requests     ${failedRequests.length} same-origin, ${foreignFailures.length} third-party (not fatal)`);
 for (const f of failedRequests.slice(0, 8)) console.log(`  ✖ ${f}`);
+for (const f of foreignFailures.slice(0, 4)) console.log(`  · ${f}`);
 console.log(`page errors         ${pageErrors.length}`);
 for (const e of pageErrors.slice(0, 5)) console.log(`  ✖ ${e}`);
 
@@ -82,7 +92,7 @@ if (rootChildren === 0) {
 } else if (rootChildren < 0 && !bodyText) {
   problems.push('no #root element and no visible text — the page rendered nothing at all');
 }
-if (failedRequests.length) problems.push(`${failedRequests.length} request(s) failed to load`);
+if (failedRequests.length) problems.push(`${failedRequests.length} same-origin request(s) failed to load`);
 if (pageErrors.length) problems.push(`${pageErrors.length} uncaught error(s) on the page`);
 
 if (problems.length) {

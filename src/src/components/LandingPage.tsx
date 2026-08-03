@@ -7,6 +7,18 @@ import './LandingPage.css';
  * feature highlights, scene previews, safe-space trust banner, and a CTA
  * that links to the playroom.
  *
+ * THE CTA HREFS ARE RELATIVE, AND THAT IS LOAD-BEARING. They were `/#/playroom`
+ * — an absolute path — and the app is not served from the site root. On
+ * tinytoyboxgames.com it lives at `/game/`, so "Open the Toybox" navigated to
+ * `tinytoyboxgames.com/#/playroom`: the marketing home page. A child pressed the
+ * one big button on the page and was thrown out of the app.
+ *
+ * `#/playroom` changes only the fragment, so it works from whatever path the
+ * document happens to be served at. Nothing in a component may assume the app
+ * is at the origin root — Vite rewrites `index.html` for the base but it cannot
+ * rewrite a string in a TSX file. `tests/framework/noAbsoluteAppLinks.test.mjs`
+ * is the guard.
+ *
  * @returns The full landing page React element.
  */
 export function LandingPage() {
@@ -68,7 +80,7 @@ export function LandingPage() {
             included in the current build &mdash; no install required.
           </p>
 
-          <a href="/#/playroom" className="landing-cta">
+          <a href="#/playroom" className="landing-cta">
             Open the Toybox <span className="landing-cta-arrow">&rarr;</span>
           </a>
 
@@ -197,7 +209,7 @@ export function LandingPage() {
       <section className="landing-bottom-cta">
         <div ref={bottomCtaRef} className="landing-reveal">
           <p className="landing-bottom-cta-text">Ready to play? No sign-up, no download, no waiting.</p>
-          <a href="/#/playroom" className="landing-cta">
+          <a href="#/playroom" className="landing-cta">
             Open the Toybox <span className="landing-cta-arrow">&rarr;</span>
           </a>
         </div>
