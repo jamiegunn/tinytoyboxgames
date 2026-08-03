@@ -30,14 +30,10 @@ export interface SceneCameraPresetDefinition {
   target: readonly [number, number, number];
   /** Optional camera-control clamps for scenes that need tighter framing. */
   constraints?: {
-    maxAzimuthRange?: number;
     minPolar?: number;
     maxPolar?: number;
     minDistance?: number;
     maxDistance?: number;
-    panRangeX?: number;
-    minTargetY?: number;
-    maxTargetY?: number;
     ceilingY?: number;
   };
 }
@@ -130,7 +126,18 @@ export const SCENE_CATALOG = {
     displayName: 'Playroom',
     kind: 'landing',
     loader: () => import('@app/scenes/world/places/house/subplaces/playroom'),
-    cameraPreset: { azimuth: Math.PI, polar: 1.19, distance: 14, target: [0, 0.5, 0] },
+    // THE OPENING POSE IS SOLVED, NOT AUTHORED. `.probe/room-pose-final.mjs`
+    // sweeps distance x tilt x look-at and keeps only poses where every tappable
+    // prop's bounding box is inside the frame AND no corner of the frame leaves
+    // the set, at rest and at both ends of the rotation clamp, at every aspect
+    // the letterbox can produce. Among those it takes the TIGHTEST — the props
+    // as large on screen as they go. See utils/scene/stageRect.ts for the band.
+    //
+    // WHAT IT FIXED HERE: at the square end of the band the pose that shipped
+    // framed `hub_door_doorway` off the edge — the way out of the room. It was
+    // fine in landscape, which is why nobody saw it, and no test had ever asked
+    // what a room's own props project to.
+    cameraPreset: { azimuth: Math.PI, polar: 1.02, distance: 15, target: [0, 0, -2] },
     audio: { musicId: 'mus_hub_background', ambientId: 'amb_hub_room_tone' },
     games: [],
   },
@@ -138,7 +145,25 @@ export const SCENE_CATALOG = {
     displayName: 'Kitchen',
     kind: 'landing',
     loader: () => import('@app/scenes/world/places/house/subplaces/kitchen'),
-    cameraPreset: { azimuth: Math.PI, polar: 1.19, distance: 14, target: [0, 0.5, 0] },
+    // THE OPENING POSE IS SOLVED, NOT AUTHORED. `.probe/room-pose-final.mjs`
+    // sweeps distance x tilt x look-at and keeps only poses where every tappable
+    // prop's bounding box is inside the frame AND no corner of the frame leaves
+    // the set, at rest and at both ends of the rotation clamp, at every aspect
+    // the letterbox can produce. Among those it takes the TIGHTEST — the props
+    // as large on screen as they go. See utils/scene/stageRect.ts for the band.
+    //
+    // WHAT IT FIXED HERE: at the square end of the band the pose that shipped
+    // framed `toybox_kitchen-nature_root` off the edge — the way to Nature. It
+    // was fine in landscape, which is why nobody saw it.
+    //
+    // RE-SOLVED after the room was shortened by 25%. A shorter room is a HARDER
+    // one to frame, not an easier one: the camera cannot back off past the front
+    // wall any more, so it has to be closer, and a closer camera needs a wider
+    // frame to hold the same props — which in a 6.2-high room is a frame with
+    // ceiling in it. Of 50,147 clean poses only 33,668 show no ceiling, and this
+    // is the one among those that keeps every tappable furthest inside the edge
+    // (0.973 NDC). See .probe/no-ceiling-solve.mjs.
+    cameraPreset: { azimuth: Math.PI, polar: 1.14, distance: 9, target: [0, 2.25, -2.6] },
     audio: { musicId: 'mus_kitchen_background', ambientId: 'amb_hub_room_tone' },
     games: [],
     backTarget: 'living-room',
@@ -147,7 +172,28 @@ export const SCENE_CATALOG = {
     displayName: 'Living Room',
     kind: 'landing',
     loader: () => import('@app/scenes/world/places/house/subplaces/living-room'),
-    cameraPreset: { azimuth: Math.PI, polar: 1.19, distance: 14, target: [0, 0.5, 0] },
+    // THE OPENING POSE IS SOLVED, NOT AUTHORED. `.probe/room-pose-final.mjs`
+    // sweeps distance x tilt x look-at and keeps only poses where every tappable
+    // prop's bounding box is inside the frame AND no corner of the frame leaves
+    // the set, at rest and at both ends of the rotation clamp, at every aspect
+    // the letterbox can produce. Among those it takes the TIGHTEST — the props
+    // as large on screen as they go. See utils/scene/stageRect.ts for the band.
+    //
+    // WHAT IT FIXED HERE: at the square end of the band the pose that shipped
+    // framed BOTH toyboxes off the edge — every way out of this room at once.
+    // These two are also why the whole stage band is what it is: they stand hard
+    // against the side walls, so the frame has to be wide enough to contain the
+    // walls themselves — which is why, after being the binding constraint on the
+    // stage aspect band, then on rotation, and finally on whether this room could
+    // be framed at all once it was shortened, the two toyboxes were moved 0.9
+    // inboard. See NATURE_TOYBOX_X in this room's layout.ts for what that bought.
+    //
+    // With them off the walls this room takes the SAME pose as the Kitchen — the
+    // two shells are identical, 10.8 x 15 x 6.2, and once neither has a prop
+    // pinned to a side wall the best pose for one is the best pose for the other.
+    // Every tappable sits inside 0.880 NDC here against the Kitchen's 0.973.
+
+    cameraPreset: { azimuth: Math.PI, polar: 1.14, distance: 9, target: [0, 2.25, -2.6] },
     audio: { musicId: 'mus_living_room_background', ambientId: 'amb_hub_room_tone' },
     games: [],
   },
@@ -161,20 +207,14 @@ export const SCENE_CATALOG = {
     // four portals off a phone, which is the worse defect for a player who cannot
     // read.
     //
-    // `maxTargetY: 1.0` is a FRAMING choice, not an audit requirement — the
-    // ground-coverage and sky/fog suites both pass with the shared 2.0 default
-    // (mutation M2). What it buys is measured: it cuts the band of bare sky above
-    // the near treeline canopy from 21.6% of frame height to 16.6% in landscape
-    // and from 29.6% to 26.1% at 360x900. See `.probe/nature-constraint-value.mjs`.
-    //
-    // There used to be a `panRangeX: 3.0` here too, justified in this comment as
-    // something "the ground-coverage audit needs". It was not: at the pan extreme
-    // it is indistinguishable from the shared 3.5 default on every instrumented
-    // metric (identical 0.114 sky fraction, identical 2 of 4 portals framed), and
-    // only 4.5 degrades framing to 1 of 4. An unmeasurable constant documented as
-    // load-bearing is the defect this scene's review round is about, so it is gone.
-    // See tests/room/scene-ground-coverage.test.mjs.
-    cameraPreset: { azimuth: Math.PI, polar: 1.2, distance: 10, target: [0, 0.3, 0], constraints: { maxTargetY: 1.0 } },
+    // THE TARGET CONSTRAINTS ARE GONE, WITH THE PANNING THEY EXISTED FOR.
+    // `maxTargetY: 1.0` trimmed the band of bare sky above the near treeline from
+    // 21.6% of frame height to 16.6% in landscape — but only once the player had
+    // dragged the target upward, which is no longer a thing they can do. At rest
+    // the target sits where this preset puts it and always did, so the opening
+    // framing is unchanged and the constant now describes a state nothing can
+    // reach. An earlier `panRangeX: 3.0` went the same way for the same reason.
+    cameraPreset: { azimuth: Math.PI, polar: 1.2, distance: 10, target: [0, 0.3, 0] },
     audio: { musicId: 'mus_nature_background', ambientId: 'amb_nature_stream' },
     games: ['bubble-pop', 'fireflies', 'star-catcher'],
   },
@@ -221,14 +261,10 @@ export const SCENE_CATALOG = {
       distance: 12,
       target: [0, 1.5, 0],
       constraints: {
-        maxAzimuthRange: 0.12,
         minPolar: 1.19,
         maxPolar: 1.29,
         minDistance: 11,
         maxDistance: 12,
-        panRangeX: 1.4,
-        minTargetY: 1.4,
-        maxTargetY: 1.65,
         ceilingY: 8,
       },
     },

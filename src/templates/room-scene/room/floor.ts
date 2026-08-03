@@ -16,6 +16,8 @@ export function createFloor(scene: Scene): Mesh {
   floorGeometry.rotateX(-Math.PI / 2);
 
   const floor = new Mesh(floorGeometry, createWoodMaterial('__SCENE_ID___floorMat', new Color(0.67, 0.5, 0.34)));
+  // See the note on the ceiling: an unnamed shell mesh is read as content.
+  floor.name = '__SCENE_ID___floor';
   floor.receiveShadow = true;
   scene.add(floor);
   return floor;

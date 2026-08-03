@@ -48,6 +48,7 @@
 
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import gsap from 'gsap';
 import { Box3, BoxGeometry, Group, Mesh, PerspectiveCamera, Scene, Shape, ShapeGeometry, Vector3 } from 'three';
 import { bundleEntry } from '../framework/_tsload.mjs';
@@ -58,6 +59,11 @@ const M = await bundleEntry(
   export { classifyPerchRoots, buildPerchField, standingYAt, spansAt, resolvePerchTarget, FLOOR_CONTACT_Y, MIN_SOLID_HEIGHT }
     from './src/utils/scene/perchSurfaces';
   export { wireFloorTap, deriveOwlFlightBounds } from './src/utils/sceneHelpers';
+  export { createOwlCompanion } from './src/entities/owl';
+  export { buildOwl } from './src/entities/owl/build';
+  export { createFrameClock } from './src/utils/frameClock';
+  export { setSceneRuntime } from './src/utils/sceneRuntime';
+  export { createDisposalScope } from './src/utils/disposal';
 
   export { buildPlayroomContents } from './src/scenes/world/places/house/subplaces/playroom/room';
   export { buildRoomContents as buildKitchenContents } from './src/scenes/world/places/house/subplaces/kitchen/room';
@@ -107,19 +113,36 @@ const M = await bundleEntry(
 // is indistinguishable from a suite that never finished.
 after(() => gsap.ticker.sleep());
 
-/** The owl's resting centre height above whatever it stands on. Every scene authors 0.35. */
-const PERCH_OFFSET = 0.35;
+/**
+ * The owl's resting centre height above whatever it stands on.
+ *
+ * It is `startPosition.y` — every scene's `floorTap.owlPosition.y` — and the
+ * sweeps below read it per scene rather than restating the 0.35 all five happen
+ * to share today. A scene that raises its owl should re-measure, not silently
+ * keep being graded against someone else's number.
+ */
+const perchOffsetOf = (scene) => scene.config.owlPosition.y;
 
 /**
- * How tall the owl is above its feet.
+ * How tall the owl is above its feet — MEASURED off the real bird.
  *
- * The runtime measures this off the built bird (`entities/owl/actions.ts` takes
- * a `Box3` at construction) rather than writing it down. This suite does not
- * build an owl, so it states the measured value — and over-states it slightly,
- * which is the safe direction: a taller owl needs more clearance, so every
- * assertion below is stricter than the real bird faces.
+ * This was a literal `1.1` with a comment claiming it over-stated the truth and
+ * was therefore the safe direction. The bird is 1.223. The comment was not just
+ * wrong, it was wrong in the direction it promised it was not: every sweep below
+ * ran against a smaller owl than the one that ships, so a prop 1.15 above the
+ * floor was something this suite let the owl walk under and the runtime did not.
+ *
+ * A hand-written copy of a number the code derives is the defect this repo has a
+ * whole test suite about (`tests/room/layout-exports-have-readers.test.mjs`).
+ * Build the owl and ask it.
  */
-const OWL_BODY = 1.1;
+const OWL_BODY = (() => {
+  const scene = new Scene();
+  const parts = M.buildOwl(scene, new Vector3(0, 0.35, 0));
+  scene.updateMatrixWorld(true);
+  const box = new Box3().setFromObject(parts.root);
+  return box.max.y - box.min.y;
+})();
 
 const noop = () => {};
 
@@ -182,6 +205,44 @@ function buildImmersive(composers, materials, ground, extra) {
   return { scene, ground: groundMesh, cleanup: () => teardowns.forEach((off) => off()) };
 }
 
+/**
+ * The two immersive scenes' composer lists, named so test 6 can pin them.
+ *
+ * The three ROOMS run their real `buildContents`, so nothing about them can go
+ * stale. These two do not — running the scene entrypoints would need a camera
+ * rig and a canvas — so the price is that this list is a hand-kept copy of
+ * theirs, and a hand-kept copy is exactly what goes quietly wrong. Test 6 is the
+ * receipt.
+ */
+const NATURE_COMPOSERS = {
+  composeStream: M.composeStream,
+  composeMushrooms: M.composeMushrooms,
+  composeFlowers: M.composeFlowers,
+  composeLeaves: M.composeLeaves,
+  composeLog: M.composeLog,
+  composeStones: M.composeStones,
+  composeButterflies: M.composeButterflies,
+  composeTrees: M.composeTrees,
+  composeGrassPatches: M.composeGrassPatches,
+  composeLeafLitter: M.composeLeafLitter,
+  composeToadstools: M.composeToadstools,
+  composeMossPatches: M.composeMossPatches,
+  composeFerns: M.composeFerns,
+  composeAcorns: M.composeAcorns,
+  composeSnail: M.composeSnail,
+};
+
+const COVE_COMPOSERS = {
+  composeBarrels: M.composeBarrels,
+  composeAnchor: M.composeAnchor,
+  composeRopeCoils: M.composeRopeCoils,
+  composeRailStowage: M.composeRailStowage,
+  composeParrots: M.composeParrots,
+  composeCannons: M.composeCannons,
+  composeTreasureChests: M.composeTreasureChests,
+  composeShipWheels: M.composeShipWheels,
+};
+
 const SCENES = [
   { id: 'playroom', build: () => buildRoom(M.buildPlayroomContents), config: M.PLAYROOM_ENVIRONMENT.floorTap },
   { id: 'kitchen', build: () => buildRoom(M.buildKitchenContents), config: M.KITCHEN_ENVIRONMENT.floorTap },
@@ -189,25 +250,11 @@ const SCENES = [
   {
     id: 'nature',
     config: M.NATURE_ENVIRONMENT.floorTap,
+    entrypoint: 'src/scenes/immersive-toybox-scenes/naturescene/index.ts',
+    composers: NATURE_COMPOSERS,
     build: () =>
       buildImmersive(
-        [
-          M.composeStream,
-          M.composeMushrooms,
-          M.composeFlowers,
-          M.composeLeaves,
-          M.composeLog,
-          M.composeStones,
-          M.composeButterflies,
-          M.composeTrees,
-          M.composeGrassPatches,
-          M.composeLeafLitter,
-          M.composeToadstools,
-          M.composeMossPatches,
-          M.composeFerns,
-          M.composeAcorns,
-          M.composeSnail,
-        ],
+        Object.values(NATURE_COMPOSERS),
         M.createNatureMaterials(),
         // The scene's own ground builder, with the scene's own ground config.
         (scene) =>
@@ -223,18 +270,11 @@ const SCENES = [
   {
     id: 'pirate-cove',
     config: M.PIRATE_COVE_ENVIRONMENT.floorTap,
+    entrypoint: 'src/scenes/immersive-toybox-scenes/pirate-cove/index.ts',
+    composers: COVE_COMPOSERS,
     build: () =>
       buildImmersive(
-        [
-          M.composeBarrels,
-          M.composeAnchor,
-          M.composeRopeCoils,
-          M.composeRailStowage,
-          M.composeParrots,
-          M.composeCannons,
-          M.composeTreasureChests,
-          M.composeShipWheels,
-        ],
+        Object.values(COVE_COMPOSERS),
         M.createPirateCoveMaterials(),
         // The deck is the hull outline, filled — same construction as the scene's
         // own `buildContents`, reading the same `HULL_OUTLINE` and no literals.
@@ -340,8 +380,13 @@ const EXPECTED_INVENTORY = {
     airborne: ['ceiling', 'mobilePivot', 'sunRay0', 'sunRay1', 'sunRay2'],
   },
   kitchen: {
+    // `Group` and `Mesh` used to appear here, which is what an unnamed object
+    // looks like from a classifier: three.js falls back to the constructor name.
+    // They were the sample counter and the CEILING. This suite could see them,
+    // pinned them, and nobody read the pin closely enough to ask why two of the
+    // Kitchen's perch roots were called after their own types — see
+    // tests/room/room-scene-mesh-names.test.mjs for what that cost elsewhere.
     solid: [
-      'Group',
       'kit_apple',
       'kit_ballRed',
       'kit_ballTeal',
@@ -358,10 +403,11 @@ const EXPECTED_INVENTORY = {
       'kitchen_leftBaseUnits',
       'kitchen_leftDresser',
       'kitchen_livingRoomDoor_doorway',
+      'kitchen_sampleCounter',
       'kitchen_stove',
       'toybox_kitchen-nature_root',
     ],
-    airborne: ['Mesh'],
+    airborne: ['kitchen_ceiling'],
   },
   'living-room': {
     solid: [
@@ -507,6 +553,7 @@ for (const scene of SCENES) {
     assert.ok(field.occupied > 40, `${scene.id}: only ${field.occupied} occupied cells — this sweep would pass over an empty scene`);
 
     const stand = (x, z, floorY, bodyHeight) => M.standingYAt(x, z, floorY, bodyHeight, field);
+    const perchOffset = perchOffsetOf(scene);
     let inside = null;
     let hovering = null;
     let unreachable = null;
@@ -519,8 +566,8 @@ for (const scene of SCENES) {
 
         // A floor tap: the raycast hit is ON THE FLOOR, y = 0, whatever is
         // standing there. That is the whole defect, reproduced exactly.
-        const landed = M.resolvePerchTarget(new Vector3(x, 0, z), PERCH_OFFSET, OWL_BODY, bounds, stand);
-        const feet = landed.y - PERCH_OFFSET;
+        const landed = M.resolvePerchTarget(new Vector3(x, 0, z), perchOffset, OWL_BODY, bounds, stand);
+        const feet = landed.y - perchOffset;
         // FEET plus body, not root plus body. `landed.y` is the owl's centre, so
         // adding the body height to it overstates its head by one perch offset —
         // which made this report 0.04-unit "overlaps" with things sitting just
@@ -652,6 +699,9 @@ function fieldOf(specs, bounds) {
   scene.updateMatrixWorld(true);
   return M.buildPerchField(scene.children, bounds);
 }
+
+/** Every scene authors this today; the fixtures below need one number. */
+const PERCH_OFFSET = 0.35;
 
 const WIDE = { minX: -9, maxX: 9, minZ: -9, maxZ: 9, minY: 0.3, maxY: 8 };
 
@@ -801,6 +851,160 @@ test('a floor tap on a room prop flies the owl ON TOP of it, through the real wi
   assert.ok(
     feet >= box.max.y - 1e-6,
     `a tap on the fridge put the owl's feet at y ${feet.toFixed(2)}, below the fridge's top at ${box.max.y.toFixed(2)} — it is standing inside the fridge`,
+  );
+
+  cleanup();
+  contents?.cleanup?.();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEST 6 — the hand-kept composer lists still match the scenes
+// ─────────────────────────────────────────────────────────────────────────────
+
+for (const scene of SCENES.filter((entry) => entry.entrypoint)) {
+  test(`${scene.id}: this suite builds every composer the scene runs`, () => {
+    // Without this, adding a prop to Nature adds it to the game and not to this
+    // measurement, and the suite reports a clear scene while missing the thing
+    // that was just added. A new large prop is precisely the change most likely
+    // to put the owl somewhere it should not be — the tree canopies that started
+    // all this are the proof.
+    //
+    // `tests/room/portalVisibility.test.mjs` carries the same guard for the same
+    // reason; this suite went without one for a while, which is how it came to
+    // cover three rooms and neither scene.
+    const source = readFileSync(new URL(`../../${scene.entrypoint}`, import.meta.url), 'utf8');
+    const declared = [...source.matchAll(/^import \{ (compose\w+) \}/gm)].map((match) => match[1]).sort();
+    const measured = Object.keys(scene.composers).sort();
+    assert.deepEqual(
+      measured,
+      declared,
+      `${scene.id}: composer list drift — ${scene.entrypoint} imports [${declared.join(', ')}], this suite builds [${measured.join(', ')}]`,
+    );
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEST 7 — the real bird, all the way through
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Flies a real `OwlCompanion` and returns where it came to rest.
+ *
+ * WHY THIS EXISTS. Everything above drives `resolvePerchTarget`, and test 5
+ * drives `wireFloorTap` — but test 5 stubs the owl and re-runs the resolver
+ * itself, so between them they prove the RULE is right and the LOOKUP is handed
+ * over, and neither proves the owl uses it. Deleting the surface argument from
+ * `entities/owl/actions.ts` left all twenty-four of the other tests green. That
+ * is the same shape as the defect this whole file is about: a claim about
+ * landing behaviour that nothing connected to the thing that lands.
+ *
+ * gsap has no ticker in node, so the flight is driven by hand off the global
+ * timeline until the landing callback fires.
+ *
+ * @param surfaceAt - The lookup to give the owl.
+ * @param target - Where to tap.
+ * @returns The owl's root position after landing, and whether it landed at all.
+ */
+function flyRealOwl(surfaceAt, target) {
+  const scene = new Scene();
+  const bounds = { minX: -9, maxX: 9, minZ: -9, maxZ: 9, minY: 0.3, maxY: 8 };
+  const owl = M.createOwlCompanion(scene, new Vector3(0, PERCH_OFFSET, 4), { flightBounds: bounds });
+  owl.setSurfaceYAt(surfaceAt);
+
+  let landed = false;
+  owl.flyTo(target, () => {
+    landed = true;
+  });
+  for (let step = 0; step < 600 && !landed; step++) gsap.globalTimeline.totalTime(step * 0.05);
+
+  const resting = owl.root.position.clone();
+  owl.dispose();
+  return { landed, resting };
+}
+
+test('the real owl lands on top of what it was flown at', () => {
+  const block = (x, z, floorY) => (Math.abs(x) <= 1 && Math.abs(z) <= 1 ? 2.6 : floorY);
+  const { landed, resting } = flyRealOwl(block, new Vector3(0, 0, 0));
+  assert.ok(landed, 'the owl never finished its flight');
+  assert.ok(
+    Math.abs(resting.y - (2.6 + PERCH_OFFSET)) < 0.01,
+    `the owl came to rest at y ${resting.y.toFixed(2)} instead of on the block at ${(2.6 + PERCH_OFFSET).toFixed(2)} — it is not consulting the surface lookup it was given`,
+  );
+});
+
+test('the real owl passes its own measured height to the surface lookup', () => {
+  // A bird that reported no height would walk under everything, and every
+  // assertion in this file that uses a hand-made fixture would still pass —
+  // they supply the height themselves. This one takes it from the bird.
+  let sawBodyHeight = null;
+  const record = (x, z, floorY, bodyHeight) => {
+    sawBodyHeight = bodyHeight;
+    return floorY;
+  };
+  const { landed } = flyRealOwl(record, new Vector3(0, 0, 0));
+  assert.ok(landed, 'the owl never finished its flight');
+  assert.ok(
+    sawBodyHeight !== null && Math.abs(sawBodyHeight - OWL_BODY) < 0.05,
+    `the owl told the surface map its body was ${sawBodyHeight} tall; the built bird measures ${OWL_BODY.toFixed(3)}`,
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEST 8 — the surface map is ready before anyone taps
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('wireFloorTap builds the surface map on a frame, not on the first tap', () => {
+  // The lazy fallback makes this invisible to every other test: remove the warm
+  // and the field is simply built later, correctly, and nothing fails. What
+  // fails is a child's first touch of the floor, which freezes for as long as it
+  // takes to walk every triangle in the scene. A performance property nothing
+  // asserts is a performance property that comes back.
+  //
+  // ASSERTED BY EMPTYING THE SCENE, NOT BY A STOPWATCH. The first draft timed
+  // the first lookup against the second; the Kitchen's field builds in 3 ms once
+  // the JIT is warm and 34 ms when it is not, so any threshold that catches the
+  // regression also fires on a loaded CI box, and any threshold that does not
+  // catches nothing — this test passed the mutation that deleted the warm.
+  //
+  // Emptying the scene after the frame turns it into a question with a yes or a
+  // no. A field captured on the frame still knows where the fridge was. A field
+  // that has not been built yet is about to be built from an empty scene and
+  // will answer 0. No clock, no timing, no flake.
+  const scene = new Scene();
+  const contents = M.buildKitchenContents({
+    scene,
+    canvas: stubCanvas(),
+    camera: new PerspectiveCamera(),
+    dispatcher: stubDispatcher(),
+    nav: stubNav(),
+    owl: stubOwl(),
+  });
+  scene.updateMatrixWorld(true);
+
+  const fridge = scene.children.find((child) => child.name === 'kitchen_fridge');
+  assert.ok(fridge, 'kitchen: no fridge in the built room');
+  const box = new Box3().setFromObject(fridge);
+  const fx = (box.min.x + box.max.x) / 2;
+  const fz = (box.min.z + box.max.z) / 2;
+
+  // The scene runtime the app installs, so `getSceneClock` finds one.
+  const clock = M.createFrameClock();
+  M.setSceneRuntime(scene, clock, M.createDisposalScope());
+
+  let lookup = null;
+  const owl = { ...stubOwl(), setSurfaceYAt: (resolve) => (lookup = resolve) };
+  const { cleanup } = M.wireFloorTap(scene, { ...stubDispatcher(), registerWithPoint: () => noop }, contents.floorTargets, M.KITCHEN_ENVIRONMENT.floorTap, owl);
+  assert.ok(lookup, 'wireFloorTap did not give the owl a surface lookup');
+
+  // One frame. No taps.
+  clock.tick(1 / 60);
+
+  // Now take the scene away.
+  scene.remove(...scene.children);
+
+  assert.ok(
+    lookup(fx, fz, 0, OWL_BODY) >= box.max.y - 0.01,
+    `after one frame and no taps, the surface map does not know about the fridge — it is still being built lazily, so the cost of building it lands on the first tap`,
   );
 
   cleanup();

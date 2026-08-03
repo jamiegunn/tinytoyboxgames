@@ -129,10 +129,18 @@ The current repo safely supports these claims:
 - procedural audio architecture
 - React app shell + Three.js scene lifecycle separation
 - generator-based scaffolding for immersive scenes, room scenes, and minigames
+- a drag turns the scene about its centre; there is no panning, and the turn is
+  clamped to ±10.3° in every scene (`utils/scene/rotationRange.ts`)
+- the Kitchen and Living Room are 10.8 x 15 x 6.2; the Playroom is 12 x 24 x 6.75
+- no room shows any of its ceiling at the opening pose, at any stage aspect
+- the canvas is a letterboxed stage with an aspect clamped to 1.0–1.4, and the
+  leftover viewport is a chrome band the HUD lives in (`utils/scene/stageRect.ts`)
 
 ## Known current-state gaps
 
 - The Playroom `creative` toybox is visible but inactive (destination is `null`); it now responds to taps with a wiggle, sparkle, and sound instead of a dead tap
+- Rotation is capped at ±10.3° by the Kitchen at the wide end of the stage band (±12.1°). The Living Room used to set this and no longer does — its two toyboxes came 0.9 off the side walls, which took it from ±12.0° to ±29.3°. See architecture-standards.md#stagerect
+- On a phone the chrome band takes roughly half the screen, because a landscape-shaped set cannot fill a portrait viewport. The band is usable space rather than a defect, but nothing yet puts anything in it beyond the three HUD buttons
 - Public marketing copy must not claim four worlds or twelve mini-games
 - Some internal AI docs may lag behind current route and minigame reality if this file is not kept updated
 

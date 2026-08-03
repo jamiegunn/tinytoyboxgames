@@ -16,6 +16,9 @@ export function createFloor(scene: Scene): Mesh {
   floorGeometry.rotateX(-Math.PI / 2);
 
   const floor = new Mesh(floorGeometry, createWoodMaterial('kitchen_floorMat', new Color(0.67, 0.5, 0.34)));
+  // See the note on `kitchen_ceiling`: unnamed shell meshes are read as content
+  // by every guard that classifies a frame.
+  floor.name = 'kitchen_floor';
   floor.receiveShadow = true;
   scene.add(floor);
   return floor;

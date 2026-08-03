@@ -95,6 +95,7 @@ import { projectedHull } from '../framework/_project.mjs';
 const M = await bundleEntry(
   'portal-visibility',
   `
+  export { stageAspectFor } from './src/utils/scene/stageRect';
   export { SCENE_CAMERA_FOV, resolveSceneCameraPose } from './src/utils/cameraPresets';
   export { buildGamePortal } from './src/minigames/framework/gamePortal';
 
@@ -135,17 +136,26 @@ const M = await bundleEntry(
  * `pirate-cove-composition`; occlusion is aspect-sensitive because the camera
  * pulls BACK on narrow viewports, which compresses depth separation on screen.
  */
-const ASPECTS = [
-  ['landscape 1280x720', 1280 / 720],
-  ['tablet 1024x768', 1024 / 768],
-  ['square 1x1', 1],
-  ['iPad portrait 768x1024', 768 / 1024],
-  ['iPhone SE 375x667', 375 / 667],
-  ['viewport 480x854', 480 / 854],
-  ['iPhone 15 393x852', 393 / 852],
-  ['Pixel 8 412x915', 412 / 915],
-  ['extreme 360x900', 0.4],
+// THE ASPECTS THE CAMERA CAN ACTUALLY BE GIVEN, not the aspects a device can
+// have. The stage is letterboxed (see src/utils/scene/stageRect.ts): outside a
+// 1.0-1.4 band the leftover viewport becomes chrome rather than scene, so a
+// 0.40 phone renders a 1.00 stage. This list used to be nine raw device aspects,
+// five of which the camera can no longer be handed at all — and asserting
+// against a state the app cannot reach is how a suite comes to look thorough
+// while covering less than it claims. Derived from `stageAspectFor` so that
+// widening the band cannot leave it behind.
+const SHIPPING_VIEWPORTS = [
+  ['landscape 1280x720', 1280, 720],
+  ['tablet 1024x768', 1024, 768],
+  ['square 800x800', 800, 800],
+  ['iPad portrait 768x1024', 768, 1024],
+  ['viewport 480x854', 480, 854],
+  ['iPhone SE 375x667', 375, 667],
+  ['iPhone 15 393x852', 393, 852],
+  ['Pixel 8 412x915', 412, 915],
+  ['extreme 400x1000', 400, 1000],
 ];
+const ASPECTS = SHIPPING_VIEWPORTS.map(([label, w, h]) => [`${label} -> stage ${M.stageAspectFor(w, h).toFixed(2)}`, M.stageAspectFor(w, h)]);
 
 /** Fraction of a portal's own silhouette that may be covered. See the header. */
 const MAX_OCCLUSION = 0.1;

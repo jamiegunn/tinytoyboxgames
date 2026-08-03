@@ -3,17 +3,19 @@
   "_recordedAt": "2026-08-02",
   "_note": "modulesWithZeroCoverage was 152 in the first baseline. It is 98 here not because tests were added but because the ratchet stopped counting type-only modules, which TypeScript erases and V8 therefore cannot instrument. 75 reachable modules are type-only. The earlier 152 was an over-count.",
   "_note2": "2026-08-02: modulesObserved 392 -> 393 and record-only line coverage 21.3% -> 35.6% on the addition of tests/room/portalVisibility.test.mjs, which builds both immersive scenes through their own compose* lists rather than importing a handful of prop factories. One extra MODULE, a third more LINES: the gap between those two numbers is the whole reason this ratchet gates modules and only records lines.",
-  "modulesObserved": 395,
-  "modulesWithZeroCoverage": 98,
-  "reachableModules": 552,
-  "sourceModules": 555,
+  "_note3": "2026-08-02: 393 -> 394 on kitchen/decor/leftWallCabinets.ts, the new left-wall cabinetry. It is reached because the Kitchen's decor barrel composes it, which is the property worth having a number for: a piece of scenery that was authored and never composed would leave this at 393 and would also show up as a `dead` export in noUnusedExports.",
+  "_note4": "2026-08-02: 394 -> 395 on utils/scene/perchSurfaces.ts, the owl's landing-surface framework. Only ONE module for a change that touches the owl, three rooms and the shared floor-tap wiring, because the rule was deliberately put in one pure module with no owl and no scene in it \u2014 which is what let tests/room/owl-perch-surfaces.test.mjs sweep it over 3,721 floor points per room.",
+  "_note5": "2026-08-02: 395 -> 396 on utils/scene/rotationRange.ts, which took the camera\u2019s azimuth clamp off the scene catalog and made it derivable. The module it replaced was a field in a config object, so this is one module for a rule that previously had no home and no test.",
+  "_note6": "2026-08-02: 396 -> 483 observed and 98 -> 16 zero-coverage, which is NOT 87 new modules of testing. Every earlier figure in this file was recorded from a SUBSET glob; this is the first baseline taken over the full tests/** run the CI job actually executes, so the two are not comparable and the jump is a measurement change, not a coverage change. The ratchet still only lets the numbers move one way from here. utils/scene/stageRect.ts is the one genuinely new module in this commit.",
+  "modulesObserved": 483,
+  "modulesWithZeroCoverage": 16,
+  "reachableModules": 556,
+  "sourceModules": 559,
   "lineCoverageRecordOnly": {
-    "covered": 13330,
-    "lines": 37399,
-    "pct": 35.6,
+    "covered": 20843,
+    "lines": 61191,
+    "pct": 34.1,
     "note": "NOT gated \u2014 nondeterministic, see the docblock in scripts/coverage-ratchet.mjs"
   },
-  "justifications": [],
-  "_note3": "2026-08-02: 393 -> 394 on kitchen/decor/leftWallCabinets.ts, the new left-wall cabinetry. It is reached because the Kitchen's decor barrel composes it, which is the property worth having a number for: a piece of scenery that was authored and never composed would leave this at 393 and would also show up as a `dead` export in noUnusedExports.",
-  "_note4": "2026-08-02: 394 -> 395 on utils/scene/perchSurfaces.ts, the owl's landing-surface framework. Only ONE module for a change that touches the owl, three rooms and the shared floor-tap wiring, because the rule was deliberately put in one pure module with no owl and no scene in it \u2014 which is what let tests/room/owl-perch-surfaces.test.mjs sweep it over 3,721 floor points per room."
+  "justifications": []
 }

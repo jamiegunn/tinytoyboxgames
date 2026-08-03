@@ -38,15 +38,32 @@
  * near-square viewport is not a tuning question. These assertions are stated as
  * properties so that the next person to adjust the constant cannot reintroduce
  * the shape of the bug while changing its numbers.
+ *
+ * THE RULE IS NOW INERT, AND THAT IS ASSERTED RATHER THAN ASSUMED
+ * ---------------------------------------------------------------
+ * Letterboxing the stage (see `src/utils/scene/stageRect.ts`) means the camera
+ * is never given an aspect below 1.0, and the reference aspect is 0.75, so
+ * `distanceMultiplierForAspect` returns exactly 1 for every aspect the app can
+ * reach. It fires nowhere.
+ *
+ * Kept rather than deleted, for one reason: the stage band is a decision that
+ * could be revisited — widening the set, or moving the living room's toyboxes
+ * off the walls, would let the floor drop below 0.75 and wake this rule up. The
+ * final test in this file pins the inertness, so that the day the band moves,
+ * something says out loud that a dormant camera rule has started firing again
+ * rather than leaving it to be discovered on a phone.
  */
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bundleEntry } from '../framework/_tsload.mjs';
 
-const { distanceMultiplierForAspect, PULLBACK_REFERENCE_ASPECT } = await bundleEntry(
+const { distanceMultiplierForAspect, PULLBACK_REFERENCE_ASPECT, MIN_STAGE_ASPECT, MAX_STAGE_ASPECT } = await bundleEntry(
   'camera-pullback-rule',
-  `export { distanceMultiplierForAspect, PULLBACK_REFERENCE_ASPECT } from './src/utils/cameraPresets';`,
+  `
+  export { distanceMultiplierForAspect, PULLBACK_REFERENCE_ASPECT } from './src/utils/cameraPresets';
+  export { MIN_STAGE_ASPECT, MAX_STAGE_ASPECT } from './src/utils/scene/stageRect';
+`,
 );
 
 // 0.4 is the narrowest aspect any scene is asked to survive; 3.0 is wider than
@@ -156,4 +173,18 @@ test('the reference aspect itself receives a pull-back at every narrower aspect'
     assert.ok(distanceMultiplierForAspect(a) > 1, `aspect ${a} is narrower than the reference but receives no pull-back`);
   }
   assert.equal(distanceMultiplierForAspect(PULLBACK_REFERENCE_ASPECT), 1);
+});
+
+test('the rule is inert across the whole stage band, and something says so if that changes', () => {
+  // Not a claim that the pull-back is right; a claim that it currently does
+  // NOTHING, because the letterbox never hands it an aspect below its reference.
+  // If the stage floor is ever lowered past PULLBACK_REFERENCE_ASPECT this fails,
+  // which is the moment to decide whether the rule should be revived or removed.
+  assert.ok(
+    MIN_STAGE_ASPECT >= PULLBACK_REFERENCE_ASPECT,
+    `the stage floor ${MIN_STAGE_ASPECT} is now below the pull-back reference ${PULLBACK_REFERENCE_ASPECT}: a camera rule that has not run since letterboxing landed is live again, and no scene framing was solved with it running`,
+  );
+  for (let a = MIN_STAGE_ASPECT; a <= MAX_STAGE_ASPECT + 1e-9; a += 0.001) {
+    assert.equal(distanceMultiplierForAspect(a), 1, `aspect ${a.toFixed(3)} inside the stage band still receives a pull-back`);
+  }
 });

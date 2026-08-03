@@ -1,4 +1,5 @@
 import { MathUtils, PerspectiveCamera, Spherical, Vector3 } from 'three';
+import { clampAzimuth, resolveRotationRange } from '@app/utils/scene/rotationRange';
 import { getSceneCameraPreset } from '@app/scenes/sceneCatalog';
 import type { SceneId } from '@app/types/scenes';
 
@@ -174,8 +175,11 @@ export interface CameraHandle {
 }
 
 /**
- * Creates a PerspectiveCamera with zoom, tilt, and pan controls.
- * Left-click drag pans, Shift+drag rotates/tilts, scroll wheel zooms.
+ * Creates a PerspectiveCamera with turn, tilt and zoom.
+ *
+ * A drag turns the view about the middle of the scene and tilts it; pinch or
+ * wheel zooms. There is no pan — the pivot is fixed, so the room turns about its
+ * own centre rather than about wherever the player last dragged to.
  *
  * The scene catalog can optionally tighten the camera through per-scene
  * constraints. Generated immersive scenes use that to keep the view inside
@@ -201,18 +205,33 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
   let maxDistance = maxDistanceForAspect(aspect);
 
   const camera = new PerspectiveCamera(SCENE_CAMERA_FOV, aspect, 0.1, 100);
+
+  // THE PIVOT, AND IT DOES NOT MOVE. Turning a room means turning it about the
+  // middle of the room, which is also how a person describes it. This used to be
+  // a pannable target, so the reachable camera set was the product of "how far
+  // aside the player has dragged" and "how far they have turned" — and the
+  // binding case was always both at once. Measured that way the Playroom could
+  // only afford ±10.7° of rotation before the camera swung outboard of a side
+  // wall. With the pivot fixed that product does not exist.
   const target = p.target.clone();
 
   // Azimuth is stored in the native three.js Spherical convention (θ=0 → +Z), so
   // no offset is applied here. See architecture-standards.md#cameradescriptor.
   const spherical = new Spherical(radiusForAspect(preset, aspect), p.polar, p.azimuth);
 
-  const maxAzimuthRange = preset.constraints?.maxAzimuthRange ?? 0.25;
+  // ROTATION RANGE IS DERIVED, NOT AUTHORED. `maxAzimuthRange` used to be a
+  // per-scene constant and the Playroom's was a third larger than its own walls
+  // can take — measured against every shipping aspect and every reachable pan
+  // and tilt, that room passes the camera through a side wall at ±10.7° and it
+  // was authored at ±14.3°. Nothing caught it because no test has ever looked at
+  // a room's camera envelope.
+  //
+  // See `@app/utils/scene/rotationRange`, which owns the number and the argument
+  // for it, and `tests/room/rotation-range.test.mjs`, which recomputes every
+  // scene's geometric limit and fails if the shipped range exceeds one.
+  const maxAzimuthRange = resolveRotationRange();
   const minPolar = preset.constraints?.minPolar ?? Math.max(0.9, p.polar - 0.1);
   const maxPolar = preset.constraints?.maxPolar ?? Math.min(1.35, p.polar + 0.1);
-  const panRangeX = preset.constraints?.panRangeX ?? 3.5;
-  const minY = preset.constraints?.minTargetY ?? 0;
-  const maxY = preset.constraints?.maxTargetY ?? 2.0;
   const ceilingY = preset.constraints?.ceilingY ?? 6.0;
 
   const updateCameraPosition = () => {
@@ -226,15 +245,9 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
 
   const clampSpherical = () => {
     const baseTheta = p.azimuth;
-    spherical.theta = MathUtils.clamp(spherical.theta, baseTheta - maxAzimuthRange, baseTheta + maxAzimuthRange);
+    spherical.theta = clampAzimuth(spherical.theta, baseTheta, maxAzimuthRange);
     spherical.phi = MathUtils.clamp(spherical.phi, minPolar, maxPolar);
     spherical.radius = MathUtils.clamp(spherical.radius, minDistance, maxDistance);
-  };
-
-  const clampTargetForCeiling = () => {
-    const cameraOffsetY = spherical.radius * Math.cos(spherical.phi);
-    const maxTargetY = Math.min(maxY, ceilingY - cameraOffsetY);
-    target.y = MathUtils.clamp(target.y, minY, Math.max(minY, maxTargetY));
   };
 
   updateCameraPosition();
@@ -242,12 +255,10 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
   let isDragging = false;
   let lastX = 0;
   let lastY = 0;
-  let shiftHeld = false;
 
   const activePointers = new Map<number, { x: number; y: number }>();
   let lastPinchDist = 0;
   const pinchSpeed = 0.015;
-  const panSpeed = 0.015;
   const rotateSpeed = 0.004;
   const tiltSpeed = 0.005;
 
@@ -278,7 +289,6 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
     }
 
     isDragging = true;
-    shiftHeld = e.shiftKey;
     lastX = e.clientX;
     lastY = e.clientY;
   };
@@ -291,7 +301,6 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
       if (lastPinchDist > 0 && dist > 0) {
         spherical.radius += (lastPinchDist - dist) * pinchSpeed;
         clampSpherical();
-        clampTargetForCeiling();
         updateCameraPosition();
       }
       lastPinchDist = dist;
@@ -307,22 +316,14 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
     lastX = e.clientX;
     lastY = e.clientY;
 
-    if (shiftHeld) {
-      spherical.theta -= dx * rotateSpeed;
-      spherical.phi -= dy * tiltSpeed;
-      clampSpherical();
-    } else {
-      const scaleFactor = (spherical.radius / p.distance) * panSpeed;
-      target.x -= dx * scaleFactor;
-      target.y += dy * scaleFactor;
+    // A DRAG TURNS THE ROOM. It used to pan, and rotation was on SHIFT+DRAG —
+    // which on a tablet, where there is no shift key, meant the view could not be
+    // turned at all. Panning is gone entirely, so the plain drag is free for the
+    // gesture a child would actually try.
+    spherical.theta -= dx * rotateSpeed;
+    spherical.phi -= dy * tiltSpeed;
+    clampSpherical();
 
-      const zoomRange = Math.max(0.001, maxDistance - minDistance);
-      const zoomFraction = 1 - (spherical.radius - minDistance) / zoomRange;
-      const effectiveRangeX = panRangeX * Math.max(0.1, zoomFraction);
-      target.x = MathUtils.clamp(target.x, -effectiveRangeX, effectiveRangeX);
-    }
-
-    clampTargetForCeiling();
     updateCameraPosition();
   };
 
@@ -333,7 +334,6 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
     }
     if (activePointers.size === 0) {
       isDragging = false;
-      shiftHeld = false;
     }
   };
 
@@ -341,7 +341,6 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
     e.preventDefault();
     spherical.radius += e.deltaY * 0.01;
     clampSpherical();
-    clampTargetForCeiling();
     updateCameraPosition();
   };
 
@@ -355,7 +354,6 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
   canvas.addEventListener('wheel', onWheel, { passive: false });
 
   const recenter = () => {
-    target.copy(p.target);
     spherical.set(radiusForAspect(preset, camera.aspect), p.polar, p.azimuth);
     updateCameraPosition();
   };

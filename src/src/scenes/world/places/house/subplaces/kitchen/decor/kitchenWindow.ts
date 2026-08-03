@@ -131,7 +131,7 @@ export function createKitchenWindow(scene: Scene): void {
   sunMat.transparent = true;
   const sunPatch = new Mesh(sunGeometry, sunMat);
   sunPatch.name = 'kitchen_sunPatch';
-  sunPatch.position.set(KITCHEN_WINDOW_X, 0.02, 5.6);
+  sunPatch.position.set(KITCHEN_WINDOW_X, 0.02, 6.3);
   sunPatch.rotation.y = 0.12;
   scene.add(sunPatch);
 }

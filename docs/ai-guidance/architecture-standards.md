@@ -1217,6 +1217,131 @@ of light. Seven mutations, seven kills.
 
 ---
 
+## 13. The stage is a rectangle, not the window <a id="stagerect"></a>
+
+**Rule.** The 3D canvas never fills the viewport. It occupies a rectangle whose
+aspect is clamped to **1.0 – 1.4** (`utils/scene/stageRect.ts`); outside that
+band the leftover viewport is _chrome_, and the HUD lives there. Every camera
+framing in the app is solved for an aspect inside that band, and nothing may
+hand the camera an aspect outside it.
+
+### What this fixed
+
+The canvas was `width: 100%; height: 100%`, so the camera got whatever aspect the
+device had — as narrow as 0.40. The sets are landscape shaped: a room is 12 units
+wide and 6.75 tall, and no camera pose fills a 0.40 frame with a 1.8-shaped set.
+What gave was the set. `distanceMultiplierForAspect` pulled the camera back to
+hold the world _width_ constant, which with a fixed 50° vertical FOV means seeing
+proportionally more world _height_ — and there is no room up there. On a phone the
+camera stood at z −24 with the ceiling clamp pinning it at y 6.0, outside the
+room, framing sky below the child's own feet. The reported symptom was _"it just
+makes the entire scene smaller"_, which is an exact description.
+
+Three separate defects were downstream of it, and all three were invisible in
+landscape:
+
+| where      | what                                                                                                                                   | found by                                   |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| every room | the way OUT was off-screen at the square end of the band — `hub_door_doorway`, `toybox_kitchen-nature_root`, both living-room toyboxes | `tests/room/room-opening-framing.test.mjs` |
+| rotation   | measured "±0.0° permitted" on five of nine aspects, reported as a property of rotation                                                 | `tests/room/rotation-range.test.mjs`       |
+| the HUD    | fixed 48–56px buttons at a fixed 16px inset, sitting on scene a child is meant to touch                                                | `tests/room/stage-wiring.test.mjs`         |
+
+### Three constants, one solve
+
+The stage band, each room's opening pose, and `SHARED_ROTATION_RANGE` cannot be
+chosen independently — they trade against each other, and `.probe/room-pose-final.mjs`
+solves all three together:
+
+- a **tighter pose** shows the props larger and turns less, because the camera is
+  nearer the walls;
+- a **wider stage** also turns less, because a wider frame reaches further round
+  before it meets the end of a side wall;
+- and a pose loose enough to turn a long way is one that frames props off the
+  edge, which is how the exits shipped invisible.
+
+With the band at 1.0–1.4 and every tappable prop required fully in frame:
+playroom ±30.7°, kitchen ±23.0°, **living-room ±12.0°**. The living room binds,
+because its two toyboxes stand hard against the side walls, so its frame must be
+wide enough to contain the walls themselves. That is set dressing, not code.
+
+### The unnamed mesh, and why it is a §13 problem
+
+Re-framing the rooms needed a way to say what a picture is made of, so the guard
+rasterises the opening frame and classifies each cell by the NAME of what the ray
+hits. It reported the Kitchen as the best-composed room in the app — 74.1% props,
+0% floor, 0% ceiling — and the whole re-framing effort was briefly aimed at
+making the other two rooms more like it.
+
+The Kitchen is a generated room, and the generator's template named neither its
+ceiling nor its floor. An 11 x 20 ceiling slab and an 18 x 24 floor plane were
+being counted as **props**. Measured correctly the Kitchen is 17.8% props and
+64.7% bare floor — the _emptiest_ frame of the three, and still the one that
+reads best. The density theory was an artefact of a missing `mesh.name`.
+
+Two things are worth carrying forward:
+
+- **A name is a classification.** Nothing in this repo is anonymous; an object
+  without a name is silently reclassified as whatever the default branch happens
+  to be. `tests/room/room-scene-mesh-names.test.mjs` asserts that every rendering
+  object at a room's scene root is named, and that the shell's names contain the
+  words the classifiers match on. The template is fixed too, or the next
+  generated room inherits it.
+- **The pin that was read as noise.** `tests/room/owl-perch-surfaces.test.mjs`
+  had been pinning two of the Kitchen's perch roots as `Group` and `Mesh` for
+  weeks — three.js falling back to the constructor name — and the pin was green
+  the whole time. A guard can hold the evidence of a defect without anyone
+  reading it. When a pinned name looks like a type, that IS the finding.
+
+The corrected numbers explain the ceiling and nothing else:
+
+| room        | props | wall  | floor | ceiling |
+| ----------- | ----- | ----- | ----- | ------- |
+| playroom    | 31.7% | 24.1% | 44.1% | 0.0%    |
+| kitchen     | 17.8% | 17.5% | 64.7% | 0.0%    |
+| living-room | 21.0% | —     | —     | 0.0%    |
+
+The living room's 5.9% ceiling survived that first re-frame and was reported
+again by eye — "ceiling is still visible in living room". It is zero now; see
+"Shortening a room makes it HARDER to frame" below, which is the round that
+finally moved it.
+
+Two mechanical theories were tested against the "so much detail is lost"
+complaint and both were refuted by measurement: a longer lens (FOV 50 → 32 moved
+the playroom's backmost prop from 17.9% of frame height to 15.6% — worse — and
+cost ±31.9° of turn down to ±13.4°), and shortening the rooms (depth ×0.65 moved
+prop share 30.1% → 29.7%, and the floor it recovered went to wall and ceiling).
+The composition bounds in the guard are therefore a **ratchet, not a theory**:
+they hold the ceiling at zero where it was won and stop the camera drifting
+backwards, and they do not claim to know what makes a room read well.
+
+### The rule this generalises
+
+**A framing guard must sweep the aspects the app can produce, not the aspects a
+device can have.** Four suites listed nine raw device aspects; five of those the
+camera can no longer be given at all. Asserting against unreachable states is how
+a suite comes to look thorough while covering less than it claims — so the lists
+are now derived from `stageAspectFor` rather than written out.
+
+### What holds the line
+
+`tests/room/stage-rect.test.mjs` (11) drives the arithmetic and sweeps 5,000
+viewport shapes for the invariant. `tests/room/room-opening-framing.test.mjs`
+(12) builds all three rooms, takes the tap dispatcher's own registrations as the
+inventory, and asserts every prop is in frame, that the frame never leaves the
+set under rotation, and — the one that stops the whole suite being satisfied by
+zooming out — that the props FILL the frame. `tests/room/stage-wiring.test.mjs`
+(9) calls `SceneFrame` and `UIOverlay` through the react stub and checks the
+rectangle actually reaches the canvas.
+
+That last suite exists because of a mutation: with the other two green,
+reverting the canvas to `100% x 100%` broke nothing. **A rule that is computed,
+tested and never applied passes every test you would think to write.** Nineteen
+mutations, nineteen kills — three of which (the sliver band, the unused control
+floor, the unapplied rectangle) were tests that did not exist until a mutation
+survived.
+
+---
+
 ## Testing & rollout
 
 Every phase must leave all gates green and is committed/shipped on its own.

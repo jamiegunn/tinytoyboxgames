@@ -14,9 +14,28 @@ name: CI
 #
 # NOTE ON THE TWO BUILDS. The site build is NOT a duplicate of the quality
 # build. `vite.config.ts` sets `base: '/'`, which is what the Docker image
-# serves; Pages serves from a sub-path and needs `--base=/tinytoyboxgames/game/`
-# or every asset URL 404s. They are two different artifacts from one commit, so
+# serves; the Pages site lives under a sub-path and needs a matching `--base` or
+# every asset URL 404s. They are two different artifacts from one commit, so
 # both are built on purpose.
+#
+# THE SUB-PATH IS `/game/`, NOT `/tinytoyboxgames/game/`, AND THAT COST A
+# DEPLOY. This workflow built with `--base=/tinytoyboxgames/game/`, which is
+# correct for a project page at `jamiegunn.github.io/tinytoyboxgames/`. The site
+# has a CUSTOM DOMAIN, and a custom domain serves the repo from the DOMAIN ROOT:
+# GitHub itself proves it by redirecting
+#
+#     jamiegunn.github.io/tinytoyboxgames/game/  ->  tinytoyboxgames.com/game
+#
+# with the repo prefix stripped. So every bundle was requested from
+# tinytoyboxgames.com/tinytoyboxgames/game/assets/... — a 404 — and the page
+# served, mounted nothing, and rendered a blank white screen.
+#
+# The validation step below did not catch it. It grepped for the very string the
+# build had just been told to write, so it asserted that the build did what it
+# was asked rather than that the result works at the URL it is served from. A
+# check whose expected value is copied from the input is not a check. Both now
+# read PAGES_BASE, and `tests/framework/ciWorkflow.test.mjs` fails if they ever
+# stop agreeing or if the base stops matching the CNAME.
 
 on:
   push:
@@ -27,6 +46,12 @@ on:
 # Least privilege at the top; the deploy job widens its own.
 permissions:
   contents: read
+
+env:
+  # The one place the deployed sub-path is written down. The build, the CNAME
+  # and the validation all read it, so they cannot disagree with each other.
+  PAGES_BASE: /game/
+  PAGES_DOMAIN: tinytoyboxgames.com
 
 jobs:
   quality:
@@ -124,11 +149,11 @@ jobs:
         working-directory: src
         run: bun install --frozen-lockfile
 
-      # base must match the Pages sub-path so the game's assets resolve at
-      # https://jamiegunn.github.io/tinytoyboxgames/game/
+      # base must match the path the site is SERVED from, which with a custom
+      # domain is the domain root — see the note at the top of this file.
       - name: Build game
         working-directory: src
-        run: bunx vite build --base=/tinytoyboxgames/game/
+        run: bunx vite build --base="$PAGES_BASE"
 
       - name: Assemble Pages site (game + rendered docs + landing)
         run: |
@@ -136,6 +161,12 @@ jobs:
           cp -r src/dist _site/game
           npm install marked@^12 --no-save
           node scripts/build-pages.mjs
+          # The custom domain has to be in the ARTIFACT. With an Actions deploy
+          # the domain is not carried over from the previous publish, and a
+          # missing CNAME is how a custom domain silently reverts to
+          # <user>.github.io/<repo>/ — which would make the base above wrong
+          # again, in the other direction.
+          printf '%s\n' "$PAGES_DOMAIN" > _site/CNAME
 
       - name: Validate the assembled site
         # The Dockerfile validates its artifact before shipping it; the Pages
@@ -150,11 +181,45 @@ jobs:
           echo "▸ CSS bundle emitted…"         && ls _site/game/assets/*.css >/dev/null
           echo "▸ game entry references JS…"   && grep -q '\.js'  _site/game/index.html
           echo "▸ game entry references CSS…"  && grep -q '\.css' _site/game/index.html
+          echo "▸ CNAME pins the custom domain…"  && test "$(cat _site/CNAME)" = "$PAGES_DOMAIN"
           echo "▸ asset URLs carry the Pages base…" \
-            && grep -q '/tinytoyboxgames/game/assets/' _site/game/index.html
+            && grep -q "${PAGES_BASE}assets/" _site/game/index.html
+          # AND NOT THE OLD ONE. The grep above passes for any base the build
+          # was told to use, including a wrong one — that is exactly how the
+          # blank deploy shipped. This asserts the specific mistake is gone.
+          # Written as an explicit `if` rather than `! grep`, because `set -e`
+          # ignores the status of a negated command and the check would pass
+          # whatever it found.
+          echo "▸ no repo-prefixed asset URLs…"
+          if grep -q '/tinytoyboxgames/game/assets/' _site/game/index.html; then
+            echo "✖ assets are still built for the github.io project path. The site" >&2
+            echo "  is served from a custom domain, which strips the repo prefix." >&2
+            exit 1
+          fi
           JS_SIZE=$(stat -c%s _site/game/assets/*.js | sort -rn | head -1)
           echo "▸ JS bundle is non-empty (>1 KB)…" && test "$JS_SIZE" -gt 1024
           echo "✔ site validated (main bundle: ${JS_SIZE} bytes)"
+
+      # EVERY CHECK ABOVE IS A CHECK ON THE ARTIFACT. None of them loads it.
+      # The blank deploy passed all of them, because the one that mattered
+      # grepped for the string the build had just been told to write — its
+      # expected value came from its own input. This step has an independent
+      # oracle: serve _site exactly as Pages will, open it in a real browser and
+      # require that #root has children, that nothing 404'd, and that nothing
+      # threw. It reproduces the blank deploy as a failure, and it also catches
+      # the case no grep can — a bundle that loads and then throws.
+      - name: Smoke-test the assembled site in a browser
+        run: |
+          set -e
+          npm install playwright@^1.48 --no-save
+          npx playwright install --with-deps chromium
+          npx --yes http-server _site -p 8099 --silent &
+          for i in $(seq 1 30); do
+            curl -sf "http://localhost:8099${PAGES_BASE}index.html" >/dev/null && break
+            sleep 1
+          done
+          node scripts/smoke-site.mjs "http://localhost:8099${PAGES_BASE}"
+          node scripts/smoke-site.mjs "http://localhost:8099/"
 
       - uses: actions/configure-pages@v5
 

@@ -5,20 +5,26 @@ import { getIdleAnimator } from '@app/utils/idle/registry';
 /**
  * Scatters a handful of toys across the kitchen's bare front floor so it reads
  * as a lived-in play space instead of an empty room. Positions are hand-placed
- * to avoid the breakfast table (-2.9, 0.3), the rug (0.6, 3.4), the toybox
- * (3.1, -5.7), and the owl's spawn (0, 1.2).
+ * to avoid the breakfast table, the rug, the toybox and the owl's spawn.
+ *
+ * THESE Z VALUES ARE LITERALS AND THAT COST SOMETHING. When the room was
+ * shortened by 25% on 2026-08-02 the transform was applied to `layout.ts`, where
+ * world positions are supposed to live — so the toybox moved from z -5.7 to
+ * -2.175 and these toys did not move at all. Two of them ended up INSIDE it.
+ * They have been carried through the same transform by hand here; the next
+ * rescale will miss them again unless they move to layout.ts first.
  *
  * @param scene - The kitchen scene to add the toys to.
  */
 export function createKitchenFloorToys(scene: Scene): void {
-  addBall(scene, 'kit_ballRed', new Color(0.92, 0.2, 0.2), 0.14, 2.4, -1.3, true);
-  addBall(scene, 'kit_ballTeal', new Color(0.2, 0.62, 0.68), 0.11, -3.7, -3.3, false);
-  addBlocks(scene, -1.6, -2.9);
-  addDuck(scene, 3.6, 0.4);
-  addToyPot(scene, 1.2, -4.4);
-  addPlayFood(scene, -1.2, -0.7);
-  addRollingPin(scene, 0.8, -5.4);
-  addPlush(scene, 4.1, -2.4);
+  addBall(scene, 'kit_ballRed', new Color(0.92, 0.2, 0.2), 0.14, 2.4, 1.125, true);
+  addBall(scene, 'kit_ballTeal', new Color(0.2, 0.62, 0.68), 0.11, -3.7, -0.375, false);
+  addBlocks(scene, -1.6, -0.075);
+  addDuck(scene, 3.6, 2.4);
+  addToyPot(scene, 1.2, -1.2);
+  addPlayFood(scene, -1.2, 1.575);
+  addRollingPin(scene, 0.8, -1.95);
+  addPlush(scene, 4.1, 0.3);
 }
 
 // A glossy bouncy ball with a white star, optionally gently rolling.

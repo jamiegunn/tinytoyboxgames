@@ -457,9 +457,80 @@ test('the unenforced tiers are still the size this file says they are', () => {
   // on nothing are indistinguishable through it. It lands in `spared` rather than
   // `internal` only because the classifier sees the name in a brace list; it is
   // genuinely imported and genuinely asserted on.
+  //
+  // 2026-08-02, rotation range becomes derived: +2 consumed, +5 internal, +1 spared.
+  //
+  //   resolveRotationRange, clampAzimuth      utils/scene/rotationRange.ts -> consumed
+  //     Both called by `createSceneCamera`, which no longer reads a per-scene
+  //     `maxAzimuthRange` off the catalog — that field is gone, along with the
+  //     Playroom bug it was hiding: authored at ±14.3° against walls that allow
+  //     ±10.7°.
+  //
+  //   RoomShell, OrbitEnvelope, cameraPassesThroughWall, orbitPositionsAt,
+  //   largestSafeRotation                                              -> internal
+  //   SHARED_ROTATION_RANGE                                            -> spared
+  //
+  // Five internal is the whole geometric derivation, and it is test-only ON
+  // PURPOSE. The app needs one number; only the guard needs to recompute where
+  // that number came from, which it does from each room's own layout constants
+  // rather than trusting the constant. A limit the app computed at runtime would
+  // be the same arithmetic done twice a second for an answer that cannot change
+  // between frames.
+  //
+  // 2026-08-02, panning removed: +1 internal. Net of three edits to the same
+  // module, all in `utils/scene/rotationRange.ts`:
+  //
+  //   cameraPassesThroughWall  -> deleted. It asked whether the CAMERA had swung
+  //     outboard of a side wall, which is neither necessary nor sufficient: the
+  //     portrait pull-back legitimately stands the camera outside the room
+  //     looking in, and a camera safely between the walls can still be pointed
+  //     so a corner of the frame sweeps past the end of one.
+  //   rayMissesTheRoom         -> new internal. The replacement rule, per ray.
+  //   frameSeesPastWalls       -> new internal. The same rule over four corners.
+  //
+  // Two names where there was one, because the per-ray answer and the per-frame
+  // answer are separately worth asserting: the pure-geometry tests drive the ray
+  // with hand-made directions, which is the only way to state what "shows the
+  // void" means without a scene in the way.
+  //
+  // 2026-08-02, the stage is letterboxed: +2 consumed, +3 internal, +1 spared.
+  // All six are `utils/scene/stageRect.ts`, and the split is the point of the
+  // module:
+  //
+  //   resolveStageRect, resolveChromeBand                          -> consumed
+  //     The two the app calls. SceneFrame sizes the canvas from the first;
+  //     UIOverlay lays the HUD out in the band the second reports.
+  //   MIN_STAGE_ASPECT, MAX_STAGE_ASPECT, StageRect                -> internal
+  //   stageAspectFor                                               -> spared
+  //     Test-only, and deliberately: the app never needs the aspect as a bare
+  //     number because it always has a rect in hand, but every framing guard
+  //     needs to know which aspects the camera can actually be given. Before
+  //     this existed those suites listed nine raw device aspects, five of which
+  //     the camera can no longer be handed at all.
+  //
+  //   MIN_CHROME_BAND                                              -> consumed
+  //     Added a step later, by mutation: dropping the HUD's control floor from
+  //     56 to 24 changed nothing, because a near-square window was the only
+  //     shape where either floor binds and no test used one. `UIOverlay` reads
+  //     this to decide whether the band it has been given is a band at all.
+  //
+  // 2026-08-02, the Kitchen and Living Room shortened by 25%: +3 consumed. All
+  // three are constants that were LOCAL LITERALS inside shell files and are now
+  // in the layout where a rescale can see them:
+  //
+  //   SIDE_WALL_CENTER_Z   kitchen + living-room layout.ts
+  //     Was `const SIDE_WALL_CENTER_Z = -1.2;` at the top of each room's
+  //     `room/walls.ts`, which that folder's own README forbids in as many
+  //     words. It had already drifted — the walls sat 0.8 forward of where the
+  //     ceiling did — and a local copy is also a number a depth rescale silently
+  //     misses, which is how a shortened room ends up with full-length walls.
+  //   CEILING_DEPTH_OFFSET  kitchen layout.ts
+  //     Same defect, same file pattern: a local `WALL_DEPTH_OFFSET` in
+  //     `room/ceiling.ts`. The rescale left the Kitchen's ceiling 0.3 out of
+  //     place because it could not see a constant that was not in layout.ts.
   assert.deepEqual(
     TIER_COUNTS,
-    { consumed: 1764, reexport: 86, internal: 147, spared: 5, laundered: 0, dead: 0 },
+    { consumed: 1772, reexport: 86, internal: 156, spared: 7, laundered: 0, dead: 0 },
     'the tier populations moved; say which symbol moved and why, then update this',
   );
 });

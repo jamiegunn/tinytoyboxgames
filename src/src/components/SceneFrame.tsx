@@ -6,6 +6,7 @@ import { useAudio } from './AudioProvider';
 import type { NavigationActions } from '@app/types/scenes';
 import type { CameraHandle } from '@app/utils/cameraPresets';
 import { getSceneLoader } from '@app/scenes/sceneCatalog';
+import { resolveStageRect } from '@app/utils/scene/stageRect';
 import { createConfiguredRenderer, applyDefaultEnvironment } from '@app/utils/rendererFactory';
 import { createFrameClock, type FrameClock } from '@app/utils/frameClock';
 import { createDisposalScope, type DisposalScope } from '@app/utils/disposal';
@@ -54,7 +55,13 @@ export function SceneFrame({ children }: { children: ReactNode }) {
   const scopeRef = useRef<DisposalScope | null>(null);
 
   const { currentScene, activeMiniGame, navigateTo, launchMiniGame, exitMiniGame } = useNavigation();
-  useResponsive();
+  // THIS USED TO DISCARD ITS RESULT. `useResponsive()` was called and the value
+  // thrown away, so it re-rendered this component on every resize and changed
+  // nothing — the canvas was 100% x 100% and the only thing that reacted to a
+  // resize was the imperative listener below. The stage is a computed rectangle
+  // now (see utils/scene/stageRect), so the value is load-bearing.
+  const { viewportWidth, viewportHeight } = useResponsive();
+  const stage = resolveStageRect(viewportWidth, viewportHeight);
   const { startSceneAudio, stopSceneAudio, playSound, isAudioUnlocked } = useAudio();
 
   // While a minigame overlay is active the hub scene is fully covered — pause
@@ -104,10 +111,14 @@ export function SceneFrame({ children }: { children: ReactNode }) {
     };
     animate();
 
-    // Resize handler
+    // Resize handler. Reads the canvas's own client box rather than the window:
+    // the canvas is the STAGE, not the viewport, and React has already sized it
+    // from `resolveStageRect` by the time this fires. Deriving the stage a second
+    // time here would be a second copy of that rule, free to disagree.
     const onResize = () => {
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
+      if (w <= 0 || h <= 0) return;
       renderer.setSize(w, h, false);
       cameraHandleRef.current?.resize(w, h);
     };
@@ -132,6 +143,17 @@ export function SceneFrame({ children }: { children: ReactNode }) {
       sceneRef.current = null;
     };
   }, []);
+
+  // The stage box is React state, so a change to it has to reach the renderer
+  // through React — the window listener above fires first, before the canvas has
+  // been laid out at its new size, and would read the old box.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const renderer = rendererRef.current;
+    if (!canvas || !renderer || stage.width <= 0 || stage.height <= 0) return;
+    renderer.setSize(stage.width, stage.height, false);
+    cameraHandleRef.current?.resize(stage.width, stage.height);
+  }, [stage.width, stage.height]);
 
   // Load scene when currentScene changes
   useEffect(() => {
@@ -233,8 +255,11 @@ export function SceneFrame({ children }: { children: ReactNode }) {
         ref={canvasRef}
         style={{
           display: 'block',
-          width: '100%',
-          height: '100%',
+          position: 'absolute',
+          left: stage.offsetX,
+          top: stage.offsetY,
+          width: stage.width,
+          height: stage.height,
           outline: 'none',
           touchAction: 'none',
         }}

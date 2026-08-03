@@ -67,19 +67,60 @@ export const RIGHT_WALL_FACE_X = RIGHT_WALL_X + WALL_THICKNESS / 2;
 /** Shell spans. */
 export const WALL_HEIGHT = CEILING_Y;
 export const ROOM_SPAN_X = LEFT_WALL_X - RIGHT_WALL_X + WALL_THICKNESS;
-export const ROOM_DEPTH = 20;
+/**
+ * Center z of the two side walls.
+ *
+ * Lived as a local `SIDE_WALL_CENTER_Z` literal inside `room/walls.ts`, which
+ * `room/README.md` forbids in as many words: "shell dimensions come from the
+ * authored constants in ../layout.ts; do not invent local sizes that drift
+ * from the layout". It drifted — the walls sat 0.8 forward of where the
+ * ceiling did — and a local copy is also a value a depth rescale silently
+ * misses, which is how a shortened room ends up with full-length walls.
+ */
+/**
+ * How far forward of the back wall the ceiling slab sits.
+ *
+ * Lived as a local `WALL_DEPTH_OFFSET` literal inside `room/ceiling.ts` — the
+ * same defect as `SIDE_WALL_CENTER_Z` below, and it cost the same thing: the
+ * 25% depth rescale scaled every constant in this file and left the ceiling
+ * 0.3 units out of place, because it could not see a number that was not here.
+ */
+export const CEILING_DEPTH_OFFSET = 0.9;
+
+export const SIDE_WALL_CENTER_Z = 1.2;
+
+/**
+ * HOW THE DEPTHS IN THIS FILE WERE DERIVED.
+ *
+ * The room was shortened by 25% on 2026-08-02 — "shorten living room and
+ * kitchen by 25%" — and every world z below is the old value under one
+ * transform, not a fresh set of authored numbers:
+ *
+ *     z' = BACK_WALL_CENTER_Z - (BACK_WALL_CENTER_Z - z) * 0.75
+ *
+ * The back wall does not move; everything else comes 25% of its distance
+ * closer to it. POSITIONS are compressed and SIZES are not, so props keep their
+ * proportions and only the space between them closes up.
+ *
+ * `tests/room/room-depth-scale.test.mjs` recomputes every one of these from the
+ * pre-shortening value and fails if any has been hand-adjusted since, so the
+ * next person to touch one is told that the set was scaled rather than laid out
+ * again.
+ */
+
+export const ROOM_DEPTH = 15;
 
 /** Ceiling slab thickness. */
 export const CEILING_THICKNESS = 0.16;
 
 /** Floor dimensions are intentionally larger than the visible shell to hide seams. */
 export const FLOOR_WIDTH = 18;
-export const FLOOR_DEPTH = 24;
+export const FLOOR_DEPTH = 18;
 
 /** Sample decor placement near the back wall. */
 export const COUNTER_X = -2.4;
 export const COUNTER_Y = 0;
-export const COUNTER_Z = 7.15;
+export const COUNTER_Z = 7.4625;
 
 // ── Back wall fixture slots ─────────────────────────────────────────────────
 
@@ -114,20 +155,20 @@ export const POT_RAIL_Y = 3.0;
 
 /** Small round breakfast table with two chairs. */
 export const TABLE_X = -2.9;
-export const TABLE_Z = 0.3;
+export const TABLE_Z = 2.325;
 
 /** Oval rug in front of the cabinet run. */
 export const RUG_X = 0.6;
-export const RUG_Z = 3.4;
+export const RUG_Z = 4.65;
 
 /** Default toybox slot for the generated room. */
 export const TOYBOX_X = 3.1;
 export const TOYBOX_Y = 0.01;
-export const TOYBOX_Z = -5.7;
+export const TOYBOX_Z = -2.175;
 export const TOYBOX_ROTATION_Y = Math.PI + Math.PI / 6;
 
 /** Z position of the doorway back to the Living Room on the left wall. */
-export const LIVING_ROOM_DOOR_Z = 2.4;
+export const LIVING_ROOM_DOOR_Z = 2.94;
 
 // ── Side wall slots ─────────────────────────────────────────────────────────
 //
@@ -143,19 +184,19 @@ export const LIVING_ROOM_DOOR_Z = 2.4;
 // camera actually shows.
 
 /** Plate rack on the right wall: rack center Z and lower plank height. */
-export const PLATE_RACK_Z = 4.6;
+export const PLATE_RACK_Z = 5.55;
 export const PLATE_RACK_Y = 3.15;
 
 /** Framed chalk menu board on the right wall, nearer the camera than the rack. */
-export const MENU_BOARD_Z = 0.4;
+export const MENU_BOARD_Z = 2.4;
 export const MENU_BOARD_Y = 3.3;
 
 /** Peg rail with hanging cloths on the left wall, behind the doorway. */
-export const PEG_RAIL_Z = 5.6;
+export const PEG_RAIL_Z = 5.68;
 export const PEG_RAIL_Y = 3.05;
 
 /** Wall clock on the left wall, forward of the doorway. */
-export const WALL_CLOCK_Z = 0.1;
+export const WALL_CLOCK_Z = 2.175;
 export const WALL_CLOCK_Y = 3.9;
 
 // ── Left-wall cabinetry ─────────────────────────────────────────────────────
@@ -171,7 +212,7 @@ export const WALL_CLOCK_Y = 3.9;
 // floor.
 
 /** Centre of the tall dresser, forward of the Living Room doorway. */
-export const LEFT_DRESSER_Z = -0.6;
+export const LEFT_DRESSER_Z = 0.2;
 
 /** Dresser width along the wall. Its front edge clears the doorway frame by 0.7. */
 export const LEFT_DRESSER_WIDTH = 2.6;

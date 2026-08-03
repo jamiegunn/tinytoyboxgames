@@ -13,6 +13,7 @@ import { COUNTER_X, COUNTER_Y, COUNTER_Z } from '../layout';
  */
 export function createSampleCounter(scene: Scene): void {
   const root = new Group();
+  root.name = 'kitchen_sampleCounter';
   root.position.set(COUNTER_X, COUNTER_Y, COUNTER_Z);
   scene.add(root);
 

@@ -41,6 +41,7 @@ import { Box3, PerspectiveCamera, Scene, Spherical, Vector3 } from 'three';
 import { bundleEntry } from '../framework/_tsload.mjs';
 
 const {
+  stageAspectFor,
   SCENE_CAMERA_FOV,
   resolveSceneCameraPose,
   sceneCameraMaxDistance,
@@ -63,10 +64,13 @@ const {
   ROPE_COIL_STAGING,
   SHIP_WHEEL_STAGING,
   TREASURE_CHEST_STAGING,
+  resolveRotationRange,
 } = await bundleEntry(
   'pirate-cove-hull',
   `
+  export { stageAspectFor } from './src/utils/scene/stageRect';
   export { SCENE_CAMERA_FOV, resolveSceneCameraPose, sceneCameraMaxDistance } from './src/utils/cameraPresets';
+  export { resolveRotationRange } from './src/utils/scene/rotationRange';
   export { getSceneCameraPreset } from './src/scenes/sceneCatalog';
   export { PIRATE_COVE_ENVIRONMENT, PIRATE_COVE_SKY_FOG } from './src/scenes/immersive-toybox-scenes/pirate-cove/environment';
   export { createPirateCoveMaterials } from './src/scenes/immersive-toybox-scenes/pirate-cove/materials';
@@ -82,17 +86,26 @@ const {
 `,
 );
 
-const ASPECTS = [
-  ['landscape 1280x720', 1280 / 720],
-  ['tablet 1024x768', 1024 / 768],
-  ['square 1x1', 1],
-  ['iPad portrait 768x1024', 768 / 1024],
-  ['viewport 480x854', 480 / 854],
-  ['iPhone SE 375x667', 375 / 667],
-  ['iPhone 15 393x852', 393 / 852],
-  ['Pixel 8 412x915', 412 / 915],
-  ['extreme 360x900', 0.4],
+// THE ASPECTS THE CAMERA CAN ACTUALLY BE GIVEN, not the aspects a device can
+// have. The stage is letterboxed (see src/utils/scene/stageRect.ts): outside a
+// 1.0-1.4 band the leftover viewport becomes chrome rather than scene, so a
+// 0.40 phone renders a 1.00 stage. This list used to be nine raw device aspects,
+// five of which the camera can no longer be handed at all — and asserting
+// against a state the app cannot reach is how a suite comes to look thorough
+// while covering less than it claims. Derived from `stageAspectFor` so that
+// widening the band cannot leave it behind.
+const SHIPPING_VIEWPORTS = [
+  ['landscape 1280x720', 1280, 720],
+  ['tablet 1024x768', 1024, 768],
+  ['square 800x800', 800, 800],
+  ['iPad portrait 768x1024', 768, 1024],
+  ['viewport 480x854', 480, 854],
+  ['iPhone SE 375x667', 375, 667],
+  ['iPhone 15 393x852', 393, 852],
+  ['Pixel 8 412x915', 412, 915],
+  ['extreme 400x1000', 400, 1000],
 ];
+const ASPECTS = SHIPPING_VIEWPORTS.map(([label, w, h]) => [`${label} -> stage ${stageAspectFor(w, h).toFixed(2)}`, stageAspectFor(w, h)]);
 
 // ── the real ship, built once ───────────────────────────────────────────────
 const scene = new Scene();
@@ -128,26 +141,25 @@ const openingCam = (aspect) => {
 const envelopePoses = (aspect) => {
   const preset = getSceneCameraPreset('pirate-cove');
   const c = preset.constraints ?? {};
-  const panRangeX = c.panRangeX ?? 3.5;
   const minPolar = c.minPolar ?? Math.max(0.9, preset.polar - 0.1);
   const maxPolar = c.maxPolar ?? Math.min(1.35, preset.polar + 0.1);
-  const maxTargetY = c.maxTargetY ?? 2.0;
-  const maxAz = c.maxAzimuthRange ?? 0.25;
+  // THE TARGET IS FIXED. Panning was removed outright — a drag turns the room
+  // now — so the reachable set is distance x tilt x turn. The turn is asked of
+  // the app rather than read off the preset: rotation range stopped being
+  // per-scene data when the Playroom was found to be authored a third wider
+  // than its own walls allow — see utils/scene/rotationRange.
+  const maxAz = resolveRotationRange();
   const ceilingY = c.ceilingY ?? 6.0;
   const minDistance = c.minDistance ?? preset.distance * 0.2;
   const maxDistance = sceneCameraMaxDistance('pirate-cove', aspect);
   const out = [];
+  const target = new Vector3(...preset.target);
   for (const dist of [minDistance, preset.distance, maxDistance]) {
     for (const polar of [minPolar, preset.polar, maxPolar]) {
-      for (const tx of [-panRangeX, 0, panRangeX]) {
-        for (const ty of [0, maxTargetY]) {
-          for (const az of [preset.azimuth - maxAz, preset.azimuth, preset.azimuth + maxAz]) {
-            const target = new Vector3(tx, ty, preset.target[2]);
-            const position = target.clone().add(new Vector3().setFromSpherical(new Spherical(dist, polar, az)));
-            if (position.y > ceilingY) position.y = ceilingY;
-            out.push({ position, target });
-          }
-        }
+      for (const az of [preset.azimuth - maxAz, preset.azimuth, preset.azimuth + maxAz]) {
+        const position = target.clone().add(new Vector3().setFromSpherical(new Spherical(dist, polar, az)));
+        if (position.y > ceilingY) position.y = ceilingY;
+        out.push({ position, target });
       }
     }
   }

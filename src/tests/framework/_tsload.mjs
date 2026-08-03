@@ -126,18 +126,26 @@ export async function bundleEntry(name, source) {
  * must be observable OUTSIDE React state (a closed AudioContext, a removed
  * listener). That is a feature: it keeps these tests pointed at real side
  * effects rather than at re-render bookkeeping the stub cannot model.
+ *
+ * `CONTEXTS` collects every context the bundle creates, because most of them are
+ * module-private — `SceneRouterCtx` and `AudioCtx` are both `const` inside their
+ * own files and both default to `null`, so `useNavigation()` throws "must be
+ * used within SceneRouter" the moment a test calls a component that consumes it.
+ * A test that needs to stand a component up rather than only drive its effects
+ * fills these in; there is no other handle on them from outside.
  */
 const REACT_STUB = `
 export const EFFECTS = [];
 export function __resetEffects() { EFFECTS.length = 0; }
-export function createContext(v) { const C = { _v: v }; C.Provider = (p) => ({ __provider: true, value: p.value }); return C; }
+export const CONTEXTS = [];
+export function createContext(v) { const C = { _v: v }; C.Provider = (p) => ({ __provider: true, value: p.value }); CONTEXTS.push(C); return C; }
 export function useContext(C) { return C._v; }
 export function useRef(init) { return { current: init }; }
 export function useState(init) { return [typeof init === 'function' ? init() : init, () => {}]; }
 export function useCallback(fn) { return fn; }
 export function useMemo(fn) { return fn(); }
 export function useEffect(fn, deps) { EFFECTS.push({ fn, deps }); }
-export default { createContext, useContext, useRef, useState, useCallback, useMemo, useEffect };
+export default { createContext, useContext, useRef, useState, useCallback, useMemo, useEffect, CONTEXTS };
 `;
 
 /** esbuild plugin swapping the real `react` for `REACT_STUB`. */

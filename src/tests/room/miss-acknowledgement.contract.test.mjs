@@ -276,7 +276,16 @@ test('the surface standoff sits inside the window its four inputs define', () =>
   // 2 x 14 x tan(25 deg) = 13.0566, x 70/720 = 1.2694. It changes no decision — the
   // standoff is 0.45 — but a pin that encodes my arithmetic error rather than the
   // code's is a pin that will fail the next honest reader instead of the next bug.
-  assert.equal(upperBound.toFixed(3), '1.269');
+  //
+  // 2026-08-02: 1.269 -> 1.360. Nothing about the sparkle moved. The Playroom's
+  // orbit went from 14 to 15, first when the opening pose was solved rather than
+  // authored and then again when it was re-solved to keep the ceiling out of
+  // frame (see sceneCatalog and utils/scene/stageRect). This bound is
+  // proportional to that orbit: a camera further out means each pixel of
+  // interaction slack covers more world, so the standoff has MORE room, not
+  // less. The bound moving in the loosening direction is why no decision
+  // changed at either step.
+  assert.equal(upperBound.toFixed(3), '1.360');
 });
 
 test('the chosen fallback depth is only reachable where nothing occupies the ray', () => {

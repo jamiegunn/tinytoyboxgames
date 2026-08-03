@@ -11,13 +11,13 @@ import {
   RIGHT_WALL_X,
   RIGHT_WALL_FACE_X,
   ROOM_DEPTH,
+  SIDE_WALL_CENTER_Z,
   ROOM_SPAN_X,
   WALL_HEIGHT,
   WALL_THICKNESS,
 } from '../layout';
 
 /** Z center shared by both side walls (matches the shell footprint). */
-const SIDE_WALL_CENTER_Z = -1.2;
 
 /** Baseboard cross-section. */
 const BASEBOARD_HEIGHT = 0.24;
