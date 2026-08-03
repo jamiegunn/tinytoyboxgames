@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
 
+_to_delete/
+
 # Build output
 dist/
 build/
@@ -16,6 +18,7 @@ docs/*
 !docs/controlled-terminology.md
 !docs/ai-guidance/*.md
 !docs/status/*.md
+
 # Review documents were un-ignored on the argument that they are the written
 # record of why the code looks the way it does. That was reversed on 2026-08-01
 # at the owner's instruction: reviews are working notes, not shipped artefacts,
