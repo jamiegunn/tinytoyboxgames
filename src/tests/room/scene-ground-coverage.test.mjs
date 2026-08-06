@@ -209,12 +209,17 @@ for (const [sceneId, env, floor] of SCENES) {
     const c = preset.constraints ?? {};
     const minPolar = c.minPolar ?? Math.max(0.9, preset.polar - 0.1);
     const maxPolar = c.maxPolar ?? Math.min(1.35, preset.polar + 0.1);
-    const maxAz = resolveRotationRange();
     const ceilingY = c.ceilingY ?? 6.0;
     const target = new Vector3(...preset.target);
 
     let worst = null;
     for (const [label, aspect] of ASPECTS) {
+      // BOTH OF THESE ARE PER ASPECT. The turn used to be hoisted out of this
+      // loop, which was correct only while it was one constant for every
+      // viewport. It is a schedule now — ±45° on a tall phone, ±10° on a laptop
+      // — so hoisting it would test the widest turn against every aspect and
+      // report a failure no device can reach.
+      const maxAz = resolveRotationRange(aspect, sceneId);
       // The furthest the player can orbit out is where the bottom edge reaches
       // furthest. Asked of the app, not re-derived here — the inline copy this
       // replaced was carrying the buggy pull-back rule.

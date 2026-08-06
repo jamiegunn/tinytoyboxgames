@@ -42,14 +42,25 @@ const SKY_SPARKLE_DISTANCE = 12;
  * 0.25 the visible share of the sampled core fell to 0.464 in Playroom at
  * 375x667, under the 0.50 the grading probe had committed to in advance.
  *
- * So the admissible window is [0.366, 1.269] and this is the smallest value that
- * clears the floor with margin, because the sparkle should look like it belongs
- * to the surface rather than floating in front of it. `miss-acknowledgement
- * .contract.test.mjs` re-derives both bounds from their four inputs, so changing
- * the cone, the field of view, the interaction slack or the probe's core radius
- * fails at this decision instead of quietly invalidating it.
+ * So the admissible window is [0.366, 0.453] and this is close to the middle of
+ * it — 12% clear of the floor, 10% clear of the ceiling — because the sparkle
+ * should look like it belongs to the surface rather than floating in front of it,
+ * and neither failure is cheaper than the other. `miss-acknowledgement
+ * .contract.test.mjs` re-derives both bounds from their five inputs, so changing
+ * the cone, the field of view, the interaction slack, the probe's core radius or
+ * a room's orbit fails at this decision instead of quietly invalidating it.
+ *
+ * THE CEILING IS A CAMERA NUMBER AND IT HAS MOVED FOUR TIMES: 1.269 at orbit 14,
+ * 1.360 at 15, 0.861 at 9.5, and now 0.453 with the closest room orbit at 5.0.
+ * Nothing about the sparkle changed in any of them. Each pixel of interaction
+ * slack covers less world as the camera comes in, so the standoff it can hide
+ * shrinks with it — and the letterbox removal brought every room in at once. At
+ * 0.45 the window had 0.7% left in it, which is not a margin, so this came down
+ * to 0.41. Below an orbit of about 4.0 the window closes entirely and there is no
+ * admissible standoff at all; that, not framing, is the floor under how close a
+ * room camera may be solved.
  */
-const SURFACE_STANDOFF = 0.45;
+const SURFACE_STANDOFF = 0.41;
 
 /**
  * Opacity at or above which a material is treated as an occluder.

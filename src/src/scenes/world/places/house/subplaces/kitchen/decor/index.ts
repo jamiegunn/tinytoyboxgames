@@ -3,6 +3,7 @@ import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
 import { createCabinetRun } from './cabinetRun';
 import { createDiningTable } from './diningTable';
 import { createFridge } from './fridge';
+import { createKitchenFrontFloor } from './frontFloor';
 import { createKitchenWindow } from './kitchenWindow';
 import { createLeftWallCabinets } from './leftWallCabinets';
 import { createOpenShelf } from './openShelf';
@@ -23,11 +24,11 @@ export interface KitchenDecorResult {
 /**
  * Composes all Kitchen decor: cabinet run with countertop clutter, window
  * over the counter, fridge, stove, open crockery shelves, pot rail, breakfast
- * table with chairs, the oval rug, the left-wall dresser and base units, and
- * the two side-wall pieces (plate rack
- * with chalk menu board on the right, peg rail with cloths and clock on the
- * left). Interactive pieces (kettle, hanging pots, fruit bowl, mugs, cloths)
- * register through the shared tap dispatcher.
+ * table with chairs, the oval rug, the front-floor dressing, the left-wall
+ * dresser and base units, and the two side-wall pieces (plate rack with chalk
+ * menu board on the right, peg rail with cloths and clock on the left).
+ * Interactive pieces (kettle, hanging pots, fruit bowl, mugs, cloths) register
+ * through the shared tap dispatcher.
  *
  * @param scene - The Three.js scene that receives the decor.
  * @param dispatcher - Shared tap dispatcher owned by the room runtime.
@@ -35,6 +36,7 @@ export interface KitchenDecorResult {
  */
 export function createKitchenDecor(scene: Scene, dispatcher: WorldTapDispatcher): KitchenDecorResult {
   const rug = createKitchenRug(scene);
+  createKitchenFrontFloor(scene);
   createKitchenWindow(scene);
   createFridge(scene);
   createStove(scene);

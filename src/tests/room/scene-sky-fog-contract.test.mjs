@@ -238,7 +238,7 @@ const envelopePoses = (sceneId, aspect) => {
   // the app rather than read off the preset: rotation range stopped being
   // per-scene data when the Playroom was found to be authored a third wider
   // than its own walls allow — see utils/scene/rotationRange.
-  const maxAz = resolveRotationRange();
+  const maxAz = resolveRotationRange(aspect, sceneId);
   const ceilingY = c.ceilingY ?? 6.0;
   const minDistance = c.minDistance ?? preset.distance * 0.2;
   const maxDistance = sceneCameraMaxDistance(sceneId, aspect);

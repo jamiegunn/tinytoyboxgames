@@ -528,9 +528,75 @@ test('the unenforced tiers are still the size this file says they are', () => {
   //     Same defect, same file pattern: a local `WALL_DEPTH_OFFSET` in
   //     `room/ceiling.ts`. The rescale left the Kitchen's ceiling 0.3 out of
   //     place because it could not see a constant that was not in layout.ts.
+  // 2026-08-03, letterbox removal, +1 internal. Net of three changes in
+  // `utils/scene/rotationRange.ts`:
+  //
+  //   SHARED_ROTATION_RANGE   removed   a single turn limit could not serve a
+  //                                     narrow frame and a wide one at once
+  //   ROTATION_BUDGET         added     the measured schedule that replaced it
+  //   SCENE_TURN_CEILING      added     the one scene that cannot take it
+  //
+  // Both new ones are internal for the same reason: the app reads them only
+  // through `resolveRotationRange`, and they are exported so the tests and probes
+  // can assert against the table rather than against a copy of it — which is the
+  // failure this whole file exists to make visible.
+  // 2026-08-03, Kitchen front floor, +33 consumed. All of them positions in
+  // `kitchen/layout.ts`, read by exactly one decor file each:
+  //
+  //   16  the new front-floor pieces — runner (4), play kitchen, laundry basket,
+  //       step stool, shopping basket, mixing bowls, pet corner (2 each)
+  //   16  the loose floor toys, MOVED here from literals at their call site.
+  //       `decor/floorToys.ts` carried a docblock saying the last depth rescale
+  //       missed them and left two toys inside the toybox, and that the next one
+  //       would miss them again unless they moved. That is what these are.
+  //    1  `createKitchenFrontFloor`
+  // 2026-08-03, tap invitations, +1 consumed and +1 internal. Both from
+  // `utils/scene/tapInvitation.ts`:
+  //
+  //   createTapInvitation  consumed  — the toybox factory hangs one on every
+  //                                    toybox that leads somewhere
+  //   TapInvitation        (not counted, and this line used to claim `internal`).
+  //                                    `exportsOf` reads `export const`, `export
+  //                                    function` and so on; an `export interface`
+  //                                    is not in its grammar, so the handle type
+  //                                    never enters these tallies at all. The
+  //                                    earlier note here was written from what
+  //                                    the tier RULES would say about it rather
+  //                                    than from what the counter did, and the
+  //                                    arithmetic below is what exposed it: the
+  //                                    two symbols predicted +1 consumed and +1
+  //                                    internal, and the run showed +1 and +0.
+  //
+  // Then the opening turn, which is two files:
+  //
+  //   resolveOpeningTurn   consumed  — `cameraPresets` calls it three times: for
+  //                                    the resolved pose, for the live camera's
+  //                                    opening theta, and on recenter
+  //   OPENING_TURN         internal  — the schedule itself. Read by
+  //                                    `tests/room/opening-turn.test.mjs`, which
+  //                                    walks its rows to check that no row turns
+  //                                    a room that did not need turning; a table
+  //                                    nothing walks is a table nothing can
+  //                                    disagree with. Test use does not make an
+  //                                    export `consumed`, and its own resolver
+  //                                    reads it, so it lands here.
+  //
+  // And the Living Room's front-floor dressing, nine more, all consumed:
+  //
+  //   createLivingRoomFrontFloor     — called by the room's decor barrel
+  //   FLOOR_CUSHION_X/Z, FLOOR_BOOKS_X/Z, BLOCK_BASKET_X/Z, FLOOR_BALL_X/Z
+  //                                  — the four slots, in `layout.ts` where every
+  //                                    other position in this room lives, and read
+  //                                    by the builder. That room's own layout
+  //                                    docblock records what happens to a
+  //                                    coordinate whose builder was never written:
+  //                                    it sits there with zero readers looking
+  //                                    exactly like the ones that work.
+  //
+  // 1806 + 1 + 1 consumed + 8 = 1816, and internal 158 + 1 = 159.
   assert.deepEqual(
     TIER_COUNTS,
-    { consumed: 1772, reexport: 86, internal: 156, spared: 7, laundered: 0, dead: 0 },
+    { consumed: 1816, reexport: 86, internal: 159, spared: 7, laundered: 0, dead: 0 },
     'the tier populations moved; say which symbol moved and why, then update this',
   );
 });

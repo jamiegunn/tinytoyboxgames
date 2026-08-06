@@ -1,23 +1,30 @@
 /**
  * The letterbox: how much of the viewport the scene gets, and what is left over.
  *
- * WHY THIS EXISTS
- * ---------------
- * The canvas used to be 100% x 100%, so the camera was handed whatever aspect
- * the device had — as narrow as 0.40. The scene sets are landscape shaped and
- * cannot fill that, so the camera was pulled back until the frame ran off the
- * edge of the floor and a child saw sky below their own feet, with the room a
- * small island in the middle. Every framing guard in this directory now depends
- * on the camera never being given an aspect outside the band, so the band itself
- * needs a test that does not depend on any scene.
+ * WHY THIS EXISTS, AND WHAT CHANGED
+ * ---------------------------------
+ * The band was [1.0, 1.4], so a 393x852 phone got a square of scene across the
+ * top and 54% of the screen painted brown. The band was never a fact about the
+ * sets — `.probe/narrow-binding.mjs` showed the void and ceiling limits do not
+ * move with aspect at all — it was the cost of requiring every way out of a room
+ * to be on screen without turning. With that requirement relaxed to "reachable"
+ * the band widened to [0.4, 2.0], which is outside every phone, tablet and laptop
+ * in either orientation: on a real device the stage is now the WHOLE viewport and
+ * there is no chrome band.
+ *
+ * So most of what this file asserts is about a path that real hardware no longer
+ * takes. That is deliberate. The band is a backstop for the shapes a desktop
+ * window can be dragged into, and a backstop nothing exercises is a backstop that
+ * rots — the tests below pick viewports that genuinely fall outside the band
+ * rather than viewports that used to.
  *
  * WHAT IS ASSERTED
  * ----------------
- * The rule as arithmetic (tests 1-7), the property every other suite leans on —
- * that the aspect is ALWAYS in the band, swept over a wide range of viewports
- * rather than over a handful of chosen ones (test 8) — and that the stage never
- * exceeds the viewport it is inside (test 9), because a stage larger than the
- * window is a scrollbar, and on a touch device a scrollbar is a scene that
+ * The rule as arithmetic, the property every other suite leans on — that the
+ * aspect is ALWAYS in the band, swept over a wide range of viewports rather than
+ * a handful of chosen ones — that real devices reach the no-band path, and that
+ * the stage never exceeds the viewport it sits in, because a stage larger than
+ * the window is a scrollbar, and on a touch device a scrollbar is a scene that
  * slides away under a child's finger.
  */
 
@@ -49,22 +56,56 @@ test('a viewport inside the band gets the whole viewport', () => {
 });
 
 test('a viewport too narrow keeps its width and loses height to the band', () => {
-  // A tall phone. The scene must not be squeezed sideways to fit; it keeps the
-  // width it has and the leftover height stops being scene.
-  const rect = resolveStageRect(393, 852);
-  assert.equal(rect.width, 393, 'the stage gives up height, never width');
-  assert.equal(rect.height, 393 / MIN_STAGE_ASPECT);
+  // 300x900 is 0.333 — narrower than the band floor, and narrower than any phone.
+  // A browser window dragged into a column is what reaches this. The scene must
+  // not be squeezed sideways to fit; it keeps the width it has and the leftover
+  // height stops being scene.
+  const rect = resolveStageRect(300, 900);
+  assert.equal(rect.width, 300, 'the stage gives up height, never width');
+  assert.equal(rect.height, 300 / MIN_STAGE_ASPECT);
   assert.equal(rect.offsetY, 0, 'the stage sits at the top so the band is thumb-reachable');
-  assert.equal(resolveChromeBand(393, 852).below, 852 - 393 / MIN_STAGE_ASPECT);
-  assert.equal(resolveChromeBand(393, 852).beside, 0);
+  assert.equal(resolveChromeBand(300, 900).below, 900 - 300 / MIN_STAGE_ASPECT);
+  assert.equal(resolveChromeBand(300, 900).beside, 0);
+});
+
+test('every device a child will actually hold gets the whole screen', () => {
+  // THE POINT OF THE CHANGE, asserted rather than described. These are real
+  // viewport sizes, in both orientations. Not one of them may lose a pixel to
+  // chrome — if a new constraint ever narrows the band back over any of them,
+  // more than half of a phone screen goes brown again and this is what says so.
+  const DEVICES = [
+    ['iPhone 15 Pro', 393, 852],
+    ['iPhone SE', 375, 667],
+    ['Pixel 8', 412, 915],
+    ['tall Android', 360, 900],
+    ['iPad mini', 744, 1133],
+    ['iPad Pro 11', 834, 1194],
+    ['iPad Pro 13', 1024, 1366],
+    ['laptop 16:10', 1440, 900],
+    ['laptop 16:9', 1366, 768],
+    ['desktop 1080p', 1920, 1080],
+  ];
+  for (const [name, w, h] of DEVICES) {
+    for (const [width, height] of [[w, h], [h, w]]) {
+      const rect = resolveStageRect(width, height);
+      const band = resolveChromeBand(width, height);
+      assert.deepEqual(
+        { ...rect, ...band },
+        { width, height, offsetX: 0, offsetY: 0, below: 0, beside: 0 },
+        `${name} at ${width}x${height} (aspect ${(width / height).toFixed(3)}) lost part of the screen to a chrome band`,
+      );
+    }
+  }
 });
 
 test('a viewport too wide keeps its height and loses width to two bands', () => {
-  const rect = resolveStageRect(2560, 1080);
+  // 3840x1080 is 3.56 — a 32:9 monitor. A 21:9 ultrawide is 2.39 and now sits
+  // inside the band, so this fixture had to get wider when the band did.
+  const rect = resolveStageRect(3840, 1080);
   assert.equal(rect.height, 1080, 'the stage gives up width, never height');
   assert.equal(rect.width, 1080 * MAX_STAGE_ASPECT);
-  assert.equal(rect.offsetX, (2560 - 1080 * MAX_STAGE_ASPECT) / 2, 'centred, not flush left');
-  assert.equal(resolveChromeBand(2560, 1080).below, 0);
+  assert.equal(rect.offsetX, (3840 - 1080 * MAX_STAGE_ASPECT) / 2, 'centred, not flush left');
+  assert.equal(resolveChromeBand(3840, 1080).below, 0);
 });
 
 test('the band edges themselves are inside, not outside', () => {
@@ -153,15 +194,17 @@ test('the band floor is at least as large as the control it exists to hold', () 
 });
 
 test('a near-square viewport gets a usable band, not a sliver', () => {
-  // 400x420 is the case that made this necessary: capping the stage at the band
-  // EDGE leaves 20 pixels of chrome. The stage gives up more than it has to so
-  // the band clears its floor, and the aspect it lands on is still inside the
-  // band it was solved for.
+  // Capping the stage at the band EDGE can leave a few pixels of chrome, which is
+  // worse than none: the buttons overflow it and sit back on the scene. The stage
+  // gives up more than it has to so the band clears its floor, and the aspect it
+  // lands on is still inside the band it was solved for.
+  // All four are outside the band — inside it there is no band to be a sliver of.
+  // 300x900 is 0.333, 250x900 is 0.278, 3440x1000 is 3.44 and 3840x1000 is 3.84.
   for (const [width, height] of [
-    [400, 420],
-    [1000, 700],
-    [393, 852],
-    [2560, 1080],
+    [300, 900],
+    [250, 900],
+    [3440, 1000],
+    [3840, 1000],
   ]) {
     const band = resolveChromeBand(width, height);
     const extent = Math.max(band.below, band.beside);

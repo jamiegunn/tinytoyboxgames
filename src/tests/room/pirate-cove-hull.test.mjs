@@ -148,7 +148,15 @@ const envelopePoses = (aspect) => {
   // the app rather than read off the preset: rotation range stopped being
   // per-scene data when the Playroom was found to be authored a third wider
   // than its own walls allow — see utils/scene/rotationRange.
-  const maxAz = resolveRotationRange();
+  // PER ASPECT AND PER SCENE. This used to call `resolveRotationRange()` with no
+  // argument at all, which was correct while it took none. When it became a
+  // schedule the call kept compiling — this is .mjs — and silently applied the
+  // narrow-phone budget of ±45° to every aspect including a 1.78 landscape,
+  // which is how this test came to report the side rails converging at 7.1°.
+  // Sweeping a flat turn through it afterwards is what measured Pirate Cove's
+  // own ceiling: 10.0° of rail at ±35.5° of turn, comfortable at ±31.5°. See
+  // SCENE_TURN_CEILING in utils/scene/rotationRange.
+  const maxAz = resolveRotationRange(aspect, 'pirate-cove');
   const ceilingY = c.ceilingY ?? 6.0;
   const minDistance = c.minDistance ?? preset.distance * 0.2;
   const maxDistance = sceneCameraMaxDistance('pirate-cove', aspect);
@@ -249,6 +257,7 @@ test('the side rails still converge at the worst corner of the reachable camera 
       }
     }
   }
+  if (globalThis.__REPORT) { console.log('WORST', worst.deg.toFixed(2), worst.label, worst.run); }
   assert.ok(
     worst.deg >= 10,
     `worst reachable rail angle is ${worst.deg.toFixed(1)} degrees (${worst.run} at ${worst.label}). ` +

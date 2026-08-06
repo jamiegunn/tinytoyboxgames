@@ -1,30 +1,50 @@
 import { BoxGeometry, Color, CylinderGeometry, Group, Mesh, SphereGeometry, TorusGeometry, type Scene } from 'three';
 import { createGlossyPaintMaterial, createPlasticMaterial, createWoodMaterial, createFeltMaterial, createToyMetalMaterial } from '@app/utils/materialFactory';
 import { getIdleAnimator } from '@app/utils/idle/registry';
+import {
+  TOY_BALL_RED_X,
+  TOY_BALL_RED_Z,
+  TOY_BALL_TEAL_X,
+  TOY_BALL_TEAL_Z,
+  TOY_BLOCKS_X,
+  TOY_BLOCKS_Z,
+  TOY_DUCK_X,
+  TOY_DUCK_Z,
+  TOY_FOOD_X,
+  TOY_FOOD_Z,
+  TOY_PLUSH_X,
+  TOY_PLUSH_Z,
+  TOY_POT_X,
+  TOY_POT_Z,
+  TOY_ROLLING_PIN_X,
+  TOY_ROLLING_PIN_Z,
+} from '../layout';
 
 /**
  * Scatters a handful of toys across the kitchen's bare front floor so it reads
  * as a lived-in play space instead of an empty room. Positions are hand-placed
  * to avoid the breakfast table, the rug, the toybox and the owl's spawn.
  *
- * THESE Z VALUES ARE LITERALS AND THAT COST SOMETHING. When the room was
- * shortened by 25% on 2026-08-02 the transform was applied to `layout.ts`, where
- * world positions are supposed to live — so the toybox moved from z -5.7 to
- * -2.175 and these toys did not move at all. Two of them ended up INSIDE it.
- * They have been carried through the same transform by hand here; the next
- * rescale will miss them again unless they move to layout.ts first.
+ * THE POSITIONS ARE IN `layout.ts` NOW, and the reason is written into the
+ * history of this file. They used to be literals at the call site below. When
+ * the room was shortened by 25% on 2026-08-02 the depth transform was applied to
+ * `layout.ts`, where world positions are supposed to live — so the toybox moved
+ * from z -5.7 to -2.175 and these toys did not move at all. Two of them ended up
+ * INSIDE it. The docblock that replaced this one said the next rescale would
+ * miss them again unless they moved; this is that move, made while the same
+ * room's front floor was being dressed and the same trap was one file away.
  *
  * @param scene - The kitchen scene to add the toys to.
  */
 export function createKitchenFloorToys(scene: Scene): void {
-  addBall(scene, 'kit_ballRed', new Color(0.92, 0.2, 0.2), 0.14, 2.4, 1.125, true);
-  addBall(scene, 'kit_ballTeal', new Color(0.2, 0.62, 0.68), 0.11, -3.7, -0.375, false);
-  addBlocks(scene, -1.6, -0.075);
-  addDuck(scene, 3.6, 2.4);
-  addToyPot(scene, 1.2, -1.2);
-  addPlayFood(scene, -1.2, 1.575);
-  addRollingPin(scene, 0.8, -1.95);
-  addPlush(scene, 4.1, 0.3);
+  addBall(scene, 'kit_ballRed', new Color(0.92, 0.2, 0.2), 0.14, TOY_BALL_RED_X, TOY_BALL_RED_Z, true);
+  addBall(scene, 'kit_ballTeal', new Color(0.2, 0.62, 0.68), 0.11, TOY_BALL_TEAL_X, TOY_BALL_TEAL_Z, false);
+  addBlocks(scene, TOY_BLOCKS_X, TOY_BLOCKS_Z);
+  addDuck(scene, TOY_DUCK_X, TOY_DUCK_Z);
+  addToyPot(scene, TOY_POT_X, TOY_POT_Z);
+  addPlayFood(scene, TOY_FOOD_X, TOY_FOOD_Z);
+  addRollingPin(scene, TOY_ROLLING_PIN_X, TOY_ROLLING_PIN_Z);
+  addPlush(scene, TOY_PLUSH_X, TOY_PLUSH_Z);
 }
 
 // A glossy bouncy ball with a white star, optionally gently rolling.

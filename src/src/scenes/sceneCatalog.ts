@@ -126,18 +126,42 @@ export const SCENE_CATALOG = {
     displayName: 'Playroom',
     kind: 'landing',
     loader: () => import('@app/scenes/world/places/house/subplaces/playroom'),
-    // THE OPENING POSE IS SOLVED, NOT AUTHORED. `.probe/room-pose-final.mjs`
-    // sweeps distance x tilt x look-at and keeps only poses where every tappable
-    // prop's bounding box is inside the frame AND no corner of the frame leaves
-    // the set, at rest and at both ends of the rotation clamp, at every aspect
-    // the letterbox can produce. Among those it takes the TIGHTEST — the props
-    // as large on screen as they go. See utils/scene/stageRect.ts for the band.
+    // THE OPENING POSE IS SOLVED, NOT AUTHORED. `.probe/joint-solve.mjs` sweeps
+    // distance x tilt x look-at and keeps only poses that hold at EVERY aspect
+    // from 0.40 to 2.00 at once: no corner of the frame off the set, no ceiling
+    // in shot, and every way out of the room reachable inside a turn the room
+    // can safely make, with a quarter of that turn still in hand. Among those it
+    // takes the frame with the most toys in it, penalised by how far the child
+    // has to turn to find an exit.
     //
-    // WHAT IT FIXED HERE: at the square end of the band the pose that shipped
-    // framed `hub_door_doorway` off the edge — the way out of the room. It was
-    // fine in landscape, which is why nobody saw it, and no test had ever asked
-    // what a room's own props project to.
-    cameraPreset: { azimuth: Math.PI, polar: 1.02, distance: 9.5, target: [0, 2.5, -6] },
+    // RE-SOLVED WHEN THE LETTERBOX CAME OUT. The previous poses were solved
+    // against a stage cropped to [1.0, 1.4] and every exit required on screen at
+    // rest, which is the rule that forced the crop. With the scene filling the
+    // screen the camera comes in much closer — distance 9.5 to 3.5 — because it no
+    // longer has to hold the whole room in a near-square frame. See
+    // `scene/stageRect.ts` for what that rule cost and why it is gone.
+    //
+    // WHAT IT FIXED HERE: at 393x852 the room now fills the phone — 50% of the
+    // frame is toys and 41% floor, against a square of scene above a brown band
+    // that was 54% of the screen. Of 36,702 poses clean at every aspect this is
+    // the richest; the furthest an exit ever sits is a 25.8 degree turn away, on
+    // the tallest phone.
+    cameraPreset: {
+      azimuth: Math.PI,
+      polar: 0.9,
+      distance: 5.0,
+      target: [0, 3.75, -8.0],
+      // NO PORTRAIT PULL-BACK. `distanceMultiplierForAspect` moves the camera
+      // back on a narrow viewport to hold the same world WIDTH on screen — at
+      // 0.46 that is 1.63x, so this pose would open at 5.7 rather than 3.5.
+      // It was written for a letterboxed stage and it is the wrong sign here:
+      // the pose above is solved at the narrow end already, and pulling back
+      // from it is what put the frame off the end of the floor in the first
+      // place. Pinning maxDistance to the pose's own distance clamps the
+      // multiplier out for this scene without changing it for Nature and
+      // Pirate Cove, where the pull-back is still load-bearing.
+      constraints: { maxDistance: 5.0 },
+    },
     audio: { musicId: 'mus_hub_background', ambientId: 'amb_hub_room_tone' },
     games: [],
   },
@@ -145,25 +169,49 @@ export const SCENE_CATALOG = {
     displayName: 'Kitchen',
     kind: 'landing',
     loader: () => import('@app/scenes/world/places/house/subplaces/kitchen'),
-    // THE OPENING POSE IS SOLVED, NOT AUTHORED. `.probe/room-pose-final.mjs`
-    // sweeps distance x tilt x look-at and keeps only poses where every tappable
-    // prop's bounding box is inside the frame AND no corner of the frame leaves
-    // the set, at rest and at both ends of the rotation clamp, at every aspect
-    // the letterbox can produce. Among those it takes the TIGHTEST — the props
-    // as large on screen as they go. See utils/scene/stageRect.ts for the band.
+    // THE OPENING POSE IS SOLVED, NOT AUTHORED. `.probe/joint-solve.mjs` sweeps
+    // distance x tilt x look-at and keeps only poses that hold at EVERY aspect
+    // from 0.40 to 2.00 at once: no corner of the frame off the set, no ceiling
+    // in shot, and every way out of the room reachable inside a turn the room
+    // can safely make, with a quarter of that turn still in hand. Among those it
+    // takes the frame with the most toys in it, penalised by how far the child
+    // has to turn to find an exit.
     //
-    // WHAT IT FIXED HERE: at the square end of the band the pose that shipped
-    // framed `toybox_kitchen-nature_root` off the edge — the way to Nature. It
-    // was fine in landscape, which is why nobody saw it.
+    // RE-SOLVED WHEN THE LETTERBOX CAME OUT. The previous poses were solved
+    // against a stage cropped to [1.0, 1.4] and every exit required on screen at
+    // rest, which is the rule that forced the crop. With the scene filling the
+    // screen the camera comes in much closer — distance 7 to 4.5 — because it no
+    // longer has to hold the whole room in a near-square frame. See
+    // `scene/stageRect.ts` for what that rule cost and why it is gone.
     //
-    // RE-SOLVED after the room was shortened by 25%. A shorter room is a HARDER
-    // one to frame, not an easier one: the camera cannot back off past the front
-    // wall any more, so it has to be closer, and a closer camera needs a wider
-    // frame to hold the same props — which in a 6.2-high room is a frame with
-    // ceiling in it. Of 50,147 clean poses only 33,668 show no ceiling, and this
-    // is the one among those that keeps every tappable furthest inside the edge
-    // (0.973 NDC). See .probe/no-ceiling-solve.mjs.
-    cameraPreset: { azimuth: Math.PI, polar: 1.04, distance: 7, target: [0, 3.25, -4.6] },
+    // WHAT IT FIXED HERE: this room binds the whole solve, as it has every time.
+    // It is the smallest shell with the most spread-out exits — its living room
+    // doorway is cut into a side wall at x 4.8-5.3, so no frame narrower than the
+    // room can hold it without turning. Only 6,975 poses survive here against the
+    // playroom's 36,702, and its safe turn is the one that collapses first on a
+    // wide monitor, which is where MAX_STAGE_ASPECT comes from.
+    //
+    // STILL THE EMPTIEST FRAME, AND STILL THE ONE THE SET IS WRONG FOR: 29% toys
+    // to 61% bare floor on a phone. That is not the camera. This room's props are
+    // all counter height or above and its front third has nothing on the floor at
+    // all, so any frame tall enough to fill a phone fills its lower half with
+    // boards. Fixing it means putting something down there, not moving the camera.
+    cameraPreset: {
+      azimuth: Math.PI,
+      polar: 0.86,
+      distance: 5.0,
+      target: [0, 3.75, -4.6],
+      // NO PORTRAIT PULL-BACK. `distanceMultiplierForAspect` moves the camera
+      // back on a narrow viewport to hold the same world WIDTH on screen — at
+      // 0.46 that is 1.63x, so this pose would open at 7.3 rather than 4.5.
+      // It was written for a letterboxed stage and it is the wrong sign here:
+      // the pose above is solved at the narrow end already, and pulling back
+      // from it is what put the frame off the end of the floor in the first
+      // place. Pinning maxDistance to the pose's own distance clamps the
+      // multiplier out for this scene without changing it for Nature and
+      // Pirate Cove, where the pull-back is still load-bearing.
+      constraints: { maxDistance: 5.0 },
+    },
     audio: { musicId: 'mus_kitchen_background', ambientId: 'amb_hub_room_tone' },
     games: [],
     backTarget: 'living-room',
@@ -172,28 +220,44 @@ export const SCENE_CATALOG = {
     displayName: 'Living Room',
     kind: 'landing',
     loader: () => import('@app/scenes/world/places/house/subplaces/living-room'),
-    // THE OPENING POSE IS SOLVED, NOT AUTHORED. `.probe/room-pose-final.mjs`
-    // sweeps distance x tilt x look-at and keeps only poses where every tappable
-    // prop's bounding box is inside the frame AND no corner of the frame leaves
-    // the set, at rest and at both ends of the rotation clamp, at every aspect
-    // the letterbox can produce. Among those it takes the TIGHTEST — the props
-    // as large on screen as they go. See utils/scene/stageRect.ts for the band.
+    // THE OPENING POSE IS SOLVED, NOT AUTHORED. `.probe/joint-solve.mjs` sweeps
+    // distance x tilt x look-at and keeps only poses that hold at EVERY aspect
+    // from 0.40 to 2.00 at once: no corner of the frame off the set, no ceiling
+    // in shot, and every way out of the room reachable inside a turn the room
+    // can safely make, with a quarter of that turn still in hand. Among those it
+    // takes the frame with the most toys in it, penalised by how far the child
+    // has to turn to find an exit.
     //
-    // WHAT IT FIXED HERE: at the square end of the band the pose that shipped
-    // framed BOTH toyboxes off the edge — every way out of this room at once.
-    // These two are also why the whole stage band is what it is: they stand hard
-    // against the side walls, so the frame has to be wide enough to contain the
-    // walls themselves — which is why, after being the binding constraint on the
-    // stage aspect band, then on rotation, and finally on whether this room could
-    // be framed at all once it was shortened, the two toyboxes were moved 0.9
-    // inboard. See NATURE_TOYBOX_X in this room's layout.ts for what that bought.
+    // RE-SOLVED WHEN THE LETTERBOX CAME OUT. The previous poses were solved
+    // against a stage cropped to [1.0, 1.4] and every exit required on screen at
+    // rest, which is the rule that forced the crop. With the scene filling the
+    // screen the camera comes in much closer — distance 9.5 to 3.5 — because it no
+    // longer has to hold the whole room in a near-square frame. See
+    // `scene/stageRect.ts` for what that rule cost and why it is gone.
     //
-    // With them off the walls this room takes the SAME pose as the Kitchen — the
-    // two shells are identical, 10.8 x 15 x 6.2, and once neither has a prop
-    // pinned to a side wall the best pose for one is the best pose for the other.
-    // Every tappable sits inside 0.880 NDC here against the Kitchen's 0.973.
-
-    cameraPreset: { azimuth: Math.PI, polar: 1.0, distance: 9.5, target: [0, 1.75, -1.6] },
+    // WHAT IT FIXED HERE: this room used to bind the stage band and the rotation
+    // clamp both, because its two toyboxes stood hard against the side walls and
+    // the frame had to contain the walls themselves to contain them. They were
+    // moved 0.9 inboard for that (see NATURE_TOYBOX_X in this room's layout.ts),
+    // and with the crop gone the constraint they were moved for no longer exists
+    // — the frame does not have to hold them at rest, only to be able to reach
+    // them. 8,607 poses clean at every aspect; this one is 37% toys on a phone.
+    cameraPreset: {
+      azimuth: Math.PI,
+      polar: 0.84,
+      distance: 5.0,
+      target: [0, 3.75, -4.6],
+      // NO PORTRAIT PULL-BACK. `distanceMultiplierForAspect` moves the camera
+      // back on a narrow viewport to hold the same world WIDTH on screen — at
+      // 0.46 that is 1.63x, so this pose would open at 5.7 rather than 3.5.
+      // It was written for a letterboxed stage and it is the wrong sign here:
+      // the pose above is solved at the narrow end already, and pulling back
+      // from it is what put the frame off the end of the floor in the first
+      // place. Pinning maxDistance to the pose's own distance clamps the
+      // multiplier out for this scene without changing it for Nature and
+      // Pirate Cove, where the pull-back is still load-bearing.
+      constraints: { maxDistance: 5.0 },
+    },
     audio: { musicId: 'mus_living_room_background', ambientId: 'amb_hub_room_tone' },
     games: [],
   },

@@ -211,15 +211,90 @@ export const CAT_Z = 4.125;
  * collision with the rug, the couch or each other — and takes the room's
  * rotation limit from ±1.6 degrees to ±29.3, which stops it being the room that
  * sets the number for everywhere else.
+ *
+ * THEY CAME IN AGAIN, TO ±1.76, FOR A FOURTH REASON OF THE SAME KIND. The tap
+ * invitation needs the room to OPEN pointing at a toybox on a portrait phone, and
+ * pointing means the box is in the picture — bbox centre inside 0.85 NDC with 90%
+ * of its projected area on screen. At ±2.7 that costs 37.4 degrees of opening turn
+ * at the narrowest shipping aspect, with 5.2 degrees of clamp left over. A narrow
+ * frame cannot contain something that far off axis without being aimed almost
+ * straight at it, so the room opened nearly three frame-widths crooked.
+ *
+ * `.probe/toybox-inboard-sweep.mjs` swept the pull toward the centre line:
+ *
+ *     ±2.70   37.4° of turn    5.2° of clamp slack
+ *     ±2.29   33.0°           10.9°
+ *     ±2.03   29.6°           12.0°
+ *     ±1.76   25.9°           12.0°   <- shipped
+ *     ±1.49   21.3°           12.0°   but now under the book slew as well
+ *
+ * ±1.76 is the furthest in that still clears the front-floor dressing with only
+ * the block basket needing to move, and it takes a third off the opening turn. The
+ * sweep's collision test is footprints on the floor, so it deliberately ignores
+ * the rug: a toybox standing on a rug is a toybox standing on a rug.
  */
-export const NATURE_TOYBOX_X = 2.7;
+export const NATURE_TOYBOX_X = 1.76;
 export const NATURE_TOYBOX_Z = -1.8;
 export const NATURE_TOYBOX_ROTATION_Y = Math.PI + 0.5;
 
 /** Pirate Cove toybox slot (foreground left). */
-export const PIRATE_TOYBOX_X = -2.7;
+export const PIRATE_TOYBOX_X = -1.76;
 export const PIRATE_TOYBOX_Z = -2.025;
 export const PIRATE_TOYBOX_ROTATION_Y = Math.PI - 0.5;
 
 /** Shared toybox floor offset. */
 export const TOYBOX_Y = 0.01;
+
+// ── Front floor ─────────────────────────────────────────────────────────────
+
+/**
+ * THE BAND THE CAMERA LOOKS ACROSS BEFORE IT REACHES ANYTHING, and why it now
+ * has things on it.
+ *
+ * With the opening turn added (`utils/scene/openingTurn.ts`) the Living Room
+ * opens rotated toward a toybox on a portrait phone, so a child meets the halo
+ * over it without having to know to drag. At the narrowest shipping aspect,
+ * 0.40, the smallest turn that shows a halo puts 46.6% of the frame on bare
+ * boards against a 46.0% bound — a miss of about six rays out of 1024, in the
+ * one room whose floor bound was already the loosest of the three.
+ *
+ * The alternative the solver found was to open THAT one aspect the other way
+ * (-28.9° instead of +26.8°), which passes. It was rejected: a schedule that
+ * flips sign between 0.40 and 0.43 passes through zero somewhere near 0.416 when
+ * interpolated, and a device landing in that band would open facing neither
+ * toybox. The guard's own failure message says what to do instead — "this room
+ * needs something on its floor, not a different camera".
+ *
+ * WHERE, MEASURED (`.probe/lr-turned-bare.mjs`). Rays through that frame that
+ * land on bare boards concentrate in the near foreground: the heaviest 1x1
+ * squares are (1, -4) with 74, (0, -4) with 70, (0, -3) with 63, (1, -3) with 53
+ * and (2, -3) with 45. The bottom 40% of the frame covers x [-1.0, 2.9],
+ * z [-4.9, -0.5].
+ *
+ * WHY EVERYTHING IS FORWARD OF z = -2.6. The toyboxes stand at z -1.8 and -2.03
+ * and are the things the turn exists to show; a prop between the camera and one
+ * of them would be dressing that hides the point of the dressing.
+ */
+
+/** Floor cushion, in the heaviest empty square. */
+export const FLOOR_CUSHION_X = 0.9;
+export const FLOOR_CUSHION_Z = -3.8;
+
+/** Picture books left in a slew, the way a three-year-old leaves them. */
+export const FLOOR_BOOKS_X = -0.4;
+export const FLOOR_BOOKS_Z = -3.1;
+
+/**
+ * Basket of wooden blocks.
+ *
+ * MOVED OUT FROM (1.9, -2.9) when the nature toybox came in to x 1.76: the box's
+ * footprint now runs x 0.8 to 2.7 at z -2.8 to -0.9, and the basket was inside it.
+ * Out and forward rather than in, so it stays in the near band the dressing exists
+ * to fill.
+ */
+export const BLOCK_BASKET_X = 2.95;
+export const BLOCK_BASKET_Z = -3.5;
+
+/** A soft ball, resting where one would come to rest. */
+export const FLOOR_BALL_X = -1.2;
+export const FLOOR_BALL_Z = -4.3;

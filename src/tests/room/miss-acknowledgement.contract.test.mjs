@@ -245,11 +245,20 @@ test('the surface standoff sits inside the window its four inputs define', () =>
   // harmless miss: `indexOf` returns -1, `slice(-1)` yields the file's last
   // character, and the regex would then have failed for a reason that has nothing
   // to do with the constant under test. It threw, which is the point of throwing.
-  const playroomAt = catalogSrc.indexOf('playroom: {');
-  if (playroomAt < 0) throw new Error('sceneCatalog.ts no longer declares a `playroom:` entry to read an orbit radius from');
-  const roomPreset = /cameraPreset:\s*\{[^}]*distance:\s*([0-9.]+)/.exec(catalogSrc.slice(playroomAt));
-  if (!roomPreset) throw new Error('the playroom entry no longer declares a cameraPreset distance');
-  const orbit = Number(roomPreset[1]);
+  // THE CLOSEST ROOM, NOT THE PLAYROOM. This used to read the playroom's orbit and
+  // call it "the rooms' radius", which was true only while the playroom happened
+  // to be the nearest camera. It is a coincidence, not a property: the three room
+  // poses are solved together against the same aspect band and any of them can
+  // come out closest. Whichever is nearest is the one where a fixed world standoff
+  // covers the most screen, so that is the one this bound belongs to.
+  const orbits = ['playroom: {', 'kitchen: {', "'living-room': {"].map((anchor) => {
+    const at = catalogSrc.indexOf(anchor);
+    if (at < 0) throw new Error(`sceneCatalog.ts no longer declares a \`${anchor}\` entry to read an orbit radius from`);
+    const found = /cameraPreset:\s*\{[^}]*distance:\s*([0-9.]+)/.exec(catalogSrc.slice(at));
+    if (!found) throw new Error(`the ${anchor} entry no longer declares a cameraPreset distance`);
+    return Number(found[1]);
+  });
+  const orbit = Math.min(...orbits);
   const frameWorldHeight = 2 * orbit * Math.tan((fovDeg * Math.PI) / 360);
   const upperBound = (proximityPx / 720) * frameWorldHeight;
 
@@ -264,7 +273,7 @@ test('the surface standoff sits inside the window its four inputs define', () =>
 
   // Pin the values as well as the relation, so a change to any of the four
   // inputs shows up as a diff to review rather than as a still-green test.
-  assert.equal(standoff, 0.45);
+  assert.equal(standoff, 0.41);
   assert.equal(phiMax, 0.82);
   assert.equal(proximityPx, 70);
   assert.equal(fovDeg, 50);
@@ -284,12 +293,20 @@ test('the surface standoff sits inside the window its four inputs define', () =>
   // each pixel of interaction slack covers less world, so the standoff has less
   // room than it did.
   //
-  // This is the first of those moves that tightened rather than loosened it, so
-  // it is worth saying what the margin now is: the standoff is 0.45 against an
-  // upper bound of 0.861, and a lower bound of 0.366. Still comfortably inside,
-  // but the Playroom orbit is now the input that would break it first — pulling
-  // the camera in much below 9.5 puts the burst outside the interaction slack.
-  assert.equal(upperBound.toFixed(3), '0.861');
+  // 2026-08-03: 0.861 -> 0.453, and THIS ONE ACTUALLY BROKE. Removing the
+  // letterbox re-solved all three room poses at once and brought the closest
+  // orbit to 5.0, which left the shipped 0.45 standoff 0.7% inside its own
+  // ceiling — arithmetically passing, and no margin at all. The standoff came
+  // down to 0.41 in response, which is the correct direction: the standoff is a
+  // world distance standing in for a screen distance, and the screen it is
+  // measured against just got closer to the wall.
+  //
+  // The warning the last entry ended on was right and is worth restating with
+  // the number that now matters: the window closes completely at an orbit near
+  // 4.0, because below that the interaction slack covers less world than the
+  // sparkle cone needs to clear the plaster. A room pose solved any closer than
+  // that has no admissible standoff, whatever the framing says.
+  assert.equal(upperBound.toFixed(3), '0.453');
 });
 
 test('the chosen fallback depth is only reachable where nothing occupies the ray', () => {

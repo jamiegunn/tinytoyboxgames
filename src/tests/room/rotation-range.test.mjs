@@ -71,7 +71,7 @@ const {
   largestSafeRotation,
   clampAzimuth,
   resolveRotationRange,
-  SHARED_ROTATION_RANGE,
+  ROTATION_BUDGET,
   getSceneCameraPreset,
   SCENE_CATALOG,
   MIN_STAGE_ASPECT,
@@ -85,7 +85,7 @@ const {
 } = await bundleEntry(
   'rotation-range',
   `
-  export { rayMissesTheRoom, frameSeesPastWalls, orbitPositionsAt, largestSafeRotation, clampAzimuth, resolveRotationRange, SHARED_ROTATION_RANGE }
+  export { rayMissesTheRoom, frameSeesPastWalls, orbitPositionsAt, largestSafeRotation, clampAzimuth, resolveRotationRange, ROTATION_BUDGET }
     from './src/utils/scene/rotationRange';
   export { getSceneCameraPreset, SCENE_CATALOG } from './src/scenes/sceneCatalog';
   export { MIN_STAGE_ASPECT, MAX_STAGE_ASPECT, stageAspectFor } from './src/utils/scene/stageRect';
@@ -381,11 +381,12 @@ for (const [sceneId, layout] of ROOMS) {
     const clean = limitsPerAspect(sceneId, layout).filter(({ limit }) => limit > 0);
     assert.ok(clean.length > 0, `${sceneId}: no aspect frames this room cleanly at all`);
     for (const { aspect, limit } of clean) {
+      const shipped = resolveRotationRange(aspect);
       assert.ok(
-        SHARED_ROTATION_RANGE <= limit,
-        `${sceneId} at aspect ${aspect.toFixed(2)}: rotation is set to ±${(SHARED_ROTATION_RANGE * DEG).toFixed(1)}° but ` +
-          `the frame starts showing past the walls at ±${(limit * DEG).toFixed(1)}°. Either reduce SHARED_ROTATION_RANGE ` +
-          `or give the room the geometry to take it.`,
+        shipped <= limit,
+        `${sceneId} at aspect ${aspect.toFixed(2)}: rotation is set to ±${(shipped * DEG).toFixed(1)}° but ` +
+          `the frame starts showing past the walls at ±${(limit * DEG).toFixed(1)}°. Either lower ROTATION_BUDGET ` +
+          `around this aspect or give the room the geometry to take it.`,
       );
     }
   });
@@ -395,26 +396,77 @@ test('the shipped range keeps a margin against the tightest cleanly-framed aspec
   // Exact equality with the limit would mean any change to a wall or a preset
   // silently starts showing the void. The margin is what makes this guard fail
   // on a near miss instead of a direct hit.
+  //
+  // PER ASPECT, because the shipped range now is. A single worst-case comparison
+  // would let a generous narrow-end budget hide a wide-end violation, and the
+  // wide end is exactly where the safe limit collapses.
   const all = ROOMS.flatMap(([sceneId, layout]) =>
     limitsPerAspect(sceneId, layout)
       .filter(({ limit }) => limit > 0)
-      .map(({ aspect, limit }) => ({ sceneId, aspect, limit })),
+      .map(({ aspect, limit }) => ({ sceneId, aspect, limit, margin: 1 - resolveRotationRange(aspect) / limit })),
   );
-  const tightest = all.reduce((a, b) => (a.limit <= b.limit ? a : b));
-  const margin = 1 - SHARED_ROTATION_RANGE / tightest.limit;
+  const tightest = all.reduce((a, b) => (a.margin <= b.margin ? a : b));
   assert.ok(
-    margin >= 0.1,
+    tightest.margin >= 0.1,
     `the tightest clean framing is ${tightest.sceneId} at aspect ${tightest.aspect.toFixed(2)}, ±${(tightest.limit * DEG).toFixed(1)}°, ` +
-      `and rotation is set to ±${(SHARED_ROTATION_RANGE * DEG).toFixed(1)}° — only ${(margin * 100).toFixed(1)}% inside it. Keep 10%.`,
+      `and rotation there is ±${(resolveRotationRange(tightest.aspect) * DEG).toFixed(1)}° — only ${(tightest.margin * 100).toFixed(1)}% inside it. Keep 10%.`,
   );
 });
 
-test('every scene turns the same amount', () => {
-  // The point of `resolveRotationRange` being a function is that this can stop
-  // being true later — when the Playroom grows a fourth wall, it is the one place
-  // that has to know. Until then, a per-scene answer would mean the same drag
-  // turns the forest much further than the nursery.
-  assert.equal(resolveRotationRange(), SHARED_ROTATION_RANGE);
+test('the budget never exceeds what the walls allow, swept rather than sampled', () => {
+  // The pinned entries are measured, but what SHIPS is the interpolation between
+  // them, and a straight line between two safe points can pass over an unsafe one
+  // — the rooms' safe limit is not linear in aspect. So this walks the whole band
+  // at 0.01 rather than checking the pins.
+  const envelopes = ROOMS.map(([sceneId, layout]) => [sceneId, envelopeOf(sceneId, layout)]);
+  let worst = null;
+  for (let aspect = MIN_STAGE_ASPECT; aspect <= MAX_STAGE_ASPECT + 1e-9; aspect += 0.01) {
+    const shipped = resolveRotationRange(aspect);
+    for (const [sceneId, { shell, orbitAt }] of envelopes) {
+      const limit = largestSafeRotation(shell, orbitAt(aspect), cornersFor(aspect));
+      if (limit <= 0) continue;
+      const margin = 1 - shipped / limit;
+      if (!worst || margin < worst.margin) worst = { sceneId, aspect, limit, shipped, margin };
+    }
+  }
+  assert.ok(worst, 'no aspect in the band frames any room cleanly');
+  assert.ok(
+    worst.margin >= 0.1,
+    `interpolating between the pinned entries overshoots: ${worst.sceneId} at aspect ${worst.aspect.toFixed(2)} allows ` +
+      `±${(worst.limit * DEG).toFixed(1)}° and the budget interpolates to ±${(worst.shipped * DEG).toFixed(1)}°, ` +
+      `${(worst.margin * 100).toFixed(1)}% inside it. A pinned entry is safe but the line between two of them is not.`,
+  );
+});
+
+test('the budget is a schedule, not a constant, and it falls as the frame widens', () => {
+  // The shape carries the argument. A narrow frame sees less of the room's width,
+  // so it must turn further to reach a toybox AND may turn further before it
+  // meets a wall end; a wide frame is the reverse. A budget that did not fall
+  // with aspect would be one of those two failures somewhere.
+  assert.ok(ROTATION_BUDGET.length >= 4, 'a table this short is a constant wearing a table costume');
+  for (let i = 1; i < ROTATION_BUDGET.length; i++) {
+    const [aPrev, rPrev] = ROTATION_BUDGET[i - 1];
+    const [aNext, rNext] = ROTATION_BUDGET[i];
+    assert.ok(aNext > aPrev, `ROTATION_BUDGET is not sorted by aspect: ${aPrev} then ${aNext}`);
+    assert.ok(rNext < rPrev, `the budget rises from ±${(rPrev * DEG).toFixed(1)}° at ${aPrev} to ±${(rNext * DEG).toFixed(1)}° at ${aNext}`);
+    assert.ok(rNext > 0, `the budget reaches ${rNext} at aspect ${aNext}, which locks rotation rather than limiting it`);
+  }
+  // The table has to cover the band, or the flat ends are doing the work of a
+  // measurement that was never taken.
+  assert.ok(ROTATION_BUDGET[0][0] <= MIN_STAGE_ASPECT, `the table starts at ${ROTATION_BUDGET[0][0]}, above the stage floor ${MIN_STAGE_ASPECT}`);
+  assert.ok(ROTATION_BUDGET[ROTATION_BUDGET.length - 1][0] >= MAX_STAGE_ASPECT, `the table ends at ${ROTATION_BUDGET[ROTATION_BUDGET.length - 1][0]}, below the stage ceiling ${MAX_STAGE_ASPECT}`);
+  // Flat outside the table rather than extrapolated: a straight line off the end
+  // of this one crosses zero at about 3.7 and goes negative after.
+  assert.equal(resolveRotationRange(0.1), ROTATION_BUDGET[0][1]);
+  assert.equal(resolveRotationRange(9), ROTATION_BUDGET[ROTATION_BUDGET.length - 1][1]);
+  // A NON-NUMBER GETS THE TIGHTEST, NOT THE WIDEST. Three test files called this
+  // with no argument while it still took none, and returning the narrow-phone
+  // budget for `undefined` applied ±45° of turn to a landscape frame without
+  // anything failing. An aspect that cannot be read must not license the widest
+  // turn in the table.
+  const tightest = ROTATION_BUDGET[ROTATION_BUDGET.length - 1][1];
+  assert.equal(resolveRotationRange(Number.NaN), tightest, 'a NaN aspect must not produce a NaN clamp, or the widest one');
+  assert.equal(resolveRotationRange(undefined), tightest);
 });
 
 test('nothing can pan: no scene in the catalog carries a target or azimuth constraint', () => {

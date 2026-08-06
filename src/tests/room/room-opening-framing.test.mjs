@@ -15,27 +15,42 @@
  * landscape, which is why it shipped: the only viewport anyone develops on is
  * the one that happened to be fine.
  *
+ * THE RULE CHANGED, AND THIS IS THE FILE WHERE IT SHOWS
+ * -----------------------------------------------------
+ * "Every tappable fully in frame at rest" is what forced the letterbox. Four
+ * toyboxes and a doorway only fit one frame if that frame is nearly square, so
+ * the stage was cropped to a square and 54% of a phone screen was painted brown.
+ * `.probe/narrow-binding.mjs` showed that requirement was the ONLY constraint
+ * that moves with aspect — the void and ceiling limits do not — so it was the
+ * only thing the crop was buying. It has been replaced by REACHABLE: a way out
+ * of the room must be visible and tappable somewhere inside the turn the child
+ * is allowed to make, at every aspect.
+ *
  * WHAT IS ASSERTED
  * ----------------
- * For each room, at every aspect the letterbox can hand the camera:
- *   1. every registered tap target is fully inside the frame — bounding box, not
- *      centre point, so a prop half off the edge fails;
- *   2. no corner of the frame leaves the set, at rest and at both ends of the
- *      rotation clamp, so the fix for (1) cannot be "pull back until the void
- *      shows";
- *   3. the props are not merely inside but LARGE — at the tightest aspect the
- *      spread must fill most of the frame, because "everything just gets
- *      smaller" is the complaint the framing work answers and a pose that frames
- *      the room from orbit satisfies (1) and (2) perfectly.
+ * For each room, at every aspect a device can produce:
+ *   1. every way out of the room — toybox or doorway — is reachable within the
+ *      shipped turn, and with a margin, so a toybox that only appears in the
+ *      last degree of travel fails;
+ *   2. the tappables NO turn can reach are only the ones already known about,
+ *      pinned by name, so a prop cannot quietly become unreachable;
+ *   3. no corner of the frame leaves the set, at rest and at both ends of the
+ *      turn, so the fix for (1) cannot be "pull back until the void shows";
+ *   4. the frame is mostly ROOM — measured by raycasting every cell of it, not
+ *      by projecting bounding boxes — because "everything just gets smaller" is
+ *      the complaint this work answers and a pose that frames the room from
+ *      across the street satisfies (1) and (3) perfectly.
  *
- * (3) is what stops this suite from being satisfiable by zooming out, which is
+ * (4) is what stops this suite from being satisfiable by zooming out, which is
  * the degenerate solution to every framing constraint ever written.
  *
- * WHY BOUNDING BOXES RATHER THAN CENTRES
- * --------------------------------------
+ * WHY REACHABILITY IS NOT A CENTRE-POINT RULE
+ * -------------------------------------------
  * A toybox whose lid is off-screen is a toybox a child may not recognise as the
- * thing they opened last time, and the two living-room toyboxes fail by 10% —
- * which is exactly the range a centre-point rule would call fine.
+ * thing they opened last time. `isTappable` below asks for the prop's middle
+ * well inside the frame AND most of its area on screen — the same two constants
+ * `.probe/joint-solve.mjs` solved the poses against, so the guard and the solver
+ * cannot disagree about what "reachable" means.
  */
 
 import test, { after } from 'node:test';
@@ -53,7 +68,7 @@ after(() => gsap.ticker.sleep());
 const M = await bundleEntry(
   'room-opening-framing',
   `
-  export { frameSeesPastWalls, orbitPositionsAt, SHARED_ROTATION_RANGE } from './src/utils/scene/rotationRange';
+  export { frameSeesPastWalls, orbitPositionsAt, resolveRotationRange } from './src/utils/scene/rotationRange';
   export { getSceneCameraPreset } from './src/scenes/sceneCatalog';
   export { SCENE_CAMERA_FOV, resolveSceneCameraPose } from './src/utils/cameraPresets';
   export { stageAspectFor } from './src/utils/scene/stageRect';
@@ -66,7 +81,15 @@ const M = await bundleEntry(
 `,
 );
 
-/** Nine shipping viewports, mapped through the letterbox. See tests/room/stage-rect. */
+/**
+ * Shipping viewports, mapped through the stage rect. See tests/room/stage-rect.
+ *
+ * THE LANDSCAPE PHONES ARE NEW AND THEY ARE NOT PADDING. While the band ended at
+ * 1.4 every one of them was pillarboxed down to 1.4, so the list only ever
+ * exercised aspects up to 1.4 however many wide entries it had. The band now
+ * ends at 2.6 and a phone on its side is 2.17, so these reach the camera as
+ * themselves — and the wide end is where a room runs out of side wall.
+ */
 const SHIPPING_VIEWPORTS = [
   [1280, 720],
   [1024, 768],
@@ -77,21 +100,29 @@ const SHIPPING_VIEWPORTS = [
   [393, 852],
   [412, 915],
   [400, 1000],
+  [852, 393],
+  [915, 412],
+  [1194, 834],
+  [1920, 1080],
+  [2560, 1080],
 ];
 const ASPECTS = [...new Set(SHIPPING_VIEWPORTS.map(([w, h]) => M.stageAspectFor(w, h)))].sort((a, b) => a - b);
 const TIGHTEST = Math.min(...ASPECTS);
 
 /**
- * How much of the frame the prop spread has to fill at the tightest aspect.
+ * What "a child can see this and put a finger on it" means, in NDC.
  *
- * Solved, not chosen. Was 0.90 when all three rooms sat at 0.95; the two
- * shortened rooms are now framed by `.probe/no-ceiling-solve.mjs`, which picks
- * the pose that keeps every tappable FURTHEST inside the edge among poses that
- * show no ceiling — the living room lands at 0.880. So the bound is 0.85: still
- * far above any pose that frames the room from across the street, and honest
- * about the fact that "no ceiling" and "props at the very edge" pull apart.
+ * These two numbers are the ones `.probe/joint-solve.mjs` solved the poses
+ * against. They are duplicated here rather than imported because the probe is
+ * scratch and the app does not ship it — but they are the same pair, and a
+ * change to one that is not made to the other shows up as the poses failing
+ * their own reachability test, which is the failure worth having.
  */
-const MIN_FILL = 0.85;
+const CENTRE_LIMIT = 0.85;
+const AREA_LIMIT = 0.6;
+
+/** How much of the safe turn a way out must be reachable within. */
+const REACH_MARGIN = 0.85;
 
 /** The camera height clamp `createSceneCamera` applies when no preset overrides it. */
 const CEILING_CLAMP = 6.0;
@@ -203,6 +234,40 @@ function worstNdc(points) {
   return worst;
 }
 
+/**
+ * Is this prop one a child could see and tap, from the camera as currently aimed?
+ *
+ * Two conditions, not one. The middle has to be well inside the frame, so a prop
+ * clipped to a sliver at the edge does not count; and most of its area has to be
+ * on screen, so a doorway showing only its architrave does not either.
+ *
+ * @param points - The prop's world-space bounding-box corners.
+ * @returns True when the prop is both visible and reachable by a fingertip.
+ */
+function isTappable(points) {
+  let x0 = Infinity;
+  let x1 = -Infinity;
+  let y0 = Infinity;
+  let y1 = -Infinity;
+  const v = new Vector3();
+  for (const point of points) {
+    v.copy(point).project(cam);
+    if (v.z > 1) return false; // behind the eye
+    x0 = Math.min(x0, v.x);
+    x1 = Math.max(x1, v.x);
+    y0 = Math.min(y0, v.y);
+    y1 = Math.max(y1, v.y);
+  }
+  if (Math.abs((x0 + x1) / 2) > CENTRE_LIMIT || Math.abs((y0 + y1) / 2) > CENTRE_LIMIT) return false;
+  const full = (x1 - x0) * (y1 - y0);
+  if (full <= 1e-9) return true;
+  const visible = Math.max(0, Math.min(x1, 1) - Math.max(x0, -1)) * Math.max(0, Math.min(y1, 1) - Math.max(y0, -1));
+  return visible / full >= AREA_LIMIT;
+}
+
+/** A way OUT of a room, as opposed to a thing to play with. */
+const isExit = (name) => name.startsWith('toybox_') || name.includes('_doorway');
+
 const ROOMS = [
   ['playroom', M.buildPlayroomContents, M.PLAYROOM],
   ['kitchen', M.buildKitchenContents, M.KITCHEN],
@@ -220,6 +285,47 @@ const EXPECTED_TAPPABLES = {
   kitchen: 15,
   'living-room': 11,
 };
+
+/**
+ * Props that no turn brings into reach, pinned per room.
+ *
+ * Empty for all three. Kept rather than deleted so a regression fails with the
+ * offending names in it instead of with a bare count.
+ */
+const EXPECTED_UNREACHABLE = {
+  playroom: [],
+  kitchen: [],
+  'living-room': [],
+};
+
+/**
+ * Can this prop be reached by turning, from a room's opening pose?
+ *
+ * Walks the turn rather than sampling its ends: a prop can be off the left edge
+ * at one extreme and off the right at the other while sitting comfortably in
+ * frame in between, and a two-point check would call that unreachable.
+ *
+ * @param sceneId - Registered scene id.
+ * @param aspect - Stage aspect.
+ * @param radius - The orbit radius the app resolves at this aspect.
+ * @param budget - Turn allowed either side, in radians.
+ * @param prop - A named prop with bounding-box corners.
+ * @returns True when some turn inside the budget puts it within reach.
+ */
+function reachableWithin(sceneId, aspect, radius, budget, prop) {
+  const preset = M.getSceneCameraPreset(sceneId);
+  const pivot = new Vector3(...preset.target);
+  const ceiling = preset.constraints?.ceilingY ?? CEILING_CLAMP;
+  const step = budget > 0 ? budget / 24 : Infinity;
+  for (let turn = -budget; turn <= budget + 1e-9; turn += step) {
+    const position = pivot.clone().add(new Vector3().setFromSpherical(new Spherical(radius, preset.polar, preset.azimuth + turn)));
+    if (position.y > ceiling) position.y = ceiling;
+    aim(position, pivot, aspect);
+    if (isTappable(prop.corners)) return true;
+    if (!Number.isFinite(step)) break;
+  }
+  return false;
+}
 
 for (const [sceneId, build, layout] of ROOMS) {
   const { props, scene } = tappablePropsOf(build);
@@ -246,36 +352,45 @@ for (const [sceneId, build, layout] of ROOMS) {
     }
   });
 
-  test(`${sceneId}: every tappable prop is fully inside the opening frame, at every stage aspect`, () => {
+  test(`${sceneId}: every way out of the room is reachable within the shipped turn`, () => {
+    // THE ASSERTION THAT REPLACED "fully inside the frame at rest". That one was
+    // satisfiable only by a nearly-square frame, which is what the letterbox was.
+    // This one is what a child actually needs: turn the room, and the way out
+    // comes into reach — with margin, so a toybox that appears only in the last
+    // degree of travel is a failure and not a pass.
     const offenders = [];
     for (const aspect of ASPECTS) {
+      const budget = M.resolveRotationRange(aspect) * REACH_MARGIN;
       const pose = M.resolveSceneCameraPose(sceneId, aspect);
-      aim(pose.position, pose.target, aspect);
-      for (const prop of props) {
-        const ndc = worstNdc(prop.corners);
-        if (ndc > 1) offenders.push(`${prop.name} at aspect ${aspect.toFixed(2)} (${((ndc - 1) * 100).toFixed(0)}% past the edge)`);
+      for (const prop of props.filter((p) => isExit(p.name))) {
+        if (!reachableWithin(sceneId, aspect, pose.radius, budget, prop)) {
+          offenders.push(`${prop.name} at aspect ${aspect.toFixed(2)} (turn budget ±${((budget * 180) / Math.PI).toFixed(1)}°)`);
+        }
       }
     }
     assert.deepEqual(
       offenders,
       [],
-      `${sceneId}: a child cannot see these at all when the room opens — ${offenders.join('; ')}. Every one of the originals was a way out of a room.`,
+      `${sceneId}: a child cannot get to these however far they turn — ${offenders.join('; ')}. Every one of them is a way out of a room.`,
     );
   });
 
-  test(`${sceneId}: the props FILL the frame rather than merely fitting in it`, () => {
-    // Without this the whole suite is satisfiable by moving the camera further
-    // away, which is the degenerate answer to every framing constraint and is
-    // also the exact defect being fixed.
-    const pose = M.resolveSceneCameraPose(sceneId, TIGHTEST);
-    aim(pose.position, pose.target, TIGHTEST);
-    const fill = worstNdc(props.flatMap((p) => p.corners));
-    assert.ok(
-      fill >= MIN_FILL,
-      `${sceneId}: at aspect ${TIGHTEST.toFixed(2)} the prop spread fills only ${(fill * 100).toFixed(0)}% of the half-frame. ` +
-        `The camera has been pulled back and the room now sits in the middle of the screen instead of filling it.`,
+  test(`${sceneId}: the tappables no turn can reach are only the ones already known about`, () => {
+    // Ways out are covered above. This is about the rest: a toy that has drifted
+    // behind the camera or under the furniture is a toy nobody can play with, and
+    // it would otherwise make every other test in this file EASIER to pass by
+    // leaving the frame.
+    //
+    // ADMISSIONS, NOT PERMISSIONS. A prop is expected to be reachable at some
+    // aspect until someone writes its name down here and says why it is not.
+    const unreachable = props
+      .filter((prop) => !ASPECTS.some((aspect) => reachableWithin(sceneId, aspect, M.resolveSceneCameraPose(sceneId, aspect).radius, M.resolveRotationRange(aspect), prop)))
+      .map((prop) => prop.name);
+    assert.deepEqual(
+      unreachable.sort(),
+      [...(EXPECTED_UNREACHABLE[sceneId] ?? [])].sort(),
+      `${sceneId}: the set of props no turn can reach has changed. If one just became reachable, shrink EXPECTED_UNREACHABLE. If one dropped out of reach, the pose or the layout put it there.`,
     );
-    assert.ok(fill <= 1, `${sceneId}: fill ${fill.toFixed(3)} means something is cropped — the previous test should have caught it`);
   });
 
   test(`${sceneId}: turning the room never shows the void, at any stage aspect`, () => {
@@ -291,9 +406,9 @@ for (const [sceneId, build, layout] of ROOMS) {
       ceilingClamp: c.ceilingY ?? CEILING_CLAMP,
     };
     const offenders = [];
-    for (const range of [0, M.SHARED_ROTATION_RANGE]) {
-      for (const position of M.orbitPositionsAt(range, orbit)) {
-        for (const aspect of ASPECTS) {
+    for (const aspect of ASPECTS) {
+      for (const range of [0, M.resolveRotationRange(aspect)]) {
+        for (const position of M.orbitPositionsAt(range, orbit)) {
           aim(position, pivot, aspect);
           if (M.frameSeesPastWalls(position, cornerDirs(), shell)) {
             offenders.push(`aspect ${aspect.toFixed(2)} at turn ${((range * 180) / Math.PI).toFixed(1)}°`);
@@ -361,31 +476,46 @@ for (const [sceneId, build, layout] of ROOMS) {
 // RATCHETED after the poses were re-solved against a SCREENSHOT. The rendered
 // frames showed what the percentages did not: the bare floor was all in one
 // band across the bottom, in front of the nearest prop, while the furniture was
-// crushed into the top third. Measured, the bottom edge of the kitchen frame
-// landed at z -5.68 with the first prop at z -3.09 — a quarter of the frame
-// height was empty approach. Adding that to the solve moved all three:
+// WHAT THE LETTERBOX WAS COSTING, IN THE ONE UNIT THAT MATTERS: how much of a
+// child's screen has toys in it. Measured by `.probe/composition-now.mjs` at
+// every aspect a shipping device produces. On a 393x852 phone the frame went
+// from 46% of the screen to 100% of it, and inside that frame:
 //
-//                 props           floor
-//     playroom    24.7 -> 27.8    44.1 -> 39.1
-//     kitchen     14.6 -> 17.7    64.7 -> 48.4
-//     living-room 13.7 -> 24.7    46.5 -> 41.9
+//                 objects        rug           bare floor
+//     playroom    22.9%          24.1%         39.5%
+//     kitchen     21.1%          24.7%         37.9%
+//     living-room 19.8%          25.6%         42.0%
 //
-// The bounds move with them, or the improvement is not held.
+// THE KITCHEN IS THE ROW THAT MOVED. It was 18.8% objects, 5.7% rug and 60.0%
+// BARE BOARDS — half again as much bare floor as either other room, because it
+// had nothing on its floor forward of the breakfast table. Dressing that band
+// (`decor/frontFloor.ts`) took it to the numbers above, and it is now the least
+// bare of the three.
+//
+// THE SPLIT IS NOT WHAT IT LOOKS LIKE, which is the whole reason the rug bucket
+// exists. With the runner off, every object in that band together moves bare
+// floor 60.0% -> 56.8%. The runner alone moves it 56.8% -> 37.9%. Objects a
+// third of a metre across do not cover twelve square metres of near floor,
+// however many of them there are; a floor covering covers floor. Counted as one
+// bucket that reads as a fix, and it is only half of one.
+//
+// THREE BOUNDS, NOT ONE.
+//   minObjects / minObjectsPortrait — the anti-zoom-out guard, and now immune to
+//     being re-earned by enlarging a rug. Portrait is separate because the
+//     objects share falls as the frame widens and fills with wall, so a single
+//     floor set by the widest aspect would let portrait regress most of the way
+//     back without failing.
+//   maxBareFloor — the guard the Kitchen needed and nothing had: a room may not
+//     go back to being a plank field.
+const PORTRAIT_MAX_ASPECT = 1.0;
 const EXPECTED_COMPOSITION = {
-  // Measured 27.8% props, 0.0% ceiling at the worst aspect.
-  playroom: { maxCeiling: 0.01, minProps: 0.25 },
-  // Measured 17.7% props, 0.0% ceiling. The kitchen keeps the most bare floor of
-  // the three because its furniture is all against the walls and its middle is
-  // genuinely empty — that is a set-content gap, not a camera one, and no pose
-  // fixes it. See the note above about what the lens and the room length did NOT
-  // buy.
-  kitchen: { maxCeiling: 0.01, minProps: 0.15 },
-  // Measured 24.7% props, 0.0% ceiling. This was the room reported as still
-  // showing its ceiling at 5.9%; the bound is 0.01 for all three now.
-  'living-room': { maxCeiling: 0.01, minProps: 0.22 },
-};
-
-/**
+  // Measured: objects 22.9% on a phone, 18.6% at the widest; bare floor <= 41.4%.
+  playroom: { maxCeiling: 0.01, minObjects: 0.17, minObjectsPortrait: 0.2, maxBareFloor: 0.45 },
+  // Measured: objects 21.1% on a phone, 16.8% at the widest; bare floor <= 38.5%.
+  kitchen: { maxCeiling: 0.01, minObjects: 0.145, minObjectsPortrait: 0.185, maxBareFloor: 0.42 },
+  // Measured: objects 19.8% on a phone, 12.8% at the widest; bare floor <= 42.1%.
+  'living-room': { maxCeiling: 0.01, minObjects: 0.115, minObjectsPortrait: 0.175, maxBareFloor: 0.46 },
+};/**
  * Casts a ray through every cell of the frame and reports what each one hits.
  *
  * @param scene - The built room.
@@ -400,7 +530,7 @@ function rasteriseFrame(scene, pose, aspect) {
   camera.updateMatrixWorld(true);
   camera.updateProjectionMatrix();
   const caster = new Raycaster();
-  const tally = { props: 0, wall: 0, floor: 0, ceiling: 0, nothing: 0 };
+  const tally = { props: 0, rug: 0, wall: 0, floor: 0, ceiling: 0, nothing: 0 };
   const n = 32;
   for (let iy = 0; iy < n; iy++) {
     for (let ix = 0; ix < n; ix++) {
@@ -423,7 +553,16 @@ function rasteriseFrame(scene, pose, aspect) {
       let node = hit.object;
       while (node && !node.name) node = node.parent;
       const name = (node?.name || '').toLowerCase();
+      // A RUG IS NOT A PROP, and this bucket exists because treating it as one
+      // hid the thing it was supposed to reveal. The Kitchen's front floor was
+      // dressed to answer "60% of a phone frame is bare boards"; six small
+      // objects moved the props share 24.4% -> 25.1%, and one rag runner moved
+      // it to 39.6%. Under the old two-way split that read as a fix. It is not:
+      // a floor covering covers floor, which is worth doing and is not the same
+      // claim as "there is more to look at". Counted apart, both claims can be
+      // made and neither can be earned with the other's evidence.
       if (name.includes('ceiling')) tally.ceiling += 1;
+      else if (name.includes('rug') || name.includes('runner') || name.includes('carpet')) tally.rug += 1;
       else if (name.includes('floor') || name.includes('ground')) tally.floor += 1;
       else if (name.includes('wall') || name.includes('wainscot') || name.includes('wallpaper')) tally.wall += 1;
       else tally.props += 1;
@@ -447,10 +586,16 @@ for (const [sceneId, build] of ROOMS.map(([id, b]) => [id, b])) {
           composition.ceiling <= bounds.maxCeiling,
           `${sceneId} at aspect ${aspect.toFixed(2)}: ${(composition.ceiling * 100).toFixed(1)}% of the frame is ceiling, over the ${(bounds.maxCeiling * 100).toFixed(0)}% bound (${shown})`,
         );
+        const floor = aspect <= PORTRAIT_MAX_ASPECT ? bounds.minObjectsPortrait : bounds.minObjects;
         assert.ok(
-          composition.props >= bounds.minProps,
-          `${sceneId} at aspect ${aspect.toFixed(2)}: only ${(composition.props * 100).toFixed(1)}% of the frame is props, under the ${(bounds.minProps * 100).toFixed(0)}% bound — ` +
+          composition.props >= floor,
+          `${sceneId} at aspect ${aspect.toFixed(2)}: only ${(composition.props * 100).toFixed(1)}% of the frame is objects, under the ${(floor * 100).toFixed(1)}% bound — ` +
             `the camera has been backed off or pointed at the carpet (${shown})`,
+        );
+        assert.ok(
+          composition.floor <= bounds.maxBareFloor,
+          `${sceneId} at aspect ${aspect.toFixed(2)}: ${(composition.floor * 100).toFixed(1)}% of the frame is bare floorboards, over the ${(bounds.maxBareFloor * 100).toFixed(0)}% bound — ` +
+            `this room needs something on its floor, not a different camera (${shown})`,
         );
         assert.equal(
           composition.nothing,

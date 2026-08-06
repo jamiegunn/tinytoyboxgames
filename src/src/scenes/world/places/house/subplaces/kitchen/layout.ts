@@ -161,8 +161,57 @@ export const TABLE_Z = 2.325;
 export const RUG_X = 0.6;
 export const RUG_Z = 4.65;
 
-/** Default toybox slot for the generated room. */
-export const TOYBOX_X = 3.1;
+/**
+ * THE TOYBOX CAME OFF THE WALL, and it is the same move the Living Room's two
+ * made for the same kind of reason.
+ *
+ * IT WAS AT 3.1, with its bounding box reaching x 4.07 against a wall at 5.4. The
+ * generated room put it there and nothing had asked it to move, because nothing
+ * had needed the frame to CONTAIN it — only to be able to reach it by turning.
+ * The tap invitation changed that: a halo is a pointer, and the room has to open
+ * pointing at a box that is actually in the picture.
+ *
+ * WHY 3.1 COULD NOT WORK, measured (`.probe/kitchen-toybox-inboard.mjs`). Asked
+ * for an opening turn that brings the box's bbox centre inside 0.85 NDC with 90%
+ * of its projected area on screen, the solver reports NO FEASIBLE ANGLE at every
+ * aspect from 0.60 to 0.90 — which includes iPad portrait at 0.75 and a square
+ * window — and where it succeeds it does so with 0.1 degrees of clamp to spare.
+ * Framing something that far outboard needs a bigger turn than the room's own
+ * walls allow before a frame corner escapes past the end of one. There was no
+ * angle to solve for; the position was the problem.
+ *
+ * WHY 2.6 AND NOT FURTHER IN. The same probe swept inboard positions:
+ *
+ *     x 3.1   infeasible at seven aspects        0.1° of slack
+ *     x 2.8   40.3° worst case                   2.5°
+ *     x 2.6   38.3° worst case                   5.2°     <- shipped
+ *     x 2.4   36.2°                              7.9°     but now overlaps kit_pot
+ *     x 2.0   31.2°                             12.0°     and the shopping basket
+ *             and the rolling pin
+ *
+ * 2.6 is the first position that clears every aspect with real slack and still
+ * collides with nothing but the front runner — which is a rug, and a toybox
+ * standing on a rug is a toybox standing on a rug.
+ *
+ * AND THEN IT CAME IN AGAIN, TO 1.69, once the standard for "in frame" became the
+ * box rather than the halo above it. At 2.6 that standard costs 38.3 degrees of
+ * opening turn at the narrowest shipping aspect — nearly three frame-widths of
+ * crooked — with 5.2 degrees of clamp to spare.
+ * `.probe/toybox-inboard-sweep.mjs`:
+ *
+ *     2.60   38.3° of turn    5.2° of clamp slack   collides with nothing
+ *     2.21   33.9°           10.5°                  the toy pot
+ *     1.95   30.5°           12.0°                  pot, shopping basket, rolling pin
+ *     1.69   26.4°           12.0°                  same three            <- shipped
+ *     1.17   16.7°           12.0°                  same three
+ *
+ * 1.69 takes a third off the turn for the price of moving three floor toys, which
+ * is a price worth paying: those three exist to fill the near band and they fill
+ * it just as well two feet to the left. Further in buys less and less — 1.17 saves
+ * only another ten degrees — and a toybox in the middle of a kitchen floor is not
+ * a kitchen.
+ */
+export const TOYBOX_X = 1.69;
 export const TOYBOX_Y = 0.01;
 export const TOYBOX_Z = -2.175;
 export const TOYBOX_ROTATION_Y = Math.PI + Math.PI / 6;
@@ -243,3 +292,141 @@ export const LEFT_BASE_CABINET_WIDTH = 2.6;
 
 /** Carcass depth out from the wall, shared by both pieces. */
 export const LEFT_CABINET_DEPTH = 0.58;
+
+// ── The front floor ─────────────────────────────────────────────────────────
+//
+// WHAT WAS WRONG, MEASURED RATHER THAN EYEBALLED. With the letterbox gone the
+// scene fills the screen, and on a 393x852 phone 59.7% of the Kitchen's opening
+// frame was bare floorboards — the emptiest room in the app by a wide margin
+// (the Playroom is 39.5%, the Living Room 42.0%). That is not a camera fault:
+// `.probe/joint-solve.mjs` searched 2,965 poses that are clean at every aspect
+// from 0.40 to 2.60 and the one that ships is the richest of them. The room
+// itself has nothing on its floor forward of the breakfast table.
+//
+// WHERE THE EMPTINESS ACTUALLY IS. `.probe/kitchen-bare-footprint.mjs` casts a
+// ray through every cell of the frame and reports where the bare ones LAND, so
+// the dressing goes where the hole is instead of where it looks like it might
+// be. On a phone the bottom third of the frame covers x [-2.0, 2.0], z [-4.3,
+// -1.3]; on a laptop the same band runs the full width, x [-5.2, 5.2]. The
+// single heaviest square is (0, -4) and its neighbours.
+//
+// So everything below sits in a band around z -4, and the pieces spread wider
+// than a phone can see on purpose: the narrow frame is the one that needed
+// fixing, but the wide one shows the whole band and would look staged if the
+// dressing stopped at x +/-2.
+//
+// THIS ROOM'S FRONT IS ITS THRESHOLD, not its work surface — the counters are
+// at the back wall and there is no fourth wall here. So the pieces are the ones
+// a threshold collects: a rag runner, a step stool, a shopping basket set down,
+// bowls out for the cat, a broom left leaning.
+
+// TWO SLOTS, NOT ONE, AND THE FIRST ATTEMPT DID NOT KNOW THAT. Everything here
+// was first placed from "the bottom third of the frame lands on x [-2.0, 2.0],
+// z [-4.3, -1.3]" — a footprint measured from where bare-floor rays land. It
+// rendered with the play kitchen and the laundry basket sliced off at the frame
+// edge, because that footprint is the union over the whole bottom band and the
+// band is a TRIANGLE, not a rectangle: `.probe/where-is-the-bottom.mjs` projects
+// floor points directly and finds that on a phone, at z -3, only x [-1.5, 1.5]
+// is on screen at all. The corners of the band reach out to x +/-2; the middle
+// of it does not.
+//
+// So there are two slots and they want different things:
+//
+//   THE PHONE STRIP, |x| <= 1.3 and z [-3.8, -1.6]. About three metres square,
+//   directly under the child's eye, and the only near floor a phone shows. Low
+//   objects only — a metre-wide unit dead centre here would wall the room off.
+//
+//   THE WINGS, |x| 2.4 to 4.3. Invisible on a phone, most of a laptop's lower
+//   frame. This is where the big silhouettes go.
+//
+// The frame's bottom edge is at z -4.35 on both, so nothing may sit nearer than
+// about z -4.0 or its base falls off the screen.
+
+/** Rag runner across the front of the room, over the emptiest floor cells. */
+export const FRONT_RUNNER_X = 0;
+export const FRONT_RUNNER_Z = -3.0;
+export const FRONT_RUNNER_HALF_WIDTH = 3.3;
+export const FRONT_RUNNER_HALF_DEPTH = 1.0;
+
+/** Child's step stool, in the phone strip. */
+export const STEP_STOOL_X = -1.0;
+export const STEP_STOOL_Z = -2.4;
+
+/** Shopping basket with play food in it, in the phone strip. */
+// OUT FROM 0.95 when the toybox came in to 1.69: the box's footprint reaches
+// x 2.66 at z -3.14, and this basket was inside it.
+export const SHOP_BASKET_X = -1.85;
+export const SHOP_BASKET_Z = -3.3;
+
+/** Nesting mixing bowls, one tipped out of the stack. In the phone strip. */
+export const MIXING_BOWLS_X = -0.75;
+export const MIXING_BOWLS_Z = -3.5;
+
+/** Cat mat and bowls, out in the left wing. */
+export const PET_CORNER_X = -4.3;
+export const PET_CORNER_Z = -3.2;
+
+// ── Loose floor toys ────────────────────────────────────────────────────────
+//
+// THESE USED TO BE LITERALS AT THE CALL SITE and it cost something. When the
+// room was shortened by 25% on 2026-08-02 the depth transform was applied to
+// this file, where world positions are supposed to live — so the toybox moved
+// from z -5.7 to -2.175 and the toys did not move at all. Two of them ended up
+// INSIDE it. `decor/floorToys.ts` carried a docblock saying the next rescale
+// would miss them again unless they moved here first. This is that move.
+
+/** Red ball, near the breakfast table. */
+export const TOY_BALL_RED_X = 2.4;
+export const TOY_BALL_RED_Z = 1.125;
+
+/** Teal ball, over toward the stove. */
+export const TOY_BALL_TEAL_X = -3.7;
+export const TOY_BALL_TEAL_Z = -0.375;
+
+/** Stack of three chunky blocks. */
+export const TOY_BLOCKS_X = -1.6;
+export const TOY_BLOCKS_Z = -0.075;
+
+/** Rubber duck. */
+export const TOY_DUCK_X = 3.6;
+export const TOY_DUCK_Z = 2.4;
+
+/** Toy cooking pot. */
+// OUT FROM (1.2, -1.2), which the moved toybox now stands on.
+export const TOY_POT_X = -2.35;
+export const TOY_POT_Z = -1.35;
+
+/** Play apple and orange. */
+export const TOY_FOOD_X = -1.2;
+export const TOY_FOOD_Z = 1.575;
+
+/** Wooden rolling pin. */
+// OUT FROM (0.8, -1.95), which the moved toybox now stands on.
+export const TOY_ROLLING_PIN_X = -1.15;
+export const TOY_ROLLING_PIN_Z = -2.25;
+
+/** Plush bunny. */
+export const TOY_PLUSH_X = 4.1;
+export const TOY_PLUSH_Z = 0.3;
+
+/**
+ * Child's play kitchen, facing the camera across the front of the room.
+ *
+ * THE BIGGEST PIECE HERE, AND IT EARNS ITS PLACE ON WIDE SCREENS ONLY. It is
+ * 1.05 wide and 0.95 tall, which is why it lives out in the left wing rather
+ * than in the phone strip: a unit this size in the middle of the near floor
+ * would wall the room off. Switching it and the laundry basket off costs 2.3
+ * points of the frame's object share at aspect 1.33 and 1.4 at 2.37, and
+ * nothing at all on a phone, which cannot see either of them.
+ */
+export const PLAY_KITCHEN_X = -2.9;
+export const PLAY_KITCHEN_Z = -2.6;
+
+/**
+ * Laundry basket with cloths, in the right wing.
+ *
+ * Held at z -3.9 to clear the nature toybox, whose box runs z -3.1 to -1.3 over
+ * x 2.1 to 4.1 — the basket would otherwise stand inside it.
+ */
+export const LAUNDRY_BASKET_X = 2.6;
+export const LAUNDRY_BASKET_Z = -3.9;

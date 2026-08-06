@@ -31,40 +31,49 @@ import { Spherical, Vector3 } from 'three';
  *     the edge, which is how the previous framing shipped the way OUT of every
  *     room off-screen at the square end of the band.
  *
- * `.probe/room-pose-final.mjs` solves all three at once. With the stage band at
- * 1.0–1.4 and every tappable prop required to be fully in frame:
+ * ROTATION IS NOW LOAD-BEARING, NOT A GARNISH
+ * -------------------------------------------
+ * It used to be that every way out of a room was on screen at rest and turning
+ * was decoration. That is what forced the letterbox: keeping four toyboxes and a
+ * doorway inside a frame at once needs a frame nearly as wide as it is tall, and
+ * a phone is 0.46, so the scene was cropped to a square and the rest of the
+ * screen was painted over. `.probe/narrow-binding.mjs` measured which of the
+ * three constraints actually moves with aspect and the answer was: only that one.
+ * The void limit and the ceiling limit are IDENTICAL at 0.40 and at 1.00 — the
+ * field of view is vertical and fixed, so what escapes the shell vertically does
+ * not care how wide the window is.
  *
- *                   at stage 1.00   at 1.33   at 1.40
- *     playroom          ±26.4°       ±26.4°    ±26.4°
- *     kitchen           ±19.0°       ±12.8°    ±12.1°   <- binds
- *     living-room       ±19.0°       ±12.8°    ±12.1°
- *     nature        bounded by the ground plane, not by walls
- *     pirate-cove   bounded by the OCEAN, not by the deck
+ * So the requirement was relaxed from "on screen" to "reachable", and the turn
+ * carries the difference. On a phone the frame is a tall slot that must swing
+ * ±45° to sweep the room; on a desktop it takes the room in at once and turns
+ * ±10°. Both are the same rule — turn as far as you must, and never as far as the
+ * wall ends. See {@link ROTATION_BUDGET} for the measured schedule.
  *
- * READ THE ROW, NOT THE FIRST CELL. The Kitchen affords more than twice as much
- * turn at the square end of the stage band as it does at the wide end, which is
- * why this is measured per aspect in the guard rather than once per room: a
- * limit taken at the opening aspect alone would ship more than double what a
- * desktop window can take.
- *     nature        bounded by the ground plane, not by walls
- *     pirate-cove   bounded by the OCEAN, not by the deck
- *
- * The two shortened rooms share a limit because they now share a pose: their
- * shells are identical (10.8 x 15 x 6.2) and, once the Living Room's toyboxes
- * came off the side walls, neither has a prop that forces a wider frame than the
- * other. The Living Room used to bind alone and at ±12.0° — those two toyboxes
- * had to be contained, so the frame had to contain the walls themselves.
- *
- * Note which direction shortening moved this: the rooms went from 20 deep to 15
- * and their limit BARELY changed, because the camera came forward with the front
- * wall. A shorter room is not a more turnable one.
- *
- * WHY ONE SHARED RANGE
- * --------------------
+ * ONE SHARED SCHEDULE, AND ONE SCENE THAT CANNOT TAKE IT
+ * ------------------------------------------------------
  * Nature's ground plane would allow far more than any room's walls. Letting each
  * scene take its own maximum would mean the same drag turns the forest a long
  * way and the nursery barely at all — the control would feel broken rather than
- * generous, and a child cannot be told why. One number, set by the tightest set.
+ * generous, and a child cannot be told why. So the schedule is shared and set by
+ * the tightest ROOM at each aspect.
+ *
+ * Pirate Cove does not fit under it, and the reason is worth writing down because
+ * it is the same shape of problem as the one that made this a schedule at all.
+ * The rooms NEED ±33.4° at aspect 0.40 to bring their toyboxes within reach.
+ * `tests/room/pirate-cove-hull.test.mjs` measures the ship's two side rails
+ * converging on screen — a hull whose rails read near-horizontal is a fence, not
+ * a ship, and the version that shipped before that guard measured 4.8°. At ±45°
+ * of turn the rails fall to 7.1°; at ±31.5° they hold. So the rooms' floor and
+ * the ship's ceiling are 33.4° and about 35°, and no single number has margin in
+ * between.
+ *
+ * One number could not serve a narrow frame and a wide one, so it became a
+ * function of aspect. It cannot serve a room and a ship either, so
+ * {@link SCENE_TURN_CEILING} caps it per scene — DERIVED from that guard's own
+ * measurement, not authored. This is deliberately not a `constraints` field on
+ * the catalog: per-scene authored azimuth data is exactly what was removed when
+ * the Playroom was found carrying a third more rotation than its walls allow,
+ * and `rotation-range.test.mjs` still fails if it comes back.
  *
  * WHAT REMOVING PANNING BOUGHT
  * ----------------------------
@@ -260,35 +269,133 @@ export function largestSafeRotation(
 }
 
 /**
- * How far the player may turn any scene, in radians. About ±10.3°.
+ * How far the player may turn, at each aspect the stage can be. Radians either
+ * side of the scene's own heading.
  *
- * Set from the measurement in this file's header, not chosen: the tightest case
- * is the Kitchen at the wide end of the stage band, ±12.1°, and this sits 15%
- * inside that so a small change
- * — a wall moved, a preset re-tilted, a prop nudged toward a wall — does not
- * silently start showing the void.
+ * TWO MEASURED BOUNDS, AND THE BUDGET SITS BETWEEN THEM. At each aspect
+ * `.probe/turn-schedule.mjs` measures, against the shipped poses:
  *
- * `tests/room/rotation-range.test.mjs` recomputes every scene's limit from its
- * own geometry and fails if this exceeds any of them, and
- * `tests/room/room-opening-framing.test.mjs` checks the other half of the same
- * trade — that turning this far never puts a prop off the edge. The margin is
- * checked rather than asserted.
+ *   NEED — the smallest turn that brings every way out of every room within
+ *          reach, taking "within reach" to be what tapping actually requires:
+ *          the prop's middle inside 0.85 NDC with at least 60% of it on screen.
+ *   SAFE — the largest turn before a frame corner of any room passes the end of
+ *          a side wall and shows the void beyond it.
+ *
+ * Turn less than NEED and a toybox is unreachable — a child cannot get out of
+ * the room. Turn more than SAFE and they see nothing where the world should be.
+ *
+ *     aspect   need    safe    shipped
+ *      0.40   ±33.4°  ±80.2°   ±45.3°   <- tightest, 1.35x clear of need
+ *      0.70   ±16.5°  ±72.0°   ±25.2°
+ *      1.00    ±6.7°  ±44.7°   ±12.6°
+ *      1.60    ±0.0°  ±26.8°   ±10.3°
+ *      2.60    ±0.0°   ±9.8°    ±5.2°
+ *
+ * NOT THE MIDPOINT, WHICH THE FIRST VERSION OF THIS USED. Halfway between 0 and
+ * ±80° is ±40° of free spin on a wide screen that needs none of it, and a room
+ * seen from 40° off its own axis is a room with a wall across the frame. What
+ * the schedule actually is: a third again as much turn as the narrow end NEEDS,
+ * easing to about ±10° at the aspects where nothing needs any — near the ±10.3°
+ * that shipped before, so a laptop feels the same as it did. Swept at 0.02 the
+ * interpolated curve clears NEED by at least 1.35x and stays under SAFE by at
+ * least 1.77x.
+ *
+ * WHY IT IS A FUNCTION OF ASPECT AT ALL, WHEN IT USED TO BE ONE NUMBER. The
+ * camera's field of view is vertical and fixed, so a narrower viewport does not
+ * see less height — it sees less WIDTH. Both halves of this move with that, in
+ * the same direction: a narrow frame has further to turn before it reaches the
+ * exits, and further it may turn before it reaches a wall end. A single constant
+ * has to satisfy the narrowest frame's NEED and the widest frame's SAFE at once,
+ * and those two do not overlap. `SHARED_ROTATION_RANGE = 0.18` satisfied them by
+ * never letting the frame get narrow — which is what the letterbox in
+ * `stageRect.ts` was for, and what it cost.
+ *
+ * `tests/room/rotation-range.test.mjs` re-measures both bounds across the whole
+ * stage band and fails if the interpolated budget leaves the interval anywhere,
+ * so a pinned entry cannot drift and interpolation cannot step over a dip
+ * between two of them.
  */
-export const SHARED_ROTATION_RANGE = 0.18;
+export const ROTATION_BUDGET: readonly (readonly [aspect: number, range: number])[] = [
+  [0.4, 0.79],
+  [0.5, 0.66],
+  [0.6, 0.55],
+  [0.7, 0.44],
+  [0.8, 0.34],
+  [0.9, 0.26],
+  [1.0, 0.22],
+  [1.2, 0.2],
+  [1.4, 0.19],
+  [1.6, 0.18],
+  [1.8, 0.17],
+  [2.0, 0.15],
+  [2.2, 0.13],
+  [2.4, 0.11],
+  [2.6, 0.09],
+];
+/**
+ * Scenes whose own geometry cannot take the shared schedule, and what they can.
+ *
+ * MEASURED, NOT CHOSEN, and by a guard that already existed. Sweeping a flat turn
+ * through `tests/room/pirate-cove-hull.test.mjs`, the worst rail convergence
+ * anywhere in Pirate Cove's reachable envelope is 10.0° at ±35.5° of turn — the
+ * bound that guard holds — and it still clears it comfortably at ±31.5°. This is
+ * ±28.6°, under both, and it binds only at the narrow end: from aspect 1.05
+ * outward the shared schedule is already tighter than this and the cap does
+ * nothing.
+ *
+ * ADMISSIONS, NOT PERMISSIONS. A scene is on the shared schedule until something
+ * measures that it cannot be.
+ */
+export const SCENE_TURN_CEILING: Readonly<Record<string, number>> = {
+  'pirate-cove': 0.5,
+};
 
 /**
- * The azimuth range for a scene.
+ * Applies a scene's own ceiling to a scheduled range, if it has one.
  *
- * A function rather than a bare constant because the shape of this decision is
- * per-scene even though the answer currently is not, and because a caller asking
- * "how far may THIS scene turn" is the question worth being able to change the
- * answer to later — when the Playroom grows a fourth wall, this is the one place
- * that has to know.
+ * @param range - The shared schedule's answer at this aspect, in radians.
+ * @param sceneId - Scene being turned, or undefined to skip the cap.
+ * @returns The smaller of the two, in radians.
+ */
+const capped = (range: number, sceneId?: string): number => {
+  const ceiling = sceneId === undefined ? undefined : SCENE_TURN_CEILING[sceneId];
+  return ceiling === undefined ? range : Math.min(range, ceiling);
+};
+
+/**
+ * The azimuth range at a viewport aspect.
  *
+ * Linear between the pinned entries of {@link ROTATION_BUDGET} and flat outside
+ * them. Flat rather than extrapolated because outside the band the stage is
+ * letterboxed to the nearest edge of it, so the camera never receives an aspect
+ * out here — and a linear extrapolation of the last two entries crosses zero at
+ * 3.7, which would silently lock rotation rather than fail.
+ *
+ * @param aspect - Viewport aspect ratio (width / height).
+ * @param sceneId - Scene being turned, for the {@link SCENE_TURN_CEILING} cap.
  * @returns The permitted offset either side of the scene's base heading, in radians.
  */
-export function resolveRotationRange(): number {
-  return SHARED_ROTATION_RANGE;
+export function resolveRotationRange(aspect: number, sceneId?: string): number {
+  const first = ROTATION_BUDGET[0];
+  const last = ROTATION_BUDGET[ROTATION_BUDGET.length - 1];
+  // AN ASPECT THAT IS NOT A NUMBER GETS THE TIGHTEST BUDGET, NOT THE WIDEST.
+  // This is the fail-safe direction and it is not hypothetical: three test files
+  // reproduce the camera envelope and all three called this with no argument at
+  // all while it still took none. They carried on compiling — they are .mjs — and
+  // silently applied the narrow-phone budget of ±45° to a 1.78 landscape frame,
+  // which is how `pirate-cove-hull` came to report its side rails converging at
+  // 7.1° when the pose it actually ships reads at 30.9°. Too little turn is a
+  // control that feels stiff; too much is a child looking at nothing.
+  if (!Number.isFinite(aspect)) return capped(last[1], sceneId);
+  if (aspect <= first[0]) return capped(first[1], sceneId);
+  if (aspect >= last[0]) return capped(last[1], sceneId);
+  for (let i = 1; i < ROTATION_BUDGET.length; i++) {
+    const [aHi, rHi] = ROTATION_BUDGET[i];
+    if (aspect > aHi) continue;
+    const [aLo, rLo] = ROTATION_BUDGET[i - 1];
+    return capped(rLo + ((rHi - rLo) * (aspect - aLo)) / (aHi - aLo), sceneId);
+  }
+  return capped(last[1], sceneId);
 }
 
 /**

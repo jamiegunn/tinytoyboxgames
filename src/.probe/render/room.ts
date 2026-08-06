@@ -2245,3 +2245,96 @@ const changed = (
     startTime: t.startTime(),
     time: t.time(),
   }));
+
+/**
+ * THE TAP INVITATION, MEASURED RATHER THAN LOOKED AT.
+ *
+ * `utils/scene/tapInvitation.ts` hangs a breathing halo over every toybox. Its
+ * whole job is to be NOTICED by a child who cannot read, and the first three
+ * attempts at it were judged by squinting at screenshots — which is how a cream
+ * ring shipped that was invisible in the palest of the three rooms. Squinting
+ * cannot answer "by how much does this separate from what is behind it", and
+ * that is the only question the halo turns on.
+ *
+ * TWO THINGS THIS EXPOSES AND WHY EACH IS NEEDED.
+ *
+ *   `list()` returns each halo's on-screen circle, taken from the sprite's real
+ *   world position through the real camera, so a probe can sample exactly the
+ *   pixels the halo covers instead of a hand-typed box. It also reports the live
+ *   material opacity, which is the only way to tell "the breath is at its trough"
+ *   from "the show rule has not fired yet" — two states that look identical in a
+ *   frame and mean opposite things.
+ *
+ *   `setVisible(false)` is what makes a DIFFERENTIAL possible: render the frame
+ *   with the halos, render it again without, and the changed pixels ARE the halo,
+ *   after depth test, tone mapping and sRGB encode have had their say. Every
+ *   earlier attempt to read contrast off a single frame had to guess which pixels
+ *   belonged to the ring, and `.probe/render/diff.mjs` retracted a whole solver
+ *   built on exactly that kind of guess.
+ *
+ * `tint` exists so a colour can be tried without a rebuild. The sweep it serves
+ * is over a lit pale room and a mid-tone wooden one at once, and a candidate that
+ * wins in one and loses in the other has to be seen losing in the same session,
+ * not in a screenshot taken twenty minutes earlier under a different build.
+ *
+ * NOTHING HERE IS DRIVEN BY THIS FILE'S OWN CLOCK: the halo's fade-in is a GSAP
+ * delay, so a probe reaches it with `__gsapAdvance`, which is the same mechanism
+ * every other timed observable in this harness uses. That matters because
+ * `requestAnimationFrame` does not run in the software renderer this harness is
+ * driven under — a time-based effect can only ever be reached by stepping GSAP by
+ * hand, never by waiting. Two traps live in that, both of which have already
+ * produced a false "the halo is broken": a `delayedCall`'s start time comes from
+ * `gsap.ticker.time` at CREATION, which is however long the page spent loading,
+ * so the root timeline a probe drives starts far behind it and a fixed walk can
+ * fall short; and stepping the root BACKWARDS rewinds tweens to their start,
+ * which silently returns every halo to opacity zero.
+ *
+ * @returns Handles to list, hide and re-tint every halo in the mounted scene.
+ */
+(
+  window as unknown as {
+    __haloProbe?: () => {
+      list: () => Array<{ name: string; opacity: number; visible: boolean; cx: number; cy: number; radius: number }>;
+      setVisible: (on: boolean) => number;
+      tint: (r: number, g: number, b: number, peak: number) => number;
+    };
+  }
+).__haloProbe = () => {
+  const halos: Array<Object3D & { material: { opacity: number; color: { setRGB: (r: number, g: number, b: number) => void } } }> = [];
+  scene.traverse((o) => {
+    if (o.name.startsWith('tapInvitation_')) halos.push(o as never);
+  });
+  const centre = new Vector3();
+  const edge = new Vector3();
+  return {
+    list: () =>
+      halos.map((h) => {
+        h.getWorldPosition(centre);
+        // The sprite is a screen-facing quad of side `scale.x`; its silhouette is
+        // a circle of that diameter, so one point offset along the camera's own
+        // right vector gives the on-screen radius without assuming a projection.
+        edge.copy(centre).addScaledVector(new Vector3().setFromMatrixColumn(cameraHandle.camera.matrixWorld, 0), (h as unknown as { scale: Vector3 }).scale.x / 2);
+        const p = centre.clone().project(cameraHandle.camera);
+        const q = edge.project(cameraHandle.camera);
+        const w = canvas.clientWidth;
+        const hh = canvas.clientHeight;
+        const cx = ((p.x + 1) / 2) * w;
+        const cy = ((1 - p.y) / 2) * hh;
+        return { name: h.name, opacity: h.material.opacity, visible: h.visible, cx, cy, radius: Math.abs(((q.x + 1) / 2) * w - cx) };
+      }),
+    setVisible: (on) => {
+      for (const h of halos) h.visible = on;
+      return halos.length;
+    },
+    tint: (r, g, b, peak) => {
+      for (const h of halos) {
+        h.material.color.setRGB(r, g, b);
+        // The breath's own onUpdate owns `opacity`, so a peak set here would be
+        // overwritten on the next step. Scaling what is already there keeps the
+        // breath in charge and changes only its amplitude.
+        h.material.opacity = peak;
+      }
+      return halos.length;
+    },
+  };
+};

@@ -1,55 +1,54 @@
 /**
- * How much of the viewport the 3D stage takes, and why it is not all of it.
+ * How much of the viewport the 3D stage takes. On every real device: all of it.
  *
- * THE DEFECT
- * ----------
- * The canvas used to fill the window, so the camera saw whatever aspect the
- * device had — down to 0.40 on a tall phone. The scene sets are landscape
- * shaped: a room is 12 units wide and 6.75 tall. There is no camera pose that
- * fills a 0.40 frame with a 1.8-shaped set. Something has to give, and what gave
- * was the set: the camera was pulled back until the frame ran off the edge of
- * the floor and the child saw sky below their own feet, with the room a small
- * island in the middle of it. "It just makes the entire scene smaller" is the
- * exact description of that.
+ * WHAT THIS USED TO DO, AND WHY IT WAS WRONG
+ * ------------------------------------------
+ * The band was [1.0, 1.4]. A phone is 0.46, so the scene was cropped to a square
+ * across the top and the remaining 54% of the screen was painted brown and given
+ * three buttons. That is more than half a child's screen showing no toys, and
+ * "the picturebox sucks for ux" is the correct reading of it.
  *
- * THE RULE
- * --------
- * The stage keeps an aspect inside [{@link MIN_STAGE_ASPECT},
- * {@link MAX_STAGE_ASPECT}]. Outside that band the leftover viewport is not
- * scene at all — it is chrome, and the UI lives there. So the scene is never
- * asked to fill a shape it cannot fill, and the camera only ever sees aspects
- * the framings were solved for.
+ * The band existed to hold ONE rule: every way out of a room must be on screen
+ * without the player moving. Four toyboxes and a doorway only fit a frame at
+ * once if the frame is nearly as wide as it is tall, so the frame was made
+ * nearly square and the screen cropped to match.
  *
- * WHERE THE NUMBERS COME FROM
- * ---------------------------
- * Both are solved, not chosen. `.probe/room-pose-final.mjs` sweeps every opening
- * pose for all three rooms and asks, at each candidate band, whether a pose
- * exists that (a) puts every tappable prop's bounding box inside the frame and
- * (b) never shows a corner of the frame off the set — at every tilt the player
- * can reach and at both ends of the rotation clamp. The band is the tightest one
- * where all three rooms still have such a pose with rotation left over:
+ * `.probe/narrow-binding.mjs` measured which constraints actually move with
+ * aspect. Sweeping 392,040 candidate poses at each of eight aspects from 0.40 to
+ * 1.00, the survivor counts after the void test and the ceiling test are
+ * IDENTICAL at every one of them — 276,996 and 126,603, to the pose. The camera's
+ * field of view is vertical and fixed, so what escapes the top or bottom of the
+ * shell does not care how wide the window is. Only "the exits are on screen"
+ * moves, and it moves as exactly 1/aspect: the playroom's worst exit sits at 0.70
+ * NDC at aspect 1.00, 0.98 at 0.70 and 1.71 at 0.40.
  *
- *                       playroom     kitchen      living-room
- *     floor 0.85        ±24.8°       ±0.3°        NO POSE AT ALL
- *     floor 1.00        ±30.7°       ±23.0°       ±12.0°
+ * So the letterbox was never a fact about rooms. It was the price of that one
+ * rule. `.probe/joint-solve.mjs` relaxes it from "on screen" to "reachable by
+ * turning" and finds 27,679 playroom poses, 2,965 kitchen poses and 4,132 living
+ * room poses that hold at EVERY aspect from 0.40 to 2.60 with no void, no
+ * ceiling, and every exit within a turn the room can safely make. The turn
+ * carries what the crop used to. See `ROTATION_BUDGET` in `scene/rotationRange.ts`,
+ * which is solved jointly with this band and not independently of it.
  *
- *     ceiling 1.78      ±31.5°       ±18.8°       ±7.8°
- *     ceiling 1.40      ±30.7°       ±23.0°       ±12.0°
+ * WHAT THE BAND IS FOR NOW
+ * ------------------------
+ * A backstop, not a layout. Every phone, tablet and laptop is inside [0.4, 2.6]
+ * in BOTH orientations, so on real hardware the stage is the whole viewport and
+ * there is no chrome band at all. Outside it — a desktop window dragged to a
+ * column, a 32:9 monitor — the stage letterboxes to the nearest edge, because
+ * past the edges the measurements above stop holding.
  *
- * A wider ceiling costs rotation rather than buying it, which is not obvious
- * until it is measured: a wider frame reaches further round the room, so it
- * meets the end of a side wall at a smaller turn.
+ * 2.6 IS A PHONE ON ITS SIDE, AND IT COST A RE-SOLVE. The first pass ran the
+ * solver to 2.00 on the reasoning that no laptop is wider. A 393x852 handset
+ * turned sideways is 2.168, and a tall Android is 2.5 — every phone in landscape
+ * was outside the band and getting pillarboxed. Re-running the solve to 2.60
+ * changed which poses qualify: the kitchen dropped from 6,975 clean poses to
+ * 2,965 and moved its camera, because a wide frame runs out of side wall first
+ * and this is the narrowest room. The band was widened by moving the cameras that
+ * could not survive it, not by asserting that they could.
  *
- * The living room binds both ends, and for the same reason in both: its two
- * toyboxes — the exits to Nature and Pirate Cove — stand hard against the side
- * walls, so the frame has to be wide enough to contain the walls themselves.
- * Moving them inboard is the one change that would loosen this band, and it is
- * set dressing rather than code. See `SHARED_ROTATION_RANGE` in
- * `scene/rotationRange.ts`, which is solved jointly with these two constants and
- * not independently of them.
- *
- * WHY THE STAGE SITS AT THE TOP IN PORTRAIT
- * -----------------------------------------
+ * WHY THE STAGE SITS AT THE TOP WHEN THERE IS A BAND
+ * --------------------------------------------------
  * The chrome band goes below the scene, not above it and not split around it. A
  * three-year-old holds a tablet low and reaches with a thumb; controls at the
  * bottom are the ones they can hit. Splitting the band would also mean the scene
@@ -60,19 +59,22 @@
  * The narrowest aspect the scene is ever rendered at.
  *
  * Below this the viewport is letterboxed: full width, height capped, and the
- * remainder becomes the chrome band.
+ * remainder becomes the chrome band. No phone reaches it — the tallest shipping
+ * handsets are around 0.40 and a 393x852 device is 0.461 — so in practice this
+ * only fires for a desktop window dragged into a column.
  */
-export const MIN_STAGE_ASPECT = 1.0;
+export const MIN_STAGE_ASPECT = 0.4;
 
 /**
  * The widest aspect the scene is ever rendered at.
  *
- * Above this the viewport is pillarboxed. This is not symmetry for its own sake:
- * a wider frame reaches further round the room before it passes the end of a
- * side wall, so an uncapped desktop window costs rotation everywhere — the
- * living room drops from ±12.0° to ±7.8° between 1.4 and 1.78.
+ * Above this the viewport is pillarboxed. Set by the widest device a child holds
+ * — a tall Android on its side is 2.5 — and by what the sets can still take
+ * there: the tightest of the three rooms turns ±9.8° at 2.60, against ±19.6° at
+ * 2.00, so this is close to where a wide frame stops having a turn worth having.
+ * A 32:9 monitor gets a pillarbox; nothing a child holds does.
  */
-export const MAX_STAGE_ASPECT = 1.4;
+export const MAX_STAGE_ASPECT = 2.6;
 
 /**
  * The smallest a chrome band is allowed to be, in CSS pixels.

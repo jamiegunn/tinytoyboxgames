@@ -50,7 +50,7 @@ permissions:
 env:
   # The one place the deployed sub-path is written down. The build, the CNAME
   # and the validation all read it, so they cannot disagree with each other.
-  PAGES_BASE: /game/
+  PAGES_BASE: /
   PAGES_DOMAIN: tinytoyboxgames.com
 
 jobs:
@@ -155,10 +155,13 @@ jobs:
         working-directory: src
         run: bunx vite build --base="$PAGES_BASE"
 
-      - name: Assemble Pages site (game + rendered docs + landing)
+      - name: Assemble Pages site (game at the root + rendered docs)
         run: |
           mkdir -p _site
-          cp -r src/dist _site/game
+          # `dist/.` not `dist`: the game IS the site now, so its contents go to
+          # the root rather than into a `game/` subdirectory. The trailing `/.`
+          # is what makes cp copy the contents instead of the directory.
+          cp -r src/dist/. _site/
           npm install marked@^12 --no-save
           node scripts/build-pages.mjs
           # The custom domain has to be in the ARTIFACT. With an Actions deploy
@@ -174,29 +177,36 @@ jobs:
         # the same claim as "the page loads and references its bundles".
         run: |
           set -e
-          echo "▸ landing page exists…"        && test -f _site/index.html
-          echo "▸ game entry exists…"          && test -f _site/game/index.html
+          echo "▸ game entry is the site root…" && test -f _site/index.html
           echo "▸ docs index exists…"          && test -f _site/docs/index.html
-          echo "▸ JS bundle emitted…"          && ls _site/game/assets/*.js  >/dev/null
-          echo "▸ CSS bundle emitted…"         && ls _site/game/assets/*.css >/dev/null
-          echo "▸ game entry references JS…"   && grep -q '\.js'  _site/game/index.html
-          echo "▸ game entry references CSS…"  && grep -q '\.css' _site/game/index.html
+          echo "▸ JS bundle emitted…"          && ls _site/assets/*.js  >/dev/null
+          echo "▸ CSS bundle emitted…"         && ls _site/assets/*.css >/dev/null
+          echo "▸ game entry references JS…"   && grep -q '\.js'  _site/index.html
+          echo "▸ game entry references CSS…"  && grep -q '\.css' _site/index.html
+          # The root really is the APP and not the old marketing page, which also
+          # lived at _site/index.html and also referenced a .css file. Both checks
+          # above pass for it, so neither of them can tell the two apart.
+          echo "▸ the root is the app, not a landing page…" && grep -q 'id="root"' _site/index.html
           echo "▸ CNAME pins the custom domain…"  && test "$(cat _site/CNAME)" = "$PAGES_DOMAIN"
+          # `src="` included deliberately: bare "${PAGES_BASE}assets/" is the
+          # substring "/assets/" once the base is "/", which a relative
+          # "./assets/" also contains. Anchoring on the attribute makes the check
+          # mean what it says.
           echo "▸ asset URLs carry the Pages base…" \
-            && grep -q "${PAGES_BASE}assets/" _site/game/index.html
-          # AND NOT THE OLD ONE. The grep above passes for any base the build
+            && grep -q "src=\"${PAGES_BASE}assets/" _site/index.html
+          # AND NOT THE REPO PREFIX. The grep above passes for any base the build
           # was told to use, including a wrong one — that is exactly how the
-          # blank deploy shipped. This asserts the specific mistake is gone.
-          # Written as an explicit `if` rather than `! grep`, because `set -e`
-          # ignores the status of a negated command and the check would pass
-          # whatever it found.
+          # blank deploy shipped, at /tinytoyboxgames/game/. This asserts the
+          # specific mistake is gone. Written as an explicit `if` rather than
+          # `! grep`, because `set -e` ignores the status of a negated command
+          # and the check would pass whatever it found.
           echo "▸ no repo-prefixed asset URLs…"
-          if grep -q '/tinytoyboxgames/game/assets/' _site/game/index.html; then
+          if grep -q '/tinytoyboxgames/' _site/index.html; then
             echo "✖ assets are still built for the github.io project path. The site" >&2
             echo "  is served from a custom domain, which strips the repo prefix." >&2
             exit 1
           fi
-          JS_SIZE=$(stat -c%s _site/game/assets/*.js | sort -rn | head -1)
+          JS_SIZE=$(stat -c%s _site/assets/*.js | sort -rn | head -1)
           echo "▸ JS bundle is non-empty (>1 KB)…" && test "$JS_SIZE" -gt 1024
           echo "✔ site validated (main bundle: ${JS_SIZE} bytes)"
 
@@ -219,7 +229,7 @@ jobs:
             sleep 1
           done
           node scripts/smoke-site.mjs "http://localhost:8099${PAGES_BASE}"
-          node scripts/smoke-site.mjs "http://localhost:8099/"
+          node scripts/smoke-site.mjs "http://localhost:8099/docs/"
 
       - uses: actions/configure-pages@v5
 

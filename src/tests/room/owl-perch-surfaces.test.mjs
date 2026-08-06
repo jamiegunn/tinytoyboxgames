@@ -377,7 +377,27 @@ const EXPECTED_INVENTORY = {
       'trainRoot',
       'webSlinger',
     ],
-    airborne: ['ceiling', 'mobilePivot', 'sunRay0', 'sunRay1', 'sunRay2'],
+    airborne: [
+      // THE TAP INVITATIONS, and this is the category they must be in. Each is a
+      // breathing halo hung above a toybox that leads somewhere
+      // (`utils/scene/tapInvitation.ts`). `airborne` means nothing supports it,
+      // so it is never stamped into the perch field and the owl can neither land
+      // on it nor be blocked by it — the same standing as the sun rays and the
+      // mobile. If one of these ever appears under `solid` instead, its GAP_Y has
+      // fallen inside STACK_CONTACT_Y and a child's owl is perching on a ring of
+      // light.
+      //
+      // COUNT THEM AGAINST THE TOYBOXES ABOVE. The Playroom has three toyboxes
+      // and two halos: `toybox_creative_root` has `destination: null` and is not
+      // invited to, deliberately.
+      'ceiling',
+      'mobilePivot',
+      'sunRay0',
+      'sunRay1',
+      'sunRay2',
+      'tapInvitation_toybox_adventure_root',
+      'tapInvitation_toybox_animals_root',
+    ],
   },
   kitchen: {
     // `Group` and `Mesh` used to appear here, which is what an unnamed object
@@ -394,9 +414,22 @@ const EXPECTED_INVENTORY = {
       'kit_block1',
       'kit_block2',
       'kit_duck',
+      // The front-floor dressing, added when the Kitchen's opening frame turned
+      // out to be 60% bare boards. Every one of these is a thing the owl can now
+      // be sent to the top of, which is the point of reading this list rather
+      // than just re-pinning it: a stool and a play kitchen are perches a child
+      // would expect, and a laundry basket and a shopping basket are ones they
+      // would enjoy. A leaning broom was in this set and was removed BECAUSE it
+      // landed here — its bounding box is a metre tall and almost entirely air.
+      // See `decor/frontFloor.ts`.
+      'kit_laundryBasket',
+      'kit_mixingBowls',
       'kit_orange',
+      'kit_playKitchen',
       'kit_plush',
       'kit_pot',
+      'kit_shopBasket',
+      'kit_stepStool',
       'kitchen_cabinetRun',
       'kitchen_diningTable',
       'kitchen_fridge',
@@ -407,21 +440,46 @@ const EXPECTED_INVENTORY = {
       'kitchen_stove',
       'toybox_kitchen-nature_root',
     ],
-    airborne: ['kitchen_ceiling'],
+    airborne: ['kitchen_ceiling', 'tapInvitation_toybox_kitchen-nature_root'],
   },
+  // FOUR OF THESE ARRIVED WITH `decor/frontFloor.ts`, and each was checked
+  // against the reason the Kitchen has no broom: a perch is modelled as its
+  // BOUNDING BOX, so a named thing taller than MIN_SOLID_HEIGHT whose box is
+  // mostly air stands the owl on nothing.
+  //
+  //   livingRoom_sitCushion   a 0.9 x 0.16 disc. Its box IS its top surface, and
+  //                           a floor cushion is the most obviously standable
+  //                           thing in the room.
+  //   livingRoom_bookSlew     a stack of three flat books, 0.5 x 0.15 x 0.4.
+  //   livingRoom_blockBasket  0.6 across and 0.28 tall; the box top is the rim.
+  //   livingRoom_playBall     the one worth arguing about — a sphere fills 52% of
+  //                           its box, so at the box's corner the surface is a
+  //                           radius lower than the perch plane. It is kept
+  //                           because the error is BOUNDED BY THE RADIUS, 0.17,
+  //                           and the whole footprint is 0.34 across: less than
+  //                           the owl's own width, so there is no tap inside it
+  //                           that is not also within 0.17 of the ball. The broom
+  //                           that was removed was 1.19 tall over a 0.58 x 0.23
+  //                           footprint — a metre of error over an area a tap
+  //                           could sit anywhere in. Shape alone does not decide
+  //                           this; scale does.
   'living-room': {
     solid: [
+      'livingRoom_blockBasket',
+      'livingRoom_bookSlew',
       'livingRoom_catPlush',
       'livingRoom_couch',
       'livingRoom_fireplace',
       'livingRoom_floorLamp',
       'livingRoom_kitchenDoor_doorway',
+      'livingRoom_playBall',
       'livingRoom_playroomDoor_doorway',
       'livingRoom_sideTable',
+      'livingRoom_sitCushion',
       'toybox_living-room-nature_root',
       'toybox_living-room-pirate-cove_root',
     ],
-    airborne: ['livingRoom_ceiling'],
+    airborne: ['livingRoom_ceiling', 'tapInvitation_toybox_living-room-nature_root', 'tapInvitation_toybox_living-room-pirate-cove_root'],
   },
   nature: {
     solid: [

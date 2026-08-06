@@ -271,7 +271,12 @@ test('the Pages base is defined once and never written as a literal again', () =
 
   const assetGreps = lines.filter((line) => /grep -q/.test(line) && /assets\//.test(line));
   assert.ok(assetGreps.length > 0, 'nothing validates that the emitted asset URLs carry the base');
-  const positive = assetGreps.filter((line) => !/tinytoyboxgames\/game/.test(line));
+  // The negative guard is a `grep -q` mentioning assets too, so it has to be
+  // excluded here or it would be asked to read PAGES_BASE — which is the one
+  // thing it must NOT do, since its whole job is to name a base the build was
+  // never told to use. Matched on the repo prefix rather than on the old
+  // `tinytoyboxgames/game` path, which no longer exists.
+  const positive = assetGreps.filter((line) => !/tinytoyboxgames\//.test(line));
   assert.ok(
     positive.length > 0 && positive.every((line) => /PAGES_BASE/.test(line)),
     `the asset-URL check restates the base instead of reading PAGES_BASE:\n  ${positive.join('\n  ')}\n` +
@@ -307,8 +312,16 @@ test('the build and the CNAME cannot describe different sites', () => {
 test('the base that shipped a blank page is asserted gone, not merely replaced', () => {
   // The positive grep passes for whatever the build was told to use, correct or
   // not. This is the assertion that names the specific mistake.
+  //
+  // THE GUARD WIDENED WHEN THE GAME MOVED TO THE ROOT. It used to reject the
+  // exact string that shipped blank, `/tinytoyboxgames/game/assets/`, in
+  // `_site/game/index.html`. Both halves of that are now wrong: the entry is
+  // `_site/index.html`, and there is no `game/` segment for a bad base to carry.
+  // What survives from the original mistake is the REPO PREFIX — a base of
+  // `/tinytoyboxgames/...` is wrong under a custom domain whatever follows it —
+  // so that is what the guard names now.
   const raw = readFileSync(CI_PATH, 'utf8');
-  const guard = /if grep -q '\/tinytoyboxgames\/game\/assets\/' _site\/game\/index\.html; then/.test(raw);
+  const guard = /if grep -q '\/tinytoyboxgames\/' _site\/index\.html; then/.test(raw);
   assert.ok(guard, 'the validation step no longer rejects the repo-prefixed asset base that shipped a blank deploy');
   assert.doesNotMatch(
     runLines().join('\n'),

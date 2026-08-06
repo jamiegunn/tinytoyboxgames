@@ -1,5 +1,19 @@
 /**
- * That the letterbox is actually WIRED, not merely computed.
+ * That the stage rectangle is actually WIRED, not merely computed.
+ *
+ * WHAT CHANGED, AND WHY THE FIXTURES LOOK ODD
+ * -------------------------------------------
+ * The band is now [0.4, 2.6], which contains every phone, tablet and laptop in
+ * both orientations — so a real device gets the whole viewport and NO chrome
+ * band. The letterbox is a backstop for shapes a desktop window can be dragged
+ * into. That is why the viewports below are 300x900 and 3840x1080 rather than a
+ * phone: a phone no longer exercises this path, and a fixture that no longer
+ * reaches the branch it names is a test that has quietly stopped testing.
+ *
+ * The wiring still has to be checked, and now in both directions: that the
+ * canvas takes the measured rectangle when there is one to take, and that the
+ * measured rectangle really is the whole viewport on the devices this is played
+ * on.
  *
  * WHY THIS EXISTS
  * ---------------
@@ -23,10 +37,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bundleComponent } from '../framework/_tsload.mjs';
 
-/** A phone: far narrower than the stage floor, so the letterbox has to bite. */
+/** A phone. Inside the band now, so the stage is the whole screen. */
 const PHONE = { width: 393, height: 852 };
-/** A wide desktop: past the stage ceiling, so the pillarbox has to bite. */
-const ULTRAWIDE = { width: 2560, height: 1080 };
+/** A browser window dragged into a column: below the floor, letterbox bites. */
+const COLUMN = { width: 300, height: 900 };
+/** A 32:9 monitor: past the ceiling, so the pillarbox bites. */
+const ULTRAWIDE = { width: 3840, height: 1080 };
 /** A shape already inside the band, where the stage is the whole viewport. */
 const INSIDE_BAND = { width: 1200, height: 1000 };
 
@@ -170,25 +186,57 @@ test('the canvas is a measured box, not a percentage of the window', () => {
   }
 });
 
-test('a phone really does lose height rather than width', () => {
+test('a letterboxed viewport really does lose height rather than width', () => {
   // Belt and braces on the direction of the letterbox. Squeezing the width
   // instead would also satisfy "the canvas is a measured box" while shrinking
   // the scene, which is the complaint the letterbox answers.
-  const style = canvasOf(renderAt(M.SceneFrame, PHONE)).props.style;
-  assert.equal(style.width, PHONE.width, 'the stage gave up width on a phone');
-  assert.ok(style.height < PHONE.height, 'the stage kept the full height on a phone, so there is no chrome band');
+  const style = canvasOf(renderAt(M.SceneFrame, COLUMN)).props.style;
+  assert.equal(style.width, COLUMN.width, 'the stage gave up width rather than height');
+  assert.ok(style.height < COLUMN.height, 'nothing was taken, so this fixture is not letterboxed at all');
 });
 
-test('UIOverlay puts its controls in the chrome band, not on top of the scene', () => {
-  // The other half of letterboxing: if the buttons stay pinned to the viewport
-  // corners they sit on the scene a child is meant to be able to touch, and the
-  // band below it stays empty.
-  const band = M.resolveChromeBand(PHONE.width, PHONE.height);
+test('a phone gets the whole screen, canvas included', () => {
+  // THE POINT OF REMOVING THE LETTERBOX, checked at the one place it can be
+  // undone: the canvas style. `stage-rect.test.mjs` says the RECTANGLE is the
+  // whole viewport on real devices; this says the canvas is given it.
+  for (const at of [PHONE, { width: 852, height: 393 }, { width: 834, height: 1194 }, { width: 1440, height: 900 }]) {
+    const style = canvasOf(renderAt(M.SceneFrame, at)).props.style;
+    assert.equal(style.width, at.width, `the canvas is ${style.width} wide on a ${at.width}x${at.height} screen`);
+    assert.equal(style.height, at.height, `the canvas is ${style.height} tall on a ${at.width}x${at.height} screen`);
+    assert.equal(style.left, 0);
+    assert.equal(style.top, 0);
+  }
+});
+
+test('UIOverlay puts its controls in the chrome band when there is one', () => {
+  // The other half of letterboxing: where a band exists, the buttons belong in
+  // it. If they stay pinned to the viewport corners they sit on the scene a
+  // child is meant to be able to touch and the band below it stays empty.
+  const band = M.resolveChromeBand(COLUMN.width, COLUMN.height);
   assert.ok(band.below > 0, 'the fixture is wrong: this viewport has no band below the stage');
-  const row = find(renderAt(M.UIOverlay, PHONE), (n) => n.props?.style?.height === band.below);
+  const row = find(renderAt(M.UIOverlay, COLUMN), (n) => n.props?.style?.height === band.below);
   assert.ok(row, `no element is laid out at the chrome band height ${band.below} — the HUD is still floating over the scene`);
-  const stage = M.resolveStageRect(PHONE.width, PHONE.height);
+  const stage = M.resolveStageRect(COLUMN.width, COLUMN.height);
   assert.equal(row.props.style.top, stage.height, 'the control row does not start where the stage ends');
+});
+
+test('UIOverlay floats over the scene when there is no band, and stays out of the middle', () => {
+  // The case that is now normal. With no band the controls have nowhere to go
+  // but on top of the scene, so what matters is that they stay in a corner
+  // rather than over the toys — a button across the middle of the frame is a
+  // toy a child cannot reach.
+  for (const at of [PHONE, { width: 852, height: 393 }, { width: 1440, height: 900 }]) {
+    assert.deepEqual(M.resolveChromeBand(at.width, at.height), { below: 0, beside: 0 }, `${at.width}x${at.height} is not a no-band fixture`);
+    const buttons = all(renderAt(M.UIOverlay, at)).filter((n) => n.type === 'button');
+    assert.ok(buttons.length >= 2, `expected at least two controls at ${at.width}x${at.height}`);
+    for (const b of buttons) {
+      const { width, height } = b.props.style;
+      assert.ok(width <= at.width * 0.2 && height <= at.height * 0.2, `a control is ${width}x${height} on a ${at.width}x${at.height} screen — that is not a corner, that is the scene`);
+    }
+    // Every control together must leave the frame's middle third alone.
+    const rowWidth = buttons.reduce((sum, b) => sum + b.props.style.width, 0) * 1.35;
+    assert.ok(rowWidth < at.width, `the control row is ${rowWidth.toFixed(0)} across a ${at.width}px screen`);
+  }
 });
 
 test('every control is at least a finger wide, at every viewport', () => {
@@ -227,7 +275,18 @@ test('a band too thin to hold a control is not used as one', () => {
   // satisfied. The region is narrow — the short axis has to be under about 266px
   // — but the branch is real, and laying the row out in a 73px band would put
   // 56px buttons hard against both its edges and over the scene.
-  const SLIVER = { width: 250, height: 252 };
+  // THIS FIXTURE IS ABSURD ON PURPOSE. Widening the band to [0.4, 2.6] shrank the
+  // region where the aspect invariant and the 76px band floor cannot both hold
+  // down to viewports under about 36 CSS pixels on the short axis: the stage has
+  // to be capped at 2.5x the width to stay in the band, and above w=36 there is
+  // always room for a full band under that cap. 250x252 used to reach this branch
+  // and is now comfortably inside the band with no sliver at all.
+  //
+  // The branch is still in `resolveStageRect` and `UIOverlay` still checks for it,
+  // so it still gets a test — but the honest thing to say is that no device
+  // reaches it, and this fixture is here to keep the code path from rotting rather
+  // than because anyone will see it.
+  const SLIVER = { width: 30, height: 80 };
   const band = M.resolveChromeBand(SLIVER.width, SLIVER.height);
   assert.ok(band.below > 0 && band.below < M.MIN_CHROME_BAND, `the fixture is wrong: this viewport's band is ${band.below}, not a sliver`);
   const row = find(renderAt(M.UIOverlay, SLIVER), (n) => n.props?.style?.height === band.below);

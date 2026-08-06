@@ -1,12 +1,27 @@
 /**
- * Assembles the GitHub Pages site into `_site/`:
- *   _site/index.html      → landing page with nav (Play · Docs)
- *   _site/game/           → the built Vite game (placed here by the workflow)
- *   _site/docs/           → the repo's Markdown docs rendered to HTML
+ * Renders the repo's Markdown docs into `_site/docs/`.
  *
- * The game is built separately (vite build --outDir ../_site/game) before this
- * script runs; this script only adds the landing page and the rendered docs.
- * Run from the repo root: `node scripts/build-pages.mjs`.
+ * WHAT THIS SCRIPT NO LONGER DOES, AND WHY
+ * ----------------------------------------
+ * It used to also write `_site/index.html` — a landing page with two cards, Play
+ * and Documentation — while the game sat at `_site/game/`. So a child arriving at
+ * tinytoyboxgames.com met a marketing page and had to find the Play card before
+ * reaching the app's own "Open the Toybox" screen. The game is now copied to the
+ * site ROOT by the workflow and its own `index.html` is the landing page, which
+ * is what the domain should have been serving all along.
+ *
+ * Two consequences worth naming, because both are collisions waiting to happen:
+ *
+ *   THE STYLESHEET MOVED to `_site/docs/site.css`. It used to be written to
+ *   `_site/assets/site.css`, and `_site/assets/` is now the game's bundle
+ *   directory — a docs stylesheet dropped in there is at best noise and at worst
+ *   clobbered by a copy ordering nobody controls.
+ *
+ *   THE DOCS NAV points at `/` for Play rather than `game/index.html`, because
+ *   that path no longer exists.
+ *
+ * The game is built separately and copied to `_site/` before this runs. Run from
+ * the repo root: `node scripts/build-pages.mjs`.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, cpSync, existsSync } from 'node:fs';
@@ -55,8 +70,10 @@ a { color:#b9772a; text-decoration:none; } a:hover { text-decoration:underline; 
 .doc ul.docindex li { padding:8px 0; border-bottom:1px solid var(--line); }
 `;
 
-mkdirSync(join(SITE, 'assets'), { recursive: true });
-writeFileSync(join(SITE, 'assets', 'site.css'), CSS.trim());
+// Under `docs/`, NOT under `assets/`: the site root is the game now, and
+// `_site/assets/` belongs to its bundles.
+mkdirSync(join(SITE, 'docs'), { recursive: true });
+writeFileSync(join(SITE, 'docs', 'site.css'), CSS.trim());
 
 /**
  * Wraps rendered content in the shared page chrome.
@@ -67,12 +84,15 @@ writeFileSync(join(SITE, 'assets', 'site.css'), CSS.trim());
  * @returns A full HTML document string.
  */
 function page(title, bodyHtml, depth) {
+  // `depth` counts directories below _site, and the stylesheet lives one level
+  // in — under docs/ — so it is `depth - 1` hops back up from any docs page.
   const up = '../'.repeat(depth);
+  const css = '../'.repeat(depth - 1) + 'site.css';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${title} · Tiny Toybox Games</title><link rel="stylesheet" href="${up}assets/site.css"></head>
-<body><header class="topbar"><a class="brand" href="${up}index.html">🧸 Tiny Toybox Games</a>
-<nav><a href="${up}game/index.html">▶ Play</a><a href="${up}docs/index.html">📖 Docs</a></nav></header>
+<title>${title} · Tiny Toybox Games</title><link rel="stylesheet" href="${css}"></head>
+<body><header class="topbar"><a class="brand" href="${up}">🧸 Tiny Toybox Games</a>
+<nav><a href="${up}">▶ Play</a><a href="${up}docs/index.html">📖 Docs</a></nav></header>
 <main class="doc">${bodyHtml}</main></body></html>`;
 }
 
@@ -117,20 +137,4 @@ for (const g of Object.keys(groups).sort()) {
 }
 writeFileSync(join(SITE, 'docs', 'index.html'), page('Docs', indexBody, 1));
 
-// Landing page.
-const landing = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tiny Toybox Games</title><link rel="stylesheet" href="assets/site.css"></head>
-<body><section class="hero">
-<div class="emoji" style="font-size:3.4rem">🧸</div>
-<h1>Tiny Toybox Games</h1>
-<p class="tag">A gentle browser-based 3D toybox — where every tap sparks wonder.</p>
-<div class="cards">
-  <a class="card" href="game/index.html"><div class="emoji">▶️</div><h2>Play the Game</h2><p>Open the toybox and explore the playroom, kitchen, living room, nature, and pirate cove.</p></a>
-  <a class="card" href="docs/index.html"><div class="emoji">📖</div><h2>Documentation</h2><p>Vision, design standards, architecture, and current-state reference.</p></a>
-</div>
-<p class="foot">Built with React + Three.js · <a href="https://github.com/jamiegunn/tinytoyboxgames">Source on GitHub</a></p>
-</section></body></html>`;
-writeFileSync(join(SITE, 'index.html'), landing);
-
-console.log(`Pages site assembled: ${entries.length} docs rendered into _site/`);
+console.log(`Pages site assembled: ${entries.length} docs rendered into _site/docs/`);

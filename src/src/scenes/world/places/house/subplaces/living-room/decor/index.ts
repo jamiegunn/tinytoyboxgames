@@ -4,6 +4,7 @@ import { createCatPlush } from './catPlush';
 import { createCouch } from './couch';
 import { createFireplace } from './fireplace';
 import { createFloorLamp } from './floorLamp';
+import { createLivingRoomFrontFloor } from './frontFloor';
 import { createRug } from './rug';
 import { createSideTable } from './sideTable';
 import { createWallArt } from './wallArt';
@@ -19,7 +20,7 @@ export interface LivingRoomDecorResult {
 
 /**
  * Composes all Living Room decor: rug, couch, fireplace, floor lamp, side
- * table, sleeping cat, window, and framed wall art. Interactive pieces (couch
+ * table, sleeping cat, front-floor dressing, window, and framed wall art. Interactive pieces (couch
  * cushions, fireplace, lamp, cat) register through the shared tap dispatcher.
  *
  * @param scene - The Three.js scene that receives the decor.
@@ -29,6 +30,7 @@ export interface LivingRoomDecorResult {
 export function createLivingRoomDecor(scene: Scene, dispatcher: WorldTapDispatcher): LivingRoomDecorResult {
   const rug = createRug(scene);
   createSideTable(scene);
+  createLivingRoomFrontFloor(scene);
   createWindowFrame(scene);
   createWallArt(scene);
 

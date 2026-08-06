@@ -1,3 +1,4 @@
+import { createTapInvitation } from '@app/utils/scene/tapInvitation';
 import { buildToyboxVariant } from '@app/toyboxes/variants';
 import { applyToyboxPlacement, resolveToyboxInteractionOptions } from './runtime';
 import type { CreateInteractiveToyboxArgs, InteractiveToyboxHandle } from './types';
@@ -11,6 +12,14 @@ import { wireToyboxInteractions } from './wireToyboxInteractions';
  * keeps a local pointermove listener for hover feedback. This removes the old
  * per-toybox click listener pattern from Playroom without changing the authored
  * toybox specs or visuals.
+ *
+ * IT ALSO HANGS THE TAP INVITATION, and it does so here rather than in each room
+ * so that a room cannot be built without one — including rooms the generator has
+ * not made yet. Only toyboxes that GO somewhere get one: an invitation is a
+ * promise, and the Playroom's third box has `destination: null` and answers a tap
+ * with a wiggle and a "not yet" tone. Inviting a child to it over and over would
+ * be a promise the room cannot keep. Two of the Playroom's three boxes glowing
+ * and the third not is itself a kindness a three-year-old can read.
  *
  * @param args - Scene, runtime, owl, dispatcher, navigation, and authored toybox spec dependencies.
  * @returns A handle containing the toybox root and a cleanup function.
@@ -32,8 +41,15 @@ export function createInteractiveToybox({ scene, canvas, camera, dispatcher, owl
     options: interactionOptions,
   });
 
+  // After `wireToyboxInteractions`, and after the variant is placed: the halo is
+  // measured from the box's world bounds, so it has to be positioned last.
+  const invitation = spec.destination ? createTapInvitation(scene, canvas, runtime.root) : null;
+
   return {
     root: runtime.root,
-    dispose,
+    dispose: () => {
+      invitation?.dispose();
+      dispose();
+    },
   };
 }

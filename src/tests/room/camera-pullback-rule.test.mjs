@@ -58,11 +58,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bundleEntry } from '../framework/_tsload.mjs';
 
-const { distanceMultiplierForAspect, PULLBACK_REFERENCE_ASPECT, MIN_STAGE_ASPECT, MAX_STAGE_ASPECT } = await bundleEntry(
+const { distanceMultiplierForAspect, PULLBACK_REFERENCE_ASPECT, resolveSceneCameraPose, SCENE_CATALOG, MIN_STAGE_ASPECT, MAX_STAGE_ASPECT } = await bundleEntry(
   'camera-pullback-rule',
   `
-  export { distanceMultiplierForAspect, PULLBACK_REFERENCE_ASPECT } from './src/utils/cameraPresets';
+  export { distanceMultiplierForAspect, PULLBACK_REFERENCE_ASPECT, resolveSceneCameraPose } from './src/utils/cameraPresets';
   export { MIN_STAGE_ASPECT, MAX_STAGE_ASPECT } from './src/utils/scene/stageRect';
+  export { SCENE_CATALOG } from './src/scenes/sceneCatalog';
 `,
 );
 
@@ -175,16 +176,62 @@ test('the reference aspect itself receives a pull-back at every narrower aspect'
   assert.equal(distanceMultiplierForAspect(PULLBACK_REFERENCE_ASPECT), 1);
 });
 
-test('the rule is inert across the whole stage band, and something says so if that changes', () => {
-  // Not a claim that the pull-back is right; a claim that it currently does
-  // NOTHING, because the letterbox never hands it an aspect below its reference.
-  // If the stage floor is ever lowered past PULLBACK_REFERENCE_ASPECT this fails,
-  // which is the moment to decide whether the rule should be revived or removed.
+test('the rule is live again, and every scene has decided whether it wants it', () => {
+  // THIS TEST USED TO ASSERT THE OPPOSITE. Its previous claim was that the rule
+  // does NOTHING, because the letterbox floor of 1.0 sat above the reference of
+  // 0.75 and so the multiplier was never handed a narrow aspect. That claim ended
+  // when the letterbox came out: the floor is now 0.4, the rule runs on every
+  // phone, and it ends with the assertion that used to be its guard —
+  // `MIN_STAGE_ASPECT >= PULLBACK_REFERENCE_ASPECT` — deliberately inverted.
+  //
+  // Which means the question it deferred has to be answered per scene, because
+  // the answer genuinely differs:
+  //
+  //   ROOMS opt OUT. Their poses are solved by `.probe/joint-solve.mjs` against
+  //   the whole aspect band at once, narrow end included, so the narrow end needs
+  //   no correction — and applying one anyway pulls the camera back out through
+  //   the room's open front, which is how the frame came to run off the end of the
+  //   floor in the first place. They opt out by pinning `maxDistance` to their own
+  //   `distance`, which clamps the multiplier away without changing it.
+  //
+  //   IMMERSIVE SCENES opt IN. Nature's four portals go off a phone entirely
+  //   without the pull-back, which is why its catalog entry carries a comment
+  //   saying so and declines to set `maxDistance`.
+  //
+  // So the assertion is not "inert" but "chosen": the multiplier must actually
+  // pull back somewhere in the band, and every scene must either pin its distance
+  // or be one whose framing was solved with the pull-back running.
   assert.ok(
-    MIN_STAGE_ASPECT >= PULLBACK_REFERENCE_ASPECT,
-    `the stage floor ${MIN_STAGE_ASPECT} is now below the pull-back reference ${PULLBACK_REFERENCE_ASPECT}: a camera rule that has not run since letterboxing landed is live again, and no scene framing was solved with it running`,
+    MIN_STAGE_ASPECT < PULLBACK_REFERENCE_ASPECT,
+    `the stage floor ${MIN_STAGE_ASPECT} is back above the pull-back reference ${PULLBACK_REFERENCE_ASPECT}, so this rule is dead code again and the per-scene opt-outs below are describing a choice nothing makes`,
   );
-  for (let a = MIN_STAGE_ASPECT; a <= MAX_STAGE_ASPECT + 1e-9; a += 0.001) {
-    assert.equal(distanceMultiplierForAspect(a), 1, `aspect ${a.toFixed(3)} inside the stage band still receives a pull-back`);
+  assert.ok(distanceMultiplierForAspect(MIN_STAGE_ASPECT) > 1);
+
+  // Scenes that were solved WITH the pull-back running. Admissions, not
+  // permissions: a new scene is opted out until someone adds it here and says why.
+  const SOLVED_WITH_PULLBACK = {
+    nature: 'four portals go off a phone without it; see the comment on its catalog entry',
+    'pirate-cove': 'pins maxDistance to its own distance anyway, so it is opted out in practice too',
+  };
+
+  for (const [id, entry] of Object.entries(SCENE_CATALOG)) {
+    const preset = entry.cameraPreset;
+    const pinned = preset.constraints?.maxDistance !== undefined && preset.constraints.maxDistance <= preset.distance;
+    if (!pinned) {
+      assert.ok(
+        id in SOLVED_WITH_PULLBACK,
+        `scene "${id}" neither pins maxDistance nor is listed as solved with the pull-back — at aspect ${MIN_STAGE_ASPECT} its camera opens ${distanceMultiplierForAspect(MIN_STAGE_ASPECT).toFixed(2)}x further out than its preset says, and nobody has said that is intended`,
+      );
+      continue;
+    }
+    // A pinned scene must actually hold still: the radius the app resolves has to
+    // be the preset's own at every aspect in the band, not merely at one of them.
+    for (let a = MIN_STAGE_ASPECT; a <= MAX_STAGE_ASPECT + 1e-9; a += 0.01) {
+      const { radius } = resolveSceneCameraPose(id, a);
+      assert.ok(
+        Math.abs(radius - preset.distance) < 1e-9,
+        `scene "${id}" pins maxDistance but opens at radius ${radius.toFixed(3)} rather than ${preset.distance} at aspect ${a.toFixed(2)}`,
+      );
+    }
   }
 });

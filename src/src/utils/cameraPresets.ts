@@ -1,5 +1,6 @@
 import { MathUtils, PerspectiveCamera, Spherical, Vector3 } from 'three';
 import { clampAzimuth, resolveRotationRange } from '@app/utils/scene/rotationRange';
+import { resolveOpeningTurn } from '@app/utils/scene/openingTurn';
 import { getSceneCameraPreset } from '@app/scenes/sceneCatalog';
 import type { SceneId } from '@app/types/scenes';
 
@@ -99,8 +100,8 @@ export interface SceneCameraPose {
 
 /**
  * Resolves the opening camera pose for a scene at a given viewport aspect,
- * applying the portrait pull-back, the preset's distance constraints, and the
- * ceiling clamp — exactly as {@link createSceneCamera} does.
+ * applying the portrait pull-back, the opening turn, the preset's distance
+ * constraints, and the ceiling clamp — exactly as {@link createSceneCamera} does.
  *
  * This exists so that ground-coverage checks can interrogate the pose the app
  * will actually use. Re-deriving the pose in a test would only prove the test
@@ -114,7 +115,12 @@ export function resolveSceneCameraPose(sceneId: SceneId, aspect: number): SceneC
   const preset = getSceneCameraPreset(sceneId);
   const target = new Vector3(...preset.target);
   const radius = radiusForAspect(preset, aspect);
-  const position = target.clone().add(new Vector3().setFromSpherical(new Spherical(radius, preset.polar, preset.azimuth)));
+  // The opening turn is part of the pose, not part of the range: see
+  // `@app/utils/scene/openingTurn`. It is added HERE and not to `preset.azimuth`
+  // so that everything measuring how far a room may be TURNED keeps measuring
+  // from the room's own axis.
+  const azimuth = preset.azimuth + resolveOpeningTurn(aspect, sceneId);
+  const position = target.clone().add(new Vector3().setFromSpherical(new Spherical(radius, preset.polar, azimuth)));
   const ceilingY = preset.constraints?.ceilingY ?? 6.0;
   if (position.y > ceilingY) {
     position.y = ceilingY;
@@ -217,7 +223,14 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
 
   // Azimuth is stored in the native three.js Spherical convention (θ=0 → +Z), so
   // no offset is applied here. See architecture-standards.md#cameradescriptor.
-  const spherical = new Spherical(radiusForAspect(preset, aspect), p.polar, p.azimuth);
+  // OPENING TURN, AND ONLY ON THE OPENING THETA. `resolveOpeningTurn` says how
+  // crooked a room opens so that a phone's narrow frame has a toybox — and so the
+  // halo above it — in view without the child having to know to drag first. It is
+  // deliberately NOT folded into `p.azimuth`, because `clampSpherical` below
+  // measures the turn budget from `p.azimuth` and that budget belongs to the room,
+  // not to wherever the camera was put down. Fold it in and the far exit falls out
+  // of reach, which is the mistake the first solve made.
+  const spherical = new Spherical(radiusForAspect(preset, aspect), p.polar, p.azimuth + resolveOpeningTurn(aspect, sceneId));
 
   // ROTATION RANGE IS DERIVED, NOT AUTHORED. `maxAzimuthRange` used to be a
   // per-scene constant and the Playroom's was a third larger than its own walls
@@ -229,7 +242,14 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
   // See `@app/utils/scene/rotationRange`, which owns the number and the argument
   // for it, and `tests/room/rotation-range.test.mjs`, which recomputes every
   // scene's geometric limit and fails if the shipped range exceeds one.
-  const maxAzimuthRange = resolveRotationRange();
+  //
+  // IT IS ALSO A FUNCTION OF ASPECT, WHICH IS WHY IT IS A `let`. A narrow
+  // viewport sees less of the room's width, so it has to turn further to bring
+  // the way out of the room within reach; a wide one takes the room in at once
+  // and passes the end of a side wall sooner. Resizing the window changes the
+  // answer, so `resize` recomputes it and re-clamps — a camera left holding the
+  // portrait range after a rotate to landscape would swing past a wall end.
+  let maxAzimuthRange = resolveRotationRange(aspect, sceneId);
   const minPolar = preset.constraints?.minPolar ?? Math.max(0.9, p.polar - 0.1);
   const maxPolar = preset.constraints?.maxPolar ?? Math.min(1.35, p.polar + 0.1);
   const ceilingY = preset.constraints?.ceilingY ?? 6.0;
@@ -353,8 +373,13 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
   canvas.addEventListener('pointercancel', onPointerUp, true);
   canvas.addEventListener('wheel', onWheel, { passive: false });
 
+  // Recenter returns the camera to the pose the room OPENED at, turn included —
+  // not to the room's axis. A child who has dragged themselves into a corner and
+  // pressed recenter should land back where the room started, looking at a
+  // toybox, not at the pose the room has never actually shown them.
   const recenter = () => {
-    spherical.set(radiusForAspect(preset, camera.aspect), p.polar, p.azimuth);
+    spherical.set(radiusForAspect(preset, camera.aspect), p.polar, p.azimuth + resolveOpeningTurn(camera.aspect, sceneId));
+    clampSpherical();
     updateCameraPosition();
   };
 
@@ -377,7 +402,12 @@ export function createSceneCamera(canvas: HTMLCanvasElement, sceneId: SceneId): 
     camera.aspect = newAspect;
     camera.updateProjectionMatrix();
     maxDistance = maxDistanceForAspect(newAspect);
-    spherical.radius = MathUtils.clamp(spherical.radius, minDistance, maxDistance);
+    maxAzimuthRange = resolveRotationRange(newAspect, sceneId);
+    // Both limits just moved, so re-clamp rather than only re-clamping the
+    // radius: a device rotated from portrait to landscape narrows the turn
+    // budget from ±30° to ±5°, and a camera already turned 20° would otherwise
+    // sit outside its own range showing the void until the next drag.
+    clampSpherical();
     updateCameraPosition();
   };
 
