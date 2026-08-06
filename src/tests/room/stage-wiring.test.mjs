@@ -231,7 +231,10 @@ test('UIOverlay floats over the scene when there is no band, and stays out of th
     assert.ok(buttons.length >= 2, `expected at least two controls at ${at.width}x${at.height}`);
     for (const b of buttons) {
       const { width, height } = b.props.style;
-      assert.ok(width <= at.width * 0.2 && height <= at.height * 0.2, `a control is ${width}x${height} on a ${at.width}x${at.height} screen — that is not a corner, that is the scene`);
+      assert.ok(
+        width <= at.width * 0.2 && height <= at.height * 0.2,
+        `a control is ${width}x${height} on a ${at.width}x${at.height} screen — that is not a corner, that is the scene`,
+      );
     }
     // Every control together must leave the frame's middle third alone.
     const rowWidth = buttons.reduce((sum, b) => sum + b.props.style.width, 0) * 1.35;

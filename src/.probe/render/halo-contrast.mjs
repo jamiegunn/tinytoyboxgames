@@ -197,7 +197,9 @@ for (const [vlabel, vw, vh] of VIEWS) {
       '  after stepping GSAP ' +
         REACH_VISIBLE +
         's: ' +
-        before.map((h) => `${h.name} opacity ${h.opacity.toFixed(3)} visible=${h.visible} r=${h.radius.toFixed(1)}px at (${h.cx.toFixed(0)},${h.cy.toFixed(0)})`).join('; ')
+        before
+          .map((h) => `${h.name} opacity ${h.opacity.toFixed(3)} visible=${h.visible} r=${h.radius.toFixed(1)}px at (${h.cx.toFixed(0)},${h.cy.toFixed(0)})`)
+          .join('; '),
     );
     for (const t of TREATMENTS) {
       const m = await measure(page, t);
@@ -207,7 +209,7 @@ for (const [vlabel, vw, vh] of VIEWS) {
           `  ${t[0].padEnd(36)} ${ring.name.replace('tapInvitation_', '').padEnd(18)}` +
             ` r${ring.radiusPx.toFixed(0)}px  changed ${String(ring.changed).padStart(5)}/${String(ring.discPx).padStart(5)}` +
             ` (${(ring.coverage * 100).toFixed(0)}%)  bg lum ${ring.peakBg.toFixed(0)} -> ring ${ring.peakRing.toFixed(0)}` +
-            `  peak Δ${ring.peakDelta >= 0 ? '+' : ''}${ring.peakDelta.toFixed(1)}  mean Δ${ring.meanAbsDelta.toFixed(1)}  Weber ${(ring.weber * 100).toFixed(1)}%`
+            `  peak Δ${ring.peakDelta >= 0 ? '+' : ''}${ring.peakDelta.toFixed(1)}  mean Δ${ring.meanAbsDelta.toFixed(1)}  Weber ${(ring.weber * 100).toFixed(1)}%`,
         );
       }
     }
@@ -231,7 +233,7 @@ for (const [t, list] of byTreatment) {
   const worst = others.reduce((a, b) => (Math.abs(a.weber) < Math.abs(b.weber) ? a : b), others[0]);
   console.log(
     `  ${t.padEnd(36)} living-room floor |Weber| ${(minLiving * 100).toFixed(1)}%   worst elsewhere ${(Math.abs(worst.weber) * 100).toFixed(1)}%` +
-      ` (${worst.room}, ${worst.view}, ${worst.name.replace('tapInvitation_', '')})   ${Math.abs(worst.weber) >= minLiving ? 'CLEARS THE BAR' : 'BELOW THE BAR'}`
+      ` (${worst.room}, ${worst.view}, ${worst.name.replace('tapInvitation_', '')})   ${Math.abs(worst.weber) >= minLiving ? 'CLEARS THE BAR' : 'BELOW THE BAR'}`,
   );
 }
 console.log('\nJSON ' + JSON.stringify(rows.map((r) => [r.room, r.view, r.treatment, r.name, +r.weber.toFixed(4), +r.peakDelta.toFixed(1), r.changed])));

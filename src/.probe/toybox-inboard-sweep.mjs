@@ -57,7 +57,16 @@ const ASPECTS = [0.4, 0.45, 0.46, 0.5, 0.56, 0.6, 0.65, 0.7, 0.75, 0.8, 0.9, 1.0
 const PULLS = [0, 0.15, 0.25, 0.35, 0.45, 0.55];
 
 const noop = () => {};
-const stubCanvas = () => ({ width: 1280, height: 720, clientWidth: 1280, clientHeight: 720, getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }), addEventListener: noop, removeEventListener: noop, style: {} });
+const stubCanvas = () => ({
+  width: 1280,
+  height: 720,
+  clientWidth: 1280,
+  clientHeight: 720,
+  getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }),
+  addEventListener: noop,
+  removeEventListener: noop,
+  style: {},
+});
 
 const cam = new PerspectiveCamera(M.SCENE_CAMERA_FOV, 1, 0.1, 400);
 const aim = (p, t, a) => {
@@ -141,7 +150,13 @@ for (const [id, build, L] of [
   const preset = M.getSceneCameraPreset(id);
   const target = new Vector3(...preset.target);
   const shell = { wallX: L.LEFT_WALL_X, frontZ: L.BACK_WALL_CENTER_Z - L.ROOM_DEPTH, backZ: L.BACK_WALL_CENTER_Z, ceilingY: L.CEILING_Y, floorY: 0 };
-  const orbit = { azimuth: AZ, pivot: target, radii: [preset.distance], polars: [Math.max(0.75, preset.polar - 0.1), preset.polar, Math.min(1.5, preset.polar + 0.1)], ceilingClamp: CLAMP };
+  const orbit = {
+    azimuth: AZ,
+    pivot: target,
+    radii: [preset.distance],
+    polars: [Math.max(0.75, preset.polar - 0.1), preset.polar, Math.min(1.5, preset.polar + 0.1)],
+    ceilingClamp: CLAMP,
+  };
 
   console.log(`\n=== ${id}   boxes at x ${units.map((u) => u.anchorX.toFixed(2)).join(', ')}`);
   console.log('  pull   new x            worst turn (aspect)     min clamp slack   crossover   collides');
@@ -149,8 +164,16 @@ for (const [id, build, L] of [
     const moved = units.map((u) => {
       const dx = -u.anchorX * pull;
       const pts = [];
-      for (const x of [u.box.min.x + dx, u.box.max.x + dx]) for (const y of [u.box.min.y, u.box.max.y]) for (const z of [u.box.min.z, u.box.max.z]) pts.push(new Vector3(x, y, z));
-      return { name: u.name, newX: u.anchorX + dx, pts, halo: u.haloCentre.clone().setX(u.haloCentre.x + dx), haloR: u.haloR, footprint: { x0: u.box.min.x + dx, x1: u.box.max.x + dx, z0: u.box.min.z, z1: u.box.max.z } };
+      for (const x of [u.box.min.x + dx, u.box.max.x + dx])
+        for (const y of [u.box.min.y, u.box.max.y]) for (const z of [u.box.min.z, u.box.max.z]) pts.push(new Vector3(x, y, z));
+      return {
+        name: u.name,
+        newX: u.anchorX + dx,
+        pts,
+        halo: u.haloCentre.clone().setX(u.haloCentre.x + dx),
+        haloR: u.haloR,
+        footprint: { x0: u.box.min.x + dx, x1: u.box.max.x + dx, z0: u.box.min.z, z1: u.box.max.z },
+      };
     });
 
     let worstNeed = -1;
@@ -199,8 +222,11 @@ for (const [id, build, L] of [
 
     const hits = new Set();
     for (const m of moved) {
-      for (const o of others) if (m.footprint.x0 < o.b.max.x && m.footprint.x1 > o.b.min.x && m.footprint.z0 < o.b.max.z && m.footprint.z1 > o.b.min.z) hits.add(o.name);
-      for (const n of moved) if (n !== m && m.footprint.x0 < n.footprint.x1 && m.footprint.x1 > n.footprint.x0 && m.footprint.z0 < n.footprint.z1 && m.footprint.z1 > n.footprint.z0) hits.add(`${m.name} INTO ${n.name}`);
+      for (const o of others)
+        if (m.footprint.x0 < o.b.max.x && m.footprint.x1 > o.b.min.x && m.footprint.z0 < o.b.max.z && m.footprint.z1 > o.b.min.z) hits.add(o.name);
+      for (const n of moved)
+        if (n !== m && m.footprint.x0 < n.footprint.x1 && m.footprint.x1 > n.footprint.x0 && m.footprint.z0 < n.footprint.z1 && m.footprint.z1 > n.footprint.z0)
+          hits.add(`${m.name} INTO ${n.name}`);
     }
 
     console.log(

@@ -199,7 +199,9 @@ for (const [vlabel, vw, vh] of VIEWS) {
     const geom = await turnToSee(page);
     console.log(`\n### ${room}  ${vlabel}`);
     for (const r of geom.rest) {
-      console.log(`  ${r.name.replace('tapInvitation_', '').padEnd(34)} NDC x ${r.ndcx.toFixed(2).padStart(6)}   wholly in frame at rest: ${r.inFrame ? 'YES' : 'NO'}`);
+      console.log(
+        `  ${r.name.replace('tapInvitation_', '').padEnd(34)} NDC x ${r.ndcx.toFixed(2).padStart(6)}   wholly in frame at rest: ${r.inFrame ? 'YES' : 'NO'}`,
+      );
     }
 
     for (const [blabel, trough] of BREATHS) {
@@ -215,7 +217,7 @@ for (const [vlabel, vw, vh] of VIEWS) {
           console.log(
             `  ${blabel.padEnd(20)}${t[0].padEnd(36)} ${ring.name.padEnd(30)}` +
               ` lum ${ring.peakBg.toFixed(0).padStart(3)}->${ring.peakRing.toFixed(0).padStart(3)}  Weber ${(ring.weber * 100).toFixed(1).padStart(6)}%` +
-              `  lit ${String(ring.changed).padStart(5)}px  MOVING ${String(ring.moved).padStart(5)}px (${((ring.moved / Math.max(1, ring.disc)) * 100).toFixed(0)}% of disc)`
+              `  lit ${String(ring.changed).padStart(5)}px  MOVING ${String(ring.moved).padStart(5)}px (${((ring.moved / Math.max(1, ring.disc)) * 100).toFixed(0)}% of disc)`,
           );
         }
       }
@@ -238,7 +240,7 @@ for (const [k, list] of groups) {
   const moveWorst = list.reduce((a, b) => (a.moved / a.disc < b.moved / b.disc ? a : b));
   console.log(
     `  ${k.padEnd(58)} worst Weber ${(worst.weber * 100).toFixed(1).padStart(6)}% (${worst.room}/${worst.name})` +
-      `   worst motion ${((moveWorst.moved / moveWorst.disc) * 100).toFixed(0).padStart(3)}% of disc (${moveWorst.room}/${moveWorst.name})`
+      `   worst motion ${((moveWorst.moved / moveWorst.disc) * 100).toFixed(0).padStart(3)}% of disc (${moveWorst.room}/${moveWorst.name})`,
   );
 }
 console.log('\nJSON ' + JSON.stringify(rows.map((r) => [r.room, r.view, r.treatment, r.breath, r.name, +r.weber.toFixed(4), r.changed, r.moved, r.disc])));

@@ -454,7 +454,10 @@ test('the budget is a schedule, not a constant, and it falls as the frame widens
   // The table has to cover the band, or the flat ends are doing the work of a
   // measurement that was never taken.
   assert.ok(ROTATION_BUDGET[0][0] <= MIN_STAGE_ASPECT, `the table starts at ${ROTATION_BUDGET[0][0]}, above the stage floor ${MIN_STAGE_ASPECT}`);
-  assert.ok(ROTATION_BUDGET[ROTATION_BUDGET.length - 1][0] >= MAX_STAGE_ASPECT, `the table ends at ${ROTATION_BUDGET[ROTATION_BUDGET.length - 1][0]}, below the stage ceiling ${MAX_STAGE_ASPECT}`);
+  assert.ok(
+    ROTATION_BUDGET[ROTATION_BUDGET.length - 1][0] >= MAX_STAGE_ASPECT,
+    `the table ends at ${ROTATION_BUDGET[ROTATION_BUDGET.length - 1][0]}, below the stage ceiling ${MAX_STAGE_ASPECT}`,
+  );
   // Flat outside the table rather than extrapolated: a straight line off the end
   // of this one crosses zero at about 3.7 and goes negative after.
   assert.equal(resolveRotationRange(0.1), ROTATION_BUDGET[0][1]);

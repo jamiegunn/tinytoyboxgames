@@ -52,7 +52,16 @@ const AREA_LIMIT = 0.9;
 const ASPECTS = [0.4, 0.45, 0.46, 0.5, 0.55, 0.56, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.05, 1.1];
 
 const noop = () => {};
-const stubCanvas = () => ({ width: 1280, height: 720, clientWidth: 1280, clientHeight: 720, getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }), addEventListener: noop, removeEventListener: noop, style: {} });
+const stubCanvas = () => ({
+  width: 1280,
+  height: 720,
+  clientWidth: 1280,
+  clientHeight: 720,
+  getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }),
+  addEventListener: noop,
+  removeEventListener: noop,
+  style: {},
+});
 
 const scene = new Scene();
 M.setSceneIdleAnimator(scene, M.createDisposalScope());
@@ -73,7 +82,9 @@ if (!toybox || !halo) throw new Error('kitchen has no toybox or no halo');
 const box0 = new Box3().setFromObject(toybox);
 const halo0 = halo.getWorldPosition(new Vector3());
 const haloR = halo.scale.x / 2;
-console.log(`toybox at x ${toybox.position.x.toFixed(2)}, z ${toybox.position.z.toFixed(2)}   bbox x [${box0.min.x.toFixed(2)}, ${box0.max.x.toFixed(2)}]  wall at ${L.LEFT_WALL_X}`);
+console.log(
+  `toybox at x ${toybox.position.x.toFixed(2)}, z ${toybox.position.z.toFixed(2)}   bbox x [${box0.min.x.toFixed(2)}, ${box0.max.x.toFixed(2)}]  wall at ${L.LEFT_WALL_X}`,
+);
 
 // Everything else standing on this floor, so a move can be checked for collision
 // rather than eyeballed. Footprints only: two things at different heights in the
@@ -81,7 +92,15 @@ console.log(`toybox at x ${toybox.position.x.toFixed(2)}, z ${toybox.position.z.
 const neighbours = [];
 for (const root of scene.children) {
   if (root === toybox || root === halo) continue;
-  if (!root.name || root.name.includes('floor') || root.name.includes('ceiling') || root.name.includes('wall') || root.name.includes('rug') || root.name.includes('runner')) continue;
+  if (
+    !root.name ||
+    root.name.includes('floor') ||
+    root.name.includes('ceiling') ||
+    root.name.includes('wall') ||
+    root.name.includes('rug') ||
+    root.name.includes('runner')
+  )
+    continue;
   const b = new Box3().setFromObject(root);
   if (b.isEmpty() || b.min.y > 0.6) continue; // only things standing on the floor
   neighbours.push({ name: root.name, b });
@@ -134,13 +153,20 @@ function haloIn(centre) {
 const preset = M.getSceneCameraPreset('kitchen');
 const target = new Vector3(...preset.target);
 const shell = { wallX: L.LEFT_WALL_X, frontZ: L.BACK_WALL_CENTER_Z - L.ROOM_DEPTH, backZ: L.BACK_WALL_CENTER_Z, ceilingY: L.CEILING_Y, floorY: 0 };
-const orbit = { azimuth: AZ, pivot: target, radii: [preset.distance], polars: [Math.max(0.75, preset.polar - 0.1), preset.polar, Math.min(1.5, preset.polar + 0.1)], ceilingClamp: CLAMP };
+const orbit = {
+  azimuth: AZ,
+  pivot: target,
+  radii: [preset.distance],
+  polars: [Math.max(0.75, preset.polar - 0.1), preset.polar, Math.min(1.5, preset.polar + 0.1)],
+  ceilingClamp: CLAMP,
+};
 
 console.log('\n  x     worst aspect needing the most turn      slack at the tightest aspect   collides with');
 for (const x of [3.1, 2.8, 2.6, 2.4, 2.2, 2.0, 1.8]) {
   const dx = x - toybox.position.x;
   const pts = [];
-  for (const bx of [box0.min.x + dx, box0.max.x + dx]) for (const by of [box0.min.y, box0.max.y]) for (const bz of [box0.min.z, box0.max.z]) pts.push(new Vector3(bx, by, bz));
+  for (const bx of [box0.min.x + dx, box0.max.x + dx])
+    for (const by of [box0.min.y, box0.max.y]) for (const bz of [box0.min.z, box0.max.z]) pts.push(new Vector3(bx, by, bz));
   const haloAt = halo0.clone().setX(halo0.x + dx);
 
   let worstAspect = null;
@@ -184,11 +210,15 @@ for (const x of [3.1, 2.8, 2.6, 2.4, 2.2, 2.0, 1.8]) {
 
   // Footprint overlap against everything else standing on this floor.
   const moved = { min: { x: box0.min.x + dx, z: box0.min.z }, max: { x: box0.max.x + dx, z: box0.max.z } };
-  const hits = neighbours.filter((n) => moved.min.x < n.b.max.x && moved.max.x > n.b.min.x && moved.min.z < n.b.max.z && moved.max.z > n.b.min.z).map((n) => n.name);
+  const hits = neighbours
+    .filter((n) => moved.min.x < n.b.max.x && moved.max.x > n.b.min.x && moved.min.z < n.b.max.z && moved.max.z > n.b.min.z)
+    .map((n) => n.name);
 
   console.log(
     `  ${x.toFixed(1)}   ` +
-      (infeasible.length ? `INFEASIBLE at ${infeasible.join(', ')}`.padEnd(42) : `${((worstNeed * 180) / Math.PI).toFixed(1)}° at aspect ${worstAspect}`.padEnd(42)) +
+      (infeasible.length
+        ? `INFEASIBLE at ${infeasible.join(', ')}`.padEnd(42)
+        : `${((worstNeed * 180) / Math.PI).toFixed(1)}° at aspect ${worstAspect}`.padEnd(42)) +
       (Number.isFinite(minSlack) ? `${((minSlack * 180) / Math.PI).toFixed(1)}°`.padStart(10) : '—'.padStart(10)) +
       `                     ${hits.length ? hits.join(', ') : 'nothing'}`,
   );

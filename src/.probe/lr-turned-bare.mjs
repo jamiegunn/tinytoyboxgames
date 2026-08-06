@@ -29,7 +29,16 @@ const M = await bundleEntry(
 );
 
 const noop = () => {};
-const stubCanvas = () => ({ width: 1280, height: 720, clientWidth: 1280, clientHeight: 720, getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }), addEventListener: noop, removeEventListener: noop, style: {} });
+const stubCanvas = () => ({
+  width: 1280,
+  height: 720,
+  clientWidth: 1280,
+  clientHeight: 720,
+  getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }),
+  addEventListener: noop,
+  removeEventListener: noop,
+  style: {},
+});
 const scene = new Scene();
 M.setSceneIdleAnimator(scene, M.createDisposalScope());
 M.buildLiving({
@@ -86,7 +95,9 @@ for (const [label, aspect, turnDeg] of [
   console.log(`  ${((bare.length / total) * 100).toFixed(1)}% bare boards`);
   const xs = bare.map((b) => b.x);
   const zs = bare.map((b) => b.z);
-  console.log(`  landing on x [${Math.min(...xs).toFixed(1)}, ${Math.max(...xs).toFixed(1)}]  z [${Math.min(...zs).toFixed(1)}, ${Math.max(...zs).toFixed(1)}]`);
+  console.log(
+    `  landing on x [${Math.min(...xs).toFixed(1)}, ${Math.max(...xs).toFixed(1)}]  z [${Math.min(...zs).toFixed(1)}, ${Math.max(...zs).toFixed(1)}]`,
+  );
   const ranked = [...cells.entries()].sort((a, b) => b[1] - a[1]).slice(0, 16);
   console.log('  emptiest 1x1 cells (x,z -> rays):');
   console.log('   ' + ranked.map(([k, v]) => `(${k}) ${v}`).join('  '));
@@ -95,7 +106,9 @@ for (const [label, aspect, turnDeg] of [
   // between the camera and a toybox.
   const low = bare.filter((b) => b.fy < 0.4);
   if (low.length) {
-    console.log(`  bottom 40% of frame: ${low.length} rays on x [${Math.min(...low.map((b) => b.x)).toFixed(1)}, ${Math.max(...low.map((b) => b.x)).toFixed(1)}]  z [${Math.min(...low.map((b) => b.z)).toFixed(1)}, ${Math.max(...low.map((b) => b.z)).toFixed(1)}]`);
+    console.log(
+      `  bottom 40% of frame: ${low.length} rays on x [${Math.min(...low.map((b) => b.x)).toFixed(1)}, ${Math.max(...low.map((b) => b.x)).toFixed(1)}]  z [${Math.min(...low.map((b) => b.z)).toFixed(1)}, ${Math.max(...low.map((b) => b.z)).toFixed(1)}]`,
+    );
   }
 }
 gsap.ticker.sleep();

@@ -146,7 +146,8 @@ function roomWithHalos(build) {
     const bounds = target ? new Box3().setFromObject(target) : null;
     const pts = [];
     if (bounds && !bounds.isEmpty()) {
-      for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) pts.push(new Vector3(x, y, z));
+      for (const x of [bounds.min.x, bounds.max.x])
+        for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) pts.push(new Vector3(x, y, z));
     }
     halos.push({ name: boxName, centre: o.getWorldPosition(new Vector3()), radius: o.scale.x / 2, pts });
   });
@@ -226,12 +227,21 @@ test('every room with an opening turn has one at every aspect the table covers, 
     const table = M.OPENING_TURN[sceneId];
     assert.ok(table && table.length > 0, `${sceneId} has no opening-turn table — every room needs one, even if it is all zeroes`);
     const signs = new Set(table.map(([, t]) => Math.sign(t)).filter((s) => s !== 0));
-    assert.ok(signs.size <= 1, `${sceneId}'s table changes turn direction, so interpolating between two rows passes through zero and opens the room facing nothing`);
+    assert.ok(
+      signs.size <= 1,
+      `${sceneId}'s table changes turn direction, so interpolating between two rows passes through zero and opens the room facing nothing`,
+    );
     assert.equal(table[table.length - 1][1], 0, `${sceneId}'s table must end at zero, or every aspect above it inherits a turn that was never solved for`);
     for (let i = 1; i < table.length; i++) {
       assert.ok(table[i][0] > table[i - 1][0], `${sceneId}'s table is not in ascending aspect order at row ${i}`);
-      assert.ok(Math.abs(table[i][1]) <= Math.abs(table[i - 1][1]) + 1e-9, `${sceneId}'s turn grows with aspect at row ${i} — a wider frame needs less turn, never more`);
-      assert.ok(table[i][0] - table[i - 1][0] <= 0.0501, `${sceneId}'s rows ${i - 1} and ${i} are ${(table[i][0] - table[i - 1][0]).toFixed(3)} apart; the schedule carries no margin and is only safe sampled every 0.05`);
+      assert.ok(
+        Math.abs(table[i][1]) <= Math.abs(table[i - 1][1]) + 1e-9,
+        `${sceneId}'s turn grows with aspect at row ${i} — a wider frame needs less turn, never more`,
+      );
+      assert.ok(
+        table[i][0] - table[i - 1][0] <= 0.0501,
+        `${sceneId}'s rows ${i - 1} and ${i} are ${(table[i][0] - table[i - 1][0]).toFixed(3)} apart; the schedule carries no margin and is only safe sampled every 0.05`,
+      );
     }
   }
 });
@@ -345,4 +355,3 @@ for (const [sceneId, build, L] of ROOMS) {
     }
   });
 }
-

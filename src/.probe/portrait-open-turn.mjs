@@ -92,7 +92,16 @@ const AREA_LIMIT = 0.6;
 const HALO_MARGIN = 0.06;
 
 const noop = () => {};
-const stubCanvas = () => ({ width: 1280, height: 720, clientWidth: 1280, clientHeight: 720, getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }), addEventListener: noop, removeEventListener: noop, style: {} });
+const stubCanvas = () => ({
+  width: 1280,
+  height: 720,
+  clientWidth: 1280,
+  clientHeight: 720,
+  getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }),
+  addEventListener: noop,
+  removeEventListener: noop,
+  style: {},
+});
 
 const cam = new PerspectiveCamera(M.SCENE_CAMERA_FOV, 1, 0.1, 400);
 const aim = (p, t, a) => {
@@ -244,7 +253,12 @@ for (const [id, build, L] of [
         const p = poseAt(delta, pivot, c.d, c.polar);
         aim(p, pivot, aspect);
         if (seesCeiling(p, shell)) continue;
-        const shown = halos.filter((h) => haloInFrame({ centre: h.centre, edge: new Vector3().copy(h.centre).addScaledVector(new Vector3().setFromMatrixColumn(cam.matrixWorld, 0), h.radius) }));
+        const shown = halos.filter((h) =>
+          haloInFrame({
+            centre: h.centre,
+            edge: new Vector3().copy(h.centre).addScaledVector(new Vector3().setFromMatrixColumn(cam.matrixWorld, 0), h.radius),
+          }),
+        );
         if (shown.length === 0) continue;
         if (!best || Math.abs(delta) < Math.abs(best.delta)) best = { delta, shown: shown.map((s) => s.name) };
         break;

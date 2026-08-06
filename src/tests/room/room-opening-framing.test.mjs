@@ -384,7 +384,10 @@ for (const [sceneId, build, layout] of ROOMS) {
     // ADMISSIONS, NOT PERMISSIONS. A prop is expected to be reachable at some
     // aspect until someone writes its name down here and says why it is not.
     const unreachable = props
-      .filter((prop) => !ASPECTS.some((aspect) => reachableWithin(sceneId, aspect, M.resolveSceneCameraPose(sceneId, aspect).radius, M.resolveRotationRange(aspect), prop)))
+      .filter(
+        (prop) =>
+          !ASPECTS.some((aspect) => reachableWithin(sceneId, aspect, M.resolveSceneCameraPose(sceneId, aspect).radius, M.resolveRotationRange(aspect), prop)),
+      )
       .map((prop) => prop.name);
     assert.deepEqual(
       unreachable.sort(),
@@ -515,7 +518,7 @@ const EXPECTED_COMPOSITION = {
   kitchen: { maxCeiling: 0.01, minObjects: 0.145, minObjectsPortrait: 0.185, maxBareFloor: 0.42 },
   // Measured: objects 19.8% on a phone, 12.8% at the widest; bare floor <= 42.1%.
   'living-room': { maxCeiling: 0.01, minObjects: 0.115, minObjectsPortrait: 0.175, maxBareFloor: 0.46 },
-};/**
+}; /**
  * Casts a ray through every cell of the frame and reports what each one hits.
  *
  * @param scene - The built room.

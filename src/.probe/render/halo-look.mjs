@@ -21,8 +21,17 @@ import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 const OUT = '/tmp/halo-final/';
 mkdirSync(OUT, { recursive: true });
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'] });
-for (const [room, w, h] of (process.env.SHOTS ? JSON.parse(process.env.SHOTS) : [['playroom', 1440, 900], ['living-room', 1440, 900], ['kitchen', 1440, 900]])) {
+const browser = await chromium.launch({
+  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'],
+});
+for (const [room, w, h] of process.env.SHOTS
+  ? JSON.parse(process.env.SHOTS)
+  : [
+      ['playroom', 1440, 900],
+      ['living-room', 1440, 900],
+      ['kitchen', 1440, 900],
+    ]) {
   const page = await browser.newPage({ viewport: { width: w, height: h } });
   await page.goto(`http://localhost:5199/.probe/render/room.html?room=${room}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__shotReady === true, null, { timeout: 40000 });
@@ -30,14 +39,22 @@ for (const [room, w, h] of (process.env.SHOTS ? JSON.parse(process.env.SHOTS) : 
     const probe = window.__haloProbe();
     const up = () => probe.list().every((s) => s.opacity > 0.01);
     let walked = 0;
-    while (!up() && walked < 60) { window.__gsapAdvance(0.05); walked += 0.05; }
+    while (!up() && walked < 60) {
+      window.__gsapAdvance(0.05);
+      walked += 0.05;
+    }
     // A further breath and a half so nothing is caught mid-fade. The clock is
     // never stepped BACKWARDS to hunt for a peak: `updateRoot` with a negative
     // delta rewinds the root timeline and re-seeds tweens from their start, which
     // silently returned two of the Playroom's halos to opacity 0 and looked, once
     // again, exactly like a bug in the feature.
     for (let i = 0; i < 100; i++) window.__gsapAdvance(0.05);
-    return { walked, list: probe.list().map((s) => [s.name.replace('tapInvitation_', ''), +s.opacity.toFixed(3), s.visible, Math.round(s.cx), Math.round(s.cy), Math.round(s.radius)]) };
+    return {
+      walked,
+      list: probe
+        .list()
+        .map((s) => [s.name.replace('tapInvitation_', ''), +s.opacity.toFixed(3), s.visible, Math.round(s.cx), Math.round(s.cy), Math.round(s.radius)]),
+    };
   });
   console.log(room, 'walked', state.walked.toFixed(2) + 's', JSON.stringify(state.list));
   await page.evaluate(() => window.__redraw());

@@ -95,7 +95,16 @@ const AZ = Math.PI;
 const HALO_MARGIN = 0.06;
 
 const noop = () => {};
-const stubCanvas = () => ({ width: 1280, height: 720, clientWidth: 1280, clientHeight: 720, getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }), addEventListener: noop, removeEventListener: noop, style: {} });
+const stubCanvas = () => ({
+  width: 1280,
+  height: 720,
+  clientWidth: 1280,
+  clientHeight: 720,
+  getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }),
+  addEventListener: noop,
+  removeEventListener: noop,
+  style: {},
+});
 
 const cam = new PerspectiveCamera(M.SCENE_CAMERA_FOV, 1, 0.1, 400);
 const aim = (p, t, a) => {
@@ -234,7 +243,13 @@ for (const [id, build, L] of [
   const target = new Vector3(...preset.target);
   const shell = { wallX: L.LEFT_WALL_X, frontZ: L.BACK_WALL_CENTER_Z - L.ROOM_DEPTH, backZ: L.BACK_WALL_CENTER_Z, ceilingY: L.CEILING_Y, floorY: 0 };
   const bounds = EXPECTED_COMPOSITION[id];
-  const orbit = { azimuth: AZ, pivot: target, radii: [preset.distance], polars: [Math.max(0.75, preset.polar - 0.1), preset.polar, Math.min(1.5, preset.polar + 0.1)], ceilingClamp: CLAMP };
+  const orbit = {
+    azimuth: AZ,
+    pivot: target,
+    radii: [preset.distance],
+    polars: [Math.max(0.75, preset.polar - 0.1), preset.polar, Math.min(1.5, preset.polar + 0.1)],
+    ceilingClamp: CLAMP,
+  };
 
   console.log(`\n=== ${id}   halos: ${halos.map((h) => h.name).join(', ') || 'none'}`);
   console.log('aspect  budget    best turn   halo shown            props   rug   wall  floor  ceil   verdict');
@@ -296,7 +311,9 @@ for (const [id, build, L] of [
       console.log(
         `  ${aspect.toFixed(2)}   ±${((budget * 180) / Math.PI).toFixed(1)}°`.padEnd(18) +
           `   NO ANGLE SHOWS A HALO AND HOLDS COMPOSITION` +
-          (closest ? `  (nearest that shows one: ${((closest.delta * 180) / Math.PI).toFixed(1)}\u00b0 -> props ${(closest.c.props * 100).toFixed(1)}%, floor ${(closest.c.floor * 100).toFixed(1)}%, bounds props>=${(minProps * 100).toFixed(1)}% floor<=${(bounds.maxBareFloor * 100).toFixed(0)}%)` : ''),
+          (closest
+            ? `  (nearest that shows one: ${((closest.delta * 180) / Math.PI).toFixed(1)}\u00b0 -> props ${(closest.c.props * 100).toFixed(1)}%, floor ${(closest.c.floor * 100).toFixed(1)}%, bounds props>=${(minProps * 100).toFixed(1)}% floor<=${(bounds.maxBareFloor * 100).toFixed(0)}%)`
+            : ''),
       );
       SCHEDULE.push([aspect, null]);
       continue;

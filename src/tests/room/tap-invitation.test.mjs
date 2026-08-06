@@ -58,7 +58,10 @@ after(() => gsap.ticker.sleep());
 const SOURCE = await import('node:fs').then((fs) => fs.readFileSync(new URL('../../src/utils/scene/tapInvitation.ts', import.meta.url), 'utf8'));
 const constant = (name) => {
   const m = SOURCE.match(new RegExp(`^const ${name} = ([0-9.]+);`, 'm'));
-  assert.ok(m, `tapInvitation.ts no longer declares ${name} as a plain number — this suite reads its constants from the source so it can never drift from them`);
+  assert.ok(
+    m,
+    `tapInvitation.ts no longer declares ${name} as a plain number — this suite reads its constants from the source so it can never drift from them`,
+  );
   return Number(m[1]);
 };
 const APPEAR_DELAY = constant('APPEAR_DELAY');
@@ -195,10 +198,7 @@ test('the halo cannot swallow the tap it exists to invite', () => {
   const caster = new Raycaster(new Vector3(h.sprite.position.x, 20, h.sprite.position.z), new Vector3(0, -1, 0));
   const hits = caster.intersectObjects(h.scene.children, true);
   assert.ok(hits.length > 0, 'the probe ray hit nothing at all — the harness, not the module, is broken');
-  assert.ok(
-    !hits.some((hit) => hit.object === h.sprite),
-    'the halo is raycastable, so it will intercept the tap it is asking the child to make',
-  );
+  assert.ok(!hits.some((hit) => hit.object === h.sprite), 'the halo is raycastable, so it will intercept the tap it is asking the child to make');
   h.invitation.dispose();
 });
 

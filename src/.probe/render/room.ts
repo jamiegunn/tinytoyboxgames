@@ -2313,7 +2313,9 @@ const changed = (
         // The sprite is a screen-facing quad of side `scale.x`; its silhouette is
         // a circle of that diameter, so one point offset along the camera's own
         // right vector gives the on-screen radius without assuming a projection.
-        edge.copy(centre).addScaledVector(new Vector3().setFromMatrixColumn(cameraHandle.camera.matrixWorld, 0), (h as unknown as { scale: Vector3 }).scale.x / 2);
+        edge
+          .copy(centre)
+          .addScaledVector(new Vector3().setFromMatrixColumn(cameraHandle.camera.matrixWorld, 0), (h as unknown as { scale: Vector3 }).scale.x / 2);
         const p = centre.clone().project(cameraHandle.camera);
         const q = edge.project(cameraHandle.camera);
         const w = canvas.clientWidth;

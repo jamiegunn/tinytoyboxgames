@@ -86,7 +86,10 @@ test('every device a child will actually hold gets the whole screen', () => {
     ['desktop 1080p', 1920, 1080],
   ];
   for (const [name, w, h] of DEVICES) {
-    for (const [width, height] of [[w, h], [h, w]]) {
+    for (const [width, height] of [
+      [w, h],
+      [h, w],
+    ]) {
       const rect = resolveStageRect(width, height);
       const band = resolveChromeBand(width, height);
       assert.deepEqual(

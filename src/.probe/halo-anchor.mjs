@@ -23,7 +23,16 @@ const M = await bundleEntry(
 );
 
 const noop = () => {};
-const stubCanvas = () => ({ width: 1280, height: 720, clientWidth: 1280, clientHeight: 720, getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }), addEventListener: noop, removeEventListener: noop, style: {} });
+const stubCanvas = () => ({
+  width: 1280,
+  height: 720,
+  clientWidth: 1280,
+  clientHeight: 720,
+  getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }),
+  addEventListener: noop,
+  removeEventListener: noop,
+  style: {},
+});
 
 for (const [id, build] of [
   ['playroom', M.buildPlayroomContents],
@@ -71,7 +80,9 @@ for (const [id, build] of [
       `  ${root.name.padEnd(36)} bbox y [${box.min.y.toFixed(2)}, ${box.max.y.toFixed(2)}]  footprint ${size.x.toFixed(2)} x ${size.z.toFixed(2)}` +
         `   meshes ${tops.length}, median top ${median.toFixed(2)}, p90 top ${p90.toFixed(2)}`,
     );
-    console.log(`      highest mesh: ${tallest?.name || '(unnamed)'} at y ${tallestY.toFixed(2)}   ${tallestY - p90 > 0.15 ? '<<< A SPIKE: the bbox top is not the lid' : 'top is the bulk'}`);
+    console.log(
+      `      highest mesh: ${tallest?.name || '(unnamed)'} at y ${tallestY.toFixed(2)}   ${tallestY - p90 > 0.15 ? '<<< A SPIKE: the bbox top is not the lid' : 'top is the bulk'}`,
+    );
   }
 }
 gsap.ticker.sleep();

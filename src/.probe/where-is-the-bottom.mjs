@@ -7,13 +7,22 @@
 // object standing there reach?
 import { PerspectiveCamera, Vector3 } from 'three';
 import { bundleEntry } from '../tests/framework/_tsload.mjs';
-const M = await bundleEntry('bottom', `
+const M = await bundleEntry(
+  'bottom',
+  `
   export { resolveSceneCameraPose, SCENE_CAMERA_FOV } from './src/utils/cameraPresets';
-`);
-for (const [label, aspect] of [['phone 0.46', 0.46], ['laptop 1.60', 1.6]]) {
+`,
+);
+for (const [label, aspect] of [
+  ['phone 0.46', 0.46],
+  ['laptop 1.60', 1.6],
+]) {
   const pose = M.resolveSceneCameraPose('kitchen', aspect);
   const cam = new PerspectiveCamera(M.SCENE_CAMERA_FOV, aspect, 0.1, 400);
-  cam.position.copy(pose.position); cam.lookAt(pose.target); cam.updateMatrixWorld(true); cam.updateProjectionMatrix();
+  cam.position.copy(pose.position);
+  cam.lookAt(pose.target);
+  cam.updateMatrixWorld(true);
+  cam.updateProjectionMatrix();
   console.log(`\n=== ${label}   camera (${pose.position.x.toFixed(1)}, ${pose.position.y.toFixed(1)}, ${pose.position.z.toFixed(1)})`);
   console.log('   z     floor NDC y   top of a 0.9-tall object   verdict');
   for (let z = -5.5; z <= 1.01; z += 0.5) {

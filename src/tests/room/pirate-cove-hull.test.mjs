@@ -257,7 +257,9 @@ test('the side rails still converge at the worst corner of the reachable camera 
       }
     }
   }
-  if (globalThis.__REPORT) { console.log('WORST', worst.deg.toFixed(2), worst.label, worst.run); }
+  if (globalThis.__REPORT) {
+    console.log('WORST', worst.deg.toFixed(2), worst.label, worst.run);
+  }
   assert.ok(
     worst.deg >= 10,
     `worst reachable rail angle is ${worst.deg.toFixed(1)} degrees (${worst.run} at ${worst.label}). ` +

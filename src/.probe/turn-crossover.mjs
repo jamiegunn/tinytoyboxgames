@@ -29,7 +29,16 @@ const HALO_MARGIN = 0.06;
 const BOX_CENTRE_LIMIT = 0.85;
 const BOX_AREA_LIMIT = 0.9;
 const noop = () => {};
-const stubCanvas = () => ({ width: 1280, height: 720, clientWidth: 1280, clientHeight: 720, getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }), addEventListener: noop, removeEventListener: noop, style: {} });
+const stubCanvas = () => ({
+  width: 1280,
+  height: 720,
+  clientWidth: 1280,
+  clientHeight: 720,
+  getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }),
+  addEventListener: noop,
+  removeEventListener: noop,
+  style: {},
+});
 
 const cam = new PerspectiveCamera(M.SCENE_CAMERA_FOV, 1, 0.1, 400);
 const aim = (p, t, a) => {
@@ -89,7 +98,8 @@ for (const [id, build] of [
     const t = scene.children.find((c) => c.name === boxName);
     const b = t ? new Box3().setFromObject(t) : null;
     const pts = [];
-    if (b && !b.isEmpty()) for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z]) pts.push(new Vector3(x, y, z));
+    if (b && !b.isEmpty())
+      for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z]) pts.push(new Vector3(x, y, z));
     halos.push({ name: boxName, centre: o.getWorldPosition(new Vector3()), radius: o.scale.x / 2, pts });
   });
 
