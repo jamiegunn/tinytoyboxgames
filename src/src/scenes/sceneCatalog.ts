@@ -335,6 +335,32 @@ export const SCENE_CATALOG = {
     audio: { musicId: 'mus_pirate_cove_background', ambientId: 'amb_pirate_cove_shore' },
     games: ['cannonball-splash', 'little-shark'],
   },
+  'baseball-park': {
+    displayName: 'Baseball Park',
+    kind: 'immersive-toybox',
+    loader: () => import('@app/scenes/immersive-toybox-scenes/baseball-park'),
+    // Same orientation as the other two immersive scenes: azimuth PI puts the
+    // eye on -Z looking toward +Z, which is what keeps +X projecting to screen
+    // LEFT — the convention every placement comment in this repo relies on and
+    // `tests/framework/sceneAxes.test.mjs` measures. maxDistance pins the
+    // opening radius, so the scene is exempt from the portrait pull-back rule
+    // by construction (see camera-pullback-rule.test.mjs).
+    cameraPreset: {
+      azimuth: Math.PI,
+      polar: 1.2,
+      distance: 10,
+      target: [0, 0.3, 0],
+      constraints: {
+        minPolar: 1.14,
+        maxPolar: 1.24,
+        minDistance: 9,
+        maxDistance: 10,
+        ceilingY: 4.8,
+      },
+    },
+    audio: { musicId: 'mus_baseball_park_background', ambientId: 'amb_baseball_park_crowd' },
+    games: ['bubble-pop'],
+  },
   // __IMMERSIVE_SCENE_GENERATOR_ENTRY_MARKER__
 } as const satisfies Record<string, SceneCatalogEntryInput>;
 

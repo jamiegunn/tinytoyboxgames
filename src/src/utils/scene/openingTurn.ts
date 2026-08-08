@@ -193,8 +193,13 @@ export const OPENING_TURN: Readonly<Record<string, readonly (readonly [aspect: n
     [0.6, 0.204],
     [0.65, 0.14],
     [0.7, 0.072],
-    [0.75, 0.004],
-    [0.755, 0.0],
+    // The ramp used to run to [0.75, 0.004] with a 0.755 terminator. The
+    // Baseball Park toybox (deep by the left cabinets, x 3.5 z 4.6) projects
+    // wholly into the resting frame at 0.75, so the Kitchen now shows a halo
+    // at rest there and a row that still turned it — however slightly — was
+    // exactly the gratuitous turn opening-turn.test.mjs claim 4 exists to
+    // catch. The ramp ends at 0.75 instead.
+    [0.75, 0.0],
   ],
 };
 

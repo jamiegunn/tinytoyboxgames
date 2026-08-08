@@ -205,10 +205,19 @@ test('the literal scanner finds the call sites it claims to grade', () => {
   // object answers teaches nothing about which objects are worth touching. Both
   // name `sfx_hub_toybox_tap`, which is what the pot rail overhead already answers
   // with, so the Kitchen gains wall content without gaining a new voice.
-  assert.equal(SITES.length, 60, `expected 60 literal sound call sites, scanned ${SITES.length}`);
+  //
+  // THE BASEBALL PARK MOVED THIS FROM 60 TO 62, and again the delta is the
+  // evidence. Two new `triggerSound` sites, both in the new scene's
+  // interactive props, each with a voice of its own: the batting tee answers
+  // with `sfx_baseball_tee_pop` (a pop and a rising whistle — the ball leaving
+  // the tee) and the loose balls with `sfx_baseball_ball_bounce` (a falling
+  // double-boing). Neither is the miss cue, which is the rule the template's
+  // sample prop used to break — it shipped answering with
+  // `sfx_shared_tap_fallback`, and was fixed in the same change.
+  assert.equal(SITES.length, 62, `expected 62 literal sound call sites, scanned ${SITES.length}`);
   const byCall = {};
   for (const s of SITES) byCall[s.call] = (byCall[s.call] ?? 0) + 1;
-  assert.deepEqual(byCall, { playSound: 27, triggerSound: 32, triggerMusic: 1 });
+  assert.deepEqual(byCall, { playSound: 27, triggerSound: 34, triggerMusic: 1 });
   // Five of those `playSound` sites are in `.tsx` — the scene-transition whooshes in
   // `SceneFrame.tsx` and the button presses in `UIOverlay.tsx`. They are scanned on
   // purpose: React UI resolves ids through the same registry with the same absent

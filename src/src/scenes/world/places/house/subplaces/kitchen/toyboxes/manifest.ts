@@ -1,13 +1,15 @@
 import { Color } from 'three';
 import type { ToyboxSpec } from '@app/toyboxes/framework';
-import { TOYBOX_ROTATION_Y, TOYBOX_X, TOYBOX_Y, TOYBOX_Z } from '../layout';
+import { BASEBALL_TOYBOX_ROTATION_Y, BASEBALL_TOYBOX_X, BASEBALL_TOYBOX_Z, TOYBOX_ROTATION_Y, TOYBOX_X, TOYBOX_Y, TOYBOX_Z } from '../layout';
 
 /**
- * Scene-local toybox manifest for the generated room.
+ * Scene-local toybox manifest for the Kitchen.
  *
- * The template points at the existing `nature` immersive scene so a freshly
- * generated room has one real destination immediately. Future rooms should edit
- * this manifest rather than hard-coding toybox placement in `room.ts`.
+ * Two destinations: the wooden clover chest on the front floor leads into
+ * Nature, and the white-and-red chest deep by the cabinets — coloured like the
+ * baseball it opens onto — leads to the Baseball Park. Edit this manifest
+ * rather than hard-coding toybox placement in `room.ts`; placement constants
+ * live in `../layout.ts` with the derivation notes.
  */
 export const ROOM_TOYBOXES: ToyboxSpec[] = [
   {
@@ -26,5 +28,22 @@ export const ROOM_TOYBOXES: ToyboxSpec[] = [
       accent: new Color(0.86, 0.78, 0.42),
     },
     emblem: 'clover',
+  },
+  {
+    id: 'kitchen-baseball-park',
+    destination: 'baseball-park',
+    variant: 'classic',
+    placement: {
+      x: BASEBALL_TOYBOX_X,
+      y: TOYBOX_Y,
+      z: BASEBALL_TOYBOX_Z,
+      rotationY: BASEBALL_TOYBOX_ROTATION_Y,
+      scale: 0.75,
+    },
+    palette: {
+      base: new Color(0.9, 0.88, 0.82),
+      accent: new Color(0.82, 0.28, 0.24),
+    },
+    emblem: 'stars',
   },
 ];

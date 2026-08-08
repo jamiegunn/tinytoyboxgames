@@ -57,6 +57,7 @@ import type { LightingConfig } from '@app/utils/sceneHelpers';
 import type { LightingDescriptor } from '@app/utils/lighting/lightingRig';
 import { NATURE_ENVIRONMENT, NATURE_SKY_FOG } from '@app/scenes/immersive-toybox-scenes/naturescene/environment';
 import { PIRATE_COVE_ENVIRONMENT, PIRATE_COVE_SKY_FOG } from '@app/scenes/immersive-toybox-scenes/pirate-cove/environment';
+import { IMMERSIVE_SCENE_ENVIRONMENT as BASEBALL_PARK_ENVIRONMENT } from '@app/scenes/immersive-toybox-scenes/baseball-park/environment';
 import type { SceneDescriptor } from './sceneDescriptor';
 
 /**
@@ -129,6 +130,29 @@ const PIRATE_COVE: SceneDescriptor = {
 };
 
 /**
+ * Baseball Park — a sunny toy ballpark inside the toybox-shell scaffold.
+ *
+ * No `backdrop`: unlike Nature and Pirate Cove this scene has no gradient
+ * skydome — it uses the template's flat sky panel behind felt shell walls, and
+ * the descriptor schema spells "no skydome" by omitting the field.
+ */
+const BASEBALL_PARK: SceneDescriptor = {
+  id: 'baseball-park',
+  camera: {
+    kind: 'orbit',
+    target: new Vector3(0, 0.3, 0),
+    azimuth: Math.PI,
+    polar: 1.2,
+    distance: 10,
+    fov: 50,
+  },
+  lighting: fromLightingConfig(BASEBALL_PARK_ENVIRONMENT.lighting),
+  ground: BASEBALL_PARK_ENVIRONMENT.ground,
+  audio: { musicId: 'mus_baseball_park_background', ambientId: 'amb_baseball_park_crowd' },
+  portals: BASEBALL_PARK_ENVIRONMENT.portals,
+};
+
+/**
  * The registered descriptors, keyed by scene id. Covers the immersive toybox
  * scenes the SceneDescriptor schema governs (and whose backdrops the capstone
  * migrated). The room scenes remain on the world/room factories.
@@ -136,6 +160,7 @@ const PIRATE_COVE: SceneDescriptor = {
 export const SCENE_DESCRIPTORS: Partial<Record<SceneId, SceneDescriptor>> = {
   nature: NATURE,
   'pirate-cove': PIRATE_COVE,
+  'baseball-park': BASEBALL_PARK,
 };
 
 /**

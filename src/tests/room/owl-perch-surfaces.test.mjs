@@ -438,9 +438,13 @@ const EXPECTED_INVENTORY = {
       'kitchen_livingRoomDoor_doorway',
       'kitchen_sampleCounter',
       'kitchen_stove',
+      // The baseball chest stands deep by the left cabinets — see the
+      // BASEBALL_TOYBOX derivation note in kitchen/layout.ts. A toybox lid is
+      // a perch a child would expect, same as the nature chest's.
+      'toybox_kitchen-baseball-park_root',
       'toybox_kitchen-nature_root',
     ],
-    airborne: ['kitchen_ceiling', 'tapInvitation_toybox_kitchen-nature_root'],
+    airborne: ['kitchen_ceiling', 'tapInvitation_toybox_kitchen-baseball-park_root', 'tapInvitation_toybox_kitchen-nature_root'],
   },
   // FOUR OF THESE ARRIVED WITH `decor/frontFloor.ts`, and each was checked
   // against the reason the Kitchen has no broom: a perch is modelled as its

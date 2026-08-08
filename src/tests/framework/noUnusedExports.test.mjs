@@ -594,9 +594,31 @@ test('the unenforced tiers are still the size this file says they are', () => {
   //                                    exactly like the ones that work.
   //
   // 1806 + 1 + 1 consumed + 8 = 1816, and internal 158 + 1 = 159.
+  //
+  // 2026-08-06, the Baseball Park scene: consumed 1816 -> 1926 (+110),
+  // reexport 86 -> 95 (+9), internal 159 -> 165 (+6). This is one whole new
+  // immersive scene — 36 modules under `scenes/immersive-toybox-scenes/baseball-park`
+  // plus `assets/audio/baseballPark` — becoming reachable the moment its catalog
+  // entry was added, so every export in it is now graded rather than dead:
+  //
+  //   +9 reexport   the nine `index.ts` barrels (five prop families each have
+  //                 one, plus the scaffold `sceneShell`/`skyBackdrop` barrels
+  //                 and the scene's own re-exports) — files whose only job is to
+  //                 forward, which is the reexport tier by definition.
+  //   +6 internal   the prop `create.ts` build-option and result interfaces that
+  //                 are named across their own family's compose/interaction split
+  //                 but never leave the scene, the tier's meaning exactly.
+  //   +110 consumed everything else: the five composers (index.ts calls them),
+  //                 their create fns and constants, the three staging tables, the
+  //                 two interaction setups, the materials factory, the four audio
+  //                 synth fns (SFX/MUSIC/AMBIENT registries), and the
+  //                 environment (`sceneDescriptors` reads it).
+  //
+  // No `dead` and no `spared`: the scene was authored against the contract, so
+  // nothing in it is an unread export awaiting a reader.
   assert.deepEqual(
     TIER_COUNTS,
-    { consumed: 1816, reexport: 86, internal: 159, spared: 7, laundered: 0, dead: 0 },
+    { consumed: 1926, reexport: 95, internal: 165, spared: 7, laundered: 0, dead: 0 },
     'the tier populations moved; say which symbol moved and why, then update this',
   );
 });

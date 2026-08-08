@@ -21,13 +21,14 @@ Internal architecture/spec documents may use **Whimsical Toybox World** only whe
 
 Current scene routes:
 
-| Scene ID      | Display name | Kind             | Status      |
-| ------------- | ------------ | ---------------- | ----------- |
-| `playroom`    | Playroom     | landing          | implemented |
-| `kitchen`     | Kitchen      | landing          | implemented |
-| `living-room` | Living Room  | landing          | implemented |
-| `nature`      | Nature       | immersive-toybox | implemented |
-| `pirate-cove` | Pirate Cove  | immersive-toybox | implemented |
+| Scene ID        | Display name  | Kind             | Status      |
+| --------------- | ------------- | ---------------- | ----------- |
+| `playroom`      | Playroom      | landing          | implemented |
+| `kitchen`       | Kitchen       | landing          | implemented |
+| `living-room`   | Living Room   | landing          | implemented |
+| `nature`        | Nature        | immersive-toybox | implemented |
+| `pirate-cove`   | Pirate Cove   | immersive-toybox | implemented |
+| `baseball-park` | Baseball Park | immersive-toybox | implemented |
 
 ## Scene audio
 
@@ -36,13 +37,14 @@ Every minigame also declares its own `musicId` in `MiniGameManifest.ts`, auto-st
 by the shell (see `docs/ai-guidance/audio-standards.md`; enforced by
 `src/tests/audio/music-coverage.test.mjs`):
 
-| Scene ID      | Music                        | Ambient                 |
-| ------------- | ---------------------------- | ----------------------- |
-| `playroom`    | `mus_hub_background`         | `amb_hub_room_tone`     |
-| `kitchen`     | `mus_kitchen_background`     | `amb_hub_room_tone`     |
-| `living-room` | `mus_living_room_background` | `amb_hub_room_tone`     |
-| `nature`      | `mus_nature_background`      | `amb_nature_stream`     |
-| `pirate-cove` | `mus_pirate_cove_background` | `amb_pirate_cove_shore` |
+| Scene ID        | Music                          | Ambient                   |
+| --------------- | ------------------------------ | ------------------------- |
+| `playroom`      | `mus_hub_background`           | `amb_hub_room_tone`       |
+| `kitchen`       | `mus_kitchen_background`       | `amb_hub_room_tone`       |
+| `living-room`   | `mus_living_room_background`   | `amb_hub_room_tone`       |
+| `nature`        | `mus_nature_background`        | `amb_nature_stream`       |
+| `pirate-cove`   | `mus_pirate_cove_background`   | `amb_pirate_cove_shore`   |
+| `baseball-park` | `mus_baseball_park_background` | `amb_baseball_park_crowd` |
 
 ## Active room destinations
 
@@ -56,9 +58,10 @@ by the shell (see `docs/ai-guidance/audio-standards.md`; enforced by
 
 ### Kitchen toyboxes
 
-| Toybox ID        | Destination | Status |
-| ---------------- | ----------- | ------ |
-| `kitchen-nature` | `nature`    | active |
+| Toybox ID               | Destination     | Status |
+| ----------------------- | --------------- | ------ |
+| `kitchen-nature`        | `nature`        | active |
+| `kitchen-baseball-park` | `baseball-park` | active |
 
 ### Living Room toyboxes
 
@@ -85,13 +88,13 @@ The HUD back button follows each scene's catalog `backTarget` (default
 
 ## Registered minigames
 
-| Game ID             | Display name      | Launchable from | Status                    |
-| ------------------- | ----------------- | --------------- | ------------------------- |
-| `bubble-pop`        | Bubble Pop        | `nature`        | registered + discoverable |
-| `fireflies`         | Fireflies         | `nature`        | registered + discoverable |
-| `little-shark`      | Little Shark      | `pirate-cove`   | registered + discoverable |
-| `star-catcher`      | Star Catcher      | `nature`        | registered + discoverable |
-| `cannonball-splash` | Cannonball Splash | `pirate-cove`   | registered + discoverable |
+| Game ID             | Display name      | Launchable from           | Status                    |
+| ------------------- | ----------------- | ------------------------- | ------------------------- |
+| `bubble-pop`        | Bubble Pop        | `nature`, `baseball-park` | registered + discoverable |
+| `fireflies`         | Fireflies         | `nature`                  | registered + discoverable |
+| `little-shark`      | Little Shark      | `pirate-cove`             | registered + discoverable |
+| `star-catcher`      | Star Catcher      | `nature`                  | registered + discoverable |
+| `cannonball-splash` | Cannonball Splash | `pirate-cove`             | registered + discoverable |
 
 ## Discoverable minigames
 
@@ -107,6 +110,10 @@ These are the minigames currently surfaced through in-scene portals:
 
 - `cannonball-splash`
 - `little-shark`
+
+### Baseball Park
+
+- `bubble-pop`
 
 Little Shark moved from Nature to Pirate Cove on 2026-08-02. Nature was carrying
 four portals with a closest pair 1.80 units apart — touching rims — and two of

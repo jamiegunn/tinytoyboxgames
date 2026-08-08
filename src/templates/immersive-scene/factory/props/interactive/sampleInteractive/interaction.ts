@@ -12,7 +12,8 @@ import { triggerSound } from '@app/assets/audio/sceneBridge';
 import type { WorldTapDispatcher } from '@app/utils/worldTapDispatcher';
 import { createTapInteraction } from '@app/utils/tapInteraction';
 import { playAnimation } from '@app/utils/animationHelpers';
-import { createBurstEffect, POLLEN_BURST } from '@app/utils/particleFactory';
+import { getParticleEngine } from '@app/utils/particles/registry';
+import { PARTICLES } from '@app/utils/particles/presets';
 import type { SampleInteractiveCreateResult } from './create';
 import { ANIMATION_FPS, BLOOM_EXPANDED_SCALE, TAP_SPIN_DELTA } from './constants';
 
@@ -37,7 +38,12 @@ export function setupSampleInteractiveTap(
   sampleInteractive: SampleInteractiveCreateResult,
 ): (() => void) | undefined {
   return createTapInteraction(dispatcher, sampleInteractive.tapTarget, () => {
-    triggerSound('sfx_shared_tap_fallback');
+    // NOT the miss cue: `sfx_shared_tap_fallback` is what a tap that found
+    // NOTHING plays, and `tap-answer-vocabulary.contract.test.mjs` fails any
+    // successful tap that answers with it. A generated scene must replace this
+    // with its own registered cue before shipping — and must also update the
+    // pinned call-site counts in that contract test.
+    triggerSound('sfx_shared_pop');
 
     const currentBloomScale = sampleInteractive.bloom.scale.clone();
     const expandedScale = currentBloomScale.clone().multiplyScalar(BLOOM_EXPANDED_SCALE);
@@ -66,6 +72,6 @@ export function setupSampleInteractiveTap(
       { fps: ANIMATION_FPS },
     );
 
-    createBurstEffect(scene, sampleInteractive.tapTarget.getWorldPosition(new Vector3()), POLLEN_BURST);
+    getParticleEngine(scene).emit(PARTICLES.sceneSparkle, sampleInteractive.tapTarget.getWorldPosition(new Vector3()));
   });
 }

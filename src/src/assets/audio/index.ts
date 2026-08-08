@@ -63,6 +63,9 @@ import {
 // Pirate Cove
 import { playMusPirateCoveBackground, playAmbPirateCoveShore, playSfxPirateCoveWheelCreak } from './pirateCove';
 
+// Baseball Park
+import { playMusBaseballParkBackground, playAmbBaseballParkCrowd, playSfxBaseballTeePop, playSfxBaseballBallBounce } from './baseballPark';
+
 // Little Shark
 import {
   playSfxSharkCoralBonk,
@@ -122,6 +125,9 @@ export const SFX_REGISTRY: Record<string, SfxFn> = {
   sfx_hub_train_chugga: playSfxHubTrainChugga,
   // Pirate Cove
   sfx_pirate_cove_wheel_creak: playSfxPirateCoveWheelCreak,
+  // Baseball Park
+  sfx_baseball_tee_pop: playSfxBaseballTeePop,
+  sfx_baseball_ball_bounce: playSfxBaseballBallBounce,
   // Nature
   sfx_nature_mushroom_bounce: playSfxNatureMushroomBounce,
   sfx_nature_leaf_flip: playSfxNatureLeafFlip,
@@ -165,6 +171,7 @@ export const MUSIC_REGISTRY: Record<string, LoopFn> = {
   mus_living_room_background: playMusLivingRoomBackground,
   mus_nature_background: playMusNatureBackground,
   mus_pirate_cove_background: playMusPirateCoveBackground,
+  mus_baseball_park_background: playMusBaseballParkBackground,
   // Minigames
   mus_bubble_pop_background: playMusBubblePopBackground,
   mus_fireflies_background: playMusFirefliesBackground,
@@ -182,6 +189,7 @@ export const AMBIENT_REGISTRY: Record<string, LoopFn> = {
   amb_nature_stream: playAmbNatureStream,
   amb_bubble_pop_night_sky: playAmbBubblePopNightSky,
   amb_pirate_cove_shore: playAmbPirateCoveShore,
+  amb_baseball_park_crowd: playAmbBaseballParkCrowd,
 };
 
 /**

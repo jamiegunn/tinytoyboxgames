@@ -216,6 +216,29 @@ export const TOYBOX_Y = 0.01;
 export const TOYBOX_Z = -2.175;
 export const TOYBOX_ROTATION_Y = Math.PI + Math.PI / 6;
 
+/**
+ * Baseball Park toybox slot — the white-and-red chest deep by the left cabinets.
+ *
+ * RECOVERED, NOT RE-DERIVED. These three values were lost when a transfer
+ * archive was extracted over this file, and they are restored here from the
+ * esbuild bundles the test harness leaves in `.tstest-tmp/`, which still held
+ * the compiled constants. So the NUMBERS are the originals; the prose that was
+ * around them is not, and this docblock is a replacement rather than the
+ * original note. If the original reasoning matters, it is worth re-reading the
+ * placement against `.probe/toybox-inboard-sweep.mjs` before trusting this
+ * paragraph over the geometry.
+ *
+ * What the recovered numbers say about the placement: x 3.5 puts the chest to
+ * the right of the cabinet run's centre (CABINET_RUN_X 1.5, width 4.1, so the
+ * run spans -0.55 to 3.55) and clear of the fridge at 4.35; z 4.6 stands it well
+ * forward of the counter at 7.46, in the deep half of the room rather than
+ * against the back wall. The rotation turns it an eighth of a turn off square so
+ * it faces the camera's side of the room rather than presenting a flat face.
+ */
+export const BASEBALL_TOYBOX_X = 3.5;
+export const BASEBALL_TOYBOX_Z = 4.6;
+export const BASEBALL_TOYBOX_ROTATION_Y = Math.PI - Math.PI / 8;
+
 /** Z position of the doorway back to the Living Room on the left wall. */
 export const LIVING_ROOM_DOOR_Z = 2.94;
 

@@ -7,14 +7,30 @@
  * registered sounds, but never closes the hardware context. `.close()` appeared
  * nowhere in `src/`. The context therefore stayed alive, running, forever.
  *
- * WHY THAT IS REACHABLE AND NOT THEORETICAL. `App.tsx` mounts `AudioProvider`
- * only in the `view === 'app'` branch, and `view` is derived from the URL hash
- * with `hashchange`/`popstate` listeners. So the browser BACK BUTTON — hash
- * `#/nature` → `#` → `view = 'landing'` — unmounts the provider, and pressing
- * Play remounts it and builds another context. Every Play→Back cycle leaks one.
- * Chrome caps a document at six: the seventh `new AudioContext()` throws
- * "The number of hardware contexts provided (6) is greater than or equal to the
- * maximum bound (6)".
+ * WHY THAT WAS REACHABLE AND NOT THEORETICAL. `App.tsx` USED TO mount
+ * `AudioProvider` only in the `view === 'app'` branch, and `view` is derived from
+ * the URL hash with `hashchange`/`popstate` listeners. So the browser BACK BUTTON
+ * — hash `#/nature` → `#` → `view = 'landing'` — unmounted the provider, and
+ * pressing Play remounted it and built another context. Every Play→Back cycle
+ * leaked one. Chrome caps a document at six: the seventh `new AudioContext()`
+ * throws "The number of hardware contexts provided (6) is greater than or equal
+ * to the maximum bound (6)".
+ *
+ * THAT MOUNTING SHAPE IS GONE, AND IT WAS REMOVED FOR AN UNRELATED REASON — which
+ * is why the close still matters and why the last test in this file now guards
+ * the new shape too. The provider was hoisted above all three views because a
+ * browser will not start audio until the user has touched the page, and the one
+ * touch that mattered — "Open the Toybox" — landed on the landing page, outside
+ * the provider, so no unlock listener existed to receive it. Children arrived in
+ * a silent room. Measured on an iPhone 13 viewport before the hoist: eight
+ * seconds in a room after tapping through gave zero oscillators; one further tap
+ * gave 156. See `.probe/render/audio-unlock.mjs`.
+ *
+ * So the leak this file is named for is now structurally out of reach rather than
+ * merely repaired — the provider mounts once per visit. The close stays, and is
+ * still asserted below, because "the constructor closes" is the rule; a provider
+ * that only ever unmounts at page teardown is not a reason to stop honouring it,
+ * and nothing stops a future router from remounting this thing again.
  *
  * AND THE FAILURE IS SILENT, WHICH IS THE WORST PART. That throw lands in the
  * bare `catch {}` in `tryUnlock` ("Audio not available — app remains playable").
@@ -238,6 +254,36 @@ test('a StrictMode double-invoke gets a fresh context, not the closed one', asyn
   assert.equal(created[before].state, 'closed', 'the first pass left its context open');
   assert.equal(created[before + 1].state, 'running', 'the second pass is stuck on a dead context — audio would never return');
   app.unmount();
+});
+
+test('every top-level view is inside AudioProvider, so the first touch of the visit can unlock audio', () => {
+  // WHY THIS IS PARSED AND NOT RENDERED. Everything else in this file drives the
+  // real component through the fake React, which is always the better instrument.
+  // It cannot reach this one: the fake `useState` returns its initial value and
+  // ignores the setter, so `App` can only ever be observed in ONE view, and the
+  // property here is about the relationship between all three. Rendering App
+  // three times would need a real hash router and a real DOM.
+  //
+  // What saves this from being a regex about a layout is that the property is
+  // structural and small: `AudioProvider` must open before the first view branch
+  // and close after the last. A file that satisfies that cannot put a view
+  // outside the provider, which is the whole defect.
+  const source = readFileSync(path.join(packageRoot, 'src/App.tsx'), 'utf8');
+  const body = source.slice(source.indexOf('export function App()'));
+
+  const open = body.indexOf('<AudioProvider>');
+  const close = body.indexOf('</AudioProvider>');
+  assert.ok(open !== -1 && close > open, 'App no longer renders an <AudioProvider> — the first gesture of a visit has nothing listening for it');
+
+  for (const view of ['<LandingPage', '<NotFoundPage', '<SceneFrame']) {
+    const at = body.indexOf(view);
+    assert.ok(at !== -1, `App no longer renders ${view}> — this guard is stale, not passing`);
+    assert.ok(
+      at > open && at < close,
+      `${view}> is rendered OUTSIDE <AudioProvider>. A tap on that view cannot unlock audio, so a child who reaches a room ` +
+        `through it arrives to silence — which is exactly what shipped when the landing page sat outside the provider.`,
+    );
+  }
 });
 
 test('AudioProvider is still the only place that constructs an AudioContext', () => {

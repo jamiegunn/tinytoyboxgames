@@ -32,6 +32,29 @@ function resolveView(): AppView {
  * Shows the marketing landing page when the URL has no hash,
  * the 3D Three.js app for valid routes, or a 404 page for invalid ones.
  *
+ * WHY `AudioProvider` WRAPS ALL THREE VIEWS AND NOT JUST THE 3D ONE. A browser
+ * will not start audio until the user has touched the page, so the provider arms
+ * a `pointerdown` listener and builds its `AudioContext` on the first gesture it
+ * sees. While it was mounted only on the scene branch, the ONE gesture that
+ * matters — the tap on "Open the Toybox" — happened on the landing page, where no
+ * listener existed yet. The child arrived in a room with the audio still locked
+ * and the room stayed silent until they happened to touch the screen again.
+ *
+ * MEASURED (`.probe/render/audio-unlock.mjs`, iPhone 13 viewport, touch
+ * emulation, no autoplay override): landing -> tap the call to action -> wait
+ * eight seconds gave `AudioContext` count 0 and **0 oscillators**. One tap
+ * anywhere inside the room produced a running context and **156 oscillators** in
+ * the same instant. The audio system was never broken; it was never given a
+ * gesture. Serving the app at the site root made this universal — before that,
+ * anyone deep-linking to a scene skipped the landing page and got sound.
+ *
+ * THE LEAK THIS DOES NOT REINTRODUCE. `AudioProvider`'s teardown closes its
+ * context, and its comment explains why: mounted per-route, every Play -> Back
+ * cycle built another one, and Chrome caps a document at six. Hoisting it here
+ * removes that cycle rather than papering over it — the provider now mounts once
+ * for the session and its close runs when the page goes away. One context, built
+ * on the first touch of the visit, whichever view the visitor is on.
+ *
  * @returns The landing page, 404 page, or the full 3D component tree.
  */
 export function App() {
@@ -49,34 +72,24 @@ export function App() {
     };
   }, []);
 
-  if (view === 'landing') {
-    return (
-      <ErrorBoundary>
-        <LandingPage />
-      </ErrorBoundary>
-    );
-  }
-
-  if (view === 'notfound') {
-    return (
-      <ErrorBoundary>
-        <NotFoundPage />
-      </ErrorBoundary>
-    );
-  }
-
   return (
     <ErrorBoundary>
-      <ResponsiveProvider>
-        <AudioProvider>
-          <SceneRouter>
-            <SceneFrame>
-              <UIOverlay />
-              <MiniGameOverlay />
-            </SceneFrame>
-          </SceneRouter>
-        </AudioProvider>
-      </ResponsiveProvider>
+      <AudioProvider>
+        {view === 'landing' ? (
+          <LandingPage />
+        ) : view === 'notfound' ? (
+          <NotFoundPage />
+        ) : (
+          <ResponsiveProvider>
+            <SceneRouter>
+              <SceneFrame>
+                <UIOverlay />
+                <MiniGameOverlay />
+              </SceneFrame>
+            </SceneRouter>
+          </ResponsiveProvider>
+        )}
+      </AudioProvider>
     </ErrorBoundary>
   );
 }

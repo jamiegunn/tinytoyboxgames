@@ -139,9 +139,12 @@ const MIGRATIONS = [
     // sceneHelpers holds the legacy collector and builds it out of the scope.
     delegation: { from: 'utils/sceneHelpers.ts', symbol: 'createDisposalScope', to: 'utils/disposal.ts' },
     oldApi: 'createDisposeCollector',
-    // All 5 scenes still say `createDisposeCollector`, and all 5 therefore get
+    // All 6 scenes still say `createDisposeCollector`, and all 6 therefore get
     // LIFO, idempotent, exception-isolated teardown. The debt is the name.
-    oldApiCallers: 5,
+    // 5 -> 6 on 2026-08-06: the Baseball Park's `index.ts`, generated from the
+    // immersive template, inherits the same collector the other five scenes use
+    // — the debt widened by one scene, it did not change in kind.
+    oldApiCallers: 6,
   },
   {
     id: 'interaction',
@@ -161,9 +164,15 @@ const MIGRATIONS = [
     // the new engine and the only debt is the name. All 15 siblings in the same
     // decor families say `createTapInteraction`; two files saying something else
     // would not finish the migration, it would start a third convention inside one
-    // room — which is the exact failure the entry above describes. The debt is
-    // real and it is now 17 files wide instead of 15.
-    oldApiCallers: 17,
+    // room — which is the exact failure the entry above describes.
+    //
+    // 17 -> 19 on 2026-08-06: the Baseball Park's two interactive props
+    // (battingTee, looseBalls) each register their tap through
+    // `createTapInteraction`, exactly as every other scene's props do. Same
+    // reasoning as the Kitchen pieces above: the debt is the name, and a new
+    // scene using the shared inverted API widens it by two rather than starting
+    // a rival convention.
+    oldApiCallers: 19,
   },
   {
     id: 'camera',
@@ -187,16 +196,20 @@ const MIGRATIONS = [
     seam: 'utils/scene/buildScene.ts — descriptor-driven scene composition',
     supersedes: 'nothing, yet — it is the proposal, not the replacement',
     // Zero importers, live or dead, after this round removed the barrels that
-    // used to point at it. The five scenes compose through two imperative roots
-    // instead: createWorldScene (naturescene, pirate-cove) and createRoomScene
-    // (kitchen, living-room, playroom).
+    // used to point at it. The six scenes compose through two imperative roots
+    // instead: createWorldScene (naturescene, pirate-cove, baseball-park) and
+    // createRoomScene (kitchen, living-room, playroom).
     importers: 0,
     delegation: null,
-    // 2 world scenes here; createRoomScene carries the other 3. Both counts
+    // 3 world scenes here; createRoomScene carries the other 3. Both counts
     // matter and only one fits this field, so the second is asserted in its
-    // own test below rather than left to a comment nothing checks.
+    // own test below rather than left to a comment nothing checks. 2 -> 3 on
+    // 2026-08-06: baseball-park was generated from the immersive template,
+    // which composes through createWorldScene by design — the register's
+    // point stands (buildScene is still the proposal nothing uses), the
+    // denominator just grew.
     oldApi: 'createWorldScene',
-    oldApiCallers: 2,
+    oldApiCallers: 3,
   },
   {
     id: 'scene-lifecycle',
@@ -205,8 +218,8 @@ const MIGRATIONS = [
     supersedes: 'per-scene clock and disposal wiring',
     // Not measurable as an import edge: this one is an ARITY. SceneFrame calls
     // module.createScene(scene, canvas, nav, { clock, disposal }) on every
-    // scene load, and all five createScene functions take three parameters, so
-    // the fourth argument is constructed and discarded five times. It type
+    // scene load, and all six createScene functions take three parameters, so
+    // the fourth argument is constructed and discarded six times. It type
     // checks because sceneCatalog types its loaders () => Promise<unknown>,
     // SceneFrame casts, and the parameter is declared optional with the comment
     // "scenes that ignore it keep working". Six green instruments cannot see
@@ -294,12 +307,12 @@ test('every inverted migration still delegates to the engine it claims to use', 
   );
 });
 
-test('the five scenes are still composed by exactly the two imperative roots, and no third', () => {
+test('the six scenes are still composed by exactly the two imperative roots, and no third', () => {
   const world = callersOf('createWorldScene');
   const room = callersOf('createRoomScene');
   const composed = new Set([...world, ...room]);
 
-  assert.equal(world.size, 2, `createWorldScene: expected 2 callers (naturescene, pirate-cove), found ${world.size}.`);
+  assert.equal(world.size, 3, `createWorldScene: expected 3 callers (naturescene, pirate-cove, baseball-park), found ${world.size}.`);
   assert.equal(room.size, 3, `createRoomScene: expected 3 callers (kitchen, living-room, playroom), found ${room.size}.`);
 
   const sceneFiles = walk(SRC)
@@ -328,8 +341,8 @@ test('the scene lifecycle argument is adopted by exactly as many scenes as the r
 
   assert.equal(
     arities.length,
-    5,
-    `Expected 5 exported createScene functions, found ${arities.length}. The register's 0-of-5 is stated against that denominator.`,
+    6,
+    `Expected 6 exported createScene functions, found ${arities.length}. The register's 0-of-6 is stated against that denominator.`,
   );
 
   const accepting = arities.filter((a) => a.params >= 4);

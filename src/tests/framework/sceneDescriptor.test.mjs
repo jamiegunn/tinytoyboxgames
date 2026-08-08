@@ -56,12 +56,13 @@ const { validateSceneDescriptor } = await loadTs('src/utils/scene/sceneDescripto
 
 // One entry, so the registry and the environments share one instance of each
 // module — the identity assertions in section 3b depend on it.
-const { SCENE_DESCRIPTORS, NATURE_ENVIRONMENT, NATURE_SKY_FOG, PIRATE_COVE_ENVIRONMENT, PIRATE_COVE_SKY_FOG } = await bundleEntry(
+const { SCENE_DESCRIPTORS, NATURE_ENVIRONMENT, NATURE_SKY_FOG, PIRATE_COVE_ENVIRONMENT, PIRATE_COVE_SKY_FOG, BASEBALL_PARK_ENVIRONMENT } = await bundleEntry(
   'scene-descriptors',
   `
   export { SCENE_DESCRIPTORS } from './src/utils/scene/sceneDescriptors';
   export { NATURE_ENVIRONMENT, NATURE_SKY_FOG } from './src/scenes/immersive-toybox-scenes/naturescene/environment';
   export { PIRATE_COVE_ENVIRONMENT, PIRATE_COVE_SKY_FOG } from './src/scenes/immersive-toybox-scenes/pirate-cove/environment';
+  export { IMMERSIVE_SCENE_ENVIRONMENT as BASEBALL_PARK_ENVIRONMENT } from './src/scenes/immersive-toybox-scenes/baseball-park/environment';
 `,
 );
 
@@ -69,6 +70,10 @@ const { SCENE_DESCRIPTORS, NATURE_ENVIRONMENT, NATURE_SKY_FOG, PIRATE_COVE_ENVIR
 const SCENE_SOURCES = {
   nature: { env: NATURE_ENVIRONMENT, skyFog: NATURE_SKY_FOG },
   'pirate-cove': { env: PIRATE_COVE_ENVIRONMENT, skyFog: PIRATE_COVE_SKY_FOG },
+  // No skyFog: the Baseball Park uses the template's flat sky panel, not a
+  // gradient skydome, so its descriptor carries no `backdrop` — and the
+  // backdrop check below is skipped for a source with no `skyFog.sky`.
+  'baseball-park': { env: BASEBALL_PARK_ENVIRONMENT, skyFog: null },
 };
 
 // ── Test fixtures (duck-typed to the validator's structural checks) ──────────

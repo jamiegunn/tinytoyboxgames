@@ -201,6 +201,12 @@ export function LandingPage() {
               <div className="landing-world-name">Pirate Cove</div>
               <div className="landing-world-desc">A pirate ship toybox world with Cannonball Splash and Little Shark</div>
             </div>
+
+            <div className="landing-world-card">
+              <span className="landing-world-emoji">&#9918;</span>
+              <div className="landing-world-name">Baseball Park</div>
+              <div className="landing-world-desc">A ballpark toybox world with a Bubble Pop mini-game portal</div>
+            </div>
           </div>
         </div>
       </section>
@@ -217,7 +223,7 @@ export function LandingPage() {
 
       {/* ── Footer ───────────────────────────────── */}
       <footer className="landing-footer">
-        Made with <span className="landing-footer-hearts">&hearts;</span> for curious kids everywhere
+        Made with <span className="landing-footer-hearts">&hearts;</span> for Luke
       </footer>
     </div>
   );

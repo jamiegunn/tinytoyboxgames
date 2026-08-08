@@ -92,7 +92,14 @@ test('every registered scene has a card in the landing page worlds grid', () => 
  * @returns {string} That card's description, or '' when it has no card.
  */
 function cardText(sceneId) {
-  const displayName = { nature: 'Nature', 'pirate-cove': 'Pirate Cove', playroom: 'Playroom', kitchen: 'Kitchen', 'living-room': 'Living Room' }[sceneId];
+  const displayName = {
+    nature: 'Nature',
+    'pirate-cove': 'Pirate Cove',
+    'baseball-park': 'Baseball Park',
+    playroom: 'Playroom',
+    kitchen: 'Kitchen',
+    'living-room': 'Living Room',
+  }[sceneId];
   const pattern = new RegExp(`landing-world-name">${displayName}</div>\\s*<div className="landing-world-desc">([^<]*)<`);
   return landingSource.match(pattern)?.[1] ?? '';
 }
@@ -104,6 +111,7 @@ test("every game a scene surfaces is named in that scene's own card", () => {
   for (const [sceneId, envPath] of [
     ['nature', ['src', 'scenes', 'immersive-toybox-scenes', 'naturescene', 'environment.ts']],
     ['pirate-cove', ['src', 'scenes', 'immersive-toybox-scenes', 'pirate-cove', 'environment.ts']],
+    ['baseball-park', ['src', 'scenes', 'immersive-toybox-scenes', 'baseball-park', 'environment.ts']],
   ]) {
     const portalIds = [...read(...envPath).matchAll(/gameId:\s*'([^']+)'/g)].map((m) => m[1]);
     assert.ok(portalIds.length > 0, `${sceneId} declares no portals — did environment.ts move?`);
@@ -137,6 +145,7 @@ test("no scene's card advertises a game that scene does not surface", () => {
   for (const [sceneId, envPath] of [
     ['nature', ['src', 'scenes', 'immersive-toybox-scenes', 'naturescene', 'environment.ts']],
     ['pirate-cove', ['src', 'scenes', 'immersive-toybox-scenes', 'pirate-cove', 'environment.ts']],
+    ['baseball-park', ['src', 'scenes', 'immersive-toybox-scenes', 'baseball-park', 'environment.ts']],
   ]) {
     const surfaced = new Set([...read(...envPath).matchAll(/gameId:\s*'([^']+)'/g)].map((m) => gameNames.get(m[1])));
     const text = cardText(sceneId);

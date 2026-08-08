@@ -282,7 +282,16 @@ const ROOMS = [
  */
 const EXPECTED_TAPPABLES = {
   playroom: ['hub_door_doorway', 'toybox_adventure_root', 'toybox_animals_root', 'toybox_creative_root'],
-  kitchen: 15,
+  // 15 -> 16 for the Kitchen's SECOND destination toybox, the white-and-red
+  // chest by the left cabinets that opens into the Baseball Park
+  // (`kitchen/toyboxes/manifest.ts`). A count moving here is normally a reason
+  // to stop and re-run `.probe/room-pose-final.mjs`, because the opening pose
+  // was solved against the old set — but this addition does not move the pose:
+  // the chest stands at x 3.5, z 4.6, deep in the room, and the Kitchen's
+  // opening frame is composed around the front floor. The guard that would have
+  // caught it if it did is `opening-turn.test.mjs`, which re-derives the whole
+  // turn schedule against the built scene and passes.
+  kitchen: 16,
   'living-room': 11,
 };
 

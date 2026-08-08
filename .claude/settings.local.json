@@ -30,7 +30,21 @@
       "Bash(brew install *)",
       "Bash(mkdir -p _site)",
       "Bash(cp -r src/dist _site/game)",
-      "Bash(node scripts/build-pages.mjs)"
+      "Bash(node scripts/build-pages.mjs)",
+      "Bash(node src/node_modules/prettier/bin/prettier.cjs --config src/.prettierrc --ignore-path src/.prettierignore --write '*.{js,cjs,mjs,md,json}' 'docs/**/*.md' 'src/**/*.{ts,tsx,js,jsx,cjs,mjs,md}' 'src/package.json' 'src/tsconfig.json')",
+      "Bash(grep -v 'ms$')",
+      "Bash(echo \"exit: $?\")",
+      "Bash(node --test \"tests/**/*.test.mjs\")",
+      "Bash(node *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(echo \"TSC:$?\")",
+      "Bash(echo \"exit $?\")",
+      "Bash(echo \"ESLINT:$?\")",
+      "Bash(echo \"PROBE:$?\")",
+      "Bash(bc)",
+      "Bash(echo \"RATCHET:$?\")",
+      "Bash(echo \"BUILD:$?\")",
+      "Bash(echo \"QUALITY:$?\")"
     ]
   },
   "enabledPlugins": {
