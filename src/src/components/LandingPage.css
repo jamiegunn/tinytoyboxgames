@@ -567,7 +567,7 @@
 
 .landing-worlds-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
   max-width: 66rem;
   margin: 0 auto;
@@ -592,6 +592,12 @@
 .landing-world-card:nth-child(2) { background: linear-gradient(160deg, #81c784, #4caf50); }
 .landing-world-card:nth-child(3) { background: linear-gradient(160deg, #ba68c8, #7b1fa2); }
 .landing-world-card:nth-child(4) { background: linear-gradient(160deg, #4dd0e1, #00897b); }
+/* Cards 5 and 6 (Pirate Cove, Baseball Park) had no gradient, so their white
+   text sat on the cream section background and washed out. Sea-blue for the
+   cove, warm ballpark-sun orange for the park — both dark enough for white
+   text, and distinct from the four above. */
+.landing-world-card:nth-child(5) { background: linear-gradient(160deg, #4a90d9, #1565c0); }
+.landing-world-card:nth-child(6) { background: linear-gradient(160deg, #ffa726, #ef6c00); }
 
 .landing-world-card::before {
   content: '';
